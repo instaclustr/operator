@@ -1,4 +1,4 @@
-module instaclustr/operator
+module github.com/instaclustr/operator
 
 go 1.18
 
