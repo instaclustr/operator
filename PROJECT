@@ -2,5 +2,5 @@ domain: instaclustr.com
 layout:
 - go.kubebuilder.io/v3
 projectName: operator
-repo: instaclustr/operator
+repo: github.com/instaclustr/operator
 version: "3"
