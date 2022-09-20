@@ -1,0 +1,20 @@
+# permissions for end users to view cassandras.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cassandra-viewer-role
+rules:
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - cassandras
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - cassandras/status
+  verbs:
+  - get

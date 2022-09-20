@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v2alpha1
+kind: Cassandra
+metadata:
+  name: cassandra-sample
+spec:
+  # TODO(user): Add fields here

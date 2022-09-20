@@ -1,6 +1,17 @@
 domain: instaclustr.com
 layout:
 - go.kubebuilder.io/v3
+multigroup: true
 projectName: operator
 repo: github.com/instaclustr/operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusters
+  kind: Cassandra
+  path: github.com/instaclustr/operator/api/v2alpha1
+  version: v2alpha1
 version: "3"
