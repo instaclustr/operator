@@ -1,0 +1,185 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: cassandras.clusters.instaclustr.com
+spec:
+  group: clusters.instaclustr.com
+  names:
+    kind: Cassandra
+    listKind: CassandraList
+    plural: cassandras
+    singular: cassandra
+  scope: Namespaced
+  versions:
+  - name: clusters
+    schema:
+      openAPIV3Schema:
+        description: Cassandra is the Schema for the cassandras API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CassandraSpec defines the desired state of Cassandra
+            properties:
+              cassandraVersion:
+                type: string
+              dataCentres:
+                items:
+                  properties:
+                    awsSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                          ebsEncryptionKey:
+                            type: string
+                        type: object
+                      type: array
+                    azureSettings:
+                      items:
+                        properties:
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
+                    clientToClusterEncryption:
+                      type: boolean
+                    cloudProvider:
+                      type: string
+                    continuousBackup:
+                      type: boolean
+                    gcpSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                        type: object
+                      type: array
+                    name:
+                      type: string
+                    network:
+                      type: string
+                    nodeSize:
+                      type: string
+                    numberOfNodes:
+                      type: integer
+                    privateIpBroadcastForDiscovery:
+                      type: boolean
+                    providerAccountName:
+                      type: string
+                    region:
+                      type: string
+                    replicationFactor:
+                      type: integer
+                    tags:
+                      items:
+                        properties:
+                          key:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - key
+                        - value
+                        type: object
+                      type: array
+                  required:
+                  - clientToClusterEncryption
+                  - cloudProvider
+                  - continuousBackup
+                  - name
+                  - nodeSize
+                  - numberOfNodes
+                  - privateIpBroadcastForDiscovery
+                  - region
+                  - replicationFactor
+                  type: object
+                type: array
+              luceneEnabled:
+                type: boolean
+              name:
+                type: string
+              passwordAndUserAuth:
+                type: boolean
+              pciComplianceMode:
+                type: boolean
+              privateNetworkCluster:
+                type: boolean
+              slaTier:
+                type: string
+              twoFactorDelete:
+                items:
+                  properties:
+                    confirmationEmail:
+                      type: string
+                    confirmationPhoneNumber:
+                      type: string
+                  required:
+                  - confirmationEmail
+                  type: object
+                type: array
+            required:
+            - cassandraVersion
+            - dataCentres
+            - luceneEnabled
+            - name
+            - passwordAndUserAuth
+            - pciComplianceMode
+            - privateNetworkCluster
+            - slaTier
+            type: object
+          status:
+            description: CassandraStatus defines the observed state of Cassandra
+            properties:
+              dataCentres:
+                items:
+                  properties:
+                    id:
+                      type: string
+                    nodes:
+                      items:
+                        properties:
+                          id:
+                            type: string
+                          nodeRoles:
+                            items:
+                              type: string
+                            type: array
+                          nodeSize:
+                            type: string
+                          privateAddress:
+                            type: string
+                          publicAddress:
+                            type: string
+                          status:
+                            type: string
+                        type: object
+                      type: array
+                    status:
+                      type: string
+                  type: object
+                type: array
+              id:
+                type: string
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
