@@ -6,6 +6,32 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - awsvpcpeerings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - awsvpcpeerings/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - awsvpcpeerings/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - clusters.instaclustr.com
   resources:
   - cassandras
