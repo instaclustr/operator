@@ -31,9 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	clustersv2alpha1 "github.com/instaclustr/operator/apis/v2alpha1/clusters"
 	"github.com/instaclustr/operator/controllers"
+	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
 	//+kubebuilder:scaffold:imports
 )
@@ -48,6 +50,7 @@ func init() {
 
 	utilruntime.Must(clustersv2alpha1.AddToScheme(scheme))
 	utilruntime.Must(clustersv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterresourcesv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -104,6 +107,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OpenSearch")
+		os.Exit(1)
+	}
+	if err = (&clusterresourcescontrollers.AWSVPCPeeringReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSVPCPeering")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
