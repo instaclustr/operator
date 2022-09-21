@@ -83,3 +83,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - postgresqls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - postgresqls/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - postgresqls/status
+  verbs:
+  - get
+  - patch
+  - update
