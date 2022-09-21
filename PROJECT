@@ -12,7 +12,16 @@ resources:
   domain: instaclustr.com
   group: clusters
   kind: Cassandra
-  path: github.com/instaclustr/operator/api/v2alpha1
+  path: github.com/instaclustr/operator/apis/clusters/v2alpha1
+  version: v2alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusters
+  kind: Kafka
+  path: github.com/instaclustr/operator/apis/clusters/v2alpha1
   version: v2alpha1
 - api:
     crdVersion: v1

@@ -15,7 +15,7 @@ spec:
     singular: cassandra
   scope: Namespaced
   versions:
-  - name: clusters
+  - name: v2alpha1
     schema:
       openAPIV3Schema:
         description: Cassandra is the Schema for the cassandras API
@@ -89,8 +89,11 @@ spec:
                       items:
                         properties:
                           key:
+                            description: Key of the tag to be added to the Data Centre.
                             type: string
                           value:
+                            description: Value of the tag to be added to the Data
+                              Centre.
                             type: string
                         required:
                         - key

@@ -1,0 +1,279 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: kafkas.clusters.instaclustr.com
+spec:
+  group: clusters.instaclustr.com
+  names:
+    kind: Kafka
+    listKind: KafkaList
+    plural: kafkas
+    singular: kafka
+  scope: Namespaced
+  versions:
+  - name: v2alpha1
+    schema:
+      openAPIV3Schema:
+        description: Kafka is the Schema for the kafkas API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KafkaSpec defines the desired state of Kafka
+            properties:
+              allowDeleteTopics:
+                type: boolean
+              autoCreateTopics:
+                type: boolean
+              clientToClusterEncryption:
+                type: boolean
+              dataCentres:
+                items:
+                  properties:
+                    awsSettings:
+                      description: AWS specific settings for the Data Centre. Cannot
+                        be provided with GCPSettings and AzureSettings.
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            description: VPC ID into which the Data Centre will be
+                              provisioned. The Data Centre's network allocation must
+                              match the IPv4 CIDR block of the specified VPC.
+                            type: string
+                          ebsEncryptionKey:
+                            description: ID of a KMS encryption key to encrypt data
+                              on nodes. KMS encryption key must be set in Cluster
+                              Resources through the Instaclustr Console before provisioning
+                              an encrypted Data Centre.
+                            type: string
+                        type: object
+                      type: array
+                    azureSettings:
+                      description: AzureSettings specific settings for the Data Centre.
+                        Cannot be provided with GCPSettings and AWSSettings.
+                      items:
+                        properties:
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
+                    cloudProvider:
+                      description: 'Enum: "AWS_VPC" "GCP" "AZURE" "AZURE_AZ" CloudProvider
+                        is name of the cloud provider service in which the Data Centre
+                        will be provisioned.'
+                      type: string
+                    gcpSettings:
+                      description: GCPSettings specific settings for the Data Centre.
+                        Cannot be provided with AWSSettings and AzureSettings.
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            description: Network name or a relative Network or Subnetwork
+                              URI e.g. projects/my-project/regions/us-central1/subnetworks/my-subnet.
+                              The Data Centre's network allocation must match the
+                              IPv4 CIDR block of the specified subnet.
+                            type: string
+                        required:
+                        - customVirtualNetworkId
+                        type: object
+                      type: array
+                    name:
+                      description: A logical Name for the data centre within a cluster.
+                        These names must be unique in the cluster.
+                      type: string
+                    network:
+                      description: The private network address block for the Data
+                        Centre specified using CIDR address notation. The Network
+                        must have a prefix length between /12 and /22 and must be
+                        part of a private address space.
+                      type: string
+                    nodeSize:
+                      description: NodeSize is a size of the nodes provisioned in
+                        the Data Centre.
+                      type: string
+                    numberOfNodes:
+                      description: Total number of Kafka brokers in the Data Centre.
+                        Must be a multiple of defaultReplicationFactor.
+                      format: int32
+                      type: integer
+                    providerAccountName:
+                      description: For customers running in their own account. Your
+                        provider account can be found on the Create Cluster page on
+                        the Instaclustr Console, or the "Provider Account" property
+                        on any existing cluster. For customers provisioning on Instaclustr's
+                        cloud provider accounts, this property may be omitted.
+                      type: string
+                    region:
+                      description: Region of the Data Centre.
+                      type: string
+                    tags:
+                      description: List of tags to apply to the Data Centre. Tags
+                        are metadata labels which allow you to identify, categorize
+                        and filter clusters. This can be useful for grouping together
+                        clusters into applications, environments, or any category
+                        that you require.
+                      items:
+                        properties:
+                          key:
+                            description: Key of the tag to be added to the Data Centre.
+                            type: string
+                          value:
+                            description: Value of the tag to be added to the Data
+                              Centre.
+                            type: string
+                        required:
+                        - key
+                        - value
+                        type: object
+                      type: array
+                  required:
+                  - cloudProvider
+                  - name
+                  - network
+                  - nodeSize
+                  - numberOfNodes
+                  - region
+                  - tags
+                  type: object
+                type: array
+              dedicatedZookeeper:
+                items:
+                  properties:
+                    zookeeperNodeCount:
+                      format: int32
+                      type: integer
+                    zookeeperNodeSize:
+                      type: string
+                  required:
+                  - zookeeperNodeCount
+                  - zookeeperNodeSize
+                  type: object
+                type: array
+              defaultNumberOfPartitions:
+                format: int32
+                type: integer
+              defaultReplicationFactor:
+                format: int32
+                type: integer
+              kafkaVersion:
+                type: string
+              name:
+                description: Name of the cluster.
+                type: string
+              pciComplianceMode:
+                type: boolean
+              privateNetworkCluster:
+                type: boolean
+              rest_proxy:
+                items:
+                  properties:
+                    integrateRestProxyWithSchemaRegistry:
+                      type: boolean
+                    schemaRegistryPassword:
+                      type: string
+                    schemaRegistryServerUrl:
+                      type: string
+                    schemaRegistryUsername:
+                      type: string
+                    useLocalSchemaRegistry:
+                      type: boolean
+                    version:
+                      type: string
+                  required:
+                  - integrateRestProxyWithSchemaRegistry
+                  - version
+                  type: object
+                type: array
+              schema_registry:
+                description: 'TODO: add comments for fields'
+                items:
+                  properties:
+                    version:
+                      type: string
+                  required:
+                  - version
+                  type: object
+                type: array
+              slaTier:
+                type: string
+              twoFactorDelete:
+                items:
+                  properties:
+                    confirmationEmail:
+                      type: string
+                    confirmationPhoneNumber:
+                      type: string
+                  required:
+                  - confirmationEmail
+                  type: object
+                type: array
+            required:
+            - allowDeleteTopics
+            - autoCreateTopics
+            - clientToClusterEncryption
+            - dataCentres
+            - defaultNumberOfPartitions
+            - defaultReplicationFactor
+            - kafkaVersion
+            - name
+            - pciComplianceMode
+            - privateNetworkCluster
+            - slaTier
+            type: object
+          status:
+            description: KafkaStatus defines the observed state of Kafka
+            properties:
+              currentClusterOperationStatus:
+                description: 'CurrentClusterOperationStatus indicates if the cluster
+                  is currently performing any restructuring operation such as being
+                  created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS"
+                  "OPERATION_FAILED"'
+                type: string
+              id:
+                type: string
+              nodes:
+                items:
+                  properties:
+                    id:
+                      type: string
+                    nodeRoles:
+                      items:
+                        type: string
+                      type: array
+                    nodeSize:
+                      type: string
+                    privateAddress:
+                      type: string
+                    publicAddress:
+                      type: string
+                    status:
+                      type: string
+                  type: object
+                type: array
+              status:
+                description: ClusterStatus shows cluster current state such as a RUNNING,
+                  PROVISIONED, FAILED, etc.
+                type: string
+            required:
+            - currentClusterOperationStatus
+            - nodes
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

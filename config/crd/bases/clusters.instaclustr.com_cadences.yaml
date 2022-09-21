@@ -46,30 +46,30 @@ spec:
                       properties:
                         archivalS3Region:
                           type: string
-                        archivalS3URI:
+                        archivalS3Uri:
                           type: string
                         awsAccessKeySecretName:
                           type: string
                         enableArchival:
                           type: boolean
-                        targetCassandraCDCID:
+                        targetCassandraCdcId:
                           type: string
-                        targetCassandraVPCType:
+                        targetCassandraVpcType:
                           type: string
-                        targetKafkaCDCID:
+                        targetKafkaCdcId:
                           type: string
-                        targetKafkaVPCType:
+                        targetKafkaVpcType:
                           type: string
-                        targetOpenSearchCDCID:
+                        targetOpenSearchCdcId:
                           type: string
-                        targetOpenSearchVPCType:
+                        targetOpenSearchVpcType:
                           type: string
                         useAdvancedVisibility:
                           type: boolean
                       required:
-                      - targetCassandraCDCID
-                      - targetOpenSearchCDCID
-                      - targetOpenSearchVPCType
+                      - targetCassandraCdcId
+                      - targetOpenSearchCdcId
+                      - targetOpenSearchVpcType
                       type: object
                     version:
                       type: string
