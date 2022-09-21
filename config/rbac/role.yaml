@@ -31,3 +31,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - opensearches
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - opensearches/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - opensearches/status
+  verbs:
+  - get
+  - patch
+  - update
