@@ -109,3 +109,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - redis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - redis/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - redis/status
+  verbs:
+  - get
+  - patch
+  - update
