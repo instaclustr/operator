@@ -15,12 +15,12 @@ type Bundle struct {
 }
 
 type DataCentre struct {
-	Name           string          `json:"name,omitempty"`
-	DataCentre     string          `json:"dataCentre"`
-	Network        string          `json:"network"`
-	Provider       ClusterProvider `json:"provider,omitempty"`
-	NodeSize       string          `json:"nodeSize,omitempty"`
-	RackAllocation RackAllocation  `json:"rackAllocation,omitempty"`
+	Name           string           `json:"name,omitempty"`
+	DataCentre     string           `json:"dataCentre"`
+	Network        string           `json:"network"`
+	Provider       *ClusterProvider `json:"provider,omitempty"`
+	NodeSize       string           `json:"nodeSize,omitempty"`
+	RackAllocation *RackAllocation  `json:"rackAllocation,omitempty"`
 }
 
 type DataCentreStatus struct {
@@ -44,19 +44,23 @@ type ClusterSpec struct {
 	SLATier               string          `json:"slaTier,omitempty"`
 	NodeSize              string          `json:"nodeSize"`
 	ClusterNetwork        string          `json:"clusterNetwork,omitempty"`
-	DataCentre            string          `json:"dataCentre,omitempty"`
-	DataCentreCustomName  string          `json:"dataCentreCustomName,omitempty"`
-	RackAllocation        RackAllocation  `json:"rackAllocation,omitempty"`
-	FirewallRules         []FirewallRule  `json:"firewallRules,omitempty"`
-	TwoFactorDelete       TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	OIDCProvider          string          `json:"oidcProvider,omitempty"`
-	BundledUseOnlyCluster bool            `json:"bundledUseOnlyCluster,omitempty"`
+
+	// DataCentre is a single data centre, for multiple leave blank and use DataCentres.
+	DataCentre            string           `json:"dataCentre,omitempty"`
+	DataCentreCustomName  string           `json:"dataCentreCustomName,omitempty"`
+	RackAllocation        *RackAllocation  `json:"rackAllocation,omitempty"`
+	FirewallRules         []*FirewallRule  `json:"firewallRules,omitempty"`
+	TwoFactorDelete       *TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	OIDCProvider          string           `json:"oidcProvider,omitempty"`
+	BundledUseOnlyCluster bool             `json:"bundledUseOnlyCluster,omitempty"`
 }
 
 type ClusterStatus struct {
-	ClusterID                  string `json:"clusterID,omitempty"`
-	ClusterStatus              string `json:"clusterStatus,omitempty"`
+	ClusterID                  string `json:"id,omitempty"`
 	ClusterCertificateDownload string `json:"clusterCertificateDownload,omitempty"`
+
+	// ClusterStatus shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
+	ClusterStatus string `json:"status,omitempty"`
 }
 
 type RackAllocation struct {

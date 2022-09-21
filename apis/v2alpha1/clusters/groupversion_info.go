@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v2alpha1 contains API Schema definitions for the clusters v2alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=clusters.instaclustr.com
+// +kubebuilder:object:generate=true
+// +groupName=clusters.instaclustr.com
 package clusters
 
 import (
