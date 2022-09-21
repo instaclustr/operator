@@ -34,6 +34,32 @@ rules:
 - apiGroups:
   - clusters.instaclustr.com
   resources:
+  - cadences
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - cadences/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - cadences/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
   - cassandras
   verbs:
   - create
