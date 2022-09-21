@@ -86,6 +86,32 @@ rules:
 - apiGroups:
   - clusters.instaclustr.com
   resources:
+  - kafkas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - kafkas/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - kafkas/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
   - opensearches
   verbs:
   - create

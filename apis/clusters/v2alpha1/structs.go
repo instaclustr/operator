@@ -1,10 +1,10 @@
-package clusters
+package v2alpha1
 
 type Node struct {
-	NodeID         string   `json:"id,omitempty"`
-	NodeSize       string   `json:"nodeSize,omitempty"`
-	NodeStatus     string   `json:"status,omitempty"`
-	NodeRole       []string `json:"nodeRoles,omitempty"`
+	ID             string   `json:"id,omitempty"`
+	Size           string   `json:"nodeSize,omitempty"`
+	Status         string   `json:"status,omitempty"`
+	Roles          []string `json:"nodeRoles,omitempty"`
 	PublicAddress  string   `json:"publicAddress,omitempty"`
 	PrivateAddress string   `json:"privateAddress,omitempty"`
 }
@@ -15,6 +15,10 @@ type TwoFactorDelete struct {
 }
 
 type Tag struct {
+
+	// Value of the tag to be added to the Data Centre.
 	Value string `json:"value"`
-	Key   string `json:"key"`
+
+	// Key of the tag to be added to the Data Centre.
+	Key string `json:"key"`
 }

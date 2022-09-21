@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package clusters
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clustersv2alpha1 "github.com/instaclustr/operator/apis/v2alpha1/clusters"
+	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
 )
 
 // CassandraReconciler reconciles a Cassandra object

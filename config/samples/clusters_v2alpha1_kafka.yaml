@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v2alpha1
+kind: Kafka
+metadata:
+  name: kafka-sample
+spec:
+  # TODO(user): Add fields here
