@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v2alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
@@ -49,6 +50,7 @@ func init() {
 	utilruntime.Must(clustersv2alpha1.AddToScheme(scheme))
 	utilruntime.Must(clustersv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterresourcesv2alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -133,6 +135,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Kafka")
+		os.Exit(1)
+	}
+	if err = (&clusterresourcescontrollers.AzureVNetPeeringReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AzureVNetPeering")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
