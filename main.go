@@ -36,6 +36,7 @@ import (
 	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -94,6 +95,18 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	username := os.Getenv("USERNAME")
+	key := os.Getenv("APIKEY")
+	serverHostname := os.Getenv("HOSTNAME")
+
+	// httpClient init. Set the сlient variable when you need httpClient
+	_ = instaclustr.NewClient(
+		username,
+		key,
+		serverHostname,
+		instaclustr.DefaultTimeout,
+	)
 
 	if err = (&clusterscontrollers.CassandraReconciler{
 		Client: mgr.GetClient(),
