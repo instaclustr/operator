@@ -1,4 +1,4 @@
-# operator
+# Instaclustr Operator
 The Instaclustr Operator allows users to deploy, scale and manage any one of
 data layer technologies deployed on the Instaclustr platform from Kubernetes.
 
@@ -13,7 +13,7 @@ Instaclustr Console and Instaclustr terraform provider.
 - Simplify Kubernetes native development workflow patterns
   (CI/CD integrations, production deployments etc).
 
-## Visual Software Architecture
+## C4 model diagrams
 
 Context diagram                                                         |  Container diagram                                       |  Component diagram
 :---------------------------------------------------------------------:|:--------------------------------------------------------:|:-------------------------:
