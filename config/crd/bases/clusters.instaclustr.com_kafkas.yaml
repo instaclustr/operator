@@ -87,8 +87,6 @@ spec:
                               The Data Centre's network allocation must match the
                               IPv4 CIDR block of the specified subnet.
                             type: string
-                        required:
-                        - customVirtualNetworkId
                         type: object
                       type: array
                     name:
@@ -147,7 +145,6 @@ spec:
                   - nodeSize
                   - numberOfNodes
                   - region
-                  - tags
                   type: object
                 type: array
               dedicatedZookeeper:
@@ -172,7 +169,6 @@ spec:
               kafkaVersion:
                 type: string
               name:
-                description: Name of the cluster.
                 type: string
               pciComplianceMode:
                 type: boolean
@@ -199,7 +195,6 @@ spec:
                   type: object
                 type: array
               schema_registry:
-                description: 'TODO: add comments for fields'
                 items:
                   properties:
                     version:
@@ -259,6 +254,8 @@ spec:
                     privateAddress:
                       type: string
                     publicAddress:
+                      type: string
+                    rack:
                       type: string
                     status:
                       type: string
