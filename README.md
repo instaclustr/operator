@@ -1,8 +1,28 @@
 # operator
-// TODO(user): Add simple overview of use/purpose
+The Instaclustr Operator allows users to deploy, scale and manage any one of
+data layer technologies deployed on the Instaclustr platform from Kubernetes.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+The Instaclustr Operator provides all the same functionality as the Instaclustr API,
+Instaclustr Console and Instaclustr terraform provider. 
+- Removes the need to write custom code integration directly with the Instaclustr API
+- Use of existing Instaclustr authentication methodologies
+- Declare Instaclustr infrastructure up front
+- Scale, modify and change Instaclustr infrastructure with
+  existing Kubernetes management tools / workflows
+- Simplify Kubernetes native development workflow patterns
+  (CI/CD integrations, production deployments etc).
+
+## Visual Software Architecture
+
+Context diagram                                                         |  Container diagram                                       |  Component diagram
+:---------------------------------------------------------------------:|:--------------------------------------------------------:|:-------------------------:
+![Context diagram](doc/diagrams/context_diagram.png "Context diagram") |  ![Container diagram](doc/diagrams/container_diagram.png) |  ![Component diagram](doc/diagrams/component_diagram.png)
+
+CRDs Relations|
+:---------------------------------------------------------------------:|
+![CRD Relations](doc/diagrams/crd_relations.png "CRD Relations")|
+
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
@@ -42,7 +62,9 @@ make undeploy
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+We welcome all contributors. Please see our public [contributing guidelines](CONTRIBUTING.md).
+
 
 ### How it works
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
