@@ -65,6 +65,15 @@ resources:
   controller: true
   domain: instaclustr.com
   group: clusterresources
+  kind: GCPVPCPeering
+  path: github.com/instaclustr/operator/apis/clusterresources/v2alpha1
+  version: v2alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
   kind: AzureVNetPeering
   path: github.com/instaclustr/operator/apis/clusterresources/v2alpha1
   version: v2alpha1
