@@ -1,6 +1,28 @@
 apiVersion: clusters.instaclustr.com/v2alpha1
 kind: Kafka
 metadata:
-  name: kafka-sample
+  name: kafka
 spec:
-  # TODO(user): Add fields here
+  pciComplianceMode: false
+  defaultReplicationFactor: 3
+  defaultNumberOfPartitions: 3
+  allowDeleteTopics: true
+  autoCreateTopics: true
+  clientToClusterEncryption: true
+  dataCentres:
+    - numberOfNodes: 3
+      network: "192.168.0.0/18"
+      tags:
+        - value: "myTagValue"
+          key: "myTagKey"
+      nodeSize: "KFK-DEV-t4g.small-5"
+      cloudProvider: "AWS_VPC"
+      name: "US_EAST_1_DC_KAFKA"
+      region: "US_EAST_1"
+  dedicatedZookeeper:
+    - zookeeperNodeSize: "KDZ-DEV-t4g.small-30"
+      zookeeperNodeCount: 3
+  privateNetworkCluster: true
+  kafkaVersion: "2.7.1"
+  name: "kafkaOperator"
+  slaTier: "NON_PRODUCTION"

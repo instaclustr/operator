@@ -70,7 +70,7 @@ type KafkaStatus struct {
 	// ClusterStatus shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
 	ClusterStatus string `json:"status,omitempty"`
 
-	Nodes []*Node `json:"nodes"`
+	Nodes []*Node `json:"nodes,omitempty"`
 
 	// CurrentClusterOperationStatus indicates if the cluster is currently performing any restructuring operation
 	// such as being created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"

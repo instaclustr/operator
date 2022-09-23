@@ -13,6 +13,7 @@ RUN go mod download
 COPY main.go main.go
 COPY apis/ apis/
 COPY controllers/ controllers/
+COPY pkg/ pkg/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
@@ -23,5 +24,10 @@ FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532
+
+# put your cred in ENV
+ENV USERNAME USERNAME
+ENV APIKEY APIKEY
+ENV HOSTNAME HOSTNAME
 
 ENTRYPOINT ["/manager"]

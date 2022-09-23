@@ -58,6 +58,7 @@ func (c *client) CreateCluster(url string, cluster any) (string, error) {
 		return "", err
 	}
 
+	url = c.serverHostname + url
 	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
 	if err != nil {
 		return "", err
