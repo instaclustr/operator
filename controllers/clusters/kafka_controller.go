@@ -23,14 +23,17 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 )
 
 // KafkaReconciler reconciles a Kafka object
 type KafkaReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	API    instaclustr.API
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete
@@ -47,11 +50,45 @@ type KafkaReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	l := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var kafkaCluster clustersv2alpha1.Kafka
+	err := r.Client.Get(ctx, req.NamespacedName, &kafkaCluster)
+	if err != nil {
+		l.Error(err, "unable to fetch Kafka Cluster")
+		return reconcile.Result{}, client.IgnoreNotFound(err)
+	}
 
-	return ctrl.Result{}, nil
+	if kafkaCluster.Status.ClusterID == "" {
+		l.Info(
+			"Kafka Cluster ID not found, creating Kafka cluster",
+			"Cluster name", kafkaCluster.Spec.Name,
+			"Data centres", kafkaCluster.Spec.KafkaDataCentre,
+		)
+
+		id, err := r.API.CreateCluster(instaclustr.KafkaEndpoint, kafkaCluster.Spec)
+		if err != nil {
+			l.Error(
+				err, "cannot create Kafka cluster",
+				"Kafka manifest", kafkaCluster.Spec,
+			)
+			return reconcile.Result{}, err
+		}
+
+		l.Info(
+			"Kafka resource has been created!",
+			"Cluster name", kafkaCluster.Spec.Name,
+			"cluster ID", id,
+		)
+
+		kafkaCluster.Status.ClusterID = id
+		err = r.Status().Update(context.Background(), &kafkaCluster)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

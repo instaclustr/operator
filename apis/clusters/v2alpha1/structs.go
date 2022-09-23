@@ -87,6 +87,7 @@ type Tag struct {
 }
 
 type ClusterSpec struct {
+	// Name of the cluster. [ 3 .. 32 ] characters
 	Name                  string             `json:"name"`
 	SLATier               string             `json:"slaTier"`
 	PrivateNetworkCluster bool               `json:"privateNetworkCluster"`

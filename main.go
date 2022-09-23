@@ -100,8 +100,7 @@ func main() {
 	key := os.Getenv("APIKEY")
 	serverHostname := os.Getenv("HOSTNAME")
 
-	// httpClient init. Set the сlient variable when you need httpClient
-	_ = instaclustr.NewClient(
+	instaClient := instaclustr.NewClient(
 		username,
 		key,
 		serverHostname,
@@ -146,6 +145,7 @@ func main() {
 	if err = (&clusterscontrollers.KafkaReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		API:    instaClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Kafka")
 		os.Exit(1)
