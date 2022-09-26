@@ -39,7 +39,6 @@ type RedisDataCentre struct {
 
 type RedisDataCentreStatus struct {
 	DataCentreStatus `json:",inline"`
-	Nodes            []Node `json:"nodes,omitempty"`
 }
 
 // RedisSpec defines the desired state of Redis

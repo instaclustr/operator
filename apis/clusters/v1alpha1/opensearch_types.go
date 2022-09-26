@@ -39,7 +39,6 @@ type OpenSearchDataCentre struct {
 
 type OpenSearchDataCentreStatus struct {
 	DataCentreStatus `json:",inline"`
-	Nodes            []Node `json:"nodes,omitempty"`
 }
 
 // OpenSearchSpec defines the desired state of OpenSearch

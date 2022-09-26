@@ -23,14 +23,17 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 )
 
 // PostgreSQLReconciler reconciles a PostgreSQL object
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	API    instaclustr.APIv1
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -45,13 +48,67 @@ type PostgreSQLReconciler struct {
 // the user.
 //
 // For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var pgCluster *clustersv1alpha1.PostgreSQL
+	err := r.Client.Get(ctx, req.NamespacedName, pgCluster)
+	if err != nil {
+		logger.Error(err, "unable to fetch PostgreSQL cluster")
+		return reconcile.Result{}, client.IgnoreNotFound(err)
+	}
 
-	return ctrl.Result{}, nil
+	if pgCluster.Status.ClusterID == "" {
+		logger.Info(
+			"PostgreSQL Cluster ID not found, creating PostgreSQL cluster",
+			"Cluster name", pgCluster.Spec.ClusterName,
+			"Data centres", pgCluster.Spec.DataCentres,
+		)
+
+		id, err := r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, pgCluster.Spec)
+		if err != nil {
+			logger.Error(
+				err, "cannot create PostgreSQL cluster",
+				"PostgreSQL manifest", pgCluster.Spec,
+			)
+			return reconcile.Result{}, err
+		}
+
+		pgCluster.Status.ClusterID = id
+
+		logger.Info(
+			"PostgreSQL resource has been created",
+			"Cluster name", pgCluster.Name,
+			"Cluster ID", id,
+			"Kind", pgCluster.Kind,
+			"Api version", pgCluster.APIVersion,
+		)
+	}
+
+	pgInstaCluster, err := r.API.GetPostgreSQLCluster(instaclustr.ClustersEndpoint, pgCluster.Status.ClusterID)
+	if err != nil {
+		logger.Error(
+			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
+			"Cluster name", pgCluster.Spec.ClusterName,
+			"Cluster ID", pgCluster.Status.ClusterID,
+		)
+		return reconcile.Result{}, err
+	}
+
+	pgCluster.Status = *pgInstaCluster
+
+	err = r.Status().Update(context.Background(), pgCluster)
+	if err != nil {
+		logger.Error(
+			err, "cannot update PostgreSQL cluster CRD",
+			"Cluster name", pgCluster.Spec.ClusterName,
+			"Cluster ID", pgCluster.Status.ClusterID,
+		)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

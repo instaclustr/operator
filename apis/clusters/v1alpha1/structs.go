@@ -34,17 +34,18 @@ type GenericDataCentre struct {
 }
 
 type DataCentreStatus struct {
-	DataCentreID string `json:"dataCentreID"`
-	DCStatus     string `json:"DCStatus,omitempty"`
-	NodeCount    int32  `json:"nodeCount,omitempty"`
+	ID        string  `json:"id"`
+	Status    string  `json:"cdcStatus"`
+	Nodes     []*Node `json:"nodes"`
+	NodeCount int32   `json:"nodeCount"`
 }
 
 type Node struct {
-	NodeID         string `json:"nodeID,omitempty"`
-	NodeSize       string `json:"nodeSize,omitempty"`
-	PublicAddress  string `json:"publicAddress,omitempty"`
-	PrivateAddress string `json:"privateAddress,omitempty"`
-	NodeStatus     string `json:"nodeStatus,omitempty"`
+	ID             string `json:"id"`
+	Rack           string `json:"rack"`
+	PublicAddress  string `json:"publicAddress"`
+	PrivateAddress string `json:"privateAddress"`
+	Status         string `json:"nodeStatus"`
 }
 
 type GenericCluster struct {
@@ -87,7 +88,7 @@ type ClusterStatus struct {
 	ClusterCertificateDownload string `json:"clusterCertificateDownload,omitempty"`
 
 	// ClusterStatus shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
-	ClusterStatus string `json:"status,omitempty"`
+	ClusterStatus string `json:"clusterStatus,omitempty"`
 }
 
 type FirewallRule struct {
