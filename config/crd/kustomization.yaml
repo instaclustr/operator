@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/clusters.instaclustr.com_cassandras.yaml
+- bases/clusters.instaclustr.com_postgresqls.yaml
 - bases/clusters.instaclustr.com_opensearches.yaml
 - bases/clusterresources.instaclustr.com_awsvpcpeerings.yaml
 - bases/clusters.instaclustr.com_redis.yaml
@@ -16,6 +17,7 @@ patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
 #- patches/webhook_in_cassandras.yaml
+#- patches/webhook_in_postgresqls.yaml
 #- patches/webhook_in_opensearches.yaml
 #- patches/webhook_in_awsvpcpeerings.yaml
 #- patches/webhook_in_redis.yaml
@@ -28,6 +30,7 @@ patchesStrategicMerge:
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
 #- patches/cainjection_in_cassandras.yaml
+#- patches/cainjection_in_postgresqls.yaml
 #- patches/cainjection_in_opensearches.yaml
 #- patches/cainjection_in_awsvpcpeerings.yaml
 #- patches/cainjection_in_redis.yaml

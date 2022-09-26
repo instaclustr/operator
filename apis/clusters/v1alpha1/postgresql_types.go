@@ -42,11 +42,11 @@ type PostgreSQLDataCentre struct {
 
 type PostgreSQLDataCentreStatus struct {
 	DataCentreStatus `json:",inline"`
-	Nodes            []*Node `json:"nodes,omitempty"`
 }
 
 // PostgreSQLSpec defines the desired state of PostgreSQL
 type PostgreSQLSpec struct {
+	ClusterSpec `json:",inline"`
 	Bundles     []*PostgreSQLBundle     `json:"bundles"`
 	DataCentres []*PostgreSQLDataCentre `json:"dataCentres,omitempty"`
 }

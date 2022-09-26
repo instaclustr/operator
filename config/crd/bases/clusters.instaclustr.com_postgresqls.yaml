@@ -35,6 +35,8 @@ spec:
           spec:
             description: PostgreSQLSpec defines the desired state of PostgreSQL
             properties:
+              bundledUseOnlyCluster:
+                type: boolean
               bundles:
                 items:
                   properties:
@@ -66,6 +68,16 @@ spec:
                   - version
                   type: object
                 type: array
+              clusterName:
+                type: string
+              clusterNetwork:
+                type: string
+              dataCentre:
+                description: DataCentre is a single data centre, for multiple leave
+                  blank and use DataCentres.
+                type: string
+              dataCentreCustomName:
+                type: string
               dataCentres:
                 items:
                   properties:
@@ -142,20 +154,93 @@ spec:
                   - region
                   type: object
                 type: array
+              firewallRules:
+                items:
+                  properties:
+                    network:
+                      type: string
+                    rules:
+                      items:
+                        properties:
+                          type:
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      type: array
+                    securityGroupId:
+                      type: string
+                  required:
+                  - rules
+                  type: object
+                type: array
+              nodeSize:
+                type: string
+              oidcProvider:
+                type: string
+              privateNetworkCluster:
+                type: boolean
+              provider:
+                properties:
+                  accountName:
+                    type: string
+                  customVirtualNetworkId:
+                    type: string
+                  diskEncryptionKey:
+                    type: string
+                  name:
+                    type: string
+                  resourceGroup:
+                    type: string
+                  tags:
+                    additionalProperties:
+                      type: string
+                    type: object
+                required:
+                - name
+                type: object
+              rackAllocation:
+                properties:
+                  nodesPerRack:
+                    format: int32
+                    type: integer
+                  numberOfRacks:
+                    format: int32
+                    type: integer
+                required:
+                - nodesPerRack
+                - numberOfRacks
+                type: object
+              slaTier:
+                type: string
+              twoFactorDelete:
+                properties:
+                  deleteVerifyEmail:
+                    type: string
+                  deleteVerifyPhone:
+                    type: string
+                type: object
             required:
             - bundles
+            - clusterName
+            - nodeSize
+            - provider
             type: object
           status:
             description: PostgreSQLStatus defines the observed state of PostgreSQL
             properties:
               clusterCertificateDownload:
                 type: string
+              clusterStatus:
+                description: ClusterStatus shows cluster current state such as a RUNNING,
+                  PROVISIONED, FAILED, etc.
+                type: string
               dataCentres:
                 items:
                   properties:
-                    DCStatus:
+                    cdcStatus:
                       type: string
-                    dataCentreID:
+                    id:
                       type: string
                     nodeCount:
                       format: int32
@@ -163,9 +248,7 @@ spec:
                     nodes:
                       items:
                         properties:
-                          nodeID:
-                            type: string
-                          nodeSize:
+                          id:
                             type: string
                           nodeStatus:
                             type: string
@@ -173,17 +256,24 @@ spec:
                             type: string
                           publicAddress:
                             type: string
+                          rack:
+                            type: string
+                        required:
+                        - id
+                        - nodeStatus
+                        - privateAddress
+                        - publicAddress
+                        - rack
                         type: object
                       type: array
                   required:
-                  - dataCentreID
+                  - cdcStatus
+                  - id
+                  - nodeCount
+                  - nodes
                   type: object
                 type: array
               id:
-                type: string
-              status:
-                description: ClusterStatus shows cluster current state such as a RUNNING,
-                  PROVISIONED, FAILED, etc.
                 type: string
             type: object
         type: object

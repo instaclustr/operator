@@ -166,25 +166,49 @@ spec:
             properties:
               clusterCertificateDownload:
                 type: string
+              clusterStatus:
+                description: ClusterStatus shows cluster current state such as a RUNNING,
+                  PROVISIONED, FAILED, etc.
+                type: string
               dataCentres:
                 items:
                   properties:
-                    DCStatus:
+                    cdcStatus:
                       type: string
-                    dataCentreID:
+                    id:
                       type: string
                     nodeCount:
                       format: int32
                       type: integer
+                    nodes:
+                      items:
+                        properties:
+                          id:
+                            type: string
+                          nodeStatus:
+                            type: string
+                          privateAddress:
+                            type: string
+                          publicAddress:
+                            type: string
+                          rack:
+                            type: string
+                        required:
+                        - id
+                        - nodeStatus
+                        - privateAddress
+                        - publicAddress
+                        - rack
+                        type: object
+                      type: array
                   required:
-                  - dataCentreID
+                  - cdcStatus
+                  - id
+                  - nodeCount
+                  - nodes
                   type: object
                 type: array
               id:
-                type: string
-              status:
-                description: ClusterStatus shows cluster current state such as a RUNNING,
-                  PROVISIONED, FAILED, etc.
                 type: string
             type: object
         type: object

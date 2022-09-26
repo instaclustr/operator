@@ -115,18 +115,19 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Cassandra")
 		os.Exit(1)
 	}
+	if err = (&clusterscontrollers.PostgreSQLReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		API:    instaClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQL")
+		os.Exit(1)
+	}
 	if err = (&clusterscontrollers.OpenSearchReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OpenSearch")
-		os.Exit(1)
-	}
-	if err = (&clusterresourcescontrollers.AWSVPCPeeringReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AWSVPCPeering")
 		os.Exit(1)
 	}
 	if err = (&clusterscontrollers.RedisReconciler{
@@ -149,6 +150,13 @@ func main() {
 		API:    instaClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Kafka")
+		os.Exit(1)
+	}
+	if err = (&clusterresourcescontrollers.AWSVPCPeeringReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSVPCPeering")
 		os.Exit(1)
 	}
 	if err = (&clusterresourcescontrollers.AzureVNetPeeringReconciler{
