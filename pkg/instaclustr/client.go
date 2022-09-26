@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
 )
 
-type client struct {
+type Client struct {
 	username       string
 	key            string
 	serverHostname string
@@ -21,12 +23,12 @@ func NewClient(
 	key string,
 	serverHostname string,
 	timeout time.Duration,
-) *client {
+) *Client {
 	httpClient := &http.Client{
 		Timeout:   timeout,
 		Transport: &http.Transport{},
 	}
-	return &client{
+	return &Client{
 		username:       username,
 		key:            key,
 		serverHostname: serverHostname,
@@ -34,7 +36,7 @@ func NewClient(
 	}
 }
 
-func (c *client) DoRequest(url string, method string, data []byte) (*http.Response, error) {
+func (c *Client) DoRequest(url string, method string, data []byte) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
@@ -51,7 +53,7 @@ func (c *client) DoRequest(url string, method string, data []byte) (*http.Respon
 	return resp, nil
 }
 
-func (c *client) CreateCluster(url string, cluster any) (string, error) {
+func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 
 	jsonDataCreate, err := json.Marshal(cluster)
 	if err != nil {
@@ -84,4 +86,31 @@ func (c *client) CreateCluster(url string, cluster any) (string, error) {
 	}
 
 	return creationResponse.ID, nil
+}
+
+func (c *Client) GetCassandraClusterStatus(id string) (*clustersv2alpha1.CassandraStatus, error) {
+
+	url := c.serverHostname + CassandraEndpoint + id
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var clusterStatus *clustersv2alpha1.CassandraStatus
+	err = json.Unmarshal(body, &clusterStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterStatus, nil
 }
