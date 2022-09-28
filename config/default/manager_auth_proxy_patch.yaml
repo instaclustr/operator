@@ -33,6 +33,22 @@ spec:
             cpu: 5m
             memory: 64Mi
       - name: manager
+        env:
+          - name: USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: creds-secret
+                key: USERNAME
+          - name: APIKEY
+            valueFrom:
+              secretKeyRef:
+                name: creds-secret
+                key: APIKEY
+          - name: HOSTNAME
+            valueFrom:
+              secretKeyRef:
+                name: creds-secret
+                key: HOSTNAME
         args:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"
