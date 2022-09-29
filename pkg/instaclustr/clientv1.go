@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 )
 
-func (c *Client) GetPostgreSQLCluster(url, id string) (*clustersv1alpha1.PostgreSQLStatus, error) {
+func (c *Client) GetPostgreSQLClusterAPIv1(url, id string) (*PostgreSQLStatusAPIv1, error) {
 	url = c.serverHostname + url + id
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -26,7 +24,7 @@ func (c *Client) GetPostgreSQLCluster(url, id string) (*clustersv1alpha1.Postgre
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var clusterStatus *clustersv1alpha1.PostgreSQLStatus
+	var clusterStatus *PostgreSQLStatusAPIv1
 	err = json.Unmarshal(body, clusterStatus)
 	if err != nil {
 		return nil, err

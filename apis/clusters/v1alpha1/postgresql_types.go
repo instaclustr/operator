@@ -20,12 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type PostgreSQLBundle struct {
-	Bundle  `json:",inline"`
-	Options *PostgreSQLBundleOptions `json:"options"`
-}
-
-type PostgreSQLBundleOptions struct {
+type PostgreSQLDataCentre struct {
+	DataCentre `json:",inline"`
 	// PostgreSQL
 	ClientEncryption      bool   `json:"clientEncryption,omitempty"`
 	PostgresqlNodeCount   int32  `json:"postgresqlNodeCount"`
@@ -35,11 +31,6 @@ type PostgreSQLBundleOptions struct {
 	PoolMode string `json:"poolMode,omitempty"`
 }
 
-type PostgreSQLDataCentre struct {
-	GenericDataCentre `json:",inline"`
-	Bundles           []*PostgreSQLBundle `json:"bundles"`
-}
-
 type PostgreSQLDataCentreStatus struct {
 	DataCentreStatus `json:",inline"`
 }
@@ -47,7 +38,8 @@ type PostgreSQLDataCentreStatus struct {
 // PostgreSQLSpec defines the desired state of PostgreSQL
 type PostgreSQLSpec struct {
 	ClusterSpec `json:",inline"`
-	Bundles     []*PostgreSQLBundle     `json:"bundles"`
+	PostgreSQLVersion string `json:"postgreSQLVersion"`
+	PGBouncerVersion string `json:"pgBouncerVersion,omitempty"`
 	DataCentres []*PostgreSQLDataCentre `json:"dataCentres,omitempty"`
 }
 
