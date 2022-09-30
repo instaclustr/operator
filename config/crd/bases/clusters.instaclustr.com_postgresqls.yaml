@@ -100,14 +100,18 @@ spec:
                         - version
                         type: object
                       type: array
-                    dataCentre:
-                      type: string
                     name:
+                      description: When use one data centre name of field is dataCentreCustomName
+                        for APIv1
                       type: string
                     network:
                       type: string
                     nodeSize:
                       type: string
+                    nodesNumber:
+                      description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
+                      format: int32
+                      type: integer
                     provider:
                       properties:
                         accountName:
@@ -120,29 +124,22 @@ spec:
                           type: string
                         resourceGroup:
                           type: string
-                        tags:
-                          additionalProperties:
-                            type: string
-                          type: object
                       required:
                       - name
                       type: object
-                    rackAllocation:
-                      properties:
-                        nodesPerRack:
-                          format: int32
-                          type: integer
-                        numberOfRacks:
-                          format: int32
-                          type: integer
-                      required:
-                      - nodesPerRack
-                      - numberOfRacks
-                      type: object
+                    racksNumber:
+                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
+                      format: int32
+                      type: integer
+                    region:
+                      description: 'Region. APIv1 : "dataCentre"'
+                      type: string
                   required:
                   - bundles
-                  - dataCentre
                   - network
+                  - nodesNumber
+                  - racksNumber
+                  - region
                   type: object
                 type: array
             required:

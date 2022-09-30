@@ -40,8 +40,8 @@ type CadenceBundleOptions struct {
 }
 
 type CadenceDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []*CadenceBundle `json:"bundles,omitempty"`
+	GenericDataCentre `json:",inline"`
+	Bundles           []*CadenceBundle `json:"bundles,omitempty"`
 }
 
 type CadenceDataCentreStatus struct {
@@ -51,7 +51,7 @@ type CadenceDataCentreStatus struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	ClusterSpec      `json:",inline"`
+	GenericCluster   `json:",inline"`
 	Bundles          []*CadenceBundle `json:"bundles"`
 	PackagedSolution bool             `json:"packaged_solution,omitempty"`
 }
