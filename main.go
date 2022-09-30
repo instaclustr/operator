@@ -33,7 +33,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v2alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -48,7 +47,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(clustersv2alpha1.AddToScheme(scheme))
 	utilruntime.Must(clustersv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv2alpha1.AddToScheme(scheme))

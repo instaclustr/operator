@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,34 +27,33 @@ type Spark struct {
 	Version string `json:"version"`
 }
 
-type CassandraDataCentre struct {
-	DataCentre                     `json:",inline"`
-	ContinuousBackup               bool `json:"continuousBackup"`
-	ReplicationFactor              int  `json:"replicationFactor"`
-	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
-}
-
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	ClusterSpec         `json:",inline"`
-	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
-	CassandraVersion    string                 `json:"cassandraVersion"`
-	LuceneEnabled       bool                   `json:"luceneEnabled"`
-	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth"`
-}
-
-type CassandraDCStatus struct {
-	ID             string  `json:"id,omitempty"`
-	Status         string  `json:"status,omitempty"`
-	CassandraNodes []*Node `json:"nodes,omitempty"`
+	CassandraCluster `json:",inline"`
+	DataCentres      []*CassandraDataCentre `json:"dataCentres"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	ClusterID         string               `json:"id,omitempty"`
-	ClusterStatus     string               `json:"status,omitempty"`
-	CassandraDCStatus []*CassandraDCStatus `json:"dataCentres,omitempty"`
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+	ClusterStatus   `json:",inline"`
+	OperationStatus string `json:"operationStatus,omitempty"`
+}
+
+type CassandraCluster struct {
+	Cluster             `json:",inline"`
+	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
+	LuceneEnabled       bool                   `json:"luceneEnabled"`
+	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth"`
+	Spark               []*Spark               `json:"spark,omitempty"`
+}
+
+type CassandraDataCentre struct {
+	DataCentre                     `json:",inline"`
+	ContinuousBackup               bool `json:"continuousBackup"`
+	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
+	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
 }
 
 //+kubebuilder:object:root=true

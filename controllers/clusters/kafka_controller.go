@@ -62,7 +62,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if kafkaCluster.Status.ClusterID == "" {
 		l.Info(
 			"Kafka Cluster ID not found, creating Kafka cluster",
-			"Cluster name", kafkaCluster.Spec.ClusterName,
+			"Cluster name", kafkaCluster.Spec.Name,
 			"Data centres", kafkaCluster.Spec.DataCentres,
 		)
 
@@ -77,7 +77,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 		l.Info(
 			"Kafka resource has been created!",
-			"Cluster name", kafkaCluster.Spec.ClusterName,
+			"Cluster name", kafkaCluster.Spec.Name,
 			"cluster ID", id,
 		)
 
