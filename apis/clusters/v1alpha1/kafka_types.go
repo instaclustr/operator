@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,23 +41,27 @@ type DedicatedZookeeper struct {
 	ZookeeperNodeCount int32  `json:"zookeeperNodeCount"`
 }
 
+type PrivateLink struct {
+	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
+}
+
 // KafkaSpec defines the desired state of Kafka
 type KafkaSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// TODO: add comments for fields
-	ClusterSpec               `json:",inline"`
-	SchemaRegistry            []*SchemaRegistry     `json:"schema_registry,omitempty"`
-	DefaultReplicationFactor  int32                 `json:"defaultReplicationFactor"`
-	DefaultNumberOfPartitions int32                 `json:"defaultNumberOfPartitions"`
-	RestProxy                 []*RestProxy          `json:"rest_proxy,omitempty"`
+	GenericCluster            `json:",inline"`
+	SchemaRegistry            []*SchemaRegistry     `json:"schemaRegistry,omitempty"`
+	ReplicationFactorNumber   int32                 `json:"replicationFactorNumber"`
+	PartitionsNumber          int32                 `json:"partitionsNumber"`
+	PrivateLink               *PrivateLink          `json:"privateLink,omitempty"`
+	RestProxy                 []*RestProxy          `json:"restProxy,omitempty"`
 	AllowDeleteTopics         bool                  `json:"allowDeleteTopics"`
 	AutoCreateTopics          bool                  `json:"autoCreateTopics"`
 	ClientToClusterEncryption bool                  `json:"clientToClusterEncryption"`
-	KafkaDataCentre           []*DataCentre         `json:"dataCentres"`
+	DataCentres               []*GenericDataCentre  `json:"dataCentres"`
 	DedicatedZookeeper        []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
-	KafkaVersion              string                `json:"kafkaVersion"`
 }
 
 // KafkaStatus defines the observed state of Kafka

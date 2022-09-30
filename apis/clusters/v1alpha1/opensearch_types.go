@@ -33,8 +33,8 @@ type OpenSearchBundleOptions struct {
 }
 
 type OpenSearchDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []OpenSearchBundle `json:"bundles,omitempty"`
+	GenericDataCentre `json:",inline"`
+	Bundles           []OpenSearchBundle `json:"bundles,omitempty"`
 }
 
 type OpenSearchDataCentreStatus struct {
@@ -44,9 +44,9 @@ type OpenSearchDataCentreStatus struct {
 
 // OpenSearchSpec defines the desired state of OpenSearch
 type OpenSearchSpec struct {
-	ClusterSpec `json:",inline"`
-	Bundles     []OpenSearchBundle     `json:"bundles"`
-	DataCentres []OpenSearchDataCentre `json:"dataCentres,omitempty"`
+	GenericCluster `json:",inline"`
+	Bundles        []OpenSearchBundle     `json:"bundles"`
+	DataCentres    []OpenSearchDataCentre `json:"dataCentres,omitempty"`
 }
 
 // OpenSearchStatus defines the observed state of OpenSearch

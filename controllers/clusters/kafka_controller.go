@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
+	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 )
 
@@ -52,7 +52,7 @@ type KafkaReconciler struct {
 func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var kafkaCluster clustersv2alpha1.Kafka
+	var kafkaCluster clustersv1alpha1.Kafka
 	err := r.Client.Get(ctx, req.NamespacedName, &kafkaCluster)
 	if err != nil {
 		l.Error(err, "unable to fetch Kafka Cluster")
@@ -62,8 +62,8 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if kafkaCluster.Status.ClusterID == "" {
 		l.Info(
 			"Kafka Cluster ID not found, creating Kafka cluster",
-			"Cluster name", kafkaCluster.Spec.Name,
-			"Data centres", kafkaCluster.Spec.KafkaDataCentre,
+			"Cluster name", kafkaCluster.Spec.ClusterName,
+			"Data centres", kafkaCluster.Spec.DataCentres,
 		)
 
 		id, err := r.API.CreateCluster(instaclustr.KafkaEndpoint, kafkaCluster.Spec)
@@ -77,7 +77,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 		l.Info(
 			"Kafka resource has been created!",
-			"Cluster name", kafkaCluster.Spec.Name,
+			"Cluster name", kafkaCluster.Spec.ClusterName,
 			"cluster ID", id,
 		)
 
@@ -94,6 +94,6 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv2alpha1.Kafka{}).
+		For(&clustersv1alpha1.Kafka{}).
 		Complete(r)
 }

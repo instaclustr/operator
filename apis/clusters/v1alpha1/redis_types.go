@@ -33,8 +33,8 @@ type RedisBundleOptions struct {
 }
 
 type RedisDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []RedisBundle `json:"bundles,omitempty"`
+	GenericDataCentre `json:",inline"`
+	Bundles           []RedisBundle `json:"bundles,omitempty"`
 }
 
 type RedisDataCentreStatus struct {
@@ -44,7 +44,7 @@ type RedisDataCentreStatus struct {
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	ClusterSpec         `json:",inline"`
+	GenericCluster      `json:",inline"`
 	Bundles             []RedisBundle     `json:"bundles"`
 	PCICompliantCluster bool              `json:"pciCompliantCluster,omitempty"`
 	DataCentres         []RedisDataCentre `json:"dataCentres,omitempty"`

@@ -36,8 +36,8 @@ type PostgreSQLBundleOptions struct {
 }
 
 type PostgreSQLDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []*PostgreSQLBundle `json:"bundles"`
+	GenericDataCentre `json:",inline"`
+	Bundles           []*PostgreSQLBundle `json:"bundles"`
 }
 
 type PostgreSQLDataCentreStatus struct {

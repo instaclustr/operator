@@ -15,7 +15,7 @@ spec:
     singular: kafka
   scope: Namespaced
   versions:
-  - name: v2alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Kafka is the Schema for the kafkas API
@@ -39,111 +39,57 @@ spec:
                 type: boolean
               autoCreateTopics:
                 type: boolean
+              bundledUseOnlyCluster:
+                description: running as dependency for another instance. need to be
+                  tested before decide what to do with this field
+                type: boolean
               clientToClusterEncryption:
                 type: boolean
+              clusterName:
+                description: 'ClusterName [ 3 .. 32 ] characters. APIv2 : "name",
+                  APIv1 : "clusterName".'
+                type: string
               dataCentres:
                 items:
                   properties:
-                    awsSettings:
-                      description: AWS specific settings for the Data Centre. Cannot
-                        be provided with GCPSettings and AzureSettings.
-                      items:
-                        properties:
-                          customVirtualNetworkId:
-                            description: VPC ID into which the Data Centre will be
-                              provisioned. The Data Centre's network allocation must
-                              match the IPv4 CIDR block of the specified VPC.
-                            type: string
-                          ebsEncryptionKey:
-                            description: ID of a KMS encryption key to encrypt data
-                              on nodes. KMS encryption key must be set in Cluster
-                              Resources through the Instaclustr Console before provisioning
-                              an encrypted Data Centre.
-                            type: string
-                        type: object
-                      type: array
-                    azureSettings:
-                      description: AzureSettings specific settings for the Data Centre.
-                        Cannot be provided with GCPSettings and AWSSettings.
-                      items:
-                        properties:
-                          resourceGroup:
-                            type: string
-                        type: object
-                      type: array
-                    cloudProvider:
-                      description: 'Enum: "AWS_VPC" "GCP" "AZURE" "AZURE_AZ" CloudProvider
-                        is name of the cloud provider service in which the Data Centre
-                        will be provisioned.'
-                      type: string
-                    gcpSettings:
-                      description: GCPSettings specific settings for the Data Centre.
-                        Cannot be provided with AWSSettings and AzureSettings.
-                      items:
-                        properties:
-                          customVirtualNetworkId:
-                            description: Network name or a relative Network or Subnetwork
-                              URI e.g. projects/my-project/regions/us-central1/subnetworks/my-subnet.
-                              The Data Centre's network allocation must match the
-                              IPv4 CIDR block of the specified subnet.
-                            type: string
-                        type: object
-                      type: array
                     name:
-                      description: A logical Name for the data centre within a cluster.
-                        These names must be unique in the cluster.
+                      description: When use one data centre name of field is dataCentreCustomName
+                        for APIv1
                       type: string
                     network:
-                      description: The private network address block for the Data
-                        Centre specified using CIDR address notation. The Network
-                        must have a prefix length between /12 and /22 and must be
-                        part of a private address space.
                       type: string
                     nodeSize:
-                      description: NodeSize is a size of the nodes provisioned in
-                        the Data Centre.
                       type: string
-                    numberOfNodes:
-                      description: Total number of Kafka brokers in the Data Centre.
-                        Must be a multiple of defaultReplicationFactor.
+                    nodesNumber:
+                      description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
-                    providerAccountName:
-                      description: For customers running in their own account. Your
-                        provider account can be found on the Create Cluster page on
-                        the Instaclustr Console, or the "Provider Account" property
-                        on any existing cluster. For customers provisioning on Instaclustr's
-                        cloud provider accounts, this property may be omitted.
-                      type: string
+                    provider:
+                      properties:
+                        accountName:
+                          type: string
+                        customVirtualNetworkId:
+                          type: string
+                        diskEncryptionKey:
+                          type: string
+                        name:
+                          type: string
+                        resourceGroup:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    racksNumber:
+                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
+                      format: int32
+                      type: integer
                     region:
-                      description: Region of the Data Centre.
+                      description: 'Region. APIv1 : "dataCentre"'
                       type: string
-                    tags:
-                      description: List of tags to apply to the Data Centre. Tags
-                        are metadata labels which allow you to identify, categorize
-                        and filter clusters. This can be useful for grouping together
-                        clusters into applications, environments, or any category
-                        that you require.
-                      items:
-                        properties:
-                          key:
-                            description: Key of the tag to be added to the Data Centre.
-                            type: string
-                          value:
-                            description: Value of the tag to be added to the Data
-                              Centre.
-                            type: string
-                        required:
-                        - key
-                        - value
-                        type: object
-                      type: array
                   required:
-                  - cloudProvider
-                  - name
                   - network
-                  - nodeSize
-                  - numberOfNodes
+                  - nodesNumber
+                  - racksNumber
                   - region
                   type: object
                 type: array
@@ -160,22 +106,52 @@ spec:
                   - zookeeperNodeSize
                   type: object
                 type: array
-              defaultNumberOfPartitions:
+              firewallRules:
+                items:
+                  properties:
+                    network:
+                      type: string
+                    rules:
+                      items:
+                        properties:
+                          type:
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      type: array
+                    securityGroupId:
+                      type: string
+                  required:
+                  - rules
+                  type: object
+                type: array
+              partitionsNumber:
                 format: int32
                 type: integer
-              defaultReplicationFactor:
-                format: int32
-                type: integer
-              kafkaVersion:
-                type: string
-              name:
-                description: Name of the cluster. [ 3 .. 32 ] characters
-                type: string
-              pciComplianceMode:
+              pciCompliance:
+                description: "The PCI compliance standards relate to the security
+                  of user data and transactional information. Can only be applied
+                  clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
+                  and Redis. PCI compliance cannot be enabled if the cluster has Spark.
+                  \n APIv1 : \"pciCompliantCluster,omitempty\"; APIv2 : pciComplianceMode."
                 type: boolean
+              privateLink:
+                properties:
+                  iamPrincipalARNs:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - iamPrincipalARNs
+                type: object
               privateNetworkCluster:
+                description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
-              rest_proxy:
+              replicationFactorNumber:
+                format: int32
+                type: integer
+              restProxy:
                 items:
                   properties:
                     integrateRestProxyWithSchemaRegistry:
@@ -195,7 +171,7 @@ spec:
                   - version
                   type: object
                 type: array
-              schema_registry:
+              schemaRegistry:
                 items:
                   properties:
                     version:
@@ -205,30 +181,54 @@ spec:
                   type: object
                 type: array
               slaTier:
+                description: 'Non-production clusters may receive lower priority support
+                  and reduced SLAs. Production tier is not available when using Developer
+                  class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
+                  "NON_PRODUCTION". Required for APIv2, but for APIv1 set "NON_PRODUCTION"
+                  as a default.'
                 type: string
-              twoFactorDelete:
+              tags:
                 items:
                   properties:
-                    confirmationEmail:
+                    key:
+                      description: Key of the tag to be added to the Data Centre.
                       type: string
-                    confirmationPhoneNumber:
+                    value:
+                      description: Value of the tag to be added to the Data Centre.
                       type: string
                   required:
-                  - confirmationEmail
+                  - key
+                  - value
                   type: object
                 type: array
+              twoFactorDelete:
+                description: APIv2, unlike AP1, receives an array of TwoFactorDelete
+                  (<= 1 items);
+                items:
+                  properties:
+                    email:
+                      description: 'Email address which will be contacted when the
+                        cluster is requested to be deleted. APIv1: deleteVerifyEmail;
+                        APIv2: confirmationEmail.'
+                      type: string
+                    phone:
+                      description: 'APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.'
+                      type: string
+                  required:
+                  - email
+                  type: object
+                type: array
+              version:
+                type: string
             required:
             - allowDeleteTopics
             - autoCreateTopics
             - clientToClusterEncryption
+            - clusterName
             - dataCentres
-            - defaultNumberOfPartitions
-            - defaultReplicationFactor
-            - kafkaVersion
-            - name
-            - pciComplianceMode
-            - privateNetworkCluster
-            - slaTier
+            - partitionsNumber
+            - replicationFactorNumber
+            - version
             type: object
           status:
             description: KafkaStatus defines the observed state of Kafka
@@ -244,21 +244,15 @@ spec:
               nodes:
                 items:
                   properties:
-                    id:
+                    nodeID:
                       type: string
-                    nodeRoles:
-                      items:
-                        type: string
-                      type: array
                     nodeSize:
+                      type: string
+                    nodeStatus:
                       type: string
                     privateAddress:
                       type: string
                     publicAddress:
-                      type: string
-                    rack:
-                      type: string
-                    status:
                       type: string
                   type: object
                 type: array
