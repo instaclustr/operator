@@ -19,7 +19,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 
 	pg := &models.PgClusterAPIv1{
 		ClusterAPIv1: models.ClusterAPIv1{
-			ClusterName:           pgClusterSpec.ClusterName,
+			ClusterName:           pgClusterSpec.Name,
 			NodeSize:              pgClusterSpec.DataCentres[0].NodeSize,
 			PrivateNetworkCluster: pgClusterSpec.PrivateNetworkCluster,
 			SLATier:               pgClusterSpec.SLATier,
@@ -85,7 +85,6 @@ func PgFromInstAPI(pgInstaCluster *models.PgStatusAPIv1) *v1alpha1.PgStatus {
 		ClusterStatus: v1alpha1.ClusterStatus{
 			Status:                     pgInstaCluster.ClusterStatus,
 			ID:                         pgInstaCluster.ID,
-			ClusterCertificateDownload: pgInstaCluster.ClusterCertificateDownload,
 			DataCentres:                dataCentres,
 		},
 	}
@@ -152,12 +151,12 @@ func nodesFromInstAPIv1(instaNodes []*models.NodeStatusAPIv1) []*v1alpha1.Node {
 	var nodes []*v1alpha1.Node
 	for _, node := range instaNodes {
 		nodes = append(nodes, &v1alpha1.Node{
-			NodeID:         node.ID,
+			ID:             node.ID,
 			Rack:           node.Rack,
 			PublicAddress:  node.PublicAddress,
 			PrivateAddress: node.PrivateAddress,
-			NodeStatus:     node.Status,
-			NodeSize:       node.Size,
+			Status:         node.Status,
+			Size:           node.Size,
 		})
 	}
 	return nodes

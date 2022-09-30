@@ -152,24 +152,18 @@ spec:
           status:
             description: CadenceSpec defines the observed state of Cadence
             properties:
-              clusterCertificateDownload:
-                type: string
               dataCentres:
                 items:
                   properties:
                     id:
                       type: string
-                    nodeCount:
+                    nodeNumber:
                       format: int32
                       type: integer
                     nodes:
                       items:
                         properties:
-                          nodeID:
-                            type: string
-                          nodeSize:
-                            type: string
-                          nodeStatus:
+                          id:
                             type: string
                           privateAddress:
                             type: string
@@ -177,6 +171,16 @@ spec:
                             type: string
                           rack:
                             type: string
+                          roles:
+                            items:
+                              type: string
+                            type: array
+                          size:
+                            type: string
+                          status:
+                            type: string
+                        required:
+                        - roles
                         type: object
                       type: array
                     status:
@@ -186,8 +190,6 @@ spec:
               id:
                 type: string
               status:
-                description: ClusterStatus shows cluster current state such as a RUNNING,
-                  PROVISIONED, FAILED, etc.
                 type: string
             type: object
         type: object

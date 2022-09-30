@@ -46,9 +46,17 @@ spec:
               dataCentres:
                 items:
                   properties:
+                    accountName:
+                      type: string
                     clientEncryption:
                       description: PostgreSQL options
                       type: boolean
+                    cloudProvider:
+                      type: string
+                    customVirtualNetworkId:
+                      type: string
+                    diskEncryptionKey:
+                      type: string
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -67,21 +75,6 @@ spec:
                     postgresqlNodeCount:
                       format: int32
                       type: integer
-                    provider:
-                      properties:
-                        accountName:
-                          type: string
-                        customVirtualNetworkId:
-                          type: string
-                        diskEncryptionKey:
-                          type: string
-                        name:
-                          type: string
-                        resourceGroup:
-                          type: string
-                      required:
-                      - name
-                      type: object
                     racksNumber:
                       description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
                       format: int32
@@ -91,6 +84,8 @@ spec:
                       type: string
                     replicationMode:
                       type: string
+                    resourceGroup:
+                      type: string
                     synchronousModeStrict:
                       type: boolean
                     tags:
@@ -98,6 +93,7 @@ spec:
                         type: string
                       type: object
                   required:
+                  - cloudProvider
                   - network
                   - nodesNumber
                   - postgresqlNodeCount
@@ -173,24 +169,18 @@ spec:
           status:
             description: PgStatus defines the observed state of PostgreSQL
             properties:
-              clusterCertificateDownload:
-                type: string
               dataCentres:
                 items:
                   properties:
                     id:
                       type: string
-                    nodeCount:
+                    nodeNumber:
                       format: int32
                       type: integer
                     nodes:
                       items:
                         properties:
-                          nodeID:
-                            type: string
-                          nodeSize:
-                            type: string
-                          nodeStatus:
+                          id:
                             type: string
                           privateAddress:
                             type: string
@@ -198,6 +188,16 @@ spec:
                             type: string
                           rack:
                             type: string
+                          roles:
+                            items:
+                              type: string
+                            type: array
+                          size:
+                            type: string
+                          status:
+                            type: string
+                        required:
+                        - roles
                         type: object
                       type: array
                     status:
@@ -207,8 +207,6 @@ spec:
               id:
                 type: string
               status:
-                description: ClusterStatus shows cluster current state such as a RUNNING,
-                  PROVISIONED, FAILED, etc.
                 type: string
             type: object
         type: object

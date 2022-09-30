@@ -1,13 +1,5 @@
 package v1alpha1
 
-type CloudProvider struct {
-	Name                   string `json:"name"`
-	AccountName            string `json:"accountName,omitempty"`
-	CustomVirtualNetworkId string `json:"customVirtualNetworkId,omitempty"`
-	ResourceGroup          string `json:"resourceGroup,omitempty"`
-	DiskEncryptionKey      string `json:"diskEncryptionKey,omitempty"`
-}
-
 // Bundle is deprecated: delete when not used.
 type Bundle struct {
 	Bundle  string `json:"bundle"`
@@ -18,12 +10,17 @@ type DataCentre struct {
 	// When use one data centre name of field is dataCentreCustomName for APIv1
 	Name string `json:"name,omitempty"`
 
+	CloudProvider          string `json:"cloudProvider"`
+	AccountName            string `json:"accountName,omitempty"`
+	CustomVirtualNetworkId string `json:"customVirtualNetworkId,omitempty"`
+	ResourceGroup          string `json:"resourceGroup,omitempty"`
+	DiskEncryptionKey      string `json:"diskEncryptionKey,omitempty"`
+
 	// Region. APIv1 : "dataCentre"
 	Region string `json:"region"`
 
-	Network  string         `json:"network"`
-	Provider *CloudProvider `json:"provider,omitempty"`
-	NodeSize string         `json:"nodeSize,omitempty"`
+	Network  string `json:"network"`
+	NodeSize string `json:"nodeSize,omitempty"`
 
 	// APIv2: replicationFactor; APIv1: numberOfRacks
 	RacksNumber int32 `json:"racksNumber"`
@@ -35,38 +32,35 @@ type DataCentre struct {
 }
 
 type DataCentreStatus struct {
-	ID        string  `json:"id,omitempty"`
-	Status    string  `json:"status,omitempty"`
-	Nodes     []*Node `json:"nodes,omitempty"`
-	NodeCount int32   `json:"nodeCount,omitempty"`
+	ID         string  `json:"id,omitempty"`
+	Status     string  `json:"status,omitempty"`
+	Nodes      []*Node `json:"nodes,omitempty"`
+	NodeNumber int32   `json:"nodeNumber,omitempty"`
 }
 
 type Node struct {
-	NodeID         string `json:"nodeID,omitempty"`
-	NodeSize       string `json:"nodeSize,omitempty"`
-	PublicAddress  string `json:"publicAddress,omitempty"`
-	PrivateAddress string `json:"privateAddress,omitempty"`
-	NodeStatus     string `json:"nodeStatus,omitempty"`
-	Rack           string `json:"rack,omitempty"`
+	ID             string   `json:"id,omitempty"`
+	Size           string   `json:"size,omitempty"`
+	PublicAddress  string   `json:"publicAddress,omitempty"`
+	PrivateAddress string   `json:"privateAddress,omitempty"`
+	Status         string   `json:"status,omitempty"`
+	Roles          []string `json:"roles"`
+	Rack           string   `json:"rack,omitempty"`
 }
 
 type Cluster struct {
-	// ClusterName [ 3 .. 32 ] characters.
+	// Name [ 3 .. 32 ] characters.
 	// APIv2 : "name", APIv1 : "clusterName".
-	ClusterName string `json:"clusterName"`
-
+	Name    string `json:"name"`
 	Version string `json:"version"`
-
 	// The PCI compliance standards relate to the security of user data and transactional information.
 	// Can only be applied clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch and Redis.
 	// PCI compliance cannot be enabled if the cluster has Spark.
 	//
 	// APIv1 : "pciCompliantCluster,omitempty"; APIv2 : pciComplianceMode.
 	PCICompliance bool `json:"pciCompliance,omitempty"`
-
 	// Required for APIv2, but for APIv1 set "false" as a default.
 	PrivateNetworkCluster bool `json:"privateNetworkCluster,omitempty"`
-
 	// Non-production clusters may receive lower priority support and reduced SLAs.
 	// Production tier is not available when using Developer class nodes. See SLA Tier for more information.
 	// Enum: "PRODUCTION" "NON_PRODUCTION".
@@ -86,12 +80,9 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
-	ID                         string `json:"id,omitempty"`
-	ClusterCertificateDownload string `json:"clusterCertificateDownload,omitempty"`
-
-	// ClusterStatus shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
-	Status      string              `json:"status,omitempty"`
-	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
+	ID              string              `json:"id,omitempty"`
+	Status          string              `json:"status,omitempty"`
+	DataCentres     []*DataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 type FirewallRule struct {

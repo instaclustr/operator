@@ -62,7 +62,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if pgCluster.Status.ID == "" {
 		logger.Info(
 			"PostgreSQL Cluster ID not found, creating PostgreSQL cluster",
-			"Cluster name", pgCluster.Spec.ClusterName,
+			"Cluster name", pgCluster.Spec.Name,
 			"Data centres", pgCluster.Spec.DataCentres,
 		)
 
@@ -93,7 +93,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		logger.Error(
 			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
-			"Cluster name", pgCluster.Spec.ClusterName,
+			"Cluster name", pgCluster.Spec.Name,
 			"Cluster ID", pgCluster.Status.ID,
 		)
 		return reconcile.Result{}, err
@@ -107,7 +107,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		logger.Error(
 			err, "cannot update PostgreSQL cluster CRD",
-			"Cluster name", pgCluster.Spec.ClusterName,
+			"Cluster name", pgCluster.Spec.Name,
 			"Cluster ID", pgCluster.Status.ID,
 		)
 		return reconcile.Result{}, err
