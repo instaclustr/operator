@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
+	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 )
 
@@ -52,7 +52,7 @@ type CassandraReconciler struct {
 func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var cassandraCluster clustersv2alpha1.Cassandra
+	var cassandraCluster clustersv1alpha1.Cassandra
 	err := r.Client.Get(ctx, req.NamespacedName, &cassandraCluster)
 	if err != nil {
 		l.Error(
@@ -65,7 +65,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if cassandraCluster.Status.ClusterID == "" {
 		l.Info(
 			"Cassandra Cluster ID not found, creating Cassandra cluster",
-			"Cluster name", cassandraCluster.Spec.Name,
+			"Cluster name", cassandraCluster.Spec.ClusterName,
 			"Data centres", cassandraCluster.Spec.DataCentres,
 		)
 
@@ -94,7 +94,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		l.Info(
 			"Cassandra resource has been created",
-			"Cluster name", cassandraCluster.Spec.Name,
+			"Cluster name", cassandraCluster.Spec.ClusterName,
 			"cluster ID", id,
 			"Kind", cassandraCluster.Kind,
 			"API Version", cassandraCluster.APIVersion,
@@ -108,6 +108,6 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv2alpha1.Cassandra{}).
+		For(&clustersv1alpha1.Cassandra{}).
 		Complete(r)
 }

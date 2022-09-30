@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,34 +27,27 @@ type Spark struct {
 	Version string `json:"version"`
 }
 
-type CassandraDataCentre struct {
-	DataCentre                     `json:",inline"`
-	ContinuousBackup               bool `json:"continuousBackup"`
-	ReplicationFactor              int  `json:"replicationFactor"`
-	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
-}
-
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	ClusterSpec         `json:",inline"`
-	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
-	CassandraVersion    string                 `json:"cassandraVersion"`
-	LuceneEnabled       bool                   `json:"luceneEnabled"`
-	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth"`
-}
-
-type CassandraDCStatus struct {
-	ID             string  `json:"id,omitempty"`
-	Status         string  `json:"status,omitempty"`
-	CassandraNodes []*Node `json:"nodes,omitempty"`
+	Cluster                        `json:",inline"`
+	DataCentres                    []*DataCentre `json:"dataCentres"`
+	LuceneEnabled                  bool          `json:"luceneEnabled"`
+	PasswordAndUserAuth            bool          `json:"passwordAndUserAuth"`
+	ContinuousBackup               bool          `json:"continuousBackup"`
+	ReplicationFactor              int           `json:"replicationFactor"`
+	PrivateIPBroadcastForDiscovery bool          `json:"privateIpBroadcastForDiscovery"`
+	ClientToClusterEncryption      bool          `json:"clientToClusterEncryption"`
+	Spark                          []*Spark      `json:"spark,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	ClusterID         string               `json:"id,omitempty"`
-	ClusterStatus     string               `json:"status,omitempty"`
-	CassandraDCStatus []*CassandraDCStatus `json:"dataCentres,omitempty"`
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+	ClusterID       string  `json:"id,omitempty"`
+	ClusterStatus   string  `json:"status,omitempty"`
+	Nodes           []*Node `json:"nodes,omitempty"`
+	OperationStatus string  `json:"operationStatus"`
 }
 
 //+kubebuilder:object:root=true
