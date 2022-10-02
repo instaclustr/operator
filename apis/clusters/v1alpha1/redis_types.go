@@ -33,17 +33,13 @@ type RedisBundleOptions struct {
 }
 
 type RedisDataCentre struct {
-	GenericDataCentre `json:",inline"`
-	Bundles           []RedisBundle `json:"bundles,omitempty"`
-}
-
-type RedisDataCentreStatus struct {
-	DataCentreStatus `json:",inline"`
+	DataCentre `json:",inline"`
+	Bundles    []RedisBundle `json:"bundles,omitempty"`
 }
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	GenericCluster      `json:",inline"`
+	Cluster             `json:",inline"`
 	Bundles             []RedisBundle     `json:"bundles"`
 	PCICompliantCluster bool              `json:"pciCompliantCluster,omitempty"`
 	DataCentres         []RedisDataCentre `json:"dataCentres,omitempty"`
@@ -52,8 +48,6 @@ type RedisSpec struct {
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
 	ClusterStatus `json:",inline"`
-	PCICompliance string                  `json:"pciCompliance,omitempty"`
-	DataCentres   []RedisDataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 //+kubebuilder:object:root=true
