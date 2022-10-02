@@ -20,33 +20,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type PostgreSQLDataCentre struct {
+type PgDataCentre struct {
 	DataCentre `json:",inline"`
-	// PostgreSQL
+	// PostgreSQL options
 	ClientEncryption      bool   `json:"clientEncryption,omitempty"`
 	PostgresqlNodeCount   int32  `json:"postgresqlNodeCount"`
 	ReplicationMode       string `json:"replicationMode,omitempty"`
 	SynchronousModeStrict bool   `json:"synchronousModeStrict,omitempty"`
-	// PGBouncer
+	// PGBouncer options
 	PoolMode string `json:"poolMode,omitempty"`
 }
 
-type PostgreSQLDataCentreStatus struct {
-	DataCentreStatus `json:",inline"`
+// PgSpec defines the desired state of PostgreSQL
+type PgSpec struct {
+	Cluster          `json:",inline"`
+	PGBouncerVersion string          `json:"pgBouncerVersion,omitempty"`
+	DataCentres      []*PgDataCentre `json:"dataCentres"`
 }
 
-// PostgreSQLSpec defines the desired state of PostgreSQL
-type PostgreSQLSpec struct {
-	ClusterSpec `json:",inline"`
-	PostgreSQLVersion string `json:"postgreSQLVersion"`
-	PGBouncerVersion string `json:"pgBouncerVersion,omitempty"`
-	DataCentres []*PostgreSQLDataCentre `json:"dataCentres,omitempty"`
-}
-
-// PostgreSQLStatus defines the observed state of PostgreSQL
-type PostgreSQLStatus struct {
+// PgStatus defines the observed state of PostgreSQL
+type PgStatus struct {
 	ClusterStatus `json:",inline"`
-	DataCentres   []*PostgreSQLDataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -57,8 +51,8 @@ type PostgreSQL struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PostgreSQLSpec   `json:"spec,omitempty"`
-	Status PostgreSQLStatus `json:"status,omitempty"`
+	Spec   PgSpec   `json:"spec,omitempty"`
+	Status PgStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

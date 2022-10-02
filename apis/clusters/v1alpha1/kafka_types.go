@@ -51,7 +51,7 @@ type KafkaSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// TODO: add comments for fields
-	GenericCluster            `json:",inline"`
+	Cluster                   `json:",inline"`
 	SchemaRegistry            []*SchemaRegistry     `json:"schemaRegistry,omitempty"`
 	ReplicationFactorNumber   int32                 `json:"replicationFactorNumber"`
 	PartitionsNumber          int32                 `json:"partitionsNumber"`
@@ -60,7 +60,7 @@ type KafkaSpec struct {
 	AllowDeleteTopics         bool                  `json:"allowDeleteTopics"`
 	AutoCreateTopics          bool                  `json:"autoCreateTopics"`
 	ClientToClusterEncryption bool                  `json:"clientToClusterEncryption"`
-	DataCentres               []*GenericDataCentre  `json:"dataCentres"`
+	DataCentres               []*DataCentre         `json:"dataCentres"`
 	DedicatedZookeeper        []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
 }
 

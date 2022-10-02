@@ -118,7 +118,7 @@ func main() {
 	if err = (&clusterscontrollers.PostgreSQLReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		APIv1:  instaClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQL")
 		os.Exit(1)

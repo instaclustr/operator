@@ -40,18 +40,13 @@ type CadenceBundleOptions struct {
 }
 
 type CadenceDataCentre struct {
-	GenericDataCentre `json:",inline"`
-	Bundles           []*CadenceBundle `json:"bundles,omitempty"`
-}
-
-type CadenceDataCentreStatus struct {
-	DataCentreStatus `json:",inline"`
-	Nodes            []*Node `json:"nodes,omitempty"`
+	DataCentre `json:",inline"`
+	Bundles    []*CadenceBundle `json:"bundles,omitempty"`
 }
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	GenericCluster   `json:",inline"`
+	Cluster          `json:",inline"`
 	Bundles          []*CadenceBundle `json:"bundles"`
 	PackagedSolution bool             `json:"packaged_solution,omitempty"`
 }
@@ -59,7 +54,6 @@ type CadenceSpec struct {
 // CadenceSpec defines the observed state of Cadence
 type CadenceStatus struct {
 	ClusterStatus `json:",inline"`
-	DataCentres   []*DataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 //+kubebuilder:object:root=true

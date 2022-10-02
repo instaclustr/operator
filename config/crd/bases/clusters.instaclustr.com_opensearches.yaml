@@ -126,6 +126,10 @@ spec:
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
+                    tags:
+                      additionalProperties:
+                        type: string
+                      type: object
                   required:
                   - network
                   - nodesNumber
@@ -153,6 +157,8 @@ spec:
                   - rules
                   type: object
                 type: array
+              oidsProvider:
+                type: string
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -170,20 +176,6 @@ spec:
                   "NON_PRODUCTION". Required for APIv2, but for APIv1 set "NON_PRODUCTION"
                   as a default.'
                 type: string
-              tags:
-                items:
-                  properties:
-                    key:
-                      description: Key of the tag to be added to the Data Centre.
-                      type: string
-                    value:
-                      description: Value of the tag to be added to the Data Centre.
-                      type: string
-                  required:
-                  - key
-                  - value
-                  type: object
-                type: array
               twoFactorDelete:
                 description: APIv2, unlike AP1, receives an array of TwoFactorDelete
                   (<= 1 items);
@@ -213,15 +205,9 @@ spec:
             properties:
               clusterCertificateDownload:
                 type: string
-              clusterStatus:
-                description: ClusterStatus shows cluster current state such as a RUNNING,
-                  PROVISIONED, FAILED, etc.
-                type: string
               dataCentres:
                 items:
                   properties:
-                    cdcStatus:
-                      type: string
                     id:
                       type: string
                     nodeCount:
@@ -230,7 +216,9 @@ spec:
                     nodes:
                       items:
                         properties:
-                          id:
+                          nodeID:
+                            type: string
+                          nodeSize:
                             type: string
                           nodeStatus:
                             type: string
@@ -240,22 +228,17 @@ spec:
                             type: string
                           rack:
                             type: string
-                        required:
-                        - id
-                        - nodeStatus
-                        - privateAddress
-                        - publicAddress
-                        - rack
                         type: object
                       type: array
-                  required:
-                  - cdcStatus
-                  - id
-                  - nodeCount
-                  - nodes
+                    status:
+                      type: string
                   type: object
                 type: array
               id:
+                type: string
+              status:
+                description: ClusterStatus shows cluster current state such as a RUNNING,
+                  PROVISIONED, FAILED, etc.
                 type: string
             type: object
         type: object

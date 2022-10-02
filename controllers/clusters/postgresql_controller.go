@@ -33,7 +33,7 @@ import (
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	API    instaclustr.APIv1
+	APIv1  instaclustr.APIv1
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -52,21 +52,23 @@ type PostgreSQLReconciler struct {
 func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var pgCluster *clustersv1alpha1.PostgreSQL
-	err := r.Client.Get(ctx, req.NamespacedName, pgCluster)
+	var pgCluster clustersv1alpha1.PostgreSQL
+	err := r.Client.Get(ctx, req.NamespacedName, &pgCluster)
 	if err != nil {
 		logger.Error(err, "unable to fetch PostgreSQL cluster")
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if pgCluster.Status.ClusterID == "" {
+	if pgCluster.Status.ID == "" {
 		logger.Info(
 			"PostgreSQL Cluster ID not found, creating PostgreSQL cluster",
 			"Cluster name", pgCluster.Spec.ClusterName,
 			"Data centres", pgCluster.Spec.DataCentres,
 		)
 
-		id, err := r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, pgCluster.Spec)
+		pgSpecV1 := instaclustr.PgToInstAPI(&pgCluster.Spec)
+
+		id, err := r.APIv1.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpecV1)
 		if err != nil {
 			logger.Error(
 				err, "cannot create PostgreSQL cluster",
@@ -75,7 +77,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return reconcile.Result{}, err
 		}
 
-		pgCluster.Status.ClusterID = id
+		pgCluster.Status.ID = id
 
 		logger.Info(
 			"PostgreSQL resource has been created",
@@ -83,27 +85,30 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Cluster ID", id,
 			"Kind", pgCluster.Kind,
 			"Api version", pgCluster.APIVersion,
+			"Namespace", pgCluster.Namespace,
 		)
 	}
 
-	pgInstaCluster, err := r.API.GetPostgreSQLCluster(instaclustr.ClustersEndpoint, pgCluster.Status.ClusterID)
+	pgInstaCluster, err := r.APIv1.GetPostgreSQLCluster(instaclustr.ClustersEndpoint, pgCluster.Status.ID)
 	if err != nil {
 		logger.Error(
 			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
 			"Cluster name", pgCluster.Spec.ClusterName,
-			"Cluster ID", pgCluster.Status.ClusterID,
+			"Cluster ID", pgCluster.Status.ID,
 		)
 		return reconcile.Result{}, err
 	}
 
-	pgCluster.Status = *pgInstaCluster
+	pgClusterStatus := instaclustr.PgFromInstAPI(pgInstaCluster)
 
-	err = r.Status().Update(context.Background(), pgCluster)
+	pgCluster.Status = *pgClusterStatus
+
+	err = r.Status().Update(context.Background(), &pgCluster)
 	if err != nil {
 		logger.Error(
 			err, "cannot update PostgreSQL cluster CRD",
 			"Cluster name", pgCluster.Spec.ClusterName,
-			"Cluster ID", pgCluster.Status.ClusterID,
+			"Cluster ID", pgCluster.Status.ID,
 		)
 		return reconcile.Result{}, err
 	}
