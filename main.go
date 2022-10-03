@@ -18,6 +18,8 @@ package main
 
 import (
 	"flag"
+	"github.com/instaclustr/operator/pkg/instaclustr/apiv1"
+	"github.com/instaclustr/operator/pkg/instaclustr/apiv2"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -106,11 +108,13 @@ func main() {
 		serverHostname,
 		instaclustr.DefaultTimeout,
 	)
+	instaClientV1 := apiv1.NewClientV1(instaClient)
+	instaClientV2 := apiv2.NewClientV2(instaClient)
 
 	if err = (&clusterscontrollers.CassandraReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		API:    instaClientV2,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cassandra")
 		os.Exit(1)
@@ -118,7 +122,7 @@ func main() {
 	if err = (&clusterscontrollers.PostgreSQLReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		APIv1:  instaClient,
+		APIv1:  instaClientV1,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQL")
 		os.Exit(1)

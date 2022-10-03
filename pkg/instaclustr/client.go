@@ -7,15 +7,13 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	clustersv2alpha1 "github.com/instaclustr/operator/apis/clusters/v2alpha1"
 )
 
 type Client struct {
-	username       string
-	key            string
-	serverHostname string
-	httpClient     *http.Client
+	Username       string
+	Key            string
+	ServerHostname string
+	HttpClient     *http.Client
 }
 
 func NewClient(
@@ -29,10 +27,10 @@ func NewClient(
 		Transport: &http.Transport{},
 	}
 	return &Client{
-		username:       username,
-		key:            key,
-		serverHostname: serverHostname,
-		httpClient:     httpClient,
+		Username:       username,
+		Key:            key,
+		ServerHostname: serverHostname,
+		HttpClient:     httpClient,
 	}
 }
 
@@ -41,11 +39,11 @@ func (c *Client) DoRequest(url string, method string, data []byte) (*http.Respon
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(c.username, c.key)
+	req.SetBasicAuth(c.Username, c.Key)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Instaclustr-Source", OperatorVersion)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +58,7 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 		return "", err
 	}
 
-	url = c.serverHostname + url
+	url = c.ServerHostname + url
 	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
 	if err != nil {
 		return "", err
@@ -86,31 +84,4 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 	}
 
 	return creationResponse.ID, nil
-}
-
-func (c *Client) GetCassandraClusterStatus(id string) (*clustersv2alpha1.CassandraStatus, error) {
-
-	url := c.serverHostname + CassandraEndpoint + id
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	var clusterStatus *clustersv2alpha1.CassandraStatus
-	err = json.Unmarshal(body, &clusterStatus)
-	if err != nil {
-		return nil, err
-	}
-
-	return clusterStatus, nil
 }

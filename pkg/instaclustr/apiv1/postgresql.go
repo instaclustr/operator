@@ -1,16 +1,16 @@
-package models
+package apiv1
 
 const (
 	PgSQL     = "POSTGRESQL"
 	PgBouncer = "PGBOUNCER"
 )
 
-type PgBundleAPIv1 struct {
+type PgBundle struct {
 	BundleAPIv1 `json:",inline"`
-	Options     *PgBundleOptionsAPIv1 `json:"options"`
+	Options     *PgBundleOptions `json:"options"`
 }
 
-type PgBundleOptionsAPIv1 struct {
+type PgBundleOptions struct {
 	// PostgreSQL
 	ClientEncryption      bool   `json:"clientEncryption,omitempty"`
 	PostgresqlNodeCount   int32  `json:"postgresqlNodeCount"`
@@ -20,18 +20,18 @@ type PgBundleOptionsAPIv1 struct {
 	PoolMode string `json:"poolMode,omitempty"`
 }
 
-type PgDataCentreAPIv1 struct {
+type PgDataCentre struct {
 	DataCentreAPIv1 `json:",inline"`
-	Bundles         []*PgBundleAPIv1 `json:"bundles"`
+	Bundles         []*PgBundle `json:"bundles"`
 }
 
-type PgClusterAPIv1 struct {
+type PgCluster struct {
 	ClusterAPIv1 `json:",inline"`
-	Bundles      []*PgBundleAPIv1     `json:"bundles"`
-	DataCentres  []*PgDataCentreAPIv1 `json:"dataCentres,omitempty"`
+	Bundles      []*PgBundle     `json:"bundles"`
+	DataCentres  []*PgDataCentre `json:"dataCentres,omitempty"`
 }
 
-type PgStatusAPIv1 struct {
+type PgStatus struct {
 	ClusterStatusAPIv1 `json:",inline"`
 	DataCentres        []*DataCentreStatusAPIv1 `json:"dataCentres,omitempty"`
 }

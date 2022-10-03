@@ -1,4 +1,4 @@
-package models
+package apiv1
 
 type ClusterAPIv1 struct {
 	ClusterName           string                `json:"clusterName"`

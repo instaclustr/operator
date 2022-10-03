@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	"github.com/instaclustr/operator/pkg/instaclustr/apiv1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +34,7 @@ import (
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	APIv1  instaclustr.APIv1
+	APIv1  *apiv1.ClientAPIv1
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -66,9 +67,9 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Data centres", pgCluster.Spec.DataCentres,
 		)
 
-		pgSpecV1 := instaclustr.PgToInstAPI(&pgCluster.Spec)
+		pgSpecV1 := apiv1.PgToInstAPI(&pgCluster.Spec)
 
-		id, err := r.APIv1.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpecV1)
+		id, err := r.APIv1.Client.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpecV1)
 		if err != nil {
 			logger.Error(
 				err, "cannot create PostgreSQL cluster",
@@ -99,7 +100,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
-	pgClusterStatus := instaclustr.PgFromInstAPI(pgInstaCluster)
+	pgClusterStatus := apiv1.PgFromInstAPI(pgInstaCluster)
 
 	pgCluster.Status = *pgClusterStatus
 

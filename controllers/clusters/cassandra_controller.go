@@ -18,7 +18,7 @@ package clusters
 
 import (
 	"context"
-
+	"github.com/instaclustr/operator/pkg/instaclustr/apiv2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +33,7 @@ import (
 type CassandraReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	API    *instaclustr.Client
+	API    *apiv2.ClientV2
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +69,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"Data centres", cassandraCluster.Spec.DataCentres,
 		)
 
-		id, err := r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraCluster.Spec)
+		id, err := r.API.Client.CreateCluster(instaclustr.CassandraEndpoint, cassandraCluster.Spec)
 		if err != nil {
 			l.Error(
 				err, "cannot create Cassandra cluster",
