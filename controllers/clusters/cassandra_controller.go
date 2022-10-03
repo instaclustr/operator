@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	"github.com/instaclustr/operator/pkg/instaclustr/APIv2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

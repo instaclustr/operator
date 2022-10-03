@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/instaclustr/operator/pkg/instaclustr/APIv2"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
