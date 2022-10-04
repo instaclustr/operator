@@ -80,10 +80,6 @@ spec:
                   - version
                   type: object
                 type: array
-              clusterName:
-                description: 'ClusterName [ 3 .. 32 ] characters. APIv2 : "name",
-                  APIv1 : "clusterName".'
-                type: string
               firewallRules:
                 items:
                   properties:
@@ -104,6 +100,10 @@ spec:
                   - rules
                   type: object
                 type: array
+              name:
+                description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
+                  "clusterName".'
+                type: string
               oidsProvider:
                 type: string
               packaged_solution:
@@ -146,7 +146,7 @@ spec:
                 type: string
             required:
             - bundles
-            - clusterName
+            - name
             - version
             type: object
           status:
@@ -179,8 +179,6 @@ spec:
                             type: string
                           status:
                             type: string
-                        required:
-                        - roles
                         type: object
                       type: array
                     status:

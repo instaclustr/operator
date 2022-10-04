@@ -3,13 +3,12 @@ kind: PostgreSQL
 metadata:
   name: postgresql-sample
 spec:
-  clusterName: "testPostgre"
+  name: "testPostgre"
   version: "postgresql:14.5"
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
-      provider:
-        name: "AWS_VPC"
+      cloudProvider: "AWS_VPC"
       nodeSize: "PGS-DEV-t4g.small-5"
       racksNumber: 2
       nodesNumber: 1

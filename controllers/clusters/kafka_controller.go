@@ -33,7 +33,7 @@ import (
 type KafkaReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	API    instaclustr.APIv2
+	API    instaclustr.API
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete

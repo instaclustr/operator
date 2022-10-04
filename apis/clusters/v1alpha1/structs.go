@@ -44,7 +44,7 @@ type Node struct {
 	PublicAddress  string   `json:"publicAddress,omitempty"`
 	PrivateAddress string   `json:"privateAddress,omitempty"`
 	Status         string   `json:"status,omitempty"`
-	Roles          []string `json:"roles"`
+	Roles          []string `json:"roles,omitempty"`
 	Rack           string   `json:"rack,omitempty"`
 }
 
@@ -80,9 +80,9 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
-	ID              string              `json:"id,omitempty"`
-	Status          string              `json:"status,omitempty"`
-	DataCentres     []*DataCentreStatus `json:"dataCentres,omitempty"`
+	ID          string              `json:"id,omitempty"`
+	Status      string              `json:"status,omitempty"`
+	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 type FirewallRule struct {

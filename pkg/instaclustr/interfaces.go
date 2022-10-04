@@ -3,16 +3,11 @@ package instaclustr
 import (
 	"net/http"
 
-	"github.com/instaclustr/operator/pkg/instaclustr/models"
+	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 )
 
-type APIv2 interface {
+type API interface {
 	DoRequest(url string, method string, data []byte) (*http.Response, error)
 	CreateCluster(url string, clusterSpec any) (string, error)
-}
-
-type APIv1 interface {
-	DoRequest(url string, method string, data []byte) (*http.Response, error)
-	CreateCluster(url string, clusterSpec any) (string, error)
-	GetPostgreSQLCluster(url, id string) (*models.PgStatusAPIv1, error)
+	GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error)
 }
