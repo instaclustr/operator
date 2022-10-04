@@ -42,12 +42,10 @@ type CassandraSpec struct {
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	ClusterID       string  `json:"id,omitempty"`
-	ClusterStatus   string  `json:"status,omitempty"`
-	Nodes           []*Node `json:"nodes,omitempty"`
-	OperationStatus string  `json:"operationStatus"`
+	ClusterID         string              `json:"id,omitempty"`
+	ClusterStatus     string              `json:"status,omitempty"`
+	OperationStatus   string              `json:"operationStatus,omitempty"`
+	CassandraDCStatus []*DataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 //+kubebuilder:object:root=true
