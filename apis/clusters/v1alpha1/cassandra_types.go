@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,8 +29,11 @@ type Spark struct {
 
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	CassandraCluster `json:",inline"`
-	DataCentres      []*CassandraDataCentre `json:"dataCentres"`
+	Cluster             `json:",inline"`
+	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
+	LuceneEnabled       bool                   `json:"luceneEnabled"`
+	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth"`
+	Spark               []*Spark               `json:"spark,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
@@ -39,14 +42,6 @@ type CassandraStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	ClusterStatus   `json:",inline"`
 	OperationStatus string `json:"operationStatus,omitempty"`
-}
-
-type CassandraCluster struct {
-	Cluster             `json:",inline"`
-	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
-	LuceneEnabled       bool                   `json:"luceneEnabled"`
-	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth"`
-	Spark               []*Spark               `json:"spark,omitempty"`
 }
 
 type CassandraDataCentre struct {

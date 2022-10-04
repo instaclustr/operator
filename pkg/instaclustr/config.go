@@ -18,7 +18,7 @@ const (
 	ClustersCreationEndpoint = "/provisioning/v1/extended/"
 
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
-	ClustersEndpoint = "/provisioning/v1/"
+	ClustersEndpointV1 = "/provisioning/v1/"
 
 	// ClustersResizeEndpoint is used for nodes resizing in a cluster data centre.
 	// Example: fmt.Sprintf("%s/provisioning/v1/%s/%s/resize", serverHostname, clusterID, dataCentreID)

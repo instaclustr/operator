@@ -27,13 +27,14 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
 )
 
 // PostgreSQLReconciler reconciles a PostgreSQL object
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	APIv1  instaclustr.APIv1
+	API    instaclustr.API
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -66,9 +67,9 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Data centres", pgCluster.Spec.DataCentres,
 		)
 
-		pgSpecV1 := instaclustr.PgToInstAPI(&pgCluster.Spec)
+		pgSpec := apiv1.PgToInstAPI(&pgCluster.Spec)
 
-		id, err := r.APIv1.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpecV1)
+		id, err := r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpec)
 		if err != nil {
 			logger.Error(
 				err, "cannot create PostgreSQL cluster",
@@ -82,14 +83,14 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		logger.Info(
 			"PostgreSQL resource has been created",
 			"Cluster name", pgCluster.Name,
-			"Cluster ID", id,
+			"Cluster ID", pgCluster.Status.ID,
 			"Kind", pgCluster.Kind,
 			"Api version", pgCluster.APIVersion,
 			"Namespace", pgCluster.Namespace,
 		)
 	}
 
-	pgInstaCluster, err := r.APIv1.GetPostgreSQLCluster(instaclustr.ClustersEndpoint, pgCluster.Status.ID)
+	pgInstaCluster, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil {
 		logger.Error(
 			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
@@ -99,9 +100,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
-	pgClusterStatus := instaclustr.PgFromInstAPI(pgInstaCluster)
-
-	pgCluster.Status = *pgClusterStatus
+	pgCluster.Status.ClusterStatus = *pgInstaCluster
 
 	err = r.Status().Update(context.Background(), &pgCluster)
 	if err != nil {

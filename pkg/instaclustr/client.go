@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
+	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2"
 )
 
 type Client struct {
@@ -88,9 +90,8 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 	return creationResponse.ID, nil
 }
 
-func (c *Client) GetCassandraClusterStatus(id string) (*clustersv1alpha1.CassandraStatus, error) {
-
-	url := c.serverHostname + CassandraEndpoint + id
+func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error) {
+	url := c.serverHostname + clusterEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
 		return nil, err
@@ -102,12 +103,20 @@ func (c *Client) GetCassandraClusterStatus(id string) (*clustersv1alpha1.Cassand
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
+	var clusterStatus *v1alpha1.ClusterStatus
+	if clusterEndpoint == ClustersEndpointV1 {
+		if resp.StatusCode != http.StatusAccepted {
+			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+		}
 
-	var clusterStatus *clustersv1alpha1.CassandraStatus
-	err = json.Unmarshal(body, &clusterStatus)
+		clusterStatus, err = apiv1.ClusterStatusFromInstAPI(body)
+	} else {
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+		}
+
+		clusterStatus, err = apiv2.ClusterStatusFromInstAPI(body)
+	}
 	if err != nil {
 		return nil, err
 	}

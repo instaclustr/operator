@@ -1,11 +1,30 @@
-package instaclustr
+package v1
 
 import (
+	"encoding/json"
+
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr/models"
+	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 )
 
-func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
+func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
+	var clusterStatusFromInst modelsv1.ClusterStatus
+	err := json.Unmarshal(body, &clusterStatusFromInst)
+	if err != nil {
+		return nil, err
+	}
+
+	dataCentres := dataCentresFromInstAPI(clusterStatusFromInst.DataCentres)
+	clusterStatus := &v1alpha1.ClusterStatus{
+		ID:          clusterStatusFromInst.ID,
+		Status:      clusterStatusFromInst.ClusterStatus,
+		DataCentres: dataCentres,
+	}
+
+	return clusterStatus, nil
+}
+
+func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 	dataCentresNumber := len(pgClusterSpec.DataCentres)
 	isSingleDC := checkSingleDCCluster(dataCentresNumber)
 
@@ -17,8 +36,8 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 
 	pgInstTwoFactorDelete := pgTwoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
 
-	pg := &models.PgClusterAPIv1{
-		ClusterAPIv1: models.ClusterAPIv1{
+	pg := &modelsv1.PgCluster{
+		Cluster: modelsv1.Cluster{
 			ClusterName:           pgClusterSpec.Name,
 			NodeSize:              pgClusterSpec.DataCentres[0].NodeSize,
 			PrivateNetworkCluster: pgClusterSpec.PrivateNetworkCluster,
@@ -33,7 +52,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 	}
 
 	if isSingleDC {
-		pgRackAllocation := &models.RackAllocationAPIv1{
+		pgRackAllocation := &modelsv1.RackAllocation{
 			NodesPerRack:  pgClusterSpec.DataCentres[0].NodesNumber,
 			NumberOfRacks: pgClusterSpec.DataCentres[0].RacksNumber,
 		}
@@ -47,19 +66,19 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 		return pg
 	}
 
-	var pgInstDCs []*models.PgDataCentreAPIv1
+	var pgInstDCs []*modelsv1.PgDataCentre
 	for _, dataCentre := range pgClusterSpec.DataCentres {
 		pgBundles = pgBundlesToInstAPI(dataCentre, pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
 
 		pgInstProvider = pgProviderToInstAPI(dataCentre)
 
-		pgRackAlloc := &models.RackAllocationAPIv1{
+		pgRackAlloc := &modelsv1.RackAllocation{
 			NodesPerRack:  dataCentre.NodesNumber,
 			NumberOfRacks: dataCentre.RacksNumber,
 		}
 
-		pgInstDC := &models.PgDataCentreAPIv1{
-			DataCentreAPIv1: models.DataCentreAPIv1{
+		pgInstDC := &modelsv1.PgDataCentre{
+			DataCentre: modelsv1.DataCentre{
 				Name:           dataCentre.Name,
 				DataCentre:     dataCentre.Region,
 				Network:        dataCentre.Network,
@@ -78,26 +97,14 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 	return pg
 }
 
-func PgFromInstAPI(pgInstaCluster *models.PgStatusAPIv1) *v1alpha1.PgStatus {
-	dataCentres := dataCentresFromInstAPIv1(pgInstaCluster.DataCentres)
-
-	return &v1alpha1.PgStatus{
-		ClusterStatus: v1alpha1.ClusterStatus{
-			Status:                     pgInstaCluster.ClusterStatus,
-			ID:                         pgInstaCluster.ID,
-			DataCentres:                dataCentres,
-		},
-	}
-}
-
-func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*models.PgBundleAPIv1 {
-	var pgBundles []*models.PgBundleAPIv1
-	pgBundle := &models.PgBundleAPIv1{
-		BundleAPIv1: models.BundleAPIv1{
-			Bundle:  models.PgSQL,
+func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*modelsv1.PgBundle {
+	var pgBundles []*modelsv1.PgBundle
+	pgBundle := &modelsv1.PgBundle{
+		Bundle: modelsv1.Bundle{
+			Bundle:  modelsv1.PgSQL,
 			Version: version,
 		},
-		Options: &models.PgBundleOptionsAPIv1{
+		Options: &modelsv1.PgBundleOptions{
 			ClientEncryption:      dataCentre.ClientEncryption,
 			PostgresqlNodeCount:   dataCentre.PostgresqlNodeCount,
 			ReplicationMode:       dataCentre.ReplicationMode,
@@ -107,12 +114,12 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 	pgBundles = append(pgBundles, pgBundle)
 
 	if pgBouncerVersion != "" {
-		pgBouncerBundle := &models.PgBundleAPIv1{
-			BundleAPIv1: models.BundleAPIv1{
-				Bundle:  models.PgBouncer,
+		pgBouncerBundle := &modelsv1.PgBundle{
+			Bundle: modelsv1.Bundle{
+				Bundle:  modelsv1.PgBouncer,
 				Version: pgBouncerVersion,
 			},
-			Options: &models.PgBundleOptionsAPIv1{
+			Options: &modelsv1.PgBundleOptions{
 				PoolMode: dataCentre.PoolMode,
 			},
 		}
@@ -121,33 +128,33 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 	return pgBundles
 }
 
-func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *models.ClusterProviderAPIv1 {
-	return &models.ClusterProviderAPIv1{
-		Name:                   dataCentre.Provider.Name,
-		AccountName:            dataCentre.Provider.AccountName,
-		CustomVirtualNetworkId: dataCentre.Provider.CustomVirtualNetworkId,
+func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterProvider {
+	return &modelsv1.ClusterProvider{
+		Name:                   dataCentre.CloudProvider,
+		AccountName:            dataCentre.AccountName,
+		CustomVirtualNetworkId: dataCentre.CustomVirtualNetworkId,
 		Tags:                   dataCentre.Tags,
-		ResourceGroup:          dataCentre.Provider.ResourceGroup,
-		DiskEncryptionKey:      dataCentre.Provider.DiskEncryptionKey,
+		ResourceGroup:          dataCentre.ResourceGroup,
+		DiskEncryptionKey:      dataCentre.DiskEncryptionKey,
 	}
 }
 
-func dataCentresFromInstAPIv1(instaDataCentres []*models.DataCentreStatusAPIv1) []*v1alpha1.DataCentreStatus {
+func dataCentresFromInstAPI(instaDataCentres []*modelsv1.DataCentreStatus) []*v1alpha1.DataCentreStatus {
 	var dataCentres []*v1alpha1.DataCentreStatus
 	for _, dataCentre := range instaDataCentres {
-		nodes := nodesFromInstAPIv1(dataCentre.Nodes)
+		nodes := nodesFromInstAPI(dataCentre.Nodes)
 		dataCentres = append(dataCentres, &v1alpha1.DataCentreStatus{
-			ID:        dataCentre.ID,
-			Status:    dataCentre.Status,
-			Nodes:     nodes,
-			NodeCount: dataCentre.NodeCount,
+			ID:         dataCentre.ID,
+			Status:     dataCentre.CDCStatus,
+			Nodes:      nodes,
+			NodeNumber: dataCentre.NodeCount,
 		})
 	}
 
 	return dataCentres
 }
 
-func nodesFromInstAPIv1(instaNodes []*models.NodeStatusAPIv1) []*v1alpha1.Node {
+func nodesFromInstAPI(instaNodes []*modelsv1.NodeStatus) []*v1alpha1.Node {
 	var nodes []*v1alpha1.Node
 	for _, node := range instaNodes {
 		nodes = append(nodes, &v1alpha1.Node{
@@ -155,30 +162,30 @@ func nodesFromInstAPIv1(instaNodes []*models.NodeStatusAPIv1) []*v1alpha1.Node {
 			Rack:           node.Rack,
 			PublicAddress:  node.PublicAddress,
 			PrivateAddress: node.PrivateAddress,
-			Status:         node.Status,
+			Status:         node.NodeStatus,
 			Size:           node.Size,
 		})
 	}
 	return nodes
 }
 
-func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*models.FirewallRuleAPIv1 {
+func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*modelsv1.FirewallRule {
 	if len(firewallRules) < 1 {
 		return nil
 	}
 
-	var instFirewallRules []*models.FirewallRuleAPIv1
+	var instFirewallRules []*modelsv1.FirewallRule
 
 	for _, firewallRule := range firewallRules {
-		var instRules []*models.RuleTypeAPIv1
+		var instRules []*modelsv1.RuleType
 		for _, rule := range firewallRule.Rules {
-			instRule := &models.RuleTypeAPIv1{
+			instRule := &modelsv1.RuleType{
 				Type: rule.Type,
 			}
 			instRules = append(instRules, instRule)
 		}
 
-		instFirewallRule := &models.FirewallRuleAPIv1{
+		instFirewallRule := &modelsv1.FirewallRule{
 			Network: firewallRule.Network,
 			Rules:   instRules,
 		}
@@ -189,12 +196,12 @@ func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*models.Fi
 	return instFirewallRules
 }
 
-func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *models.TwoFactorDeleteAPIv1 {
+func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
 	if len(twoFactorDelete) < 1 {
 		return nil
 	}
 
-	return &models.TwoFactorDeleteAPIv1{
+	return &modelsv1.TwoFactorDelete{
 		DeleteVerifyEmail: twoFactorDelete[0].Email,
 		DeleteVerifyPhone: twoFactorDelete[0].Phone,
 	}

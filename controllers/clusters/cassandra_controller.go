@@ -78,7 +78,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return reconcile.Result{}, err
 		}
 
-		currentClusterStatus, err := r.API.GetCassandraClusterStatus(id)
+		currentClusterStatus, err := r.API.GetClusterStatus(id, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(
 				err, "cannot get Cassandra cluster status from the Instaclustr API",
@@ -87,7 +87,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return reconcile.Result{}, err
 		}
 
-		cassandraCluster.Status = *currentClusterStatus
+		cassandraCluster.Status.ClusterStatus = *currentClusterStatus
 		err = r.Status().Update(context.Background(), &cassandraCluster)
 		if err != nil {
 			return reconcile.Result{}, err
