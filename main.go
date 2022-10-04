@@ -100,7 +100,7 @@ func main() {
 	key := os.Getenv("APIKEY")
 	serverHostname := os.Getenv("HOSTNAME")
 
-	instaClient := instaclustr.NewClient(
+	instaClient := instaclustr.NewClientSet(
 		username,
 		key,
 		serverHostname,
@@ -118,7 +118,7 @@ func main() {
 	if err = (&clusterscontrollers.PostgreSQLReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		APIv1:  instaClient,
+		API:    instaClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQL")
 		os.Exit(1)

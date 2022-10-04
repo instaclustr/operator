@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	v2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +34,7 @@ import (
 type KafkaReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	API    instaclustr.APIv2
+	API    instaclustr.ClientInterface
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete
@@ -66,7 +67,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			"Data centres", kafkaCluster.Spec.DataCentres,
 		)
 
-		id, err := r.API.CreateCluster(instaclustr.KafkaEndpoint, kafkaCluster.Spec)
+		id, err := r.API.V2().CreateCluster(v2.KafkaEndpoint, kafkaCluster.Spec)
 		if err != nil {
 			l.Error(
 				err, "cannot create Kafka cluster",

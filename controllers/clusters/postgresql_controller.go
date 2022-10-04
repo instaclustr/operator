@@ -18,22 +18,23 @@ package clusters
 
 import (
 	"context"
+	"github.com/instaclustr/operator/pkg/instaclustr"
+	v1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr"
 )
 
 // PostgreSQLReconciler reconciles a PostgreSQL object
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	APIv1  instaclustr.APIv1
+	API    instaclustr.ClientInterface
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -66,9 +67,9 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Data centres", pgCluster.Spec.DataCentres,
 		)
 
-		pgSpecV1 := instaclustr.PgToInstAPI(&pgCluster.Spec)
+		pgSpecV1 := v1.PgToInstAPI(&pgCluster.Spec)
 
-		id, err := r.APIv1.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpecV1)
+		id, err := r.API.V1().CreateCluster(v1.ClustersCreationEndpoint, pgSpecV1)
 		if err != nil {
 			logger.Error(
 				err, "cannot create PostgreSQL cluster",
@@ -89,7 +90,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		)
 	}
 
-	pgInstaCluster, err := r.APIv1.GetPostgreSQLCluster(instaclustr.ClustersEndpoint, pgCluster.Status.ID)
+	pgInstaCluster, err := r.API.V1().GetPostgreSQLCluster(v1.ClustersEndpoint, pgCluster.Status.ID)
 	if err != nil {
 		logger.Error(
 			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
@@ -99,7 +100,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
-	pgClusterStatus := instaclustr.PgFromInstAPI(pgInstaCluster)
+	pgClusterStatus := v1.PgFromInstAPI(pgInstaCluster)
 
 	pgCluster.Status = *pgClusterStatus
 

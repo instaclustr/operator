@@ -1,11 +1,10 @@
-package instaclustr
+package v1
 
 import (
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr/models"
 )
 
-func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
+func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *PgCluster {
 	dataCentresNumber := len(pgClusterSpec.DataCentres)
 	isSingleDC := checkSingleDCCluster(dataCentresNumber)
 
@@ -17,8 +16,8 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 
 	pgInstTwoFactorDelete := pgTwoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
 
-	pg := &models.PgClusterAPIv1{
-		ClusterAPIv1: models.ClusterAPIv1{
+	pg := &PgCluster{
+		Cluster: Cluster{
 			ClusterName:           pgClusterSpec.ClusterName,
 			NodeSize:              pgClusterSpec.DataCentres[0].NodeSize,
 			PrivateNetworkCluster: pgClusterSpec.PrivateNetworkCluster,
@@ -33,7 +32,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 	}
 
 	if isSingleDC {
-		pgRackAllocation := &models.RackAllocationAPIv1{
+		pgRackAllocation := &RackAllocation{
 			NodesPerRack:  pgClusterSpec.DataCentres[0].NodesNumber,
 			NumberOfRacks: pgClusterSpec.DataCentres[0].RacksNumber,
 		}
@@ -47,19 +46,19 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 		return pg
 	}
 
-	var pgInstDCs []*models.PgDataCentreAPIv1
+	var pgInstDCs []*PgDataCentre
 	for _, dataCentre := range pgClusterSpec.DataCentres {
 		pgBundles = pgBundlesToInstAPI(dataCentre, pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
 
 		pgInstProvider = pgProviderToInstAPI(dataCentre)
 
-		pgRackAlloc := &models.RackAllocationAPIv1{
+		pgRackAlloc := &RackAllocation{
 			NodesPerRack:  dataCentre.NodesNumber,
 			NumberOfRacks: dataCentre.RacksNumber,
 		}
 
-		pgInstDC := &models.PgDataCentreAPIv1{
-			DataCentreAPIv1: models.DataCentreAPIv1{
+		pgInstDC := &PgDataCentre{
+			DataCentre: DataCentre{
 				Name:           dataCentre.Name,
 				DataCentre:     dataCentre.Region,
 				Network:        dataCentre.Network,
@@ -78,12 +77,12 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *models.PgClusterAPIv1 {
 	return pg
 }
 
-func PgFromInstAPI(pgInstaCluster *models.PgStatusAPIv1) *v1alpha1.PgStatus {
+func PgFromInstAPI(pgInstaCluster *PgStatus) *v1alpha1.PgStatus {
 	dataCentres := dataCentresFromInstAPIv1(pgInstaCluster.DataCentres)
 
 	return &v1alpha1.PgStatus{
 		ClusterStatus: v1alpha1.ClusterStatus{
-			Status:                     pgInstaCluster.ClusterStatus,
+			Status:                     pgInstaCluster.ClusterStatus.ClusterStatus,
 			ID:                         pgInstaCluster.ID,
 			ClusterCertificateDownload: pgInstaCluster.ClusterCertificateDownload,
 			DataCentres:                dataCentres,
@@ -91,14 +90,14 @@ func PgFromInstAPI(pgInstaCluster *models.PgStatusAPIv1) *v1alpha1.PgStatus {
 	}
 }
 
-func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*models.PgBundleAPIv1 {
-	var pgBundles []*models.PgBundleAPIv1
-	pgBundle := &models.PgBundleAPIv1{
-		BundleAPIv1: models.BundleAPIv1{
-			Bundle:  models.PgSQL,
+func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*PgBundle {
+	var pgBundles []*PgBundle
+	pgBundle := &PgBundle{
+		Bundle: Bundle{
+			Bundle:  PgSQL,
 			Version: version,
 		},
-		Options: &models.PgBundleOptionsAPIv1{
+		Options: &PgBundleOptions{
 			ClientEncryption:      dataCentre.ClientEncryption,
 			PostgresqlNodeCount:   dataCentre.PostgresqlNodeCount,
 			ReplicationMode:       dataCentre.ReplicationMode,
@@ -108,12 +107,12 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 	pgBundles = append(pgBundles, pgBundle)
 
 	if pgBouncerVersion != "" {
-		pgBouncerBundle := &models.PgBundleAPIv1{
-			BundleAPIv1: models.BundleAPIv1{
-				Bundle:  models.PgBouncer,
+		pgBouncerBundle := &PgBundle{
+			Bundle: Bundle{
+				Bundle:  PgBouncer,
 				Version: pgBouncerVersion,
 			},
-			Options: &models.PgBundleOptionsAPIv1{
+			Options: &PgBundleOptions{
 				PoolMode: dataCentre.PoolMode,
 			},
 		}
@@ -122,8 +121,8 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 	return pgBundles
 }
 
-func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *models.ClusterProviderAPIv1 {
-	return &models.ClusterProviderAPIv1{
+func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *ClusterProvider {
+	return &ClusterProvider{
 		Name:                   dataCentre.Provider.Name,
 		AccountName:            dataCentre.Provider.AccountName,
 		CustomVirtualNetworkId: dataCentre.Provider.CustomVirtualNetworkId,
@@ -133,7 +132,7 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *models.ClusterProvi
 	}
 }
 
-func dataCentresFromInstAPIv1(instaDataCentres []*models.DataCentreStatusAPIv1) []*v1alpha1.DataCentreStatus {
+func dataCentresFromInstAPIv1(instaDataCentres []*DataCentreStatus) []*v1alpha1.DataCentreStatus {
 	var dataCentres []*v1alpha1.DataCentreStatus
 	for _, dataCentre := range instaDataCentres {
 		nodes := nodesFromInstAPIv1(dataCentre.Nodes)
@@ -148,7 +147,7 @@ func dataCentresFromInstAPIv1(instaDataCentres []*models.DataCentreStatusAPIv1) 
 	return dataCentres
 }
 
-func nodesFromInstAPIv1(instaNodes []*models.NodeStatusAPIv1) []*v1alpha1.Node {
+func nodesFromInstAPIv1(instaNodes []*NodeStatus) []*v1alpha1.Node {
 	var nodes []*v1alpha1.Node
 	for _, node := range instaNodes {
 		nodes = append(nodes, &v1alpha1.Node{
@@ -163,23 +162,23 @@ func nodesFromInstAPIv1(instaNodes []*models.NodeStatusAPIv1) []*v1alpha1.Node {
 	return nodes
 }
 
-func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*models.FirewallRuleAPIv1 {
+func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*FirewallRule {
 	if len(firewallRules) < 1 {
 		return nil
 	}
 
-	var instFirewallRules []*models.FirewallRuleAPIv1
+	var instFirewallRules []*FirewallRule
 
 	for _, firewallRule := range firewallRules {
-		var instRules []*models.RuleTypeAPIv1
+		var instRules []*RuleType
 		for _, rule := range firewallRule.Rules {
-			instRule := &models.RuleTypeAPIv1{
+			instRule := &RuleType{
 				Type: rule.Type,
 			}
 			instRules = append(instRules, instRule)
 		}
 
-		instFirewallRule := &models.FirewallRuleAPIv1{
+		instFirewallRule := &FirewallRule{
 			Network: firewallRule.Network,
 			Rules:   instRules,
 		}
@@ -190,12 +189,12 @@ func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*models.Fi
 	return instFirewallRules
 }
 
-func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *models.TwoFactorDeleteAPIv1 {
+func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *TwoFactorDelete {
 	if len(twoFactorDelete) < 1 {
 		return nil
 	}
 
-	return &models.TwoFactorDeleteAPIv1{
+	return &TwoFactorDelete{
 		DeleteVerifyEmail: twoFactorDelete[0].Email,
 		DeleteVerifyPhone: twoFactorDelete[0].Phone,
 	}
