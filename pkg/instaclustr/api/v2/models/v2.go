@@ -1,26 +1,69 @@
 package models
 
-type ClusterStatus struct {
-	ID string `json:"id,omitempty"`
+type ClusterSpec struct {
+	Name                  string             `json:"name"`
+	SLATier               string             `json:"slaTier"`
+	PrivateNetworkCluster bool               `json:"privateNetworkCluster"`
+	PCIComplianceMode     bool               `json:"pciComplianceMode"`
+	TwoFactorDeletes      []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+}
 
-	// Status shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
+type DataCentre struct {
+	Name                string          `json:"name"`
+	Network             string          `json:"network"`
+	NodeSize            string          `json:"nodeSize"`
+	NumberOfNodes       int32           `json:"numberOfNodes"`
+	AWSSettings         []*AWSSetting   `json:"awsSettings,omitempty"`
+	GCPSettings         []*GCPSetting   `json:"gcpSettings,omitempty"`
+	AzureSettings       []*AzureSetting `json:"azureSettings,omitempty"`
+	Tags                []*Tag          `json:"tags,omitempty"`
+	CloudProvider       string          `json:"cloudProvider"`
+	Region              string          `json:"region"`
+	ProviderAccountName string          `json:"providerAccountName,omitempty"`
+}
+
+type AWSSetting struct {
+	EBSEncryptionKey       string `json:"ebsEncryptionKey,omitempty"`
+	CustomVirtualNetworkID string `json:"customVirtualNetworkID,omitempty"`
+}
+
+type GCPSetting struct {
+	CustomVirtualNetworkID string `json:"customVirtualNetworkID,omitempty"`
+}
+
+type AzureSetting struct {
+	ResourceGroup string `json:"resourceGroup,omitempty"`
+}
+
+type Tag struct {
+	Value string `json:"value"`
+	Key   string `json:"key"`
+}
+
+type TwoFactorDelete struct {
+	ConfirmationPhoneNumber string `json:"confirmationPhoneNumber"`
+	ConfirmationEmail       string `json:"confirmationEmail"`
+}
+
+type Node struct {
+	ID             string   `json:"id,omitempty"`
+	Size           string   `json:"nodeSize,omitempty"`
+	Status         string   `json:"status,omitempty"`
+	Roles          []string `json:"nodeRoles,omitempty"`
+	PublicAddress  string   `json:"publicAddress,omitempty"`
+	PrivateAddress string   `json:"privateAddress,omitempty"`
+	Rack           string   `json:"rack,omitempty"`
+}
+
+type ClusterStatus struct {
+	ID          string              `json:"id,omitempty"`
 	Status      string              `json:"status,omitempty"`
 	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
 }
 
 type DataCentreStatus struct {
-	ID            string        `json:"id"`
-	Status        string        `json:"status"`
-	Nodes         []*NodeStatus `json:"nodes"`
-	NumberOfNodes int32         `json:"numberOfNodes"`
-}
-
-type NodeStatus struct {
-	ID             string   `json:"id"`
-	Rack           string   `json:"rack"`
-	NodeSize       string   `json:"nodeSize"`
-	PublicAddress  string   `json:"publicAddress"`
-	PrivateAddress string   `json:"privateAddress"`
-	Status         string   `json:"status"`
-	NodeRoles      []string `json:"nodeRoles"`
+	ID            string  `json:"id"`
+	Status        string  `json:"status"`
+	Nodes         []*Node `json:"nodes"`
+	NumberOfNodes int32   `json:"numberOfNodes"`
 }

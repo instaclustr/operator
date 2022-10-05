@@ -147,6 +147,7 @@ spec:
             required:
             - bundles
             - name
+            - slaTier
             - version
             type: object
           status:

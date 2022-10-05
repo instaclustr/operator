@@ -216,6 +216,7 @@ spec:
             - name
             - partitionsNumber
             - replicationFactorNumber
+            - slaTier
             - version
             type: object
           status:

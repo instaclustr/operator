@@ -65,7 +65,7 @@ type Cluster struct {
 	// Production tier is not available when using Developer class nodes. See SLA Tier for more information.
 	// Enum: "PRODUCTION" "NON_PRODUCTION".
 	// Required for APIv2, but for APIv1 set "NON_PRODUCTION" as a default.
-	SLATier string `json:"slaTier,omitempty"`
+	SLATier string `json:"slaTier"`
 
 	FirewallRules []*FirewallRule `json:"firewallRules,omitempty"`
 

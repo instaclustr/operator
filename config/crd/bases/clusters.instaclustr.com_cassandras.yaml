@@ -172,6 +172,7 @@ spec:
             - luceneEnabled
             - name
             - passwordAndUserAuth
+            - slaTier
             - version
             type: object
           status:
