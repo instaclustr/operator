@@ -164,6 +164,7 @@ spec:
             required:
             - dataCentres
             - name
+            - slaTier
             - version
             type: object
           status:

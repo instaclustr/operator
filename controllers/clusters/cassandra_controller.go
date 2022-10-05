@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -69,7 +70,9 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"Data centres", cassandraCluster.Spec.DataCentres,
 		)
 
-		id, err := r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraCluster.Spec)
+		cassandraSpec := apiv2.CassandraToInstAPI(&cassandraCluster.Spec)
+
+		id, err := r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraSpec)
 		if err != nil {
 			l.Error(
 				err, "cannot create Cassandra cluster",
@@ -98,6 +101,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"cluster ID", id,
 			"Kind", cassandraCluster.Kind,
 			"API Version", cassandraCluster.APIVersion,
+			"Namespace", cassandraCluster.Namespace,
 		)
 
 	}

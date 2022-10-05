@@ -1,26 +1,24 @@
-apiVersion: clusters.instaclustr.com/v2alpha1
+apiVersion: clusters.instaclustr.com/v1alpha1
 kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
   name: "cassandraTest"
-  cassandraVersion: "4.0.1"
+  version: "4.0.1"
   dataCentres:
     - continuousBackup: false
-      replicationFactor: 3
-      numberOfNodes: 3
+      nodesNumber: 4
+      racksNumber: 2
       privateIpBroadcastForDiscovery: false
       network: "192.168.0.0/19"
       tags:
-        - value: "testTag"
-          key: "tag"
+        "tag": "testTag"
       clientToClusterEncryption: false
       nodeSize: "CAS-DEV-t4g.medium-30"
       cloudProvider: "AWS_VPC"
       name: "AWS_cassandra"
       region: "US_EAST_1"
-  pciComplianceMode: false
-  privateNetworkCluster: false
+  pciCompliance: false
   luceneEnabled: false
   passwordAndUserAuth: false
   slaTier: "NON_PRODUCTION"
