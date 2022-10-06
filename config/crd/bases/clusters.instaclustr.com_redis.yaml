@@ -35,10 +35,6 @@ spec:
           spec:
             description: RedisSpec defines the desired state of Redis
             properties:
-              bundledUseOnlyCluster:
-                description: running as dependency for another instance. need to be
-                  tested before decide what to do with this field
-                type: boolean
               bundles:
                 items:
                   properties:
@@ -96,10 +92,17 @@ spec:
                       type: array
                     cloudProvider:
                       type: string
-                    customVirtualNetworkId:
-                      type: string
-                    diskEncryptionKey:
-                      type: string
+                    cloudProviderSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                          diskEncryptionKey:
+                            type: string
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -119,45 +122,22 @@ spec:
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
-                    resourceGroup:
-                      type: string
                     tags:
                       additionalProperties:
                         type: string
                       type: object
                   required:
                   - cloudProvider
+                  - cloudProviderSettings
                   - network
                   - nodesNumber
                   - racksNumber
                   - region
                   type: object
                 type: array
-              firewallRules:
-                items:
-                  properties:
-                    network:
-                      type: string
-                    rules:
-                      items:
-                        properties:
-                          type:
-                            type: string
-                        required:
-                        - type
-                        type: object
-                      type: array
-                    securityGroupId:
-                      type: string
-                  required:
-                  - rules
-                  type: object
-                type: array
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
-                type: string
-              oidsProvider:
                 type: string
               pciCompliance:
                 description: "The PCI compliance standards relate to the security

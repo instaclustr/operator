@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
-func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *models.CassandraCluster {
+func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *modelsv2.CassandraCluster {
 	cassandraInstTwoFactorDelete := cassandraTwoFactorDeleteToInstAPI(cassandraSpec.TwoFactorDelete)
 
-	cassandra := &models.CassandraCluster{
-		ClusterSpec: models.ClusterSpec{
+	cassandra := &modelsv2.CassandraCluster{
+		ClusterSpec: modelsv2.ClusterSpec{
 			Name:                  cassandraSpec.Name,
 			SLATier:               cassandraSpec.SLATier,
 			PrivateNetworkCluster: cassandraSpec.PrivateNetworkCluster,
@@ -23,11 +23,12 @@ func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *models.Cassandra
 		PasswordAndUserAuth: cassandraSpec.PasswordAndUserAuth,
 	}
 
-	var cassandraInstDCs []*models.CassandraDataCentre
+	var cassandraInstDCs []*modelsv2.CassandraDataCentre
 	for _, dataCentre := range cassandraSpec.DataCentres {
+		awsSettings, gcpSettings, azureSettings := providerSettingsToInstaCloudProviders(dataCentre)
 
-		cassandraInstDC := &models.CassandraDataCentre{
-			DataCentre: models.DataCentre{
+		cassandraInstDC := &modelsv2.CassandraDataCentre{
+			DataCentre: modelsv2.DataCentre{
 				Name:                dataCentre.Name,
 				Network:             dataCentre.Network,
 				NodeSize:            dataCentre.NodeSize,
@@ -35,7 +36,10 @@ func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *models.Cassandra
 				Region:              dataCentre.Region,
 				Tags:                tagsToInstAPI(dataCentre.Tags),
 				CloudProvider:       dataCentre.CloudProvider,
-				ProviderAccountName: dataCentre.AccountName,
+				AWSSettings:         awsSettings,
+				GCPSettings:         gcpSettings,
+				AzureSettings:       azureSettings,
+				ProviderAccountName: dataCentre.ProviderAccountName,
 			},
 			ContinuousBackup:               dataCentre.ContinuousBackup,
 			PrivateIPBroadcastForDiscovery: dataCentre.PrivateIPBroadcastForDiscovery,
@@ -43,7 +47,6 @@ func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *models.Cassandra
 			ReplicationFactor:              dataCentre.RacksNumber,
 		}
 
-		providerSettingsToInstaCloudProviders(cassandraInstDCs, dataCentre)
 		cassandraInstDCs = append(cassandraInstDCs, cassandraInstDC)
 
 	}
@@ -52,12 +55,12 @@ func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *models.Cassandra
 	return cassandra
 }
 
-func cassandraTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) []*models.TwoFactorDelete {
+func cassandraTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) []*modelsv2.TwoFactorDelete {
 	if len(twoFactorDelete) < 1 {
 		return nil
 	}
 
-	var twoFactor []*models.TwoFactorDelete
+	var twoFactor []*modelsv2.TwoFactorDelete
 	for i := range twoFactorDelete {
 		twoFactor[i].ConfirmationEmail = twoFactorDelete[i].Email
 		twoFactor[i].ConfirmationPhoneNumber = twoFactorDelete[i].Phone
@@ -66,11 +69,11 @@ func cassandraTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDele
 	return twoFactor
 }
 
-func tagsToInstAPI(tags map[string]string) []*models.Tag {
-	var res []*models.Tag
+func tagsToInstAPI(tags map[string]string) []*modelsv2.Tag {
+	var res []*modelsv2.Tag
 
 	for k, v := range tags {
-		res = append(res, &models.Tag{
+		res = append(res, &modelsv2.Tag{
 			Key:   k,
 			Value: v,
 		})
@@ -80,36 +83,38 @@ func tagsToInstAPI(tags map[string]string) []*models.Tag {
 }
 
 func providerSettingsToInstaCloudProviders(
-	dataCentres []*models.CassandraDataCentre,
 	dataCentre *v1alpha1.CassandraDataCentre,
-) {
+) ([]*modelsv2.AWSSetting, []*modelsv2.GCPSetting, []*modelsv2.AzureSetting) {
+	var AWSSettings []*modelsv2.AWSSetting
+	var GCPSettings []*modelsv2.GCPSetting
+	var AzureSettings []*modelsv2.AzureSetting
 
-	for i := range dataCentres {
-		for j := range dataCentres[i].AWSSettings {
-			if dataCentre.CloudProvider == "AWC_VPC" {
-				dataCentres[i].AWSSettings[j].CustomVirtualNetworkID = dataCentre.CustomVirtualNetworkId
+	for _, cp := range dataCentre.CloudProviderSettings {
+		if dataCentre.CloudProvider == "AWS_VPC" {
+			AWSSetting := &modelsv2.AWSSetting{
+				CustomVirtualNetworkID: cp.CustomVirtualNetworkId,
+				EBSEncryptionKey:       cp.DiskEncryptionKey,
 			}
-			dataCentres[i].AWSSettings[j].EBSEncryptionKey = dataCentre.DiskEncryptionKey
-		}
-	}
-
-	for i := range dataCentres {
-		for j := range dataCentres[i].GCPSettings {
-			if dataCentre.CloudProvider == "GCP" {
-				dataCentres[i].GCPSettings[j].CustomVirtualNetworkID = dataCentre.CustomVirtualNetworkId
+			AWSSettings = append(AWSSettings, AWSSetting)
+		} else if dataCentre.CloudProvider == "GCP" {
+			GCPSetting := &modelsv2.GCPSetting{
+				CustomVirtualNetworkID: cp.CustomVirtualNetworkId,
 			}
+			GCPSettings = append(GCPSettings, GCPSetting)
+		} else if dataCentre.CloudProvider == "AZURE_AZ" {
+			AzureSetting := &modelsv2.AzureSetting{
+				ResourceGroup: cp.ResourceGroup,
+			}
+			AzureSettings = append(AzureSettings, AzureSetting)
 		}
+
 	}
 
-	for i := range dataCentres {
-		for j := range dataCentres[i].AzureSettings {
-			dataCentres[i].AzureSettings[j].ResourceGroup = dataCentre.ResourceGroup
-		}
-	}
+	return AWSSettings, GCPSettings, AzureSettings
 }
 
 func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
-	var clusterStatusFromInst models.ClusterStatus
+	var clusterStatusFromInst modelsv2.ClusterStatus
 	err := json.Unmarshal(body, &clusterStatusFromInst)
 	if err != nil {
 		return nil, err
@@ -125,7 +130,7 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 	return clusterStatus, nil
 }
 
-func dataCentresFromInstAPI(instaDataCentres []*models.DataCentreStatus) []*v1alpha1.DataCentreStatus {
+func dataCentresFromInstAPI(instaDataCentres []*modelsv2.DataCentreStatus) []*v1alpha1.DataCentreStatus {
 	var dataCentres []*v1alpha1.DataCentreStatus
 	for _, dataCentre := range instaDataCentres {
 		nodes := nodesFromInstAPI(dataCentre.Nodes)
@@ -140,7 +145,7 @@ func dataCentresFromInstAPI(instaDataCentres []*models.DataCentreStatus) []*v1al
 	return dataCentres
 }
 
-func nodesFromInstAPI(instaNodes []*models.Node) []*v1alpha1.Node {
+func nodesFromInstAPI(instaNodes []*modelsv2.Node) []*v1alpha1.Node {
 	var nodes []*v1alpha1.Node
 	for _, node := range instaNodes {
 		nodes = append(nodes, &v1alpha1.Node{

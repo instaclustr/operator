@@ -49,10 +49,17 @@ spec:
                       type: boolean
                     cloudProvider:
                       type: string
-                    customVirtualNetworkId:
-                      type: string
-                    diskEncryptionKey:
-                      type: string
+                    cloudProviderSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                          diskEncryptionKey:
+                            type: string
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -80,8 +87,6 @@ spec:
                       type: string
                     replicationMode:
                       type: string
-                    resourceGroup:
-                      type: string
                     synchronousModeStrict:
                       type: boolean
                     tags:
@@ -90,6 +95,7 @@ spec:
                       type: object
                   required:
                   - cloudProvider
+                  - cloudProviderSettings
                   - network
                   - nodesNumber
                   - postgresqlNodeCount

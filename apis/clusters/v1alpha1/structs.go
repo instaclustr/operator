@@ -6,18 +6,21 @@ type Bundle struct {
 	Version string `json:"version"`
 }
 
+type CloudProviderSettings struct {
+	CustomVirtualNetworkId string `json:"customVirtualNetworkId,omitempty"`
+	ResourceGroup          string `json:"resourceGroup,omitempty"`
+	DiskEncryptionKey      string `json:"diskEncryptionKey,omitempty"`
+}
+
 type DataCentre struct {
 	// When use one data centre name of field is dataCentreCustomName for APIv1
 	Name string `json:"name,omitempty"`
 
-	CloudProvider          string `json:"cloudProvider"`
-	AccountName            string `json:"accountName,omitempty"`
-	CustomVirtualNetworkId string `json:"customVirtualNetworkId,omitempty"`
-	ResourceGroup          string `json:"resourceGroup,omitempty"`
-	DiskEncryptionKey      string `json:"diskEncryptionKey,omitempty"`
-
 	// Region. APIv1 : "dataCentre"
-	Region string `json:"region"`
+	Region                string                   `json:"region"`
+	CloudProvider         string                   `json:"cloudProvider"`
+	ProviderAccountName   string                   `json:"accountName,omitempty"`
+	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings"`
 
 	Network  string `json:"network"`
 	NodeSize string `json:"nodeSize,omitempty"`
@@ -67,16 +70,8 @@ type Cluster struct {
 	// Required for APIv2, but for APIv1 set "NON_PRODUCTION" as a default.
 	SLATier string `json:"slaTier"`
 
-	FirewallRules []*FirewallRule `json:"firewallRules,omitempty"`
-
 	// APIv2, unlike AP1, receives an array of TwoFactorDelete (<= 1 items);
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-
-	// running as dependency for another instance.
-	// need to be tested before decide what to do with this field
-	BundledUseOnlyCluster bool `json:"bundledUseOnlyCluster,omitempty"`
-
-	OIDCProvider string `json:"oidsProvider,omitempty"`
 }
 
 type ClusterStatus struct {
