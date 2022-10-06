@@ -7,7 +7,7 @@ type Bundle struct {
 }
 
 type CloudProviderSettings struct {
-	CustomVirtualNetworkId string `json:"customVirtualNetworkId,omitempty"`
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
 	ResourceGroup          string `json:"resourceGroup,omitempty"`
 	DiskEncryptionKey      string `json:"diskEncryptionKey,omitempty"`
 }
@@ -26,7 +26,7 @@ type DataCentre struct {
 	NodeSize string `json:"nodeSize,omitempty"`
 
 	// APIv2: replicationFactor; APIv1: numberOfRacks
-	RacksNumber int32 `json:"racksNumber"`
+	RacksNumber int32 `json:"racksNumber,omitempty"`
 
 	// APIv2: numberOfNodes; APIv1: nodesPerRack.
 	NodesNumber int32 `json:"nodesNumber"`

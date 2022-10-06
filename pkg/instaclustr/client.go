@@ -10,7 +10,7 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
-	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2"
+	convertorv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 )
 
 type Client struct {
@@ -115,7 +115,7 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 		}
 
-		clusterStatus, err = apiv2.ClusterStatusFromInstAPI(body)
+		clusterStatus, err = convertorv2.ClusterStatusFromInstAPI(body)
 	}
 	if err != nil {
 		return nil, err

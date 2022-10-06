@@ -37,12 +37,11 @@ type RestProxy struct {
 }
 
 type DedicatedZookeeper struct {
-	ZookeeperNodeSize  string `json:"zookeeperNodeSize"`
-	ZookeeperNodeCount int32  `json:"zookeeperNodeCount"`
-}
+	// Size of the nodes provisioned as dedicated Zookeeper nodes.
+	NodeSize string `json:"nodeSize"`
 
-type PrivateLink struct {
-	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
+	// Number of dedicated Zookeeper node count, it must be 3 or 5.
+	NodesNumber int32 `json:"nodesNumber"`
 }
 
 // KafkaSpec defines the desired state of Kafka
@@ -50,18 +49,24 @@ type KafkaSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// TODO: add comments for fields
-	Cluster                   `json:",inline"`
-	SchemaRegistry            []*SchemaRegistry     `json:"schemaRegistry,omitempty"`
-	ReplicationFactorNumber   int32                 `json:"replicationFactorNumber"`
-	PartitionsNumber          int32                 `json:"partitionsNumber"`
-	PrivateLink               *PrivateLink          `json:"privateLink,omitempty"`
-	RestProxy                 []*RestProxy          `json:"restProxy,omitempty"`
-	AllowDeleteTopics         bool                  `json:"allowDeleteTopics"`
-	AutoCreateTopics          bool                  `json:"autoCreateTopics"`
-	ClientToClusterEncryption bool                  `json:"clientToClusterEncryption"`
-	DataCentres               []*DataCentre         `json:"dataCentres"`
-	DedicatedZookeeper        []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
+	Cluster        `json:",inline"`
+	SchemaRegistry []*SchemaRegistry `json:"schemaRegistry,omitempty"`
+
+	// ReplicationFactorNumber to use for new topic.
+	// Also represents the number of racks to use when allocating nodes.
+	ReplicationFactorNumber int32 `json:"replicationFactorNumber"`
+
+	// PartitionsNumber number of partitions to use when created new topics.
+	PartitionsNumber          int32         `json:"partitionsNumber"`
+	RestProxy                 []*RestProxy  `json:"restProxy,omitempty"`
+	AllowDeleteTopics         bool          `json:"allowDeleteTopics"`
+	AutoCreateTopics          bool          `json:"autoCreateTopics"`
+	ClientToClusterEncryption bool          `json:"clientToClusterEncryption"`
+	DataCentres               []*DataCentre `json:"dataCentres"`
+
+	// Provision additional dedicated nodes for Apache Zookeeper to run on.
+	// Zookeeper nodes will be co-located with Kafka if this is not provided
+	DedicatedZookeeper []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
 }
 
 // KafkaStatus defines the observed state of Kafka
@@ -76,9 +81,9 @@ type KafkaStatus struct {
 
 	Nodes []*Node `json:"nodes,omitempty"`
 
-	// CurrentClusterOperationStatus indicates if the cluster is currently performing any restructuring operation
+	// CurrentClusterOperation indicates if the cluster is currently performing any restructuring operation
 	// such as being created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"
-	CurrentClusterOperationStatus string `json:"currentClusterOperationStatus"`
+	CurrentClusterOperation string `json:"currentClusterOperationStatus"`
 }
 
 //+kubebuilder:object:root=true

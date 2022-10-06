@@ -99,7 +99,6 @@ spec:
                   - network
                   - nodesNumber
                   - postgresqlNodeCount
-                  - racksNumber
                   - region
                   type: object
                 type: array

@@ -18,7 +18,6 @@ package clusters
 
 import (
 	"context"
-	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,6 +27,7 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 )
 
 // CassandraReconciler reconciles a Cassandra object

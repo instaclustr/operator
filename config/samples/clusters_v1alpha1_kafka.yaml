@@ -3,27 +3,26 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  pciComplianceMode: false
-  defaultReplicationFactor: 3
-  defaultNumberOfPartitions: 3
+  name: "kafkaOperator"
+  version: "2.7.1"
+  pciCompliance: false
+  replicationFactorNumber: 3
+  partitionsNumber: 3
   allowDeleteTopics: true
   autoCreateTopics: true
   clientToClusterEncryption: true
+  slaTier: "NON_PRODUCTION"
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"
-      numberOfNodes: 3
-      provider:
-        name: "AWS_VPC"
+      nodesNumber: 3
+      cloudProvider: "AWS_VPC"
       tags:
-        - value: "myTagValue"
-          key: "myTagKey"
+        tag: "oneTag"
+        tag2: "twoTags"
       nodeSize: "KFK-DEV-t4g.small-5"
       network: "192.168.0.0/18"
       region: "US_EAST_1"
   dedicatedZookeeper:
-    - zookeeperNodeSize: "KDZ-DEV-t4g.small-30"
-      zookeeperNodeCount: 3
+    - nodeSize: "KDZ-DEV-t4g.small-30"
+      nodesNumber: 3
   privateNetworkCluster: true
-  kafkaVersion: "2.7.1"
-  clusterName: "kafkaOperator"
-  slaTier: "NON_PRODUCTION"
