@@ -7,20 +7,20 @@ import (
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 )
 
-func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.FullClusterStatus, error) {
-	var clusterStatusFromInst modelsv1.ClusterStatus
+func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
+	var clusterStatusFromInst modelsv1.FullClusterStatus
 	err := json.Unmarshal(body, &clusterStatusFromInst)
 	if err != nil {
 		return nil, err
 	}
 
 	dataCentres := dataCentresFromInstAPI(clusterStatusFromInst.DataCentres)
-	clusterStatus := &v1alpha1.FullClusterStatus{
-		ClusterStatus: v1alpha1.ClusterStatus{
-			ID:          clusterStatusFromInst.ID,
-			Status:      clusterStatusFromInst.ClusterStatus,
-			DataCentres: dataCentres,
-		},
+	clusterStatus := &v1alpha1.ClusterStatus{
+		ID:                     clusterStatusFromInst.ID,
+		Status:                 clusterStatusFromInst.ClusterStatus,
+		DataCentres:            dataCentres,
+		CDCID:                  clusterStatusFromInst.CDCID,
+		TwoFactorDeleteEnabled: clusterStatusFromInst.TwoFactorDelete,
 	}
 
 	return clusterStatus, nil
@@ -29,8 +29,6 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.FullClusterStatus, error) 
 func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 	dataCentresNumber := len(pgClusterSpec.DataCentres)
 	isSingleDC := checkSingleDCCluster(dataCentresNumber)
-
-	pgInstFirewallRules := firewallRulesToInstAPI(pgClusterSpec.FirewallRules)
 
 	pgBundles := pgBundlesToInstAPI(pgClusterSpec.DataCentres[0], pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
 
@@ -45,10 +43,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 			PrivateNetworkCluster: pgClusterSpec.PrivateNetworkCluster,
 			SLATier:               pgClusterSpec.SLATier,
 			Provider:              pgInstProvider,
-			FirewallRules:         pgInstFirewallRules,
 			TwoFactorDelete:       pgInstTwoFactorDelete,
-			OIDCProvider:          pgClusterSpec.OIDCProvider,
-			BundledUseOnlyCluster: pgClusterSpec.BundledUseOnlyCluster,
 		},
 		Bundles: pgBundles,
 	}
@@ -143,8 +138,8 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterPro
 	return &modelsv1.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
-		CustomVirtualNetworkId: instCustomVirtualNetworkId,
 		Tags:                   dataCentre.Tags,
+		CustomVirtualNetworkId: instCustomVirtualNetworkId,
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}
@@ -155,10 +150,11 @@ func dataCentresFromInstAPI(instaDataCentres []*modelsv1.DataCentreStatus) []*v1
 	for _, dataCentre := range instaDataCentres {
 		nodes := nodesFromInstAPI(dataCentre.Nodes)
 		dataCentres = append(dataCentres, &v1alpha1.DataCentreStatus{
-			ID:         dataCentre.ID,
-			Status:     dataCentre.CDCStatus,
-			Nodes:      nodes,
-			NodeNumber: dataCentre.NodeCount,
+			ID:              dataCentre.ID,
+			Status:          dataCentre.CDCStatus,
+			Nodes:           nodes,
+			NodeNumber:      dataCentre.NodeCount,
+			EncryptionKeyID: dataCentre.EncryptionKeyID,
 		})
 	}
 
@@ -178,33 +174,6 @@ func nodesFromInstAPI(instaNodes []*modelsv1.NodeStatus) []*v1alpha1.Node {
 		})
 	}
 	return nodes
-}
-
-func firewallRulesToInstAPI(firewallRules []*v1alpha1.FirewallRule) []*modelsv1.FirewallRule {
-	if len(firewallRules) < 1 {
-		return nil
-	}
-
-	var instFirewallRules []*modelsv1.FirewallRule
-
-	for _, firewallRule := range firewallRules {
-		var instRules []*modelsv1.RuleType
-		for _, rule := range firewallRule.Rules {
-			instRule := &modelsv1.RuleType{
-				Type: rule.Type,
-			}
-			instRules = append(instRules, instRule)
-		}
-
-		instFirewallRule := &modelsv1.FirewallRule{
-			Network: firewallRule.Network,
-			Rules:   instRules,
-		}
-
-		instFirewallRules = append(instFirewallRules, instFirewallRule)
-	}
-
-	return instFirewallRules
 }
 
 func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {

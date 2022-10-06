@@ -37,18 +37,19 @@ import (
 )
 
 const (
-	lastEventAnnotation = "instaclustr.con/lastEvent"
-	createEvent         = "create"
-	updateEvent         = "update"
-	deleteEvent         = "delete"
-	unknownEvent        = "unknown"
+	previousEventAnnotation = "instaclustr.con/previousEvent"
+	currentEventAnnotation  = "instaclustr.con/currentEvent"
+	createEvent             = "create"
+	updateEvent             = "update"
+	deleteEvent             = "delete"
+	unknownEvent            = "unknown"
 )
 
 // PostgreSQLReconciler reconciles a PostgreSQL object
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	API    instaclustr.API
+	API    *instaclustr.Client
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -67,8 +68,8 @@ type PostgreSQLReconciler struct {
 func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var pgCluster clustersv1alpha1.PostgreSQL
-	err := r.Client.Get(ctx, req.NamespacedName, &pgCluster)
+	pgCluster := &clustersv1alpha1.PostgreSQL{}
+	err := r.Client.Get(ctx, req.NamespacedName, pgCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -79,64 +80,44 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	pgAnnotations := pgCluster.Annotations
-	switch pgAnnotations[lastEventAnnotation] {
+	switch pgAnnotations[currentEventAnnotation] {
 	case createEvent:
-		err = r.HandleCreateCluster(&pgCluster, &logger, &ctx, &req)
+		err = r.HandleCreateCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
-			logger.Error(err, "cannot create PostgreSQL cluster")
+			logger.Error(err, "cannot create PostgreSQL cluster",
+				"Cluster name", pgCluster.Spec.Name,
+			)
 			return reconcile.Result{}, err
 		}
 
+		return reconcile.Result{Requeue: true}, nil
 	case updateEvent:
-		err = r.HandleUpdateCluster(&pgCluster, &logger, &ctx, &req)
+		reconcileResult, err := r.HandleUpdateCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
-			logger.Error(err, "cannot create PostgreSQL cluster")
+			logger.Error(err, "cannot update PostgreSQL cluster",
+				"Cluster name", pgCluster.Spec.Name,
+			)
 			return reconcile.Result{}, err
 		}
 
+		return *reconcileResult, nil
 	case deleteEvent:
-		err = r.HandleDeleteCluster(&pgCluster, &logger, &ctx, &req)
+		err = r.HandleDeleteCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
-			logger.Error(err, "cannot create PostgreSQL cluster")
+			logger.Error(err, "cannot delete PostgreSQL cluster",
+				"Cluster name", pgCluster.Spec.Name,
+			)
 			return reconcile.Result{}, err
 		}
 
 		return reconcile.Result{}, err
 	case unknownEvent:
 		logger.Info("UNKNOWN EVENT")
+
+		return reconcile.Result{}, err
+	default:
 		return reconcile.Result{}, err
 	}
-
-	// status checker logic
-	pgInstaCluster, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
-	if err != client.IgnoreNotFound(err) {
-		logger.Error(
-			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
-			"Cluster name", pgCluster.Spec.Name,
-			"Cluster ID", pgCluster.Status.ID,
-		)
-		return reconcile.Result{}, err
-	}
-
-	err = r.Client.Get(ctx, req.NamespacedName, &pgCluster)
-	if err != nil {
-		logger.Error(err, "unable to fetch PostgreSQL cluster")
-		return reconcile.Result{}, client.IgnoreNotFound(err)
-	}
-
-	pgCluster.Status.ClusterStatus = pgInstaCluster.ClusterStatus
-
-	err = r.Status().Update(context.Background(), &pgCluster)
-	if err != nil {
-		logger.Error(
-			err, "cannot update PostgreSQL cluster status by status checker",
-			"Cluster name", pgCluster.Spec.Name,
-			"Cluster ID", pgCluster.Status.ID,
-		)
-		return reconcile.Result{}, err
-	}
-
-	return reconcile.Result{}, nil
 }
 
 func (r *PostgreSQLReconciler) HandleCreateCluster(
@@ -162,30 +143,21 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return err
 	}
 
-	err = r.Update(context.Background(), pgCluster)
+	pgCluster.Annotations[previousEventAnnotation] = pgCluster.Annotations[currentEventAnnotation]
+	pgCluster.Annotations[currentEventAnnotation] = updateEvent
+
+	err = r.patchClusterMetadata(ctx, pgCluster, logger)
 	if err != nil {
-		logger.Error(
-			err, "cannot update PostgreSQL cluster CRD after creation",
+		logger.Error(err, "cannot patch PostgreSQL cluster",
 			"Cluster name", pgCluster.Spec.Name,
-			"Cluster ID", pgCluster.Status.ID,
+			"Cluster metadata", pgCluster.ObjectMeta,
 		)
 		return err
 	}
 
-	err = r.Client.Get(*ctx, req.NamespacedName, pgCluster)
-	if err != nil {
-		logger.Error(err, "unable to fetch PostgreSQL cluster")
-		return client.IgnoreNotFound(err)
-	}
-
 	pgCluster.Status.ID = id
-	err = r.Status().Update(context.Background(), pgCluster)
+	err = r.Status().Update(*ctx, pgCluster)
 	if err != nil {
-		logger.Error(
-			err, "cannot update PostgreSQL cluster status after creation",
-			"Cluster name", pgCluster.Spec.Name,
-			"Cluster ID", pgCluster.Status.ID,
-		)
 		return err
 	}
 
@@ -198,7 +170,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		"Namespace", pgCluster.Namespace,
 	)
 
-	return err
+	return nil
 }
 
 func (r *PostgreSQLReconciler) HandleUpdateCluster(
@@ -206,21 +178,110 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	logger *logr.Logger,
 	ctx *context.Context,
 	req *ctrl.Request,
-) error {
-
-	// Some logic
-
-	err := r.Status().Update(context.Background(), pgCluster)
+) (*reconcile.Result, error) {
+	pgInstClusterStatus, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil {
 		logger.Error(
-			err, "cannot update PostgreSQL cluster status",
+			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
 			"Cluster name", pgCluster.Spec.Name,
 			"Cluster ID", pgCluster.Status.ID,
 		)
-		return err
+
+		return &reconcile.Result{}, err
 	}
 
-	return nil
+	err = r.reconcileDataCentresNodeSize(pgInstClusterStatus, pgCluster, logger)
+	if err == instaclustr.ClusterNotRunning || err == instaclustr.StatusPreconditionFailed {
+		logger.Error(err, "cluster is not ready to resize",
+			"Cluster name", pgCluster.Spec.Name,
+			"Cluster status", pgInstClusterStatus.Status,
+		)
+		return &reconcile.Result{
+			Requeue:      true,
+			RequeueAfter: instaclustr.Requeue60,
+		}, nil
+	}
+	if err == instaclustr.IncorrectNodeSize {
+		logger.Error(err, "cannot downsize node type")
+		return &reconcile.Result{
+			Requeue:      true,
+			RequeueAfter: instaclustr.Requeue60,
+		}, nil
+	}
+	if err != nil {
+		logger.Error(err, "cannot reconcile data centres node size",
+			"Cluster name", pgCluster.Spec.Name,
+			"Cluster status", pgInstClusterStatus.Status,
+		)
+		return &reconcile.Result{}, err
+	}
+
+	err = r.reconcileClusterConfigurations(
+		pgCluster.Status.ID,
+		pgInstClusterStatus.Status,
+		pgCluster.Spec.ClusterConfigurations,
+		logger,
+	)
+	if err != nil {
+		if err == instaclustr.ClusterNotRunning {
+			logger.Error(err, "cluster is not ready to update cluster configurations",
+				"Cluster name", pgCluster.Spec.Name,
+				"Cluster status", pgInstClusterStatus.Status,
+			)
+			return &reconcile.Result{
+				Requeue:      true,
+				RequeueAfter: instaclustr.Requeue60,
+			}, nil
+		}
+
+		logger.Error(err, "cannot reconcile cluster configurations",
+			"Cluster name", pgCluster.Spec.Name,
+			"Cluster status", pgInstClusterStatus.Status,
+		)
+		return &reconcile.Result{}, err
+	}
+
+	err = r.updateDescriptionAndTwoFactorDelete(pgCluster)
+	if err != nil {
+		logger.Error(err, "cannot update description and twoFactorDelete",
+			"Cluster name", pgCluster.Spec.Name,
+			"Cluster status", pgInstClusterStatus.Status,
+		)
+		return &reconcile.Result{}, err
+	}
+
+	pgCluster.Annotations[previousEventAnnotation] = pgCluster.Annotations[currentEventAnnotation]
+	pgCluster.Annotations[currentEventAnnotation] = ""
+	pgInstClusterStatus, err = r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	if err != nil {
+		logger.Error(
+			err, "cannot get PostgreSQL cluster status from the Instaclustr API",
+			"Cluster name", pgCluster.Spec.Name,
+			"Cluster ID", pgCluster.Status.ID,
+		)
+		return &reconcile.Result{}, err
+	}
+
+	err = r.patchClusterMetadata(ctx, pgCluster, logger)
+	if err != nil {
+		logger.Error(err, "cannot patch PostgreSQL metadata",
+			"Cluster name", pgCluster.Spec.Name,
+			"Cluster metadata", pgCluster.ObjectMeta,
+		)
+		return &reconcile.Result{}, err
+	}
+
+	pgCluster.Status.ClusterStatus = *pgInstClusterStatus
+	err = r.Status().Update(*ctx, pgCluster)
+	if err != nil {
+		return &reconcile.Result{}, err
+	}
+
+	logger.Info("PostgreSQL cluster was updated",
+		"Cluster name", pgCluster.Spec.Name,
+	)
+
+	return &reconcile.Result{}, nil
 }
 
 func (r *PostgreSQLReconciler) HandleDeleteCluster(
@@ -230,10 +291,15 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	req *ctrl.Request,
 ) error {
 
-	// Some logic
+	// Cluster deletion logic
+
+	logger.Info("PostgreSQL cluster was deleted",
+		"Cluster name", pgCluster.Spec.Name,
+		"Cluster id", pgCluster.Status.ID,
+	)
 
 	controllerutil.RemoveFinalizer(pgCluster, "finalizer")
-	err := r.Update(context.Background(), pgCluster)
+	err := r.Update(*ctx, pgCluster)
 	if err != nil {
 		logger.Error(
 			err, "cannot update PostgreSQL cluster CRD",
@@ -251,7 +317,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{lastEventAnnotation: createEvent})
+				event.Object.SetAnnotations(map[string]string{currentEventAnnotation: createEvent})
 				event.Object.SetFinalizers([]string{"finalizer"})
 				return true
 			},
@@ -261,17 +327,17 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{lastEventAnnotation: deleteEvent})
+					event.ObjectNew.SetAnnotations(map[string]string{currentEventAnnotation: deleteEvent})
 					return true
 				}
 
 				event.ObjectNew.SetAnnotations(map[string]string{
-					lastEventAnnotation: updateEvent,
+					currentEventAnnotation: updateEvent,
 				})
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{lastEventAnnotation: unknownEvent})
+				genericEvent.Object.SetAnnotations(map[string]string{currentEventAnnotation: unknownEvent})
 				return true
 			},
 		})).

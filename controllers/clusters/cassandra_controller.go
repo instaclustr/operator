@@ -18,6 +18,8 @@ package clusters
 
 import (
 	"context"
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"time"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -87,7 +88,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(&cassandraCluster, cassandraFinalizerName) {
 			// our finalizer is present, so lets handle any external dependency
-			err := r.API.DeleteCassandraCluster(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+			err := r.API.DeleteCluster(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 			if err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
@@ -172,7 +173,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return reconcile.Result{}, err
 	}
 
-	cassandraCluster.Status.ClusterStatus = currentClusterStatus.ClusterStatus
+	cassandraCluster.Status.ClusterStatus = *currentClusterStatus
 	err = r.Status().Update(context.Background(), &cassandraCluster)
 	if err != nil {
 		return reconcile.Result{}, err
