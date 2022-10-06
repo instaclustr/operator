@@ -33,15 +33,13 @@ type PgDataCentre struct {
 
 // PgSpec defines the desired state of PostgreSQL
 type PgSpec struct {
-	Cluster `json:",inline"`
-
-	// running as dependency for another instance.
-	// need to be tested before decide what to do with this field
-	BundledUseOnlyCluster bool            `json:"bundledUseOnlyCluster,omitempty"`
-	OIDCProvider          string          `json:"oidsProvider,omitempty"`
-	FirewallRules         []*FirewallRule `json:"firewallRules,omitempty"`
-	PGBouncerVersion      string          `json:"pgBouncerVersion,omitempty"`
-	DataCentres           []*PgDataCentre `json:"dataCentres"`
+	Cluster               `json:",inline"`
+	PGBouncerVersion      string            `json:"pgBouncerVersion,omitempty"`
+	DataCentres           []*PgDataCentre   `json:"dataCentres"`
+	ConcurrentResizes     int               `json:"concurrentResizes,omitempty"`
+	NotifySupportContacts bool              `json:"notifySupportContacts,omitempty"`
+	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
+	Description           string            `json:"description,omitempty"`
 }
 
 // PgStatus defines the observed state of PostgreSQL

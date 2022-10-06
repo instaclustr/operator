@@ -1,5 +1,13 @@
 package v1alpha1
 
+import "encoding/json"
+
+const (
+	ReplaceOperation = "replace"
+	AnnotationsPath  = "/metadata/annotations"
+	FinalizersPath   = "/metadata/finalizers"
+)
+
 // Bundle is deprecated: delete when not used.
 type Bundle struct {
 	Bundle  string `json:"bundle"`
@@ -35,10 +43,11 @@ type DataCentre struct {
 }
 
 type DataCentreStatus struct {
-	ID         string  `json:"id,omitempty"`
-	Status     string  `json:"status,omitempty"`
-	Nodes      []*Node `json:"nodes,omitempty"`
-	NodeNumber int32   `json:"nodeNumber,omitempty"`
+	ID              string  `json:"id,omitempty"`
+	Status          string  `json:"status,omitempty"`
+	Nodes           []*Node `json:"nodes,omitempty"`
+	NodeNumber      int32   `json:"nodeNumber,omitempty"`
+	EncryptionKeyID string  `json:"encryptionKeyId,omitempty"`
 }
 
 type Node struct {
@@ -75,9 +84,11 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
-	ID          string              `json:"id,omitempty"`
-	Status      string              `json:"status,omitempty"`
-	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
+	ID                     string              `json:"id,omitempty"`
+	Status                 string              `json:"status,omitempty"`
+	DataCentres            []*DataCentreStatus `json:"dataCentres,omitempty"`
+	CDCID                  string              `json:"cdcid,omitempty"`
+	TwoFactorDeleteEnabled bool                `json:"twoFactorDeleteEnabled,omitempty"`
 }
 
 type FirewallRule struct {
@@ -99,7 +110,15 @@ type TwoFactorDelete struct {
 	Phone string `json:"phone,omitempty"`
 }
 
-type FullClusterStatus struct {
-	Cluster
-	ClusterStatus
+type ResizedDataCentre struct {
+	CurrentNodeSize string
+	NewNodeSize     string
+	DataCentreID    string
+	Provider        string
+}
+
+type PatchRequest struct {
+	Operation string          `json:"op"`
+	Path      string          `json:"path"`
+	Value     json.RawMessage `json:"value"`
 }

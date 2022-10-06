@@ -5,6 +5,8 @@ import "time"
 const (
 	DefaultTimeout  = time.Second * 60
 	OperatorVersion = "k8s v0.0.1"
+	Requeue60       = time.Second * 60
+	Requeue5        = time.Second * 5
 )
 
 // constants for API v2
@@ -15,8 +17,12 @@ const (
 
 // constants for API v1
 const (
-	TerraformDescription     = "/terraform-description"
-	ClustersCreationEndpoint = "/provisioning/v1/extended/"
+	ClusterConfigurationsEndpoint          = "/configurations"
+	ClusterConfigurationsParameterEndpoint = "/parameter/"
+	ActiveOnly                             = "activeOnly=true"
+	ClusterEvents                          = "/events"
+	TerraformDescription                   = "/terraform-description"
+	ClustersCreationEndpoint               = "/provisioning/v1/extended/"
 
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
 	ClustersEndpointV1 = "/provisioning/v1/"

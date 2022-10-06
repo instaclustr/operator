@@ -1,5 +1,10 @@
 package models
 
+const (
+	ProvisionedStatus = "PROVISIONED"
+	RunningStatus     = "RUNNING"
+)
+
 type Cluster struct {
 	ClusterName           string           `json:"clusterName"`
 	Provider              *ClusterProvider `json:"provider"`
@@ -70,10 +75,11 @@ type ClusterStatus struct {
 }
 
 type DataCentreStatus struct {
-	ID        string        `json:"id"`
-	CDCStatus string        `json:"cdcStatus"`
-	Nodes     []*NodeStatus `json:"nodes"`
-	NodeCount int32         `json:"nodeCount"`
+	ID              string        `json:"id,omitempty"`
+	CDCStatus       string        `json:"cdcStatus,omitempty"`
+	Nodes           []*NodeStatus `json:"nodes,omitempty"`
+	NodeCount       int32         `json:"nodeCount,omitempty"`
+	EncryptionKeyID string        `json:"encryptionKeyId,omitempty"`
 }
 
 type NodeStatus struct {
@@ -83,4 +89,36 @@ type NodeStatus struct {
 	PublicAddress  string `json:"publicAddress"`
 	PrivateAddress string `json:"privateAddress"`
 	NodeStatus     string `json:"nodeStatus"`
+}
+
+type FullClusterStatus struct {
+	ClusterName     string `json:"clusterName,omitempty"`
+	ID              string `json:"id,omitempty"`
+	ClusterStatus   string `json:"clusterStatus,omitempty"`
+	TwoFactorDelete bool   `json:"twoFactorDelete,omitempty"`
+	CDCID           string `json:"cdcid,omitempty"`
+
+	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
+}
+
+type ResizeRequest struct {
+	NewNodeSize           string `json:"newNodeSize"`
+	ConcurrentResizes     int    `json:"concurrentResizes"`
+	NotifySupportContacts bool   `json:"notifySupportContacts"`
+	NodePurpose           string `json:"nodePurpose"`
+}
+
+type DataCentreResizeOperations struct {
+	CDCID  string `json:"cdc"`
+	Status string `json:"completedStatus"`
+}
+
+type ClusterConfigurations struct {
+	ParameterName  string `json:"parameterName"`
+	ParameterValue string `json:"parameterValue"`
+}
+
+type ClusterModifyRequest struct {
+	TwoFactorDelete *TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	Description     string           `json:"description,omitempty"`
 }

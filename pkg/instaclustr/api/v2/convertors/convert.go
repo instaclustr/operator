@@ -36,7 +36,7 @@ func TagsToInstAPI(crdTags map[string]string) []*modelsv2.Tag {
 	return instaTags
 }
 
-func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.FullClusterStatus, error) {
+func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 	var clusterStatusFromInst modelsv2.ClusterStatus
 	err := json.Unmarshal(body, &clusterStatusFromInst)
 	if err != nil {
@@ -44,12 +44,10 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.FullClusterStatus, error) 
 	}
 
 	dataCentres := dataCentresFromInstAPI(clusterStatusFromInst.DataCentres)
-	clusterStatus := &v1alpha1.FullClusterStatus{
-		ClusterStatus: v1alpha1.ClusterStatus{
-			ID:          clusterStatusFromInst.ID,
-			Status:      clusterStatusFromInst.Status,
-			DataCentres: dataCentres,
-		},
+	clusterStatus := &v1alpha1.ClusterStatus{
+		ID:          clusterStatusFromInst.ID,
+		Status:      clusterStatusFromInst.Status,
+		DataCentres: dataCentres,
 	}
 
 	return clusterStatus, nil

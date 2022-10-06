@@ -127,9 +127,13 @@ spec:
           status:
             description: CadenceSpec defines the observed state of Cadence
             properties:
+              cdcid:
+                type: string
               dataCentres:
                 items:
                   properties:
+                    encryptionKeyId:
+                      type: string
                     id:
                       type: string
                     nodeNumber:
@@ -164,6 +168,8 @@ spec:
                 type: string
               status:
                 type: string
+              twoFactorDeleteEnabled:
+                type: boolean
             type: object
         type: object
     served: true

@@ -156,9 +156,13 @@ spec:
           status:
             description: CassandraStatus defines the observed state of Cassandra
             properties:
+              cdcid:
+                type: string
               dataCentres:
                 items:
                   properties:
+                    encryptionKeyId:
+                      type: string
                     id:
                       type: string
                     nodeNumber:
@@ -193,6 +197,8 @@ spec:
                 type: string
               status:
                 type: string
+              twoFactorDeleteEnabled:
+                type: boolean
             type: object
         type: object
     served: true

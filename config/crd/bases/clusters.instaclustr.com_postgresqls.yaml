@@ -35,10 +35,12 @@ spec:
           spec:
             description: PgSpec defines the desired state of PostgreSQL
             properties:
-              bundledUseOnlyCluster:
-                description: running as dependency for another instance. need to be
-                  tested before decide what to do with this field
-                type: boolean
+              clusterConfigurations:
+                additionalProperties:
+                  type: string
+                type: object
+              concurrentResizes:
+                type: integer
               dataCentres:
                 items:
                   properties:
@@ -101,32 +103,14 @@ spec:
                   - region
                   type: object
                 type: array
-              firewallRules:
-                items:
-                  properties:
-                    network:
-                      type: string
-                    rules:
-                      items:
-                        properties:
-                          type:
-                            type: string
-                        required:
-                        - type
-                        type: object
-                      type: array
-                    securityGroupId:
-                      type: string
-                  required:
-                  - rules
-                  type: object
-                type: array
+              description:
+                type: string
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
-              oidsProvider:
-                type: string
+              notifySupportContacts:
+                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -174,9 +158,13 @@ spec:
           status:
             description: PgStatus defines the observed state of PostgreSQL
             properties:
+              cdcid:
+                type: string
               dataCentres:
                 items:
                   properties:
+                    encryptionKeyId:
+                      type: string
                     id:
                       type: string
                     nodeNumber:
@@ -211,6 +199,8 @@ spec:
                 type: string
               status:
                 type: string
+              twoFactorDeleteEnabled:
+                type: boolean
             type: object
         type: object
     served: true
