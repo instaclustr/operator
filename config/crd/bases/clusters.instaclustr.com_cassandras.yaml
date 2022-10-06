@@ -90,7 +90,6 @@ spec:
                   - network
                   - nodesNumber
                   - privateIpBroadcastForDiscovery
-                  - racksNumber
                   - region
                   type: object
                 type: array

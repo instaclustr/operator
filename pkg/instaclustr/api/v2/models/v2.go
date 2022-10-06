@@ -1,5 +1,12 @@
 package models
 
+const (
+	AWSVPC  = "AWS_VPC"
+	GCP     = "GCP"
+	AZURE   = "AZURE"
+	AZUREAZ = "AZURE_AZ"
+)
+
 type ClusterSpec struct {
 	Name                  string             `json:"name"`
 	SLATier               string             `json:"slaTier"`

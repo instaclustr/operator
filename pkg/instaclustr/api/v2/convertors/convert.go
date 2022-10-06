@@ -1,4 +1,4 @@
-package v2
+package convertors
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 )
 
 func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *modelsv2.CassandraCluster {
-	cassandraInstTwoFactorDelete := cassandraTwoFactorDeleteToInstAPI(cassandraSpec.TwoFactorDelete)
+	cassandraInstTwoFactorDelete := twoFactorDeleteToInstAPI(cassandraSpec.TwoFactorDelete)
 
 	cassandra := &modelsv2.CassandraCluster{
 		ClusterSpec: modelsv2.ClusterSpec{
@@ -55,31 +55,33 @@ func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *modelsv2.Cassand
 	return cassandra
 }
 
-func cassandraTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) []*modelsv2.TwoFactorDelete {
-	if len(twoFactorDelete) < 1 {
+func twoFactorDeleteToInstAPI(crdTwoFactors []*v1alpha1.TwoFactorDelete) []*modelsv2.TwoFactorDelete {
+	if len(crdTwoFactors) < 1 {
 		return nil
 	}
 
-	var twoFactor []*modelsv2.TwoFactorDelete
-	for i := range twoFactorDelete {
-		twoFactor[i].ConfirmationEmail = twoFactorDelete[i].Email
-		twoFactor[i].ConfirmationPhoneNumber = twoFactorDelete[i].Phone
+	var instaFactorDelete []*modelsv2.TwoFactorDelete
+	for _, twoFactor := range crdTwoFactors {
+		instaFactorDelete = append(instaFactorDelete, &modelsv2.TwoFactorDelete{
+			ConfirmationPhoneNumber: twoFactor.Phone,
+			ConfirmationEmail:       twoFactor.Email,
+		})
 	}
 
-	return twoFactor
+	return instaFactorDelete
 }
 
-func tagsToInstAPI(tags map[string]string) []*modelsv2.Tag {
-	var res []*modelsv2.Tag
+func tagsToInstAPI(crdTags map[string]string) []*modelsv2.Tag {
+	var instaTags []*modelsv2.Tag
 
-	for k, v := range tags {
-		res = append(res, &modelsv2.Tag{
+	for k, v := range crdTags {
+		instaTags = append(instaTags, &modelsv2.Tag{
 			Key:   k,
 			Value: v,
 		})
 	}
 
-	return res
+	return instaTags
 }
 
 func providerSettingsToInstaCloudProviders(
@@ -92,13 +94,13 @@ func providerSettingsToInstaCloudProviders(
 	for _, cp := range dataCentre.CloudProviderSettings {
 		if dataCentre.CloudProvider == "AWS_VPC" {
 			AWSSetting := &modelsv2.AWSSetting{
-				CustomVirtualNetworkID: cp.CustomVirtualNetworkId,
+				CustomVirtualNetworkID: cp.CustomVirtualNetworkID,
 				EBSEncryptionKey:       cp.DiskEncryptionKey,
 			}
 			AWSSettings = append(AWSSettings, AWSSetting)
 		} else if dataCentre.CloudProvider == "GCP" {
 			GCPSetting := &modelsv2.GCPSetting{
-				CustomVirtualNetworkID: cp.CustomVirtualNetworkId,
+				CustomVirtualNetworkID: cp.CustomVirtualNetworkID,
 			}
 			GCPSettings = append(GCPSettings, GCPSetting)
 		} else if dataCentre.CloudProvider == "AZURE_AZ" {

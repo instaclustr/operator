@@ -27,6 +27,7 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 )
 
 // KafkaReconciler reconciles a Kafka object
@@ -66,7 +67,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			"Data centres", kafkaCluster.Spec.DataCentres,
 		)
 
-		id, err := r.API.CreateCluster(instaclustr.KafkaEndpoint, kafkaCluster.Spec)
+		kafkaCluster.Status.ClusterID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, convertors.KafkaToInstAPI(kafkaCluster.Spec))
 		if err != nil {
 			l.Error(
 				err, "cannot create Kafka cluster",
@@ -76,12 +77,11 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		l.Info(
-			"Kafka resource has been created!",
+			"Kafka resource has been created",
 			"Cluster name", kafkaCluster.Spec.Name,
-			"cluster ID", id,
+			"cluster ID", kafkaCluster.Status.ClusterID,
 		)
 
-		kafkaCluster.Status.ClusterID = id
 		err = r.Status().Update(context.Background(), &kafkaCluster)
 		if err != nil {
 			return reconcile.Result{}, err

@@ -131,7 +131,6 @@ spec:
                   - cloudProviderSettings
                   - network
                   - nodesNumber
-                  - racksNumber
                   - region
                   type: object
                 type: array
