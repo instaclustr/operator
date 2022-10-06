@@ -131,11 +131,11 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterProvider {
 	return &modelsv1.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
-		AccountName:            dataCentre.AccountName,
-		CustomVirtualNetworkId: dataCentre.CustomVirtualNetworkId,
+		AccountName:            dataCentre.ProviderAccountName,
+		CustomVirtualNetworkId: dataCentre.CloudProviderSettings[0].CustomVirtualNetworkId,
 		Tags:                   dataCentre.Tags,
-		ResourceGroup:          dataCentre.ResourceGroup,
-		DiskEncryptionKey:      dataCentre.DiskEncryptionKey,
+		ResourceGroup:          dataCentre.CloudProviderSettings[0].ResourceGroup,
+		DiskEncryptionKey:      dataCentre.CloudProviderSettings[0].DiskEncryptionKey,
 	}
 }
 

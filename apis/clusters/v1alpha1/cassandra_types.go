@@ -40,8 +40,7 @@ type CassandraSpec struct {
 type CassandraStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ClusterStatus   `json:",inline"`
-	OperationStatus string `json:"operationStatus,omitempty"`
+	ClusterStatus `json:",inline"`
 }
 
 type CassandraDataCentre struct {

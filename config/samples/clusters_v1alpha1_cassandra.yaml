@@ -6,18 +6,21 @@ spec:
   name: "cassandraTest"
   version: "4.0.1"
   dataCentres:
-    - continuousBackup: false
-      nodesNumber: 4
-      racksNumber: 2
+    - name: "AWS_cassandra"
+      region: "US_EAST_1"
+      cloudProvider: "AWS_VPC"
+      cloudProviderSettings:
+        - customVirtualNetworkId: "test12143"
+          resourceGroup: "resource12314"
+      continuousBackup: false
+      nodesNumber: 3
+      racksNumber: 3
       privateIpBroadcastForDiscovery: false
       network: "192.168.0.0/19"
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
       nodeSize: "CAS-DEV-t4g.medium-30"
-      cloudProvider: "AWS_VPC"
-      name: "AWS_cassandra"
-      region: "US_EAST_1"
   pciCompliance: false
   luceneEnabled: false
   passwordAndUserAuth: false
