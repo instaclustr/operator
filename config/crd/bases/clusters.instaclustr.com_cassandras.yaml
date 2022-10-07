@@ -85,7 +85,6 @@ spec:
                   required:
                   - clientToClusterEncryption
                   - cloudProvider
-                  - cloudProviderSettings
                   - continuousBackup
                   - network
                   - nodesNumber

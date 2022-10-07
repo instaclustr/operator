@@ -7,54 +7,6 @@ import (
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
-func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *modelsv2.CassandraCluster {
-	cassandraInstTwoFactorDelete := twoFactorDeleteToInstAPI(cassandraSpec.TwoFactorDelete)
-
-	cassandra := &modelsv2.CassandraCluster{
-		ClusterSpec: modelsv2.ClusterSpec{
-			Name:                  cassandraSpec.Name,
-			SLATier:               cassandraSpec.SLATier,
-			PrivateNetworkCluster: cassandraSpec.PrivateNetworkCluster,
-			PCIComplianceMode:     cassandraSpec.PCICompliance,
-			TwoFactorDeletes:      cassandraInstTwoFactorDelete,
-		},
-		CassandraVersion:    cassandraSpec.Version,
-		LuceneEnabled:       cassandraSpec.LuceneEnabled,
-		PasswordAndUserAuth: cassandraSpec.PasswordAndUserAuth,
-	}
-
-	var cassandraInstDCs []*modelsv2.CassandraDataCentre
-	for _, dataCentre := range cassandraSpec.DataCentres {
-		awsSettings, gcpSettings, azureSettings := providerSettingsToInstaCloudProviders(dataCentre)
-
-		cassandraInstDC := &modelsv2.CassandraDataCentre{
-			DataCentre: modelsv2.DataCentre{
-				Name:                dataCentre.Name,
-				Network:             dataCentre.Network,
-				NodeSize:            dataCentre.NodeSize,
-				NumberOfNodes:       dataCentre.NodesNumber,
-				Region:              dataCentre.Region,
-				Tags:                tagsToInstAPI(dataCentre.Tags),
-				CloudProvider:       dataCentre.CloudProvider,
-				AWSSettings:         awsSettings,
-				GCPSettings:         gcpSettings,
-				AzureSettings:       azureSettings,
-				ProviderAccountName: dataCentre.ProviderAccountName,
-			},
-			ContinuousBackup:               dataCentre.ContinuousBackup,
-			PrivateIPBroadcastForDiscovery: dataCentre.PrivateIPBroadcastForDiscovery,
-			ClientToClusterEncryption:      dataCentre.ClientToClusterEncryption,
-			ReplicationFactor:              dataCentre.RacksNumber,
-		}
-
-		cassandraInstDCs = append(cassandraInstDCs, cassandraInstDC)
-
-	}
-	cassandra.DataCentres = cassandraInstDCs
-
-	return cassandra
-}
-
 func twoFactorDeleteToInstAPI(crdTwoFactors []*v1alpha1.TwoFactorDelete) []*modelsv2.TwoFactorDelete {
 	if len(crdTwoFactors) < 1 {
 		return nil
@@ -71,7 +23,7 @@ func twoFactorDeleteToInstAPI(crdTwoFactors []*v1alpha1.TwoFactorDelete) []*mode
 	return instaFactorDelete
 }
 
-func tagsToInstAPI(crdTags map[string]string) []*modelsv2.Tag {
+func TagsToInstAPI(crdTags map[string]string) []*modelsv2.Tag {
 	var instaTags []*modelsv2.Tag
 
 	for k, v := range crdTags {
@@ -82,37 +34,6 @@ func tagsToInstAPI(crdTags map[string]string) []*modelsv2.Tag {
 	}
 
 	return instaTags
-}
-
-func providerSettingsToInstaCloudProviders(
-	dataCentre *v1alpha1.CassandraDataCentre,
-) ([]*modelsv2.AWSSetting, []*modelsv2.GCPSetting, []*modelsv2.AzureSetting) {
-	var AWSSettings []*modelsv2.AWSSetting
-	var GCPSettings []*modelsv2.GCPSetting
-	var AzureSettings []*modelsv2.AzureSetting
-
-	for _, cp := range dataCentre.CloudProviderSettings {
-		if dataCentre.CloudProvider == "AWS_VPC" {
-			AWSSetting := &modelsv2.AWSSetting{
-				CustomVirtualNetworkID: cp.CustomVirtualNetworkID,
-				EBSEncryptionKey:       cp.DiskEncryptionKey,
-			}
-			AWSSettings = append(AWSSettings, AWSSetting)
-		} else if dataCentre.CloudProvider == "GCP" {
-			GCPSetting := &modelsv2.GCPSetting{
-				CustomVirtualNetworkID: cp.CustomVirtualNetworkID,
-			}
-			GCPSettings = append(GCPSettings, GCPSetting)
-		} else if dataCentre.CloudProvider == "AZURE_AZ" {
-			AzureSetting := &modelsv2.AzureSetting{
-				ResourceGroup: cp.ResourceGroup,
-			}
-			AzureSettings = append(AzureSettings, AzureSetting)
-		}
-
-	}
-
-	return AWSSettings, GCPSettings, AzureSettings
 }
 
 func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
@@ -160,4 +81,52 @@ func nodesFromInstAPI(instaNodes []*modelsv2.Node) []*v1alpha1.Node {
 		})
 	}
 	return nodes
+}
+
+func dataCentresToInstAPI(crdDCs []*v1alpha1.DataCentre) []*modelsv2.DataCentre {
+	if crdDCs == nil {
+		return nil
+	}
+
+	var instaDCs []*modelsv2.DataCentre
+
+	for _, crdDC := range crdDCs {
+		instaDC := &modelsv2.DataCentre{
+			Name:                crdDC.Name,
+			Network:             crdDC.Network,
+			NodeSize:            crdDC.NodeSize,
+			NumberOfNodes:       crdDC.NodesNumber,
+			Tags:                TagsToInstAPI(crdDC.Tags),
+			CloudProvider:       crdDC.CloudProvider,
+			Region:              crdDC.Region,
+			ProviderAccountName: crdDC.ProviderAccountName,
+		}
+
+		allocateProviderSettingsToInstAPI(crdDC, instaDC)
+
+		instaDCs = append(instaDCs, instaDC)
+	}
+
+	return instaDCs
+}
+
+func allocateProviderSettingsToInstAPI(crdDC *v1alpha1.DataCentre, instaDC *modelsv2.DataCentre) {
+	for _, crdSetting := range crdDC.CloudProviderSettings {
+		switch crdDC.CloudProvider {
+		case modelsv2.AWSVPC:
+			instaDC.AWSSettings = append(instaDC.AWSSettings, &modelsv2.AWSSetting{
+				EBSEncryptionKey:       crdSetting.DiskEncryptionKey,
+				CustomVirtualNetworkID: crdSetting.CustomVirtualNetworkID,
+			})
+		case modelsv2.GCP:
+			instaDC.GCPSettings = append(instaDC.GCPSettings, &modelsv2.GCPSetting{
+				CustomVirtualNetworkID: crdSetting.CustomVirtualNetworkID,
+			})
+		case modelsv2.AZURE, modelsv2.AZUREAZ:
+			instaDC.AzureSettings = append(instaDC.AzureSettings, &modelsv2.AzureSetting{
+				ResourceGroup: crdSetting.ResourceGroup,
+			})
+		}
+	}
+
 }

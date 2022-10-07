@@ -10,7 +10,8 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
-	convertorv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
 type Client struct {
@@ -115,11 +116,61 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 		}
 
-		clusterStatus, err = convertorv2.ClusterStatusFromInstAPI(body)
+		clusterStatus, err = apiv2.ClusterStatusFromInstAPI(body)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	return clusterStatus, nil
+}
+
+func (c *Client) GetCassandraDCs(id, clusterEndpoint string) (*modelsv2.CassandraDCs, error) {
+	url := c.serverHostname + clusterEndpoint + id
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+	var cassandraDC *modelsv2.CassandraDCs
+	err = json.Unmarshal(body, &cassandraDC)
+	if err != nil {
+		return nil, err
+	}
+
+	return cassandraDC, nil
+}
+
+func (c *Client) UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *modelsv2.CassandraDCs) error {
+	url := c.serverHostname + clusterEndpoint + id
+	data, err := json.Marshal(InstaDCs)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
 }

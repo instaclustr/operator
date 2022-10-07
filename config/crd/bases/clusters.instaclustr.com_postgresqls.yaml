@@ -95,7 +95,6 @@ spec:
                       type: object
                   required:
                   - cloudProvider
-                  - cloudProviderSettings
                   - network
                   - nodesNumber
                   - postgresqlNodeCount
