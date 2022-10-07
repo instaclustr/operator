@@ -7,7 +7,7 @@ const (
 	AZUREAZ = "AZURE_AZ"
 )
 
-type ClusterSpec struct {
+type Cluster struct {
 	Name                  string             `json:"name"`
 	SLATier               string             `json:"slaTier"`
 	PrivateNetworkCluster bool               `json:"privateNetworkCluster"`
@@ -31,11 +31,11 @@ type DataCentre struct {
 
 type AWSSetting struct {
 	EBSEncryptionKey       string `json:"ebsEncryptionKey,omitempty"`
-	CustomVirtualNetworkID string `json:"customVirtualNetworkID,omitempty"`
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
 }
 
 type GCPSetting struct {
-	CustomVirtualNetworkID string `json:"customVirtualNetworkID,omitempty"`
+	CustomVirtualNetworkID string `json:"customVirtualNetworkid,omitempty"`
 }
 
 type AzureSetting struct {

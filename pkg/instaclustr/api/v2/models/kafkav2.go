@@ -10,7 +10,7 @@ type CreateKafka struct {
 	AllowDeleteTopics         bool                  `json:"allowDeleteTopics"`
 	AutoCreateTopics          bool                  `json:"autoCreateTopics"`
 	ClientToClusterEncryption bool                  `json:"clientToClusterEncryption"`
-	KafkaDataCentre           []KafkaDataCentre     `json:"dataCentres"`
+	KafkaDataCentre           []*DataCentre         `json:"dataCentres"`
 	DedicatedZookeeper        []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
 	PrivateNetworkCluster     bool                  `json:"privateNetworkCluster"`
 	KafkaVersion              string                `json:"kafkaVersion"`
@@ -34,18 +34,4 @@ type RestProxy struct {
 type DedicatedZookeeper struct {
 	ZookeeperNodeSize  string `json:"zookeeperNodeSize"`
 	ZookeeperNodeCount int32  `json:"zookeeperNodeCount"`
-}
-
-type KafkaDataCentre struct {
-	Name                string          `json:"name"`
-	Network             string          `json:"network"`
-	NodeSize            string          `json:"nodeSize"`
-	NumberOfNodes       int32           `json:"numberOfNodes"`
-	AWSSettings         []*AWSSetting   `json:"awsSettings,omitempty"`
-	GCPSettings         []*GCPSetting   `json:"gcpSettings,omitempty"`
-	AzureSettings       []*AzureSetting `json:"azureSettings,omitempty"`
-	Tags                []*Tag          `json:"tags"`
-	CloudProvider       string          `json:"cloudProvider"`
-	Region              string          `json:"region"`
-	ProviderAccountName string          `json:"providerAccountName,omitempty"`
 }

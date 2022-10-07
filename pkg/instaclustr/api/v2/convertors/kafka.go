@@ -2,11 +2,11 @@ package convertors
 
 import (
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
-func KafkaToInstAPI(k v1alpha1.KafkaSpec) models2.CreateKafka {
-	return models2.CreateKafka{
+func KafkaToInstAPI(k v1alpha1.KafkaSpec) modelsv2.CreateKafka {
+	return modelsv2.CreateKafka{
 		SchemaRegistry:            schemaRegistryToInstAPI(k.SchemaRegistry),
 		RestProxy:                 restProxyToInstAPI(k.RestProxy),
 		PCIComplianceMode:         k.PCICompliance,
@@ -21,18 +21,18 @@ func KafkaToInstAPI(k v1alpha1.KafkaSpec) models2.CreateKafka {
 		Name:                      k.Name,
 		SLATier:                   k.SLATier,
 		KafkaVersion:              k.Version,
-		KafkaDataCentre:           kafkaDCToInstAPI(k.DataCentres),
+		KafkaDataCentre:           dataCentresToInstAPI(k.DataCentres),
 	}
 }
 
-func schemaRegistryToInstAPI(crdSchemas []*v1alpha1.SchemaRegistry) []*models2.SchemaRegistry {
+func schemaRegistryToInstAPI(crdSchemas []*v1alpha1.SchemaRegistry) []*modelsv2.SchemaRegistry {
 	if crdSchemas == nil {
 		return nil
 	}
 
-	var instaSchemas []*models2.SchemaRegistry
+	var instaSchemas []*modelsv2.SchemaRegistry
 	for _, schema := range crdSchemas {
-		instaSchemas = append(instaSchemas, &models2.SchemaRegistry{
+		instaSchemas = append(instaSchemas, &modelsv2.SchemaRegistry{
 			Version: schema.Version,
 		})
 	}
@@ -40,14 +40,14 @@ func schemaRegistryToInstAPI(crdSchemas []*v1alpha1.SchemaRegistry) []*models2.S
 	return instaSchemas
 }
 
-func restProxyToInstAPI(crdProxies []*v1alpha1.RestProxy) []*models2.RestProxy {
+func restProxyToInstAPI(crdProxies []*v1alpha1.RestProxy) []*modelsv2.RestProxy {
 	if crdProxies == nil {
 		return nil
 	}
 
-	var instaRestProxies []*models2.RestProxy
+	var instaRestProxies []*modelsv2.RestProxy
 	for _, proxy := range crdProxies {
-		instaRestProxies = append(instaRestProxies, &models2.RestProxy{
+		instaRestProxies = append(instaRestProxies, &modelsv2.RestProxy{
 			IntegrateRestProxyWithSchemaRegistry: proxy.IntegrateRestProxyWithSchemaRegistry,
 			UseLocalSchemaRegistry:               proxy.UseLocalSchemaRegistry,
 			SchemaRegistryServerURL:              proxy.SchemaRegistryServerURL,
@@ -60,66 +60,18 @@ func restProxyToInstAPI(crdProxies []*v1alpha1.RestProxy) []*models2.RestProxy {
 	return instaRestProxies
 }
 
-func dedicatedZookeeperToInstAPI(crdZookeepers []*v1alpha1.DedicatedZookeeper) []*models2.DedicatedZookeeper {
+func dedicatedZookeeperToInstAPI(crdZookeepers []*v1alpha1.DedicatedZookeeper) []*modelsv2.DedicatedZookeeper {
 	if crdZookeepers == nil {
 		return nil
 	}
 
-	var instaZookeepers []*models2.DedicatedZookeeper
+	var instaZookeepers []*modelsv2.DedicatedZookeeper
 	for _, zookeeper := range crdZookeepers {
-		instaZookeepers = append(instaZookeepers, &models2.DedicatedZookeeper{
+		instaZookeepers = append(instaZookeepers, &modelsv2.DedicatedZookeeper{
 			ZookeeperNodeSize:  zookeeper.NodeSize,
 			ZookeeperNodeCount: zookeeper.NodesNumber,
 		})
 	}
 
 	return instaZookeepers
-}
-
-func kafkaDCToInstAPI(crdDCs []*v1alpha1.DataCentre) []models2.KafkaDataCentre {
-	if crdDCs == nil {
-		return nil
-	}
-
-	var instaDCs []models2.KafkaDataCentre
-
-	for _, crdDC := range crdDCs {
-		instaDC := models2.KafkaDataCentre{
-			Name:                crdDC.Name,
-			Network:             crdDC.Network,
-			NodeSize:            crdDC.NodeSize,
-			NumberOfNodes:       crdDC.NodesNumber,
-			Tags:                tagsToInstAPI(crdDC.Tags),
-			CloudProvider:       crdDC.CloudProvider,
-			Region:              crdDC.Region,
-			ProviderAccountName: crdDC.ProviderAccountName,
-		}
-
-		allocateProviderSettingsToInstAPI(crdDC, &instaDC)
-
-		instaDCs = append(instaDCs, instaDC)
-	}
-
-	return instaDCs
-}
-
-func allocateProviderSettingsToInstAPI(crdDC *v1alpha1.DataCentre, instaDC *models2.KafkaDataCentre) {
-	for _, crdSetting := range crdDC.CloudProviderSettings {
-		switch crdDC.CloudProvider {
-		case models2.AWSVPC:
-			instaDC.AWSSettings = append(instaDC.AWSSettings, &models2.AWSSetting{
-				EBSEncryptionKey:       crdSetting.DiskEncryptionKey,
-				CustomVirtualNetworkID: crdSetting.CustomVirtualNetworkID,
-			})
-		case models2.GCP:
-			instaDC.GCPSettings = append(instaDC.GCPSettings, &models2.GCPSetting{
-				CustomVirtualNetworkID: crdSetting.CustomVirtualNetworkID,
-			})
-		case models2.AZURE, models2.AZUREAZ:
-			instaDC.AzureSettings = append(instaDC.AzureSettings, &models2.AzureSetting{
-				ResourceGroup: crdSetting.ResourceGroup,
-			})
-		}
-	}
-
 }

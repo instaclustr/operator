@@ -1,11 +1,12 @@
 package models
 
 type CassandraCluster struct {
-	ClusterSpec         `json:",inline"`
+	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
 	CassandraVersion    string                 `json:"cassandraVersion"`
 	LuceneEnabled       bool                   `json:"luceneEnabled"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth"`
+	Spark               []*Spark               `json:"spark,omitempty"`
 }
 
 type CassandraDataCentre struct {
@@ -20,4 +21,12 @@ type CassandraDataCentre struct {
 type CassandraStatus struct {
 	ClusterStatus   `json:",inline"`
 	OperationStatus string `json:"operationStatus,omitempty"`
+}
+
+type CassandraDCs struct {
+	DataCentres []*CassandraDataCentre `json:"dataCentres"`
+}
+
+type Spark struct {
+	Version string `json:"version"`
 }

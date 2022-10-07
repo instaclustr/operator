@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -81,32 +82,74 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return reconcile.Result{}, err
 		}
 
-		currentClusterStatus, err := r.API.GetClusterStatus(id, instaclustr.CassandraEndpoint)
+		cassandraCluster.Status.ID = id
+
+	}
+
+	if cassandraCluster.Status.ID != "" && cassandraCluster.Status.Status == "RUNNING" {
+
+		l.Info("Cassandra dcs", "DCS:", cassandraCluster.Spec.DataCentres)
+
+		cassandraDCs, err := r.API.GetCassandraDCs(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(
-				err, "cannot get Cassandra cluster status from the Instaclustr API",
+				err, "cannot get Cassandra Data Centres from the Instaclustr API",
 				"Cassandra cluster spec", cassandraCluster.Spec,
 			)
 			return reconcile.Result{}, err
 		}
 
-		cassandraCluster.Status.ClusterStatus = *currentClusterStatus
-		err = r.Status().Update(context.Background(), &cassandraCluster)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		l.Info(
-			"Cassandra resource has been created",
-			"Cluster name", cassandraCluster.Spec.Name,
-			"cluster ID", id,
-			"Kind", cassandraCluster.Kind,
-			"API Version", cassandraCluster.APIVersion,
-			"Namespace", cassandraCluster.Namespace,
-		)
+		result := apiv2.CompareCassandraDCs(cassandraCluster.Spec.DataCentres, cassandraDCs)
+		if result != nil {
+			err = r.API.UpdateCassandraCluster(cassandraCluster.Status.ID,
+				instaclustr.CassandraEndpoint,
+				result,
+			)
+			if err != nil {
+				l.Error(
+					err, "cannot update Cassandra cluster",
+					"Cassandra cluster spec", cassandraCluster.Spec,
+				)
+				return reconcile.Result{}, err
+			}
 
+			l.Info("Cassandra cluster has been updated",
+				"Cassandra cluster status has been updated",
+				"Cluster name", cassandraCluster.Spec.Name,
+				"Cluster ID", cassandraCluster.Status.ID,
+				"Kind", cassandraCluster.Kind,
+				"API Version", cassandraCluster.APIVersion,
+				"Namespace", cassandraCluster.Namespace,
+			)
+		}
 	}
 
-	return reconcile.Result{}, nil
+	currentClusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+	if err != nil {
+		l.Error(
+			err, "cannot get Cassandra cluster status from the Instaclustr API",
+			"Cassandra cluster spec", cassandraCluster.Spec,
+		)
+		return reconcile.Result{}, err
+	}
+
+	cassandraCluster.Status.ClusterStatus = *currentClusterStatus
+	err = r.Status().Update(context.Background(), &cassandraCluster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	l.Info(
+		"Cassandra cluster status has been updated",
+		"Cluster name", cassandraCluster.Spec.Name,
+		"Cluster ID", cassandraCluster.Status.ID,
+		"Kind", cassandraCluster.Kind,
+		"API Version", cassandraCluster.APIVersion,
+		"Namespace", cassandraCluster.Namespace,
+		"Cluster Status", cassandraCluster.Status.Status,
+	)
+
+	return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

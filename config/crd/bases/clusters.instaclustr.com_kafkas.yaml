@@ -84,7 +84,6 @@ spec:
                       type: object
                   required:
                   - cloudProvider
-                  - cloudProviderSettings
                   - network
                   - nodesNumber
                   - region

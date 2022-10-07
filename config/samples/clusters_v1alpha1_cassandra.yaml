@@ -4,25 +4,24 @@ metadata:
   name: cassandra-cluster
 spec:
   name: "cassandraTest"
-  version: "4.0.1"
+  version: "3.11.13"               # 4.0.1 is deprecated | 4.0.4 and 3.11.13 are supported
   dataCentres:
     - name: "AWS_cassandra"
       region: "US_EAST_1"
       cloudProvider: "AWS_VPC"
-      cloudProviderSettings:
-        - customVirtualNetworkId: "test12143"
-          resourceGroup: "resource12314"
       continuousBackup: false
-      nodesNumber: 3
-      racksNumber: 3
+      nodesNumber: 4
+      racksNumber: 2
       privateIpBroadcastForDiscovery: false
       network: "192.168.0.0/19"
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
-      nodeSize: "CAS-DEV-t4g.medium-30"
+      nodeSize: "c5d.2xlarge-v2"
   pciCompliance: false
-  luceneEnabled: false
+  luceneEnabled: true        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: false
   slaTier: "NON_PRODUCTION"
+  spark:
+    - version: "2.3.2"         # 3.0.1 for 4.0.4 version of Cassandra | 2.3.2 for 3.11.13 version of Cassandra
 

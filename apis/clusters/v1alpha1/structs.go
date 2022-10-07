@@ -20,7 +20,7 @@ type DataCentre struct {
 	Region                string                   `json:"region"`
 	CloudProvider         string                   `json:"cloudProvider"`
 	ProviderAccountName   string                   `json:"accountName,omitempty"`
-	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings"`
+	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
 
 	Network  string `json:"network"`
 	NodeSize string `json:"nodeSize,omitempty"`
