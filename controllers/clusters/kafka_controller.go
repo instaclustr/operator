@@ -19,6 +19,7 @@ package clusters
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,13 +29,15 @@ import (
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
 // KafkaReconciler reconciles a Kafka object
 type KafkaReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme    *runtime.Scheme
+	API       instaclustr.API
+	Scheduler scheduler.Interface
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete
@@ -53,42 +56,94 @@ type KafkaReconciler struct {
 func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var kafkaCluster clustersv1alpha1.Kafka
-	err := r.Client.Get(ctx, req.NamespacedName, &kafkaCluster)
+	var kafka clustersv1alpha1.Kafka
+	err := r.Client.Get(ctx, req.NamespacedName, &kafka)
 	if err != nil {
-		l.Error(err, "unable to fetch Kafka Cluster")
+		if errors.IsNotFound(err) {
+			r.Scheduler.RemoveJob(req.NamespacedName.String())
+		}
+
+		l.Error(err, "unable to fetch Kafka Cluster", "request", req)
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if kafkaCluster.Status.ClusterID == "" {
-		l.Info(
-			"Kafka Cluster ID not found, creating Kafka cluster",
-			"Cluster name", kafkaCluster.Spec.Name,
-			"Data centres", kafkaCluster.Spec.DataCentres,
-		)
+	if kafka.Status.ID == "" {
+		l.Info("Kafka Cluster ID not found, creating Kafka cluster",
+			"Cluster name", kafka.Spec.Name,
+			"Data centres", kafka.Spec.DataCentres)
 
-		kafkaCluster.Status.ClusterID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, convertors.KafkaToInstAPI(kafkaCluster.Spec))
+		kafka.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, convertors.KafkaToInstAPI(kafka.Spec))
 		if err != nil {
-			l.Error(
-				err, "cannot create Kafka cluster",
-				"Kafka manifest", kafkaCluster.Spec,
-			)
+			l.Error(err, "cannot create Kafka cluster",
+				"Kafka manifest", kafka.Spec)
+			return reconcile.Result{}, err
+		}
+		l.Info("Kafka resource has been created",
+			"Cluster name", kafka.Spec.Name,
+			"cluster ID", kafka.Status.ID)
+
+		currentClusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		if err != nil {
+			l.Error(err, "cannot get Kafka cluster status from the Instaclustr API",
+				"kafka cluster spec", kafka.Spec,
+				"kafka ID", kafka.Status.ID)
 			return reconcile.Result{}, err
 		}
 
-		l.Info(
-			"Kafka resource has been created",
-			"Cluster name", kafkaCluster.Spec.Name,
-			"cluster ID", kafkaCluster.Status.ClusterID,
-		)
+		kafka.Status.ClusterStatus = *currentClusterStatus
 
-		err = r.Status().Update(context.Background(), &kafkaCluster)
+		err = r.Status().Update(context.Background(), &kafka)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+
+		err = r.startClusterStatusJob(&kafka)
+		if err != nil {
+			l.Error(err, "cannot start cluster status job",
+				"Kafka cluster ID", kafka.Status.ID)
+			return reconcile.Result{}, err
+		}
+		l.Info("Cluster status job has been started",
+			"kafka cluster ID", kafka.Status.ID)
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *KafkaReconciler) startClusterStatusJob(kafkaCLuster *clustersv1alpha1.Kafka) error {
+	job := r.newWatchStatusJob(kafkaCLuster)
+
+	resourceID := client.ObjectKeyFromObject(kafkaCLuster).String()
+
+	err := r.Scheduler.ScheduleJob(resourceID, scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) scheduler.Job {
+	l := log.Log.WithValues("component", "kafkaStatusClusterJob")
+	return func() error {
+		instaclusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		if err != nil {
+			l.Error(err, "cannot get kafka instaclusterStatus", "ClusterID", kafka.Status.ID)
+			return err
+		}
+
+		if instaclusterStatus.Status != kafka.Status.Status {
+			kafka.Status.Status = instaclusterStatus.Status
+			err := r.Status().Update(context.Background(), kafka)
+			if err != nil {
+				return err
+			}
+			l.Info("Instacluster Status has been changed",
+				"ClusterStatus", kafka.Status.ClusterStatus)
+		}
+
+		return nil
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.

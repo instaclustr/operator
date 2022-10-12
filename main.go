@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -28,6 +29,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
@@ -36,6 +38,7 @@ import (
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -62,6 +65,8 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.DurationVar(&scheduler.ClusterStatusInterval, "cluster-status-interval", 60*time.Second,
+		"An interval to check cluster status")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -105,6 +110,8 @@ func main() {
 		instaclustr.DefaultTimeout,
 	)
 
+	s := scheduler.NewScheduler(log.Log.WithValues("component", "scheduler"))
+
 	if err = (&clusterscontrollers.CassandraReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -143,9 +150,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterscontrollers.KafkaReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Kafka")
 		os.Exit(1)

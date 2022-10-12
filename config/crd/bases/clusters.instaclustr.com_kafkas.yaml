@@ -207,32 +207,42 @@ spec:
                   currently performing any restructuring operation such as being created
                   or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"'
                 type: string
-              id:
-                type: string
-              nodes:
+              dataCentres:
                 items:
                   properties:
                     id:
                       type: string
-                    privateAddress:
-                      type: string
-                    publicAddress:
-                      type: string
-                    rack:
-                      type: string
-                    roles:
+                    nodeNumber:
+                      format: int32
+                      type: integer
+                    nodes:
                       items:
-                        type: string
+                        properties:
+                          id:
+                            type: string
+                          privateAddress:
+                            type: string
+                          publicAddress:
+                            type: string
+                          rack:
+                            type: string
+                          roles:
+                            items:
+                              type: string
+                            type: array
+                          size:
+                            type: string
+                          status:
+                            type: string
+                        type: object
                       type: array
-                    size:
-                      type: string
                     status:
                       type: string
                   type: object
                 type: array
+              id:
+                type: string
               status:
-                description: ClusterStatus shows cluster current state such as a RUNNING,
-                  PROVISIONED, FAILED, etc.
                 type: string
             required:
             - currentClusterOperationStatus
