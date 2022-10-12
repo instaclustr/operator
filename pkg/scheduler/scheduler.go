@@ -8,6 +8,8 @@ import (
 	"github.com/go-logr/logr"
 )
 
+var ClusterStatusInterval time.Duration
+
 type Job func() error
 
 type Interface interface {
@@ -103,6 +105,7 @@ func (s *scheduler) RemoveJob(jobID string) {
 		s.logger.Info("there is no scheduled job", "job id", jobID)
 		return
 	}
+	s.logger.Info("job was removed", "job id", jobID)
 
 	v.done <- struct{}{}
 

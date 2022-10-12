@@ -74,12 +74,7 @@ type KafkaStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID string `json:"id,omitempty"`
-
-	// ClusterStatus shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
-	ClusterStatus string `json:"status,omitempty"`
-
-	Nodes []*Node `json:"nodes,omitempty"`
+	ClusterStatus `json:",inline"`
 
 	// CurrentClusterOperation indicates if the cluster is currently performing any restructuring operation
 	// such as being created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"
