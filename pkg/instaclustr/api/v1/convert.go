@@ -7,7 +7,7 @@ import (
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 )
 
-func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
+func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.FullClusterStatus, error) {
 	var clusterStatusFromInst modelsv1.ClusterStatus
 	err := json.Unmarshal(body, &clusterStatusFromInst)
 	if err != nil {
@@ -15,10 +15,12 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 	}
 
 	dataCentres := dataCentresFromInstAPI(clusterStatusFromInst.DataCentres)
-	clusterStatus := &v1alpha1.ClusterStatus{
-		ID:          clusterStatusFromInst.ID,
-		Status:      clusterStatusFromInst.ClusterStatus,
-		DataCentres: dataCentres,
+	clusterStatus := &v1alpha1.FullClusterStatus{
+		ClusterStatus: v1alpha1.ClusterStatus{
+			ID:          clusterStatusFromInst.ID,
+			Status:      clusterStatusFromInst.ClusterStatus,
+			DataCentres: dataCentres,
+		},
 	}
 
 	return clusterStatus, nil
@@ -129,13 +131,22 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 }
 
 func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterProvider {
+	var instCustomVirtualNetworkId string
+	var instResourceGroup string
+	var insDiskEncryptionKey string
+	if len(dataCentre.CloudProviderSettings) > 0 {
+		instCustomVirtualNetworkId = dataCentre.CloudProviderSettings[0].CustomVirtualNetworkID
+		instResourceGroup = dataCentre.CloudProviderSettings[0].ResourceGroup
+		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
+	}
+
 	return &modelsv1.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
-		CustomVirtualNetworkId: dataCentre.CloudProviderSettings[0].CustomVirtualNetworkID,
+		CustomVirtualNetworkId: instCustomVirtualNetworkId,
 		Tags:                   dataCentre.Tags,
-		ResourceGroup:          dataCentre.CloudProviderSettings[0].ResourceGroup,
-		DiskEncryptionKey:      dataCentre.CloudProviderSettings[0].DiskEncryptionKey,
+		ResourceGroup:          instResourceGroup,
+		DiskEncryptionKey:      insDiskEncryptionKey,
 	}
 }
 

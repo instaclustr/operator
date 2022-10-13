@@ -11,7 +11,7 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
-	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
@@ -92,8 +92,12 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 	return creationResponse.ID, nil
 }
 
-func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error) {
+func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.FullClusterStatus, error) {
 	url := c.serverHostname + clusterEndpoint + id
+	if clusterEndpoint == ClustersEndpointV1 {
+		url += TerraformDescription
+	}
+
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
 		return nil, err
@@ -105,7 +109,7 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 	}
 	defer resp.Body.Close()
 
-	var clusterStatus *v1alpha1.ClusterStatus
+	var clusterStatus *v1alpha1.FullClusterStatus
 	if clusterEndpoint == ClustersEndpointV1 {
 		if resp.StatusCode != http.StatusAccepted {
 			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -117,7 +121,7 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 		}
 
-		clusterStatus, err = apiv2.ClusterStatusFromInstAPI(body)
+		clusterStatus, err = apiv2convertors.ClusterStatusFromInstAPI(body)
 	}
 	if err != nil {
 		return nil, err
@@ -187,5 +191,26 @@ func (c *Client) DeleteCassandraCluster(id, clusterEndpoint string) error {
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
+	return nil
+}
+
+func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
+	url := c.serverHostname + clusterEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
 	return nil
 }

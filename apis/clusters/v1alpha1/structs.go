@@ -98,3 +98,8 @@ type TwoFactorDelete struct {
 	// APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.
 	Phone string `json:"phone,omitempty"`
 }
+
+type FullClusterStatus struct {
+	Cluster
+	ClusterStatus
+}
