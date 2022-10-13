@@ -172,7 +172,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return reconcile.Result{}, err
 	}
 
-	cassandraCluster.Status.ClusterStatus = *currentClusterStatus
+	cassandraCluster.Status.ClusterStatus = currentClusterStatus.ClusterStatus
 	err = r.Status().Update(context.Background(), &cassandraCluster)
 	if err != nil {
 		return reconcile.Result{}, err

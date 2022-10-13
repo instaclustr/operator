@@ -15,6 +15,7 @@ const (
 
 // constants for API v1
 const (
+	TerraformDescription     = "/terraform-description"
 	ClustersCreationEndpoint = "/provisioning/v1/extended/"
 
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
