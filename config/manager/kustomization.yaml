@@ -14,4 +14,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: danilamaster/ioperator
-  newTag: "62"
+  newTag: "77"

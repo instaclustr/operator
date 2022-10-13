@@ -18,13 +18,14 @@ package clusters
 
 import (
 	"context"
-	"time"
-
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"time"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -57,11 +58,54 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	var cassandraCluster clustersv1alpha1.Cassandra
 	err := r.Client.Get(ctx, req.NamespacedName, &cassandraCluster)
 	if err != nil {
-		l.Error(
-			err, "unable to fetch Cassandra Cluster",
-			"Cassandra cluster cluster spec", cassandraCluster.Spec,
-		)
-		return reconcile.Result{}, err
+		if errors.IsNotFound(err) {
+			l.Error(
+				err, "unable to fetch Cassandra Cluster",
+				"Cassandra cluster cluster spec", cassandraCluster.Spec,
+			)
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, nil
+	}
+
+	cassandraFinalizerName := "cassandra-insta-finalizer/finalizer"
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if cassandraCluster.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(&cassandraCluster, cassandraFinalizerName) {
+			controllerutil.AddFinalizer(&cassandraCluster, cassandraFinalizerName)
+			err := r.Update(ctx, &cassandraCluster)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, err
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(&cassandraCluster, cassandraFinalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			err := r.API.DeleteCassandraCluster(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+			if err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return ctrl.Result{}, err
+			}
+
+			l.Info("Cassandra cluster has been deleted",
+				"Cassandra cluster spec", cassandraCluster.Spec,
+			)
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(&cassandraCluster, cassandraFinalizerName)
+			err = r.Update(ctx, &cassandraCluster)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
 	}
 
 	if cassandraCluster.Status.ID == "" {
@@ -72,7 +116,6 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		)
 
 		cassandraSpec := apiv2.CassandraToInstAPI(&cassandraCluster.Spec)
-
 		id, err := r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraSpec)
 		if err != nil {
 			l.Error(
@@ -83,12 +126,9 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		cassandraCluster.Status.ID = id
-
 	}
 
 	if cassandraCluster.Status.ID != "" && cassandraCluster.Status.Status == "RUNNING" {
-
-		l.Info("Cassandra dcs", "DCS:", cassandraCluster.Spec.DataCentres)
 
 		cassandraDCs, err := r.API.GetCassandraDCs(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
@@ -114,7 +154,6 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 
 			l.Info("Cassandra cluster has been updated",
-				"Cassandra cluster status has been updated",
 				"Cluster name", cassandraCluster.Spec.Name,
 				"Cluster ID", cassandraCluster.Status.ID,
 				"Kind", cassandraCluster.Kind,

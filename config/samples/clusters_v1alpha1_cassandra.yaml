@@ -3,17 +3,17 @@ kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
-  name: "cassandraTest"
+  name: "CassandraTEST"
   version: "3.11.13"               # 4.0.1 is deprecated | 4.0.4 and 3.11.13 are supported
   dataCentres:
     - name: "AWS_cassandra"
       region: "US_EAST_1"
       cloudProvider: "AWS_VPC"
       continuousBackup: false
-      nodesNumber: 4
+      nodesNumber: 2
       racksNumber: 2
       privateIpBroadcastForDiscovery: false
-      network: "192.168.0.0/19"
+      network: "172.16.0.0/19"
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
