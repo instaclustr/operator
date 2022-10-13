@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -172,5 +173,19 @@ func (c *Client) UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *mo
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
+	return nil
+}
+
+func (c *Client) DeleteCassandraCluster(id, clusterEndpoint string) error {
+	url := c.serverHostname + clusterEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
 	return nil
 }
