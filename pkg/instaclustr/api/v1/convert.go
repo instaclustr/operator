@@ -8,7 +8,7 @@ import (
 )
 
 func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
-	var clusterStatusFromInst modelsv1.FullClusterStatus
+	var clusterStatusFromInst modelsv1.ClusterStatus
 	err := json.Unmarshal(body, &clusterStatusFromInst)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,6 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterPro
 		instResourceGroup = dataCentre.CloudProviderSettings[0].ResourceGroup
 		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
 	}
-
 	return &modelsv1.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,

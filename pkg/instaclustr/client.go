@@ -109,6 +109,10 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
 	var clusterStatus *v1alpha1.ClusterStatus
 	if clusterEndpoint == ClustersEndpointV1 {
 		if resp.StatusCode != http.StatusAccepted {
@@ -387,12 +391,12 @@ func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 

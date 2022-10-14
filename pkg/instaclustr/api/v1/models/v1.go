@@ -66,14 +66,6 @@ type DataCentre struct {
 	RackAllocation *RackAllocation  `json:"rackAllocation,omitempty"`
 }
 
-type ClusterStatus struct {
-	ID string `json:"id,omitempty"`
-
-	// ClusterStatus shows cluster current state such as a RUNNING, PROVISIONED, FAILED, etc.
-	ClusterStatus string              `json:"clusterStatus,omitempty"`
-	DataCentres   []*DataCentreStatus `json:"dataCentres,omitempty"`
-}
-
 type DataCentreStatus struct {
 	ID              string        `json:"id,omitempty"`
 	CDCStatus       string        `json:"cdcStatus,omitempty"`
@@ -91,7 +83,7 @@ type NodeStatus struct {
 	NodeStatus     string `json:"nodeStatus"`
 }
 
-type FullClusterStatus struct {
+type ClusterStatus struct {
 	ClusterName     string `json:"clusterName,omitempty"`
 	ID              string `json:"id,omitempty"`
 	ClusterStatus   string `json:"clusterStatus,omitempty"`
