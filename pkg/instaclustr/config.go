@@ -5,8 +5,6 @@ import "time"
 const (
 	DefaultTimeout  = time.Second * 60
 	OperatorVersion = "k8s v0.0.1"
-	Requeue60       = time.Second * 60
-	Requeue5        = time.Second * 5
 )
 
 // constants for API v2

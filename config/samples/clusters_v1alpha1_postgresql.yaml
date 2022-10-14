@@ -11,13 +11,13 @@ spec:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
       cloudProvider: "AWS_VPC"
-      nodeSize: "PGS-DEV-t4g.medium-30"
-#      nodeSize: "PGS-DEV-t4g.small-5"
+#      nodeSize: "PGS-DEV-t4g.medium-30"
+      nodeSize: "PGS-DEV-t4g.small-5"
       racksNumber: 2
       nodesNumber: 1
       postgresqlNodeCount: 2
-#  clusterConfigurations:
-#    idle_in_transaction_session_timeout: "3"
+  clusterConfigurations:
+    idle_in_transaction_session_timeout: "3"
 #  twoFactorDelete:
 #    - email: "rostyslp@netapp.com"
 #  description: "test 222"

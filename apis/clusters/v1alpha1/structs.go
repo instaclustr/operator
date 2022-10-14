@@ -6,6 +6,8 @@ const (
 	ReplaceOperation = "replace"
 	AnnotationsPath  = "/metadata/annotations"
 	FinalizersPath   = "/metadata/finalizers"
+
+	DeletionFinalizer = "instaclustr.com/deletionFinalizer"
 )
 
 // Bundle is deprecated: delete when not used.

@@ -18,9 +18,11 @@ package clusters
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -39,17 +41,21 @@ import (
 const (
 	previousEventAnnotation = "instaclustr.con/previousEvent"
 	currentEventAnnotation  = "instaclustr.con/currentEvent"
-	createEvent             = "create"
-	updateEvent             = "update"
-	deleteEvent             = "delete"
-	unknownEvent            = "unknown"
+
+	createEvent  = "create"
+	updateEvent  = "update"
+	deleteEvent  = "delete"
+	unknownEvent = "unknown"
+
+	Requeue60 = time.Second * 60
+	Requeue5  = time.Second * 5
 )
 
 // PostgreSQLReconciler reconciles a PostgreSQL object
 type PostgreSQLReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	API    *instaclustr.Client
+	API    instaclustr.API
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -71,11 +77,16 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	pgCluster := &clustersv1alpha1.PostgreSQL{}
 	err := r.Client.Get(ctx, req.NamespacedName, pgCluster)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("PostgreSQL custom resource is not found",
+				"Resource name", req.NamespacedName,
+			)
 			return reconcile.Result{}, nil
 		}
 
-		logger.Error(err, "unable to fetch PostgreSQL cluster")
+		logger.Error(err, "unable to fetch PostgreSQL cluster",
+			"Resource name", req.NamespacedName,
+		)
 		return reconcile.Result{}, err
 	}
 
@@ -86,6 +97,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if err != nil {
 			logger.Error(err, "cannot create PostgreSQL cluster",
 				"Cluster name", pgCluster.Spec.Name,
+				"Cluster manifest", pgCluster.Spec,
 			)
 			return reconcile.Result{}, err
 		}
@@ -104,8 +116,22 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	case deleteEvent:
 		err = r.HandleDeleteCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
+			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
+				logger.Info("PostgreSQL cluster is still deleting",
+					"Cluster name", pgCluster.Spec.Name,
+					"Cluster ID", pgCluster.Status.ID,
+					"Status", pgCluster.Status.Status,
+				)
+
+				return reconcile.Result{
+					Requeue:      true,
+					RequeueAfter: Requeue60,
+				}, nil
+			}
+
 			logger.Error(err, "cannot delete PostgreSQL cluster",
 				"Cluster name", pgCluster.Spec.Name,
+				"Cluster status", pgCluster.Status.Status,
 			)
 			return reconcile.Result{}, err
 		}
@@ -145,6 +171,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 	pgCluster.Annotations[previousEventAnnotation] = pgCluster.Annotations[currentEventAnnotation]
 	pgCluster.Annotations[currentEventAnnotation] = updateEvent
+	pgCluster.SetFinalizers([]string{clustersv1alpha1.DeletionFinalizer})
 
 	err = r.patchClusterMetadata(ctx, pgCluster, logger)
 	if err != nil {
@@ -191,27 +218,35 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	}
 
 	err = r.reconcileDataCentresNodeSize(pgInstClusterStatus, pgCluster, logger)
-	if err == instaclustr.ClusterNotRunning || err == instaclustr.StatusPreconditionFailed {
-		logger.Error(err, "cluster is not ready to resize",
+	if errors.Is(err, instaclustr.ClusterNotRunning) || errors.Is(err, instaclustr.StatusPreconditionFailed) {
+		logger.Info("cluster is not ready to resize",
 			"Cluster name", pgCluster.Spec.Name,
 			"Cluster status", pgInstClusterStatus.Status,
+			"Reason", err,
 		)
 		return &reconcile.Result{
 			Requeue:      true,
-			RequeueAfter: instaclustr.Requeue60,
+			RequeueAfter: Requeue60,
 		}, nil
 	}
-	if err == instaclustr.IncorrectNodeSize {
-		logger.Error(err, "cannot downsize node type")
+	if errors.Is(err, instaclustr.IncorrectNodeSize) {
+		logger.Info("cannot downsize node type",
+			"Cluster name", pgCluster.Spec.Name,
+			"Current node size", pgInstClusterStatus.DataCentres[0].Nodes[0].Size,
+			"New node size", pgCluster.Spec.DataCentres[0].NodeSize,
+			"Reason", err,
+		)
 		return &reconcile.Result{
 			Requeue:      true,
-			RequeueAfter: instaclustr.Requeue60,
+			RequeueAfter: Requeue60,
 		}, nil
 	}
 	if err != nil {
 		logger.Error(err, "cannot reconcile data centres node size",
 			"Cluster name", pgCluster.Spec.Name,
 			"Cluster status", pgInstClusterStatus.Status,
+			"Current node size", pgInstClusterStatus.DataCentres[0].Nodes[0].Size,
+			"New node size", pgCluster.Spec.DataCentres[0].NodeSize,
 		)
 		return &reconcile.Result{}, err
 	}
@@ -223,20 +258,22 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		logger,
 	)
 	if err != nil {
-		if err == instaclustr.ClusterNotRunning {
-			logger.Error(err, "cluster is not ready to update cluster configurations",
+		if errors.Is(err, instaclustr.ClusterNotRunning) {
+			logger.Info("cluster is not ready to update cluster configurations",
 				"Cluster name", pgCluster.Spec.Name,
 				"Cluster status", pgInstClusterStatus.Status,
+				"Reason", err,
 			)
 			return &reconcile.Result{
 				Requeue:      true,
-				RequeueAfter: instaclustr.Requeue60,
+				RequeueAfter: Requeue60,
 			}, nil
 		}
 
 		logger.Error(err, "cannot reconcile cluster configurations",
 			"Cluster name", pgCluster.Spec.Name,
 			"Cluster status", pgInstClusterStatus.Status,
+			"Configurations", pgCluster.Spec.ClusterConfigurations,
 		)
 		return &reconcile.Result{}, err
 	}
@@ -246,6 +283,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		logger.Error(err, "cannot update description and twoFactorDelete",
 			"Cluster name", pgCluster.Spec.Name,
 			"Cluster status", pgInstClusterStatus.Status,
+			"Two factor delete", pgCluster.Spec.TwoFactorDelete,
 		)
 		return &reconcile.Result{}, err
 	}
@@ -279,6 +317,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 
 	logger.Info("PostgreSQL cluster was updated",
 		"Cluster name", pgCluster.Spec.Name,
+		"Cluster status", pgCluster.Status.Status,
 	)
 
 	return &reconcile.Result{}, nil
@@ -290,24 +329,39 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	ctx *context.Context,
 	req *ctrl.Request,
 ) error {
+	_, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	if err != instaclustr.NotFound {
+		if err != nil {
+			return err
+		}
 
-	// Cluster deletion logic
+		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
+		if err != nil {
+			logger.Error(err, "cannot delete PostgreSQL cluster",
+				"Cluster name", pgCluster.Spec.Name,
+				"Cluster status", pgCluster.Status.Status,
+			)
 
-	logger.Info("PostgreSQL cluster was deleted",
-		"Cluster name", pgCluster.Spec.Name,
-		"Cluster id", pgCluster.Status.ID,
-	)
+			return err
+		}
+		return instaclustr.ClusterIsBeingDeleted
+	}
 
-	controllerutil.RemoveFinalizer(pgCluster, "finalizer")
-	err := r.Update(*ctx, pgCluster)
+	controllerutil.RemoveFinalizer(pgCluster, clustersv1alpha1.DeletionFinalizer)
+	err = r.Update(*ctx, pgCluster)
 	if err != nil {
 		logger.Error(
-			err, "cannot update PostgreSQL cluster CRD",
+			err, "cannot update PostgreSQL cluster CRD after finalizer removal",
 			"Cluster name", pgCluster.Spec.Name,
 			"Cluster ID", pgCluster.Status.ID,
 		)
 		return err
 	}
+
+	logger.Info("PostgreSQL cluster was deleted",
+		"Cluster name", pgCluster.Spec.Name,
+		"Cluster ID", pgCluster.Status.ID,
+	)
 
 	return nil
 }
@@ -318,7 +372,6 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{currentEventAnnotation: createEvent})
-				event.Object.SetFinalizers([]string{"finalizer"})
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
