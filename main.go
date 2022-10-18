@@ -113,9 +113,10 @@ func main() {
 	s := scheduler.NewScheduler(log.Log.WithValues("component", "scheduler"))
 
 	if err = (&clusterscontrollers.CassandraReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cassandra")
 		os.Exit(1)
