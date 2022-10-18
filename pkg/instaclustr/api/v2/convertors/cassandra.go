@@ -76,22 +76,24 @@ func providerSettingsToInstaCloudProviders(dc *v1alpha1.CassandraDataCentre, cas
 }
 
 func CompareCassandraDCs(k8sDCs []*v1alpha1.CassandraDataCentre,
-	instaDcs *modelsv2.CassandraDCs,
+	instaStatus *v1alpha1.ClusterStatus,
 ) *modelsv2.CassandraDCs {
 
 	currentDCs := &modelsv2.CassandraDCs{
 		DataCentres: cassandraSpecDCsToInstaDCs(k8sDCs),
 	}
 
-	if len(currentDCs.DataCentres) > len(instaDcs.DataCentres) {
+	if len(currentDCs.DataCentres) > len(instaStatus.DataCentres) {
 		return currentDCs
 	} else {
 		for i := range currentDCs.DataCentres {
-			if currentDCs.DataCentres[i].NodeSize != instaDcs.DataCentres[i].NodeSize {
+			if currentDCs.DataCentres[i].NumberOfNodes != instaStatus.DataCentres[i].NodeNumber {
 				return currentDCs
 			}
-			if currentDCs.DataCentres[i].NumberOfNodes != instaDcs.DataCentres[i].NumberOfNodes {
-				return currentDCs
+			for j := range instaStatus.DataCentres[i].Nodes {
+				if currentDCs.DataCentres[i].NodeSize != instaStatus.DataCentres[i].Nodes[j].Size {
+					return currentDCs
+				}
 			}
 		}
 	}

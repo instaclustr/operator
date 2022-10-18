@@ -12,7 +12,6 @@ import (
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
 type Client struct {
@@ -333,32 +332,7 @@ func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID,
 	return nil
 }
 
-func (c *Client) GetCassandraDCs(id, clusterEndpoint string) (*modelsv2.CassandraDCs, error) {
-	url := c.serverHostname + clusterEndpoint + id
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-	var cassandraDC *modelsv2.CassandraDCs
-	err = json.Unmarshal(body, &cassandraDC)
-	if err != nil {
-		return nil, err
-	}
-
-	return cassandraDC, nil
-}
-
-func (c *Client) UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *modelsv2.CassandraDCs) error {
+func (c *Client) UpdateCluster(id, clusterEndpoint string, InstaDCs any) error {
 	url := c.serverHostname + clusterEndpoint + id
 	data, err := json.Marshal(InstaDCs)
 	if err != nil {
@@ -375,6 +349,10 @@ func (c *Client) UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *mo
 		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusConflict {
+		return ClusterIsNotReadyToResize
+	}
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)

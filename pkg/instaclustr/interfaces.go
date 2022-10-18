@@ -5,7 +5,6 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
 type API interface {
@@ -18,8 +17,7 @@ type API interface {
 	UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error
 	ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName string) error
 	UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error
-	GetCassandraDCs(id, clusterEndpoint string) (*modelsv2.CassandraDCs, error)
-	UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *modelsv2.CassandraDCs) error
+	UpdateCluster(id, clusterEndpoint string, InstaDCs any) error
 	DeleteCluster(id, clusterEndpoint string) error
 	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 }

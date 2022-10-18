@@ -3,9 +3,10 @@ package instaclustr
 import "errors"
 
 var (
-	StatusPreconditionFailed = errors.New("412 - status precondition failed")
-	ClusterNotRunning        = errors.New("сluster is not running")
-	NotFound                 = errors.New("not found")
-	IncorrectNodeSize        = errors.New("incorrect node size")
-	ClusterIsBeingDeleted    = errors.New("cluster is being deleted")
+	ClusterIsBeingDeleted     = errors.New("cluster is being deleted")
+	NotFound                  = errors.New("not found")
+	ClusterIsNotReadyToResize = errors.New("cluster is not ready to resize yet")
+	ClusterNotRunning         = errors.New("сluster is not running")
+	StatusPreconditionFailed  = errors.New("412 - status precondition failed")
+	IncorrectNodeSize         = errors.New("incorrect node size")
 )

@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -71,6 +72,9 @@ type CassandraList struct {
 	Items           []Cassandra `json:"items"`
 }
 
+func (c *Cassandra) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(c).String() + "/" + jobName
+}
 func init() {
 	SchemeBuilder.Register(&Cassandra{}, &CassandraList{})
 }
