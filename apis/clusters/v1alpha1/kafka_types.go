@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -76,6 +77,7 @@ type KafkaStatus struct {
 
 	ClusterStatus `json:",inline"`
 
+	// +optional
 	// CurrentClusterOperation indicates if the cluster is currently performing any restructuring operation
 	// such as being created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"
 	CurrentClusterOperation string `json:"currentClusterOperationStatus"`
@@ -100,6 +102,10 @@ type KafkaList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Kafka `json:"items"`
+}
+
+func (k *Kafka) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(k).String() + "/" + jobName
 }
 
 func init() {
