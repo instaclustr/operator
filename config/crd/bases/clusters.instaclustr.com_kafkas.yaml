@@ -202,6 +202,8 @@ spec:
           status:
             description: KafkaStatus defines the observed state of Kafka
             properties:
+              cdcid:
+                type: string
               currentClusterOperationStatus:
                 description: 'CurrentClusterOperation indicates if the cluster is
                   currently performing any restructuring operation such as being created
@@ -210,6 +212,8 @@ spec:
               dataCentres:
                 items:
                   properties:
+                    encryptionKeyId:
+                      type: string
                     id:
                       type: string
                     nodeNumber:
@@ -244,8 +248,8 @@ spec:
                 type: string
               status:
                 type: string
-            required:
-            - currentClusterOperationStatus
+              twoFactorDeleteEnabled:
+                type: boolean
             type: object
         type: object
     served: true

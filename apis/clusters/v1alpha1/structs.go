@@ -7,6 +7,12 @@ const (
 	AnnotationsPath  = "/metadata/annotations"
 	FinalizersPath   = "/metadata/finalizers"
 
+	LastEventAnnotation = "instaclustr.com/lastEvent"
+	CreateEvent         = "create"
+	UpdateEvent         = "update"
+	DeleteEvent         = "delete"
+	GenericEvent        = "generic"
+
 	DeletionFinalizer = "instaclustr.com/deletionFinalizer"
 )
 
