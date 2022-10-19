@@ -136,14 +136,15 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 
 func (c *Client) UpdateNodeSize(
 	clusterEndpoint,
-	clusterId string,
+	clusterID string,
 	resizedDataCentre *v1alpha1.ResizedDataCentre,
-	concurrentResizes int, notifySupportContacts bool,
+	concurrentResizes int,
+	notifySupportContacts bool,
 	nodePurpose string,
 ) error {
 	var url string
 	if clusterEndpoint == ClustersEndpointV1 {
-		url += fmt.Sprintf(ClustersResizeEndpoint, c.serverHostname, clusterId, resizedDataCentre.DataCentreID)
+		url = fmt.Sprintf(ClustersResizeEndpoint, c.serverHostname, clusterID, resizedDataCentre.DataCentreID)
 	}
 
 	resizeRequest := &modelsv1.ResizeRequest{
@@ -180,10 +181,10 @@ func (c *Client) UpdateNodeSize(
 	return nil
 }
 
-func (c *Client) GetActiveDataCentreResizeOperations(clusterId, dataCentreId string) ([]*modelsv1.DataCentreResizeOperations, error) {
+func (c *Client) GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*modelsv1.DataCentreResizeOperations, error) {
 	var dcResizeOperations []*modelsv1.DataCentreResizeOperations
 
-	url := fmt.Sprintf(ClustersResizeEndpoint+"?%s", c.serverHostname, clusterId, dataCentreId, ActiveOnly)
+	url := fmt.Sprintf(ClustersResizeEndpoint+"?%s", c.serverHostname, clusterID, dataCentreID, ActiveOnly)
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
