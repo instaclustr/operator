@@ -20,29 +20,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type RedisBundle struct {
-	Bundle  `json:",inline"`
-	Options RedisBundleOptions `json:"options,omitempty"`
-}
-
-type RedisBundleOptions struct {
-	ClientEncryption bool  `json:"clientEncryption,omitempty"`
-	PasswordAuth     bool  `json:"passwordAuth,omitempty"`
-	MasterNodes      int32 `json:"masterNodes,omitempty"`
-	ReplicaNodes     int32 `json:"replicaNodes,omitempty"`
-}
-
 type RedisDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []RedisBundle `json:"bundles,omitempty"`
+	DataCentre       `json:",inline"`
+	ClientEncryption bool  `json:"clientEncryption,omitempty"`
+	MasterNodes      int32 `json:"masterNodes"`
+	ReplicaNodes     int32 `json:"replicaNodes"`
+	PasswordAuth     bool  `json:"passwordAuth,omitempty"`
 }
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	Cluster             `json:",inline"`
-	Bundles             []RedisBundle     `json:"bundles"`
-	PCICompliantCluster bool              `json:"pciCompliantCluster,omitempty"`
-	DataCentres         []RedisDataCentre `json:"dataCentres,omitempty"`
+	Cluster     `json:",inline"`
+	DataCentres []*RedisDataCentre `json:"dataCentres"`
 }
 
 // RedisStatus defines the observed state of Redis

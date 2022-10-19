@@ -35,61 +35,13 @@ spec:
           spec:
             description: RedisSpec defines the desired state of Redis
             properties:
-              bundles:
-                items:
-                  properties:
-                    bundle:
-                      type: string
-                    options:
-                      properties:
-                        clientEncryption:
-                          type: boolean
-                        masterNodes:
-                          format: int32
-                          type: integer
-                        passwordAuth:
-                          type: boolean
-                        replicaNodes:
-                          format: int32
-                          type: integer
-                      type: object
-                    version:
-                      type: string
-                  required:
-                  - bundle
-                  - version
-                  type: object
-                type: array
               dataCentres:
                 items:
                   properties:
                     accountName:
                       type: string
-                    bundles:
-                      items:
-                        properties:
-                          bundle:
-                            type: string
-                          options:
-                            properties:
-                              clientEncryption:
-                                type: boolean
-                              masterNodes:
-                                format: int32
-                                type: integer
-                              passwordAuth:
-                                type: boolean
-                              replicaNodes:
-                                format: int32
-                                type: integer
-                            type: object
-                          version:
-                            type: string
-                        required:
-                        - bundle
-                        - version
-                        type: object
-                      type: array
+                    clientEncryption:
+                      type: boolean
                     cloudProvider:
                       type: string
                     cloudProviderSettings:
@@ -103,6 +55,9 @@ spec:
                             type: string
                         type: object
                       type: array
+                    masterNodes:
+                      format: int32
+                      type: integer
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -115,6 +70,8 @@ spec:
                       description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
+                    passwordAuth:
+                      type: boolean
                     racksNumber:
                       description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
                       format: int32
@@ -122,15 +79,22 @@ spec:
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
+                    replicaNodes:
+                      format: int32
+                      type: integer
                     tags:
                       additionalProperties:
                         type: string
                       type: object
                   required:
                   - cloudProvider
+                  - masterNodes
                   - network
+                  - nodeSize
                   - nodesNumber
+                  - racksNumber
                   - region
+                  - replicaNodes
                   type: object
                 type: array
               name:
@@ -143,8 +107,6 @@ spec:
                   clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
                   and Redis. PCI compliance cannot be enabled if the cluster has Spark.
                   \n APIv1 : \"pciCompliantCluster,omitempty\"; APIv2 : pciComplianceMode."
-                type: boolean
-              pciCompliantCluster:
                 type: boolean
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
@@ -176,7 +138,7 @@ spec:
               version:
                 type: string
             required:
-            - bundles
+            - dataCentres
             - name
             - slaTier
             - version

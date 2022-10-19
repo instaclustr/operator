@@ -87,8 +87,10 @@ spec:
                   - cloudProvider
                   - continuousBackup
                   - network
+                  - nodeSize
                   - nodesNumber
                   - privateIpBroadcastForDiscovery
+                  - racksNumber
                   - region
                   type: object
                 type: array

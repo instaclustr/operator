@@ -98,8 +98,10 @@ spec:
                   required:
                   - cloudProvider
                   - network
+                  - nodeSize
                   - nodesNumber
                   - postgresqlNodeCount
+                  - racksNumber
                   - region
                   type: object
                 type: array
