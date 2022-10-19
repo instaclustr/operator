@@ -39,8 +39,9 @@ import (
 )
 
 const (
-	previousEventAnnotation = "instaclustr.con/previousEvent"
-	currentEventAnnotation  = "instaclustr.con/currentEvent"
+	previousEventAnnotation    = "instaclustr.com/previousEvent"
+	currentEventAnnotation     = "instaclustr.com/currentEvent"
+	isClusterCreatedAnnotation = "instaclustr.com/isClusterCreated"
 
 	createEvent  = "create"
 	updateEvent  = "update"
@@ -171,6 +172,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 	pgCluster.Annotations[previousEventAnnotation] = pgCluster.Annotations[currentEventAnnotation]
 	pgCluster.Annotations[currentEventAnnotation] = updateEvent
+	pgCluster.Annotations[isClusterCreatedAnnotation] = "true"
 	pgCluster.SetFinalizers([]string{clustersv1alpha1.DeletionFinalizer})
 
 	err = r.patchClusterMetadata(ctx, pgCluster, logger)
@@ -250,6 +252,9 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 		return &reconcile.Result{}, err
 	}
+	logger.Info("Data centres were reconciled",
+		"Cluster name", pgCluster.Spec.Name,
+	)
 
 	err = r.reconcileClusterConfigurations(
 		pgCluster.Status.ID,
@@ -329,12 +334,12 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	ctx *context.Context,
 	req *ctrl.Request,
 ) error {
-	_, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
-	if err != instaclustr.NotFound {
-		if err != nil {
-			return err
-		}
+	status, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		return err
+	}
 
+	if status != nil {
 		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
 		if err != nil {
 			logger.Error(err, "cannot delete PostgreSQL cluster",
@@ -371,6 +376,17 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
+				if event.Object.GetDeletionTimestamp() != nil {
+					event.Object.SetAnnotations(map[string]string{currentEventAnnotation: deleteEvent})
+					return true
+				}
+
+				annotations := event.Object.GetAnnotations()
+				if annotations[isClusterCreatedAnnotation] == "true" {
+					event.Object.SetAnnotations(map[string]string{currentEventAnnotation: updateEvent})
+					return true
+				}
+
 				event.Object.SetAnnotations(map[string]string{currentEventAnnotation: createEvent})
 				return true
 			},
