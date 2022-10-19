@@ -2,20 +2,6 @@ package v1alpha1
 
 import "encoding/json"
 
-const (
-	ReplaceOperation = "replace"
-	AnnotationsPath  = "/metadata/annotations"
-	FinalizersPath   = "/metadata/finalizers"
-
-	LastEventAnnotation = "instaclustr.com/lastEvent"
-	CreateEvent         = "create"
-	UpdateEvent         = "update"
-	DeleteEvent         = "delete"
-	GenericEvent        = "generic"
-
-	DeletionFinalizer = "instaclustr.com/deletionFinalizer"
-)
-
 // Bundle is deprecated: delete when not used.
 type Bundle struct {
 	Bundle  string `json:"bundle"`
@@ -39,10 +25,10 @@ type DataCentre struct {
 	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
 
 	Network  string `json:"network"`
-	NodeSize string `json:"nodeSize,omitempty"`
+	NodeSize string `json:"nodeSize"`
 
 	// APIv2: replicationFactor; APIv1: numberOfRacks
-	RacksNumber int32 `json:"racksNumber,omitempty"`
+	RacksNumber int32 `json:"racksNumber"`
 
 	// APIv2: numberOfNodes; APIv1: nodesPerRack.
 	NodesNumber int32 `json:"nodesNumber"`

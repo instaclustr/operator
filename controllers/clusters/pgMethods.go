@@ -12,6 +12,7 @@ import (
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 func (r *PostgreSQLReconciler) patchClusterMetadata(
@@ -27,8 +28,8 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 	}
 
 	annotationsPatch := &clustersv1alpha1.PatchRequest{
-		Operation: clustersv1alpha1.ReplaceOperation,
-		Path:      clustersv1alpha1.AnnotationsPath,
+		Operation: models.ReplaceOperation,
+		Path:      models.AnnotationsPath,
 		Value:     json.RawMessage(annotationsPayload),
 	}
 	patchRequest = append(patchRequest, annotationsPatch)
@@ -39,8 +40,8 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 	}
 
 	finzlizersPatch := &clustersv1alpha1.PatchRequest{
-		Operation: clustersv1alpha1.ReplaceOperation,
-		Path:      clustersv1alpha1.FinalizersPath,
+		Operation: models.ReplaceOperation,
+		Path:      models.FinalizersPath,
 		Value:     json.RawMessage(finalizersPayload),
 	}
 	patchRequest = append(patchRequest, finzlizersPatch)

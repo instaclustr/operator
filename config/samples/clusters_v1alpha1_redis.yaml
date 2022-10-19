@@ -9,4 +9,23 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: redis-sample
 spec:
-  # TODO(user): Add fields here
+  name: "testRediska"
+  version: "redis:7.0.5"
+  slaTier: "NON_PRODUCTION"
+  dataCentres:
+    - region: "US_WEST_2"
+      cloudProvider: "AWS_VPC"
+      network: "10.1.0.0/16"
+      nodeSize: "t3.small-20-r"
+      nodesNumber: 3
+      racksNumber: 3
+      masterNodes: 3
+      replicaNodes: 3
+    - region: "US_WEST_2"
+      cloudProvider: "AWS_VPC"
+      network: "10.2.0.0/16"
+      nodeSize: "t3.small-20-r"
+      nodesNumber: 3
+      racksNumber: 3
+      masterNodes: 3
+      replicaNodes: 3

@@ -85,7 +85,9 @@ spec:
                   required:
                   - cloudProvider
                   - network
+                  - nodeSize
                   - nodesNumber
+                  - racksNumber
                   - region
                   type: object
                 type: array

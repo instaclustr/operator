@@ -19,7 +19,6 @@ package clusters
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,20 +35,7 @@ import (
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
-)
-
-const (
-	previousEventAnnotation    = "instaclustr.com/previousEvent"
-	currentEventAnnotation     = "instaclustr.com/currentEvent"
-	isClusterCreatedAnnotation = "instaclustr.com/isClusterCreated"
-
-	createEvent  = "create"
-	updateEvent  = "update"
-	deleteEvent  = "delete"
-	unknownEvent = "unknown"
-
-	Requeue60 = time.Second * 60
-	Requeue5  = time.Second * 5
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // PostgreSQLReconciler reconciles a PostgreSQL object
@@ -92,8 +78,8 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	pgAnnotations := pgCluster.Annotations
-	switch pgAnnotations[currentEventAnnotation] {
-	case createEvent:
+	switch pgAnnotations[models.CurrentEventAnnotation] {
+	case models.CreateEvent:
 		err = r.HandleCreateCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
 			logger.Error(err, "cannot create PostgreSQL cluster",
@@ -104,7 +90,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		return reconcile.Result{Requeue: true}, nil
-	case updateEvent:
+	case models.UpdateEvent:
 		reconcileResult, err := r.HandleUpdateCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
 			logger.Error(err, "cannot update PostgreSQL cluster",
@@ -114,7 +100,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		return *reconcileResult, nil
-	case deleteEvent:
+	case models.DeleteEvent:
 		err = r.HandleDeleteCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
@@ -126,7 +112,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 				return reconcile.Result{
 					Requeue:      true,
-					RequeueAfter: Requeue60,
+					RequeueAfter: models.Requeue60,
 				}, nil
 			}
 
@@ -138,7 +124,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		return reconcile.Result{}, err
-	case unknownEvent:
+	case models.UnknownEvent:
 		logger.Info("UNKNOWN EVENT")
 
 		return reconcile.Result{}, err
@@ -170,10 +156,10 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return err
 	}
 
-	pgCluster.Annotations[previousEventAnnotation] = pgCluster.Annotations[currentEventAnnotation]
-	pgCluster.Annotations[currentEventAnnotation] = updateEvent
-	pgCluster.Annotations[isClusterCreatedAnnotation] = "true"
-	pgCluster.SetFinalizers([]string{clustersv1alpha1.DeletionFinalizer})
+	pgCluster.Annotations[models.PreviousEventAnnotation] = pgCluster.Annotations[models.CurrentEventAnnotation]
+	pgCluster.Annotations[models.CurrentEventAnnotation] = models.UpdateEvent
+	pgCluster.Annotations[models.IsClusterCreatedAnnotation] = "true"
+	pgCluster.SetFinalizers([]string{models.DeletionFinalizer})
 
 	err = r.patchClusterMetadata(ctx, pgCluster, logger)
 	if err != nil {
@@ -228,7 +214,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 		return &reconcile.Result{
 			Requeue:      true,
-			RequeueAfter: Requeue60,
+			RequeueAfter: models.Requeue60,
 		}, nil
 	}
 	if errors.Is(err, instaclustr.IncorrectNodeSize) {
@@ -240,7 +226,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 		return &reconcile.Result{
 			Requeue:      true,
-			RequeueAfter: Requeue60,
+			RequeueAfter: models.Requeue60,
 		}, nil
 	}
 	if err != nil {
@@ -271,7 +257,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			)
 			return &reconcile.Result{
 				Requeue:      true,
-				RequeueAfter: Requeue60,
+				RequeueAfter: models.Requeue60,
 			}, nil
 		}
 
@@ -293,8 +279,8 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		return &reconcile.Result{}, err
 	}
 
-	pgCluster.Annotations[previousEventAnnotation] = pgCluster.Annotations[currentEventAnnotation]
-	pgCluster.Annotations[currentEventAnnotation] = ""
+	pgCluster.Annotations[models.PreviousEventAnnotation] = pgCluster.Annotations[models.CurrentEventAnnotation]
+	pgCluster.Annotations[models.CurrentEventAnnotation] = ""
 	pgInstClusterStatus, err = r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil {
 		logger.Error(
@@ -352,7 +338,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		return instaclustr.ClusterIsBeingDeleted
 	}
 
-	controllerutil.RemoveFinalizer(pgCluster, clustersv1alpha1.DeletionFinalizer)
+	controllerutil.RemoveFinalizer(pgCluster, models.DeletionFinalizer)
 	err = r.Update(*ctx, pgCluster)
 	if err != nil {
 		logger.Error(
@@ -377,17 +363,17 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{currentEventAnnotation: deleteEvent})
+					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
 					return true
 				}
 
 				annotations := event.Object.GetAnnotations()
-				if annotations[isClusterCreatedAnnotation] == "true" {
-					event.Object.SetAnnotations(map[string]string{currentEventAnnotation: updateEvent})
+				if annotations[models.IsClusterCreatedAnnotation] == "true" {
+					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UpdateEvent})
 					return true
 				}
 
-				event.Object.SetAnnotations(map[string]string{currentEventAnnotation: createEvent})
+				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
@@ -396,17 +382,17 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{currentEventAnnotation: deleteEvent})
+					event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
 					return true
 				}
 
 				event.ObjectNew.SetAnnotations(map[string]string{
-					currentEventAnnotation: updateEvent,
+					models.CurrentEventAnnotation: models.UpdateEvent,
 				})
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{currentEventAnnotation: unknownEvent})
+				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UnknownEvent})
 				return true
 			},
 		})).

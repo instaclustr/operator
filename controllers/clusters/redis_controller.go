@@ -19,18 +19,27 @@ package clusters
 import (
 	"context"
 
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // RedisReconciler reconciles a Redis object
 type RedisReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	API    instaclustr.API
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis,verbs=get;list;watch;create;update;patch;delete
@@ -47,16 +56,182 @@ type RedisReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	redisCluster := &clustersv1alpha1.Redis{}
+	err := r.Client.Get(ctx, req.NamespacedName, redisCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
 
-	return ctrl.Result{}, nil
+		logger.Error(err, "unable to fetch Redis cluster",
+			"Resource name", req.NamespacedName,
+		)
+		return reconcile.Result{}, err
+	}
+
+	redisAnnotations := redisCluster.Annotations
+	switch redisAnnotations[models.CurrentEventAnnotation] {
+	case models.CreateEvent:
+		err = r.HandleCreateCluster(redisCluster, &logger, &ctx, &req)
+		if err != nil {
+			logger.Error(err, "cannot create Redis cluster",
+				"Cluster name", redisCluster.Spec.Name,
+				"Cluster manifest", redisCluster.Spec,
+			)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{Requeue: true}, nil
+	case models.UpdateEvent:
+		reconcileResult, err := r.HandleUpdateCluster(redisCluster, &logger, &ctx, &req)
+		if err != nil {
+			logger.Error(err, "cannot update Redis cluster",
+				"Cluster name", redisCluster.Spec.Name,
+			)
+			return reconcile.Result{}, err
+		}
+
+		return *reconcileResult, nil
+	case models.DeleteEvent:
+		err = r.HandleDeleteCluster(redisCluster, &logger, &ctx, &req)
+		if err != nil {
+			logger.Error(err, "cannot delete Redis cluster",
+				"Cluster name", redisCluster.Spec.Name,
+				"Cluster status", redisCluster.Status.Status,
+			)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, err
+	case models.UnknownEvent:
+		logger.Info("UNKNOWN EVENT")
+
+		return reconcile.Result{}, err
+	default:
+		return reconcile.Result{}, err
+	}
+}
+
+func (r *RedisReconciler) HandleCreateCluster(
+	redisCluster *clustersv1alpha1.Redis,
+	logger *logr.Logger,
+	ctx *context.Context,
+	req *ctrl.Request,
+) error {
+	logger.Info(
+		"Creating Redis cluster",
+		"Cluster name", redisCluster.Spec.Name,
+		"Data centres", redisCluster.Spec.DataCentres,
+	)
+
+	redisSpec := r.ToInstAPIv1(&redisCluster.Spec)
+
+	id, err := r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, redisSpec)
+	if err != nil {
+		logger.Error(
+			err, "cannot create Redis cluster",
+			"Cluster manifest", redisCluster.Spec,
+		)
+		return err
+	}
+
+	redisCluster.Annotations[models.PreviousEventAnnotation] = redisCluster.Annotations[models.CurrentEventAnnotation]
+	redisCluster.Annotations[models.CurrentEventAnnotation] = models.UpdateEvent
+
+	err = r.patchClusterMetadata(ctx, redisCluster, logger)
+	if err != nil {
+		logger.Error(err, "cannot patch Redis cluster",
+			"Cluster name", redisCluster.Spec.Name,
+			"Cluster metadata", redisCluster.ObjectMeta,
+		)
+		return err
+	}
+
+	redisCluster.Status.ID = id
+	err = r.Status().Update(*ctx, redisCluster)
+	if err != nil {
+		logger.Error(err, "cannot update Redis cluster status",
+			"Cluster name", redisCluster.Spec.Name,
+		)
+		return err
+	}
+
+	logger.Info(
+		"Redis resource has been created",
+		"Cluster name", redisCluster.Name,
+		"Cluster ID", redisCluster.Status.ID,
+		"Kind", redisCluster.Kind,
+		"Api version", redisCluster.APIVersion,
+		"Namespace", redisCluster.Namespace,
+	)
+
+	return nil
+}
+
+func (r *RedisReconciler) HandleUpdateCluster(
+	redisCluster *clustersv1alpha1.Redis,
+	logger *logr.Logger,
+	ctx *context.Context,
+	req *ctrl.Request,
+) (*reconcile.Result, error) {
+
+	redisCluster.Annotations[models.PreviousEventAnnotation] = redisCluster.Annotations[models.CurrentEventAnnotation]
+	redisCluster.Annotations[models.CurrentEventAnnotation] = ""
+	err := r.patchClusterMetadata(ctx, redisCluster, logger)
+	if err != nil {
+		logger.Error(err, "cannot patch Redis cluster after update",
+			"Cluster name", redisCluster.Spec.Name,
+			"Cluster metadata", redisCluster.ObjectMeta,
+		)
+		return &reconcile.Result{}, err
+	}
+
+	logger.Info("Redis cluster was updated",
+		"Cluster name", redisCluster.Spec.Name,
+	)
+
+	return &reconcile.Result{}, nil
+}
+
+func (r *RedisReconciler) HandleDeleteCluster(
+	redisCluster *clustersv1alpha1.Redis,
+	logger *logr.Logger,
+	ctx *context.Context,
+	req *ctrl.Request,
+) error {
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.Redis{}).
+		For(&clustersv1alpha1.Redis{}, builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(event event.CreateEvent) bool {
+				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
+				return true
+			},
+			UpdateFunc: func(event event.UpdateEvent) bool {
+				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+					return false
+				}
+
+				if event.ObjectNew.GetDeletionTimestamp() != nil {
+					event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					return true
+				}
+
+				event.ObjectNew.SetAnnotations(map[string]string{
+					models.CurrentEventAnnotation: models.UpdateEvent,
+				})
+				return true
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UnknownEvent})
+				return true
+			},
+		})).
 		Complete(r)
 }

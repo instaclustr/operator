@@ -27,9 +27,6 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 }
 
 func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
-	dataCentresNumber := len(pgClusterSpec.DataCentres)
-	isSingleDC := checkSingleDCCluster(dataCentresNumber)
-
 	pgBundles := pgBundlesToInstAPI(pgClusterSpec.DataCentres[0], pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
 
 	pgInstProvider := pgProviderToInstAPI(pgClusterSpec.DataCentres[0])
@@ -48,50 +45,50 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 		Bundles: pgBundles,
 	}
 
-	if isSingleDC {
-		pgRackAllocation := &modelsv1.RackAllocation{
-			NodesPerRack:  pgClusterSpec.DataCentres[0].NodesNumber,
-			NumberOfRacks: pgClusterSpec.DataCentres[0].RacksNumber,
-		}
-
-		pg.DataCentre = pgClusterSpec.DataCentres[0].Region
-		pg.DataCentreCustomName = pgClusterSpec.DataCentres[0].Name
-		pg.NodeSize = pgClusterSpec.DataCentres[0].NodeSize
-		pg.ClusterNetwork = pgClusterSpec.DataCentres[0].Network
-		pg.RackAllocation = pgRackAllocation
-
-		return pg
+	pgRackAllocation := &modelsv1.RackAllocation{
+		NodesPerRack:  pgClusterSpec.DataCentres[0].NodesNumber,
+		NumberOfRacks: pgClusterSpec.DataCentres[0].RacksNumber,
 	}
 
-	var pgInstDCs []*modelsv1.PgDataCentre
-	for _, dataCentre := range pgClusterSpec.DataCentres {
-		pgBundles = pgBundlesToInstAPI(dataCentre, pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
-
-		pgInstProvider = pgProviderToInstAPI(dataCentre)
-
-		pgRackAlloc := &modelsv1.RackAllocation{
-			NodesPerRack:  dataCentre.NodesNumber,
-			NumberOfRacks: dataCentre.RacksNumber,
-		}
-
-		pgInstDC := &modelsv1.PgDataCentre{
-			DataCentre: modelsv1.DataCentre{
-				Name:           dataCentre.Name,
-				DataCentre:     dataCentre.Region,
-				Network:        dataCentre.Network,
-				Provider:       pgInstProvider,
-				NodeSize:       dataCentre.NodeSize,
-				RackAllocation: pgRackAlloc,
-			},
-			Bundles: pgBundles,
-		}
-
-		pgInstDCs = append(pgInstDCs, pgInstDC)
-	}
-
-	pg.DataCentres = pgInstDCs
+	pg.DataCentre = pgClusterSpec.DataCentres[0].Region
+	pg.DataCentreCustomName = pgClusterSpec.DataCentres[0].Name
+	pg.NodeSize = pgClusterSpec.DataCentres[0].NodeSize
+	pg.ClusterNetwork = pgClusterSpec.DataCentres[0].Network
+	pg.RackAllocation = pgRackAllocation
 
 	return pg
+
+	// Can be used in APIv2 if it supports multiple DC for PostgreSQL
+	//
+	//var pgInstDCs []*modelsv1.PgDataCentre
+	//for _, dataCentre := range pgClusterSpec.DataCentres {
+	//	pgBundles = pgBundlesToInstAPI(dataCentre, pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
+	//
+	//	pgInstProvider = pgProviderToInstAPI(dataCentre)
+	//
+	//	pgRackAlloc := &modelsv1.RackAllocation{
+	//		NodesPerRack:  dataCentre.NodesNumber,
+	//		NumberOfRacks: dataCentre.RacksNumber,
+	//	}
+	//
+	//	pgInstDC := &modelsv1.PgDataCentre{
+	//		DataCentre: modelsv1.DataCentre{
+	//			Name:           dataCentre.Name,
+	//			DataCentre:     dataCentre.Region,
+	//			Network:        dataCentre.Network,
+	//			Provider:       pgInstProvider,
+	//			NodeSize:       dataCentre.NodeSize,
+	//			RackAllocation: pgRackAlloc,
+	//		},
+	//		Bundles: pgBundles,
+	//	}
+	//
+	//	pgInstDCs = append(pgInstDCs, pgInstDC)
+	//}
+	//
+	//pg.DataCentres = pgInstDCs
+	//
+	//return pg
 }
 
 func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*modelsv1.PgBundle {
@@ -186,7 +183,7 @@ func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *mo
 	}
 }
 
-func checkSingleDCCluster(dataCentresNumber int) bool {
+func CheckSingleDCCluster(dataCentresNumber int) bool {
 	if dataCentresNumber > 1 {
 		return false
 	}
