@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v2alpha1"
+	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
@@ -162,8 +162,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterresourcescontrollers.AWSVPCPeeringReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSVPCPeering")
 		os.Exit(1)

@@ -1,21 +1,11 @@
 package models
 
-import (
-	"encoding/json"
-)
-
 const (
 	AWSVPC  = "AWS_VPC"
 	GCP     = "GCP"
 	AZURE   = "AZURE"
 	AZUREAZ = "AZURE_AZ"
 )
-
-type PatchRequest struct {
-	Operation string          `json:"op"`
-	Path      string          `json:"path"`
-	Value     json.RawMessage `json:"value"`
-}
 
 type Cluster struct {
 	Name                  string             `json:"name"`

@@ -9,4 +9,10 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: awsvpcpeering-sample
 spec:
-  # TODO(user): Add fields here
+  peerAwsAccountId: "152668027680"
+  peerSubnets:
+    - "172.31.0.0/16"
+    - "192.168.0.0/19"
+  peerVpcId: "vpc-87241ae1"
+  peerRegion: "US_EAST_1"
+  cdcId: "ca0b7337-547b-4359-9c15-081703f332dd"

@@ -35,15 +35,11 @@ spec:
           spec:
             description: AWSVPCPeeringSpec defines the desired state of AWSVPCPeering
             properties:
-              ClusterDataCentreId:
+              cdcId:
                 type: string
-              addNetworkToFirewallRules:
-                type: boolean
-              peerAccountId:
+              peerAwsAccountId:
                 type: string
               peerRegion:
-                type: string
-              peerSubnet:
                 type: string
               peerSubnets:
                 items:
@@ -52,26 +48,30 @@ spec:
               peerVpcId:
                 type: string
             required:
-            - ClusterDataCentreId
-            - peerAccountId
+            - cdcId
+            - peerAwsAccountId
+            - peerSubnets
             - peerVpcId
             type: object
           status:
             description: AWSVPCPeeringStatus defines the observed state of AWSVPCPeering
             properties:
-              awsVpcConnectionId:
+              cdcId:
                 type: string
               id:
                 type: string
+              peerAwsAccountId:
+                type: string
+              peerVpcId:
+                type: string
               statusCode:
                 type: string
-              vpcId:
-                type: string
             required:
-            - awsVpcConnectionId
+            - cdcId
             - id
+            - peerAwsAccountId
+            - peerVpcId
             - statusCode
-            - vpcId
             type: object
         type: object
     served: true
