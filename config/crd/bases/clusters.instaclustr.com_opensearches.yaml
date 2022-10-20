@@ -35,57 +35,17 @@ spec:
           spec:
             description: OpenSearchSpec defines the desired state of OpenSearch
             properties:
-              bundles:
-                items:
-                  properties:
-                    bundle:
-                      type: string
-                    options:
-                      properties:
-                        dedicatedMasterNodes:
-                          type: boolean
-                        indexManagementPlugin:
-                          type: boolean
-                        masterNodeSize:
-                          type: string
-                        openSearchDashboardsNodeSize:
-                          type: string
-                      type: object
-                    version:
-                      type: string
-                  required:
-                  - bundle
-                  - version
-                  type: object
-                type: array
+              clusterConfigurations:
+                additionalProperties:
+                  type: string
+                type: object
+              concurrentResizes:
+                type: integer
               dataCentres:
                 items:
                   properties:
                     accountName:
                       type: string
-                    bundles:
-                      items:
-                        properties:
-                          bundle:
-                            type: string
-                          options:
-                            properties:
-                              dedicatedMasterNodes:
-                                type: boolean
-                              indexManagementPlugin:
-                                type: boolean
-                              masterNodeSize:
-                                type: string
-                              openSearchDashboardsNodeSize:
-                                type: string
-                            type: object
-                          version:
-                            type: string
-                        required:
-                        - bundle
-                        - version
-                        type: object
-                      type: array
                     cloudProvider:
                       type: string
                     cloudProviderSettings:
@@ -99,6 +59,12 @@ spec:
                             type: string
                         type: object
                       type: array
+                    dedicatedMasterNodes:
+                      type: boolean
+                    indexManagementPlugin:
+                      type: boolean
+                    masterNodeSize:
+                      type: string
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -111,6 +77,8 @@ spec:
                       description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
+                    openSearchDashboardsNodeSize:
+                      type: string
                     racksNumber:
                       description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
                       format: int32
@@ -131,10 +99,14 @@ spec:
                   - region
                   type: object
                 type: array
+              description:
+                type: string
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
+              notifySupportContacts:
+                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -142,6 +114,15 @@ spec:
                   and Redis. PCI compliance cannot be enabled if the cluster has Spark.
                   \n APIv1 : \"pciCompliantCluster,omitempty\"; APIv2 : pciComplianceMode."
                 type: boolean
+              privateLink:
+                properties:
+                  iamPrincipalARNs:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - iamPrincipalARNs
+                type: object
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
@@ -172,7 +153,7 @@ spec:
               version:
                 type: string
             required:
-            - bundles
+            - dataCentres
             - name
             - slaTier
             - version
@@ -219,6 +200,15 @@ spec:
                 type: array
               id:
                 type: string
+              options:
+                properties:
+                  dataNodeSize:
+                    type: string
+                  masterNodeSize:
+                    type: string
+                  openSearchDashboardsNodeSize:
+                    type: string
+                type: object
               status:
                 type: string
               twoFactorDeleteEnabled:

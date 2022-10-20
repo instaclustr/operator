@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
+	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 )
@@ -407,7 +407,3 @@ func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 
 	return nil
 }
-
-//func (c *Client) AddRedisNodes(id, clusterEndpoint, dataCentreID, nodeSize string)  {
-//	url := c.serverHostname + clusterEndpoint + dataCentreID
-//}

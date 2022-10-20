@@ -54,6 +54,12 @@ type Node struct {
 	Rack           string   `json:"rack,omitempty"`
 }
 
+type Options struct {
+	DataNodeSize                 string `json:"dataNodeSize,omitempty"`
+	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
+	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
+}
+
 type Cluster struct {
 	// Name [ 3 .. 32 ] characters.
 	// APIv2 : "name", APIv1 : "clusterName".
@@ -83,6 +89,7 @@ type ClusterStatus struct {
 	DataCentres            []*DataCentreStatus `json:"dataCentres,omitempty"`
 	CDCID                  string              `json:"cdcid,omitempty"`
 	TwoFactorDeleteEnabled bool                `json:"twoFactorDeleteEnabled,omitempty"`
+	Options                *Options            `json:"options,omitempty"`
 }
 
 type FirewallRule struct {
@@ -105,14 +112,20 @@ type TwoFactorDelete struct {
 }
 
 type ResizedDataCentre struct {
-	CurrentNodeSize string
-	NewNodeSize     string
-	DataCentreID    string
-	Provider        string
+	CurrentNodeSize      string
+	NewNodeSize          string
+	DataCentreID         string
+	Provider             string
+	MasterNewNodeSize    string
+	DashboardNewNodeSize string
 }
 
 type PatchRequest struct {
 	Operation string          `json:"op"`
 	Path      string          `json:"path"`
 	Value     json.RawMessage `json:"value"`
+}
+
+type PrivateLink struct {
+	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }

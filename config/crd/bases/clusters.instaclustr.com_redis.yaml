@@ -193,6 +193,15 @@ spec:
                 type: array
               id:
                 type: string
+              options:
+                properties:
+                  dataNodeSize:
+                    type: string
+                  masterNodeSize:
+                    type: string
+                  openSearchDashboardsNodeSize:
+                    type: string
+                type: object
               status:
                 type: string
               twoFactorDeleteEnabled:

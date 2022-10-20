@@ -84,13 +84,13 @@ type NodeStatus struct {
 }
 
 type ClusterStatus struct {
-	ClusterName     string `json:"clusterName,omitempty"`
-	ID              string `json:"id,omitempty"`
-	ClusterStatus   string `json:"clusterStatus,omitempty"`
-	TwoFactorDelete bool   `json:"twoFactorDelete,omitempty"`
-	CDCID           string `json:"cdcid,omitempty"`
-
-	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
+	ClusterName     string              `json:"clusterName,omitempty"`
+	ID              string              `json:"id,omitempty"`
+	ClusterStatus   string              `json:"clusterStatus,omitempty"`
+	TwoFactorDelete bool                `json:"twoFactorDelete,omitempty"`
+	CDCID           string              `json:"cdcid,omitempty"`
+	DataCentres     []*DataCentreStatus `json:"dataCentres,omitempty"`
+	BundleOptions   *BundleOptions      `json:"bundleOptions,omitempty"`
 }
 
 type ResizeRequest struct {
@@ -113,4 +113,10 @@ type ClusterConfigurations struct {
 type ClusterModifyRequest struct {
 	TwoFactorDelete *TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 	Description     string           `json:"description,omitempty"`
+}
+
+type BundleOptions struct {
+	DataNodeSize                 string `json:"dataNodeSize,omitempty"`
+	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
+	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
 }

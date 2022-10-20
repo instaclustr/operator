@@ -158,7 +158,7 @@ func (r *RedisReconciler) HandleCreateCluster(
 	}
 
 	redisCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-	redisCluster.SetFinalizers([]string{models.DeletionFinalizer})
+	redisCluster.Finalizers = append(redisCluster.Finalizers, models.DeletionFinalizer)
 
 	err = r.patchClusterMetadata(ctx, redisCluster, logger)
 	if err != nil {
