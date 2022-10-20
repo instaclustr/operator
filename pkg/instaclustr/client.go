@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
@@ -402,6 +403,122 @@ func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) GetAWSPeeringStatus(peerID,
+	peeringEndpoint string,
+) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error) {
+	url := c.serverHostname + peeringEndpoint + peerID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var peeringStatus clusterresourcesv1alpha1.AWSVPCPeeringStatus
+	err = json.Unmarshal(body, &peeringStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return &peeringStatus, nil
+}
+
+func (c *Client) CreateAWSPeering(url string,
+	AWSSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec,
+) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error) {
+
+	jsonDataCreate, err := json.Marshal(AWSSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1alpha1.AWSVPCPeeringStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) UpdateAWSPeering(peerID,
+	peeringEndpoint string,
+	peerSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec,
+) error {
+	url := c.serverHostname + peeringEndpoint + peerID
+
+	data, err := json.Marshal(peerSpec)
+	if err != nil {
+		return err
+	}
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteAWSPeering(peerID, peeringEndpoint string) error {
+	url := c.serverHostname + peeringEndpoint + peerID
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 

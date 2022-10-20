@@ -1,4 +1,4 @@
-apiVersion: clusterresources.instaclustr.com/v2alpha1
+apiVersion: clusterresources.instaclustr.com/v1alpha1
 kind: AzureVNetPeering
 metadata:
   name: azurevnetpeering-sample

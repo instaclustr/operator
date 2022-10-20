@@ -18,22 +18,25 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // AWSVPCPeeringSpec defines the desired state of AWSVPCPeering
 type AWSVPCPeeringSpec struct {
-	VPCPeeringSpec `json:",inline"`
-	PeerAccountID  string `json:"peerAccountId"`
-	PeerVPCID      string `json:"peerVpcId"`
-	PeerSubnet     string `json:"peerSubnet,omitempty"`
-	PeerRegion     string `json:"peerRegion,omitempty"`
+	VPCPeeringSpec   `json:",inline"`
+	PeerAWSAccountID string `json:"peerAwsAccountId"`
+	PeerVPCID        string `json:"peerVpcId"`
+	PeerRegion       string `json:"peerRegion,omitempty"`
 }
 
 // AWSVPCPeeringStatus defines the observed state of AWSVPCPeering
 type AWSVPCPeeringStatus struct {
-	VPCPeeringStatus   `json:",inline"`
-	AWSVPCConnectionID string `json:"awsVpcConnectionId"`
-	VPCID              string `json:"vpcId"`
+	VPCPeeringStatus `json:",inline"`
+	PeerAwsAccountId string `json:"peerAwsAccountId"`
+	PeerVPCID        string `json:"peerVpcId"`
+	CDCID            string `json:"cdcId"`
 }
 
 //+kubebuilder:object:root=true
@@ -55,6 +58,16 @@ type AWSVPCPeeringList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []AWSVPCPeering `json:"items"`
+}
+
+func (aws *AWSVPCPeering) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(aws).String() + "/" + jobName
+}
+
+func (aws *AWSVPCPeering) NewPatch() client.Patch {
+	old := aws.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
+	return client.MergeFrom(old)
 }
 
 func init() {

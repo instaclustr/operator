@@ -12,6 +12,7 @@ const (
 	CassandraEndpoint    = "/cluster-management/v2/resources/applications/cassandra/clusters/v2/"
 	KafkaEndpoint        = "/cluster-management/v2/resources/applications/kafka/clusters/v2/"
 	KafkaConnectEndpoint = "/cluster-management/v2/resources/applications/kafka-connect/clusters/v2/"
+	AWSPeeringEndpoint   = "/cluster-management/v2/resources/providers/aws/vpc-peers/v2/"
 )
 
 // constants for API v1

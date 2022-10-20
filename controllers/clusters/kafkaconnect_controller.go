@@ -108,13 +108,13 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *cl
 		kc.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaConnectEndpoint, convertors.KafkaConnectToInstAPI(kc.Spec))
 		if err != nil {
 			l.Error(err, "cannot create Kafka Connect in Instaclustr", "Kafka Connect manifest", kc.Spec)
-			return models.ReconcileRequeue60
+			return models.ReconcileRequeue
 		}
 		l.Info("Kafka Connect cluster has been created", "cluster ID", kc.Status.ID)
 		err = r.Status().Patch(ctx, kc, patch)
 		if err != nil {
 			l.Error(err, "cannot patch kafka connect status ", "KC ID", kc.Status.ID)
-			return models.ReconcileRequeue60
+			return models.ReconcileRequeue
 		}
 
 		kc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -123,14 +123,14 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *cl
 		err = r.Patch(ctx, kc, patch)
 		if err != nil {
 			l.Error(err, "cannot patch kafka connect", "KC name", kc.Spec.Name)
-			return models.ReconcileRequeue60
+			return models.ReconcileRequeue
 		}
 	}
 
 	err := r.startClusterStatusJob(kc)
 	if err != nil {
 		l.Error(err, "cannot start cluster status job", "KC ID", kc.Status.ID)
-		return models.ReconcileRequeue60
+		return models.ReconcileRequeue
 	}
 
 	return reconcile.Result{}
@@ -151,7 +151,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 	if err != nil {
 		l.Error(err, "cannot patch Kafka Connect cluster",
 			"Cluster name", kc.Spec.Name, "Status", kc.Status.Status)
-		return models.ReconcileRequeue60
+		return models.ReconcileRequeue
 	}
 
 	status, err := r.API.GetClusterStatus(kc.Status.ID, instaclustr.KafkaConnectEndpoint)
@@ -159,7 +159,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 		l.Error(err, "cannot get Kafka Connect cluster",
 			"Cluster name", kc.Spec.Name,
 			"Status", kc.Status.ClusterStatus.Status)
-		return models.ReconcileRequeue60
+		return models.ReconcileRequeue
 	}
 
 	if status != nil {
@@ -168,12 +168,12 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 			l.Error(err, "cannot delete Kafka Connect cluster",
 				"Cluster name", kc.Spec.Name,
 				"Status", kc.Status.Status)
-			return models.ReconcileRequeue60
+			return models.ReconcileRequeue
 		}
 
 		r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
 
-		return models.ReconcileRequeue60
+		return models.ReconcileRequeue
 	}
 
 	controllerutil.RemoveFinalizer(kc, models.DeletionFinalizer)
@@ -182,7 +182,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 	if err != nil {
 		l.Error(err, "cannot patch remove finalizer from KC",
 			"Cluster name", kc.Spec.Name)
-		return models.ReconcileRequeue60
+		return models.ReconcileRequeue
 	}
 
 	return reconcile.Result{}

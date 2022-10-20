@@ -82,13 +82,13 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	switch cassandraCluster.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
 		reconcileResult := r.handleCreateCluster(&cassandraCluster, l, ctx)
-		return *reconcileResult, nil
+		return reconcileResult, nil
 	case models.UpdatingEvent:
 		reconcileResult := r.handleUpdateCluster(&cassandraCluster, l, ctx)
-		return *reconcileResult, nil
+		return reconcileResult, nil
 	case models.DeletingEvent:
 		reconcileResult := r.handleDeleteCluster(&cassandraCluster, l, ctx)
-		return *reconcileResult, nil
+		return reconcileResult, nil
 	default:
 		l.Info("UNKNOWN EVENT",
 			"Cluster spec", cassandraCluster.Spec)
@@ -100,7 +100,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 	cc *clustersv1alpha1.Cassandra,
 	l logr.Logger,
 	ctx context.Context,
-) *reconcile.Result {
+) reconcile.Result {
 
 	if cc.Status.ID == "" {
 		l.Info(
@@ -116,14 +116,14 @@ func (r *CassandraReconciler) handleCreateCluster(
 				err, "cannot create Cassandra cluster",
 				"Cassandra cluster spec", cc.Spec,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		patch := cc.NewPatch()
 		cc.Status.ID = id
 		err = r.Status().Patch(ctx, cc, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Cassandra cluster",
+			l.Error(err, "cannot patch Cassandra cluster status",
 				"Cluster name", cc.Spec.Name,
 				"Cluster ID", cc.Status.ID,
 				"Kind", cc.Kind,
@@ -131,7 +131,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"Namespace", cc.Namespace,
 				"Cluster metadata", cc.ObjectMeta,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		l.Info(
@@ -155,24 +155,24 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"Namespace", cc.Namespace,
 				"Cluster metadata", cc.ObjectMeta,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		err = r.startClusterStatusJob(cc)
 		if err != nil {
 			l.Error(err, "cannot start cluster status job",
 				"Cassandra cluster ID", cc.Status.ID)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 	}
-	return &reconcile.Result{}
+	return reconcile.Result{}
 }
 
 func (r *CassandraReconciler) handleUpdateCluster(
 	cc *clustersv1alpha1.Cassandra,
 	l logr.Logger,
 	ctx context.Context,
-) *reconcile.Result {
+) reconcile.Result {
 	r.Scheduler.RemoveJob(cc.GetJobID(scheduler.StatusChecker))
 
 	currentClusterStatus, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
@@ -182,7 +182,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"Cluster name", cc.Spec.Name,
 			"Cluster ID", cc.Status.ID,
 		)
-		return models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	if currentClusterStatus.Status != StatusRUNNING {
@@ -190,7 +190,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"Cluster name", cc.Spec.Name,
 			"Cluster status", cc.Status,
 		)
-		return models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	result := apiv2.CompareCassandraDCs(cc.Spec.DataCentres, currentClusterStatus)
@@ -205,16 +205,16 @@ func (r *CassandraReconciler) handleUpdateCluster(
 				"Cluster name", cc.Spec.Name,
 				"Cluster status", cc.Status,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		if err != nil {
 			l.Error(
-				err, "cannot get Cassandra cluster status from the Instaclustr API",
+				err, "cannot update Cassandra cluster status from the Instaclustr API",
 				"Cluster name", cc.Spec.Name,
 				"Cluster ID", cc.Status.ID,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		patch := cc.NewPatch()
@@ -229,14 +229,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 				"Namespace", cc.Namespace,
 				"Cluster metadata", cc.ObjectMeta,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		err = r.startClusterStatusJob(cc)
 		if err != nil {
 			l.Error(err, "cannot start cluster status job",
 				"Cassandra cluster ID", cc.Status.ID)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		l.Info(
@@ -248,14 +248,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"Namespace", cc.Namespace,
 		)
 	}
-	return &reconcile.Result{}
+	return reconcile.Result{}
 }
 
 func (r *CassandraReconciler) handleDeleteCluster(
 	cc *clustersv1alpha1.Cassandra,
 	l logr.Logger,
 	ctx context.Context,
-) *reconcile.Result {
+) reconcile.Result {
 
 	patch := cc.NewPatch()
 	err := r.Patch(ctx, cc, patch)
@@ -268,7 +268,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"Namespace", cc.Namespace,
 			"Cluster metadata", cc.ObjectMeta,
 		)
-		return models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	status, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
@@ -281,10 +281,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"API Version", cc.APIVersion,
 			"Namespace", cc.Namespace,
 		)
-		return models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	if status != nil {
+		r.Scheduler.RemoveJob(cc.GetJobID(scheduler.StatusChecker))
 		err = r.API.DeleteCluster(cc.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(err, "cannot delete Cassandra cluster",
@@ -294,13 +295,12 @@ func (r *CassandraReconciler) handleDeleteCluster(
 				"API Version", cc.APIVersion,
 				"Namespace", cc.Namespace,
 			)
-			return models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
-		return models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
-	r.Scheduler.RemoveJob(cc.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(cc, models.DeletionFinalizer)
 	cc.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 
@@ -314,7 +314,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"Namespace", cc.Namespace,
 			"Cluster metadata", cc.ObjectMeta,
 		)
-		return models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	l.Info("Cassandra cluster has been deleted",
@@ -325,7 +325,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		"Namespace", cc.Namespace,
 	)
 
-	return &reconcile.Result{}
+	return reconcile.Result{}
 }
 
 func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) error {

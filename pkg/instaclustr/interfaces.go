@@ -3,6 +3,7 @@ package instaclustr
 import (
 	"net/http"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -20,4 +21,8 @@ type API interface {
 	UpdateCluster(id, clusterEndpoint string, InstaDCs any) error
 	DeleteCluster(id, clusterEndpoint string) error
 	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
+	GetAWSPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error)
+	UpdateAWSPeering(peerID, peeringEndpoint string, peerSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec) error
+	DeleteAWSPeering(peerID, peeringEndpoint string) error
+	CreateAWSPeering(url string, AWSSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error)
 }

@@ -31,4 +31,4 @@ const (
 	Requeue60 = time.Second * 60
 )
 
-var ReconcileRequeue60 = reconcile.Result{RequeueAfter: Requeue60}
+var ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}

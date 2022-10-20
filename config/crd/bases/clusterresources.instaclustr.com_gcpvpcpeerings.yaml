@@ -15,7 +15,7 @@ spec:
     singular: gcpvpcpeering
   scope: Namespaced
   versions:
-  - name: v2alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: GCPVPCPeering is the Schema for the gcpvpcpeerings API
