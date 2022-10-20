@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,6 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
 )
 
 const (

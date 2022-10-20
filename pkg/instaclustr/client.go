@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"

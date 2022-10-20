@@ -1,4 +1,4 @@
-package v1
+package convertors
 
 import (
 	"encoding/json"
@@ -34,7 +34,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 
 	pgInstProvider := pgProviderToInstAPI(pgClusterSpec.DataCentres[0])
 
-	pgInstTwoFactorDelete := pgTwoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
+	pgInstTwoFactorDelete := twoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
 
 	pg := &modelsv1.PgCluster{
 		Cluster: modelsv1.Cluster{
@@ -176,7 +176,7 @@ func nodesFromInstAPI(instaNodes []*modelsv1.NodeStatus) []*v1alpha1.Node {
 	return nodes
 }
 
-func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
+func twoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
 	if len(twoFactorDelete) < 1 {
 		return nil
 	}
