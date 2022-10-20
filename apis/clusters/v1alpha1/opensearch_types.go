@@ -20,32 +20,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type OpenSearchBundle struct {
-	Bundle  `json:",inline"`
-	Options OpenSearchBundleOptions `json:"options,omitempty"`
+// OpenSearchSpec defines the desired state of OpenSearch
+type OpenSearchSpec struct {
+	Cluster               `json:",inline"`
+	DataCentres           []*OpenSearchDataCentre `json:"dataCentres"`
+	ConcurrentResizes     int                     `json:"concurrentResizes,omitempty"`
+	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
+	ClusterConfigurations map[string]string       `json:"clusterConfigurations,omitempty"`
+	Description           string                  `json:"description,omitempty"`
+	PrivateLink           *PrivateLink            `json:"privateLink,omitempty"`
 }
 
-type OpenSearchBundleOptions struct {
+type OpenSearchDataCentre struct {
+	DataCentre                   `json:",inline"`
 	DedicatedMasterNodes         bool   `json:"dedicatedMasterNodes,omitempty"`
 	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
 	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
 	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
-}
-
-type OpenSearchDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []OpenSearchBundle `json:"bundles,omitempty"`
-}
-
-type OpenSearchDataCentreStatus struct {
-	DataCentreStatus `json:",inline"`
-}
-
-// OpenSearchSpec defines the desired state of OpenSearch
-type OpenSearchSpec struct {
-	Cluster     `json:",inline"`
-	Bundles     []OpenSearchBundle     `json:"bundles"`
-	DataCentres []OpenSearchDataCentre `json:"dataCentres,omitempty"`
 }
 
 // OpenSearchStatus defines the observed state of OpenSearch

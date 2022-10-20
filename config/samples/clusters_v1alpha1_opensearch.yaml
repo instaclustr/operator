@@ -9,4 +9,22 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: opensearch-sample
 spec:
-  # TODO(user): Add fields here
+  name: "k8sOpOS"
+  version: "opensearch:2.2.1"
+  concurrentResizes: 1
+  notifySupportContacts: false
+  dataCentres:
+    - region: "US_WEST_2"
+      network: "10.1.0.0/16"
+      cloudProvider: "AWS_VPC"
+      nodeSize: "SRH-DEV-t4g.small-5"
+      racksNumber: 3
+      nodesNumber: 1
+      indexManagementPlugin: true
+#      dedicatedMasterNodes: 3
+#      masterNodeSize: "SRH-DM-DEV-t4g.small-5"
+#      openSearchDashboardsNodeSize: "SRH-DEV-t4g.small-5"
+  #  twoFactorDelete:
+  #    - email: "rostyslp@netapp.com"
+  #  description: "test 222"
+  slaTier: "NON_PRODUCTION"

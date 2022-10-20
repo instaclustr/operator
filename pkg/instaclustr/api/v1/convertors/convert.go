@@ -1,4 +1,4 @@
-package v1
+package convertors
 
 import (
 	"encoding/json"
@@ -21,6 +21,11 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 		DataCentres:            dataCentres,
 		CDCID:                  clusterStatusFromInst.CDCID,
 		TwoFactorDeleteEnabled: clusterStatusFromInst.TwoFactorDelete,
+		Options: &v1alpha1.Options{
+			DataNodeSize:                 clusterStatusFromInst.BundleOptions.DataNodeSize,
+			MasterNodeSize:               clusterStatusFromInst.BundleOptions.MasterNodeSize,
+			OpenSearchDashboardsNodeSize: clusterStatusFromInst.BundleOptions.OpenSearchDashboardsNodeSize,
+		},
 	}
 
 	return clusterStatus, nil
@@ -31,7 +36,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 
 	pgInstProvider := pgProviderToInstAPI(pgClusterSpec.DataCentres[0])
 
-	pgInstTwoFactorDelete := pgTwoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
+	pgInstTwoFactorDelete := twoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
 
 	pg := &modelsv1.PgCluster{
 		Cluster: modelsv1.Cluster{
@@ -143,6 +148,7 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterPro
 
 func dataCentresFromInstAPI(instaDataCentres []*modelsv1.DataCentreStatus) []*v1alpha1.DataCentreStatus {
 	var dataCentres []*v1alpha1.DataCentreStatus
+
 	for _, dataCentre := range instaDataCentres {
 		nodes := nodesFromInstAPI(dataCentre.Nodes)
 		dataCentres = append(dataCentres, &v1alpha1.DataCentreStatus{
@@ -172,7 +178,7 @@ func nodesFromInstAPI(instaNodes []*modelsv1.NodeStatus) []*v1alpha1.Node {
 	return nodes
 }
 
-func pgTwoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
+func twoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
 	if len(twoFactorDelete) < 1 {
 		return nil
 	}

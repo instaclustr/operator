@@ -34,7 +34,7 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1"
+	apiv1convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -144,7 +144,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		"Data centres", pgCluster.Spec.DataCentres,
 	)
 
-	pgSpec := apiv1.PgToInstAPI(&pgCluster.Spec)
+	pgSpec := apiv1convertors.PgToInstAPI(&pgCluster.Spec)
 
 	id, err := r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpec)
 	if err != nil {
