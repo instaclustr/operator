@@ -124,11 +124,10 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		return reconcile.Result{}, err
-	case models.UnknownEvent:
-		logger.Info("UNKNOWN EVENT")
-
-		return reconcile.Result{}, err
 	default:
+		logger.Info("UNKNOWN EVENT",
+			"Cluster name", pgCluster.Spec.Name,
+		)
 		return reconcile.Result{}, err
 	}
 }

@@ -35,6 +35,8 @@ spec:
           spec:
             description: RedisSpec defines the desired state of Redis
             properties:
+              concurrentResizes:
+                type: integer
               dataCentres:
                 items:
                   properties:
@@ -97,10 +99,14 @@ spec:
                   - replicaNodes
                   type: object
                 type: array
+              description:
+                type: string
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
+              notifySupportContacts:
+                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -138,8 +144,10 @@ spec:
               version:
                 type: string
             required:
+            - concurrentResizes
             - dataCentres
             - name
+            - notifySupportContacts
             - slaTier
             - version
             type: object

@@ -15,6 +15,7 @@ const (
 
 // constants for API v1
 const (
+	AddDataCentresEndpoint                 = "/cluster-data-centres"
 	ClusterConfigurationsEndpoint          = "/configurations"
 	ClusterConfigurationsParameterEndpoint = "/parameter/"
 	ActiveOnly                             = "activeOnly=true"

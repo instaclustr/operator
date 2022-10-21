@@ -18,9 +18,12 @@ package clusters
 
 import (
 	"context"
+	"errors"
+
+	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -61,7 +64,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	redisCluster := &clustersv1alpha1.Redis{}
 	err := r.Client.Get(ctx, req.NamespacedName, redisCluster)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 
@@ -87,6 +90,13 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.UpdateEvent:
 		reconcileResult, err := r.HandleUpdateCluster(redisCluster, &logger, &ctx, &req)
 		if err != nil {
+			if errors.Is(err, instaclustr.ClusterNotRunning) {
+				logger.Info("Cluster is not ready to update",
+					"Cluster name", redisCluster.Spec.Name,
+					"Cluster status", redisCluster.Status.ClusterStatus,
+					"Reason", err)
+				return *reconcileResult, nil
+			}
 			logger.Error(err, "cannot update Redis cluster",
 				"Cluster name", redisCluster.Spec.Name,
 			)
@@ -105,11 +115,10 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		return reconcile.Result{}, err
-	case models.UnknownEvent:
-		logger.Info("UNKNOWN EVENT")
-
-		return reconcile.Result{}, err
 	default:
+		logger.Info("UNKNOWN EVENT",
+			"Cluster name", redisCluster.Spec.Name,
+		)
 		return reconcile.Result{}, err
 	}
 }
@@ -176,10 +185,61 @@ func (r *RedisReconciler) HandleUpdateCluster(
 	ctx *context.Context,
 	req *ctrl.Request,
 ) (*reconcile.Result, error) {
+	redisInstClusterStatus, err := r.API.GetClusterStatus(redisCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	if err != nil {
+		logger.Error(
+			err, "cannot get Redis cluster status from the Instaclustr API",
+			"Cluster name", redisCluster.Spec.Name,
+			"Cluster ID", redisCluster.Status.ID,
+		)
+
+		return &reconcile.Result{}, err
+	}
+
+	if redisInstClusterStatus.Status != modelsv1.RunningStatus {
+		return &reconcile.Result{
+			Requeue:      true,
+			RequeueAfter: models.Requeue60,
+		}, instaclustr.ClusterNotRunning
+	}
+
+	err = r.reconcileDataCentresNumber(redisInstClusterStatus, redisCluster, logger)
+	if err != nil {
+		logger.Error(err, "cannot reconcile data centres number",
+			"Cluster name", redisCluster.Spec.Name,
+			"Data centres", redisCluster.Spec.DataCentres,
+		)
+
+		return nil, err
+	}
+
+	reconcileResult, err := r.reconcileDataCentresNodeSize(redisInstClusterStatus, redisCluster, logger)
+	if err != nil {
+		logger.Error(err, "cannot reconcile data centres node size",
+			"Cluster name", redisCluster.Spec.Name,
+			"Cluster status", redisInstClusterStatus.Status,
+			"Current node size", redisInstClusterStatus.DataCentres[0].Nodes[0].Size,
+			"New node size", redisCluster.Spec.DataCentres[0].NodeSize,
+		)
+		return reconcileResult, err
+	}
+	if reconcileResult != nil {
+		return reconcileResult, nil
+	}
+
+	err = r.updateDescriptionAndTwoFactorDelete(redisCluster)
+	if err != nil {
+		logger.Error(err, "cannot update description and twoFactorDelete",
+			"Cluster name", redisCluster.Spec.Name,
+			"Cluster status", redisCluster.Status,
+			"Two factor delete", redisCluster.Spec.TwoFactorDelete,
+		)
+		return &reconcile.Result{}, err
+	}
 
 	redisCluster.Annotations[models.PreviousEventAnnotation] = redisCluster.Annotations[models.CurrentEventAnnotation]
 	redisCluster.Annotations[models.CurrentEventAnnotation] = ""
-	err := r.patchClusterMetadata(ctx, redisCluster, logger)
+	err = r.patchClusterMetadata(ctx, redisCluster, logger)
 	if err != nil {
 		logger.Error(err, "cannot patch Redis cluster after update",
 			"Cluster name", redisCluster.Spec.Name,
