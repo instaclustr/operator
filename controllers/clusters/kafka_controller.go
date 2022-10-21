@@ -36,6 +36,7 @@ import (
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -77,25 +78,25 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return reconcile.Result{}, err
 	}
 
-	switch kafka.Annotations[clustersv1alpha1.LastEventAnnotation] {
-	case clustersv1alpha1.CreateEvent:
+	switch kafka.Annotations[models.CurrentEventAnnotation] {
+	case models.CreateEvent:
 		err = r.handleCreateCluster(ctx, &kafka, l)
 		if err != nil {
-			return ctrl.Result{RequeueAfter: Requeue60}, nil
+			return ctrl.Result{RequeueAfter: models.Requeue60}, nil
 		}
 
 		return reconcile.Result{}, nil
 
 	//TODO: handle update
-	case clustersv1alpha1.UpdateEvent:
+	case models.UpdateEvent:
 		err = r.handleUpdateCluster(ctx, &kafka, l)
 		if err != nil {
-			return ctrl.Result{RequeueAfter: Requeue60}, nil
+			return ctrl.Result{RequeueAfter: models.Requeue60}, nil
 		}
 
 		return reconcile.Result{}, nil
 
-	case clustersv1alpha1.DeleteEvent:
+	case models.DeleteEvent:
 		err = r.handleDeleteCluster(ctx, &kafka, l)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
@@ -104,22 +105,22 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 					"Cluster ID", kafka.Status.ID,
 					"Kafka cluster status", kafka.Status.ClusterStatus.Status)
 
-				return reconcile.Result{RequeueAfter: Requeue60}, nil
+				return reconcile.Result{RequeueAfter: models.Requeue60}, nil
 			}
 
 			l.Error(err, "cannot delete Kafka cluster",
 				"Cluster name", kafka.Spec.Name,
 				"Cluster status", kafka.Status.ClusterStatus.Status,
 				"Cluster ID", kafka.Status.ID)
-			return ctrl.Result{RequeueAfter: Requeue60}, nil
+			return ctrl.Result{RequeueAfter: models.Requeue60}, nil
 		}
 
 		return reconcile.Result{}, nil
 
-	case clustersv1alpha1.GenericEvent:
+	case models.GenericEvent:
 		l.Info("event isn't handled",
 			"Cluster name", kafka.Spec.Name, "request", req,
-			"event", kafka.Annotations[clustersv1alpha1.LastEventAnnotation])
+			"event", kafka.Annotations[models.CurrentEventAnnotation])
 		return reconcile.Result{}, nil
 	}
 
@@ -131,7 +132,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 	old.Annotations = map[string]string{}
 	patch := client.MergeFrom(old)
 
-	controllerutil.AddFinalizer(kafka, clustersv1alpha1.DeletionFinalizer)
+	controllerutil.AddFinalizer(kafka, models.DeletionFinalizer)
 	err := r.Patch(ctx, kafka, patch)
 	if err != nil {
 		return err
@@ -197,7 +198,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 		return instaclustr.ClusterIsBeingDeleted
 	}
 
-	controllerutil.RemoveFinalizer(kafka, clustersv1alpha1.DeletionFinalizer)
+	controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
 	err = r.Update(ctx, kafka)
 	if err != nil {
 		l.Error(err, "cannot remove finalizer from Kafka",
@@ -249,7 +250,7 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Kafka{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{clustersv1alpha1.LastEventAnnotation: clustersv1alpha1.CreateEvent})
+				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
@@ -258,18 +259,18 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{clustersv1alpha1.LastEventAnnotation: clustersv1alpha1.DeleteEvent})
+					event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
 					return true
 				}
 
-				event.ObjectNew.SetAnnotations(map[string]string{clustersv1alpha1.LastEventAnnotation: clustersv1alpha1.UpdateEvent})
+				event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UpdateEvent})
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
 				return false
 			},
 			GenericFunc: func(event event.GenericEvent) bool {
-				event.Object.SetAnnotations(map[string]string{clustersv1alpha1.LastEventAnnotation: clustersv1alpha1.GenericEvent})
+				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.GenericEvent})
 				return true
 			},
 		})).Complete(r)
