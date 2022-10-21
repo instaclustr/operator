@@ -20,14 +20,13 @@ import (
 	"context"
 	"errors"
 
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
-
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -35,6 +34,7 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -107,6 +107,17 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.DeleteEvent:
 		err = r.HandleDeleteCluster(redisCluster, &logger, &ctx, &req)
 		if err != nil {
+			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
+				logger.Info("Cluster is being deleted",
+					"Cluster name", redisCluster.Spec.Name,
+					"Cluster status", redisCluster.Status.Status,
+				)
+				return reconcile.Result{
+					Requeue:      true,
+					RequeueAfter: models.Requeue60,
+				}, nil
+			}
+
 			logger.Error(err, "cannot delete Redis cluster",
 				"Cluster name", redisCluster.Spec.Name,
 				"Cluster status", redisCluster.Status.Status,
@@ -148,6 +159,8 @@ func (r *RedisReconciler) HandleCreateCluster(
 
 	redisCluster.Annotations[models.PreviousEventAnnotation] = redisCluster.Annotations[models.CurrentEventAnnotation]
 	redisCluster.Annotations[models.CurrentEventAnnotation] = models.UpdateEvent
+	redisCluster.Annotations[models.IsClusterCreatedAnnotation] = "true"
+	redisCluster.SetFinalizers([]string{models.DeletionFinalizer})
 
 	err = r.patchClusterMetadata(ctx, redisCluster, logger)
 	if err != nil {
@@ -261,6 +274,39 @@ func (r *RedisReconciler) HandleDeleteCluster(
 	ctx *context.Context,
 	req *ctrl.Request,
 ) error {
+	status, err := r.API.GetClusterStatus(redisCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		return err
+	}
+
+	if status != nil {
+		err = r.API.DeleteCluster(redisCluster.Status.ID, instaclustr.ClustersEndpointV1)
+		if err != nil {
+			logger.Error(err, "cannot delete Redis cluster",
+				"Cluster name", redisCluster.Spec.Name,
+				"Cluster status", redisCluster.Status.Status,
+			)
+
+			return err
+		}
+		return instaclustr.ClusterIsBeingDeleted
+	}
+
+	controllerutil.RemoveFinalizer(redisCluster, models.DeletionFinalizer)
+	err = r.Update(*ctx, redisCluster)
+	if err != nil {
+		logger.Error(
+			err, "cannot update Redis cluster CRD after finalizer removal",
+			"Cluster name", redisCluster.Spec.Name,
+			"Cluster ID", redisCluster.Status.ID,
+		)
+		return err
+	}
+
+	logger.Info("Redis cluster was deleted",
+		"Cluster name", redisCluster.Spec.Name,
+		"Cluster ID", redisCluster.Status.ID,
+	)
 
 	return nil
 }
@@ -270,6 +316,17 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Redis{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
+				if event.Object.GetDeletionTimestamp() != nil {
+					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					return true
+				}
+
+				annotations := event.Object.GetAnnotations()
+				if annotations[models.IsClusterCreatedAnnotation] == "true" {
+					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UpdateEvent})
+					return true
+				}
+
 				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
 				return true
 			},
@@ -289,7 +346,7 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UnknownEvent})
+				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.GenericEvent})
 				return true
 			},
 		})).

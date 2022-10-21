@@ -4,5 +4,5 @@ const (
 	CreateEvent  = "create"
 	UpdateEvent  = "update"
 	DeleteEvent  = "delete"
-	UnknownEvent = "unknown"
+	GenericEvent = "generic"
 )

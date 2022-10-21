@@ -391,7 +391,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UnknownEvent})
+				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.GenericEvent})
 				return true
 			},
 		})).
