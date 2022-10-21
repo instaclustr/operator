@@ -18,10 +18,11 @@ package clusters
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -65,7 +66,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	var kafka clustersv1alpha1.Kafka
 	err := r.Client.Get(ctx, req.NamespacedName, &kafka)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Kafka resource is not found",
 				"request", req)
 			return reconcile.Result{}, nil
@@ -80,15 +81,16 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case clustersv1alpha1.CreateEvent:
 		err = r.handleCreateCluster(ctx, &kafka, l)
 		if err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{RequeueAfter: Requeue60}, nil
 		}
+
 		return reconcile.Result{}, nil
 
 	//TODO: handle update
 	case clustersv1alpha1.UpdateEvent:
 		err = r.handleUpdateCluster(ctx, &kafka, l)
 		if err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{RequeueAfter: Requeue60}, nil
 		}
 
 		return reconcile.Result{}, nil
@@ -96,7 +98,20 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case clustersv1alpha1.DeleteEvent:
 		err = r.handleDeleteCluster(ctx, &kafka, l)
 		if err != nil {
-			return reconcile.Result{}, err
+			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
+				l.Info("Kafka cluster is deleting",
+					"Cluster name", kafka.Spec.Name,
+					"Cluster ID", kafka.Status.ID,
+					"Kafka cluster status", kafka.Status.ClusterStatus.Status)
+
+				return reconcile.Result{RequeueAfter: Requeue60}, nil
+			}
+
+			l.Error(err, "cannot delete Kafka cluster",
+				"Cluster name", kafka.Spec.Name,
+				"Cluster status", kafka.Status.ClusterStatus.Status,
+				"Cluster ID", kafka.Status.ID)
+			return ctrl.Result{RequeueAfter: Requeue60}, nil
 		}
 
 		return reconcile.Result{}, nil
@@ -165,8 +180,25 @@ func (r *KafkaReconciler) handleUpdateCluster(ctx context.Context, kafka *cluste
 func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) error {
 	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 
+	status, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		return err
+	}
+
+	if status != nil {
+		err = r.API.DeleteCluster(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		if err != nil {
+			l.Error(err, "cannot delete Kafka cluster",
+				"Cluster name", kafka.Spec.Name,
+				"Cluster status", kafka.Status.Status)
+			return err
+		}
+
+		return instaclustr.ClusterIsBeingDeleted
+	}
+
 	controllerutil.RemoveFinalizer(kafka, clustersv1alpha1.DeletionFinalizer)
-	err := r.Update(ctx, kafka)
+	err = r.Update(ctx, kafka)
 	if err != nil {
 		l.Error(err, "cannot remove finalizer from Kafka",
 			"Cluster name", kafka.Spec.Name,
