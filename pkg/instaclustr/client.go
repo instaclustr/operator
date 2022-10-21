@@ -403,3 +403,33 @@ func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
 
 	return nil
 }
+
+func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error {
+	url := c.serverHostname + clusterEndpoint + id + AddDataCentresEndpoint
+
+	dataCentrePayload, err := json.Marshal(dataCentre)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, dataCentrePayload)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+//func (c *Client) AddRedisNodes(id, clusterEndpoint, dataCentreID, nodeSize string)  {
+//	url := c.serverHostname + clusterEndpoint + dataCentreID
+//}

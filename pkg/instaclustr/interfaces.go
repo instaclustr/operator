@@ -21,4 +21,5 @@ type API interface {
 	GetCassandraDCs(id, clusterEndpoint string) (*modelsv2.CassandraDCs, error)
 	UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *modelsv2.CassandraDCs) error
 	DeleteCluster(id, clusterEndpoint string) error
+	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 }

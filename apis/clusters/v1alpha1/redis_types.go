@@ -30,8 +30,11 @@ type RedisDataCentre struct {
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	Cluster     `json:",inline"`
-	DataCentres []*RedisDataCentre `json:"dataCentres"`
+	Cluster               `json:",inline"`
+	DataCentres           []*RedisDataCentre `json:"dataCentres"`
+	ConcurrentResizes     int                `json:"concurrentResizes"`
+	NotifySupportContacts bool               `json:"notifySupportContacts"`
+	Description           string             `json:"description,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
