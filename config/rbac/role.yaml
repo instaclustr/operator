@@ -138,6 +138,32 @@ rules:
 - apiGroups:
   - clusters.instaclustr.com
   resources:
+  - kafkaconnects
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - kafkaconnects/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - kafkaconnects/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
   - kafkas
   verbs:
   - create

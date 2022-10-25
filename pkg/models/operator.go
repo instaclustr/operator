@@ -1,8 +1,9 @@
 package models
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -30,7 +31,4 @@ const (
 	Requeue60 = time.Second * 60
 )
 
-var ReconcileResult = &reconcile.Result{
-	Requeue:      true,
-	RequeueAfter: Requeue60,
-}
+var ReconcileRequeue60 = reconcile.Result{RequeueAfter: Requeue60}
