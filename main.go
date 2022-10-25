@@ -176,6 +176,7 @@ func main() {
 	if err = (&clusterresourcescontrollers.GCPVPCPeeringReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		API:    instaClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GCPVPCPeering")
 		os.Exit(1)

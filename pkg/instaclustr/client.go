@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v2alpha1"
 	"io"
 	"net/http"
 	"time"
@@ -424,6 +425,91 @@ func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) CreateGCPPeering(url string,
+	GCPSpec *clusterresourcesv2alpha1.GCPVPCPeeringSpec,
+) (*clusterresourcesv2alpha1.GCPVPCPeeringStatus, error) {
+
+	jsonDataCreate, err := json.Marshal(GCPSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv2alpha1.GCPVPCPeeringStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) GetGCPPeeringStatus(peerID,
+	peeringEndpoint string,
+) (*clusterresourcesv2alpha1.GCPVPCPeeringStatus, error) {
+	url := c.serverHostname + peeringEndpoint + peerID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var peeringStatus clusterresourcesv2alpha1.GCPVPCPeeringStatus
+	err = json.Unmarshal(body, &peeringStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return &peeringStatus, nil
+}
+
+func (c *Client) DeleteGCPPeering(peerID, peeringEndpoint string) error {
+	url := c.serverHostname + peeringEndpoint + peerID
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 

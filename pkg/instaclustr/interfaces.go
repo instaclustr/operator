@@ -1,6 +1,7 @@
 package instaclustr
 
 import (
+	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v2alpha1"
 	"net/http"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
@@ -22,4 +23,7 @@ type API interface {
 	UpdateCassandraCluster(id, clusterEndpoint string, InstaDCs *modelsv2.CassandraDCs) error
 	DeleteCluster(id, clusterEndpoint string) error
 	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
+	CreateGCPPeering(url string, GCPSpec *clusterresourcesv2alpha1.GCPVPCPeeringSpec) (*clusterresourcesv2alpha1.GCPVPCPeeringStatus, error)
+	GetGCPPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv2alpha1.GCPVPCPeeringStatus, error)
+	DeleteGCPPeering(peerID, peeringEndpoint string) error
 }
