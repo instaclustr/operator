@@ -1,0 +1,310 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: kafkaconnects.clusters.instaclustr.com
+spec:
+  group: clusters.instaclustr.com
+  names:
+    kind: KafkaConnect
+    listKind: KafkaConnectList
+    plural: kafkaconnects
+    singular: kafkaconnect
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: KafkaConnect is the Schema for the kafkaconnects API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KafkaConnectSpec defines the desired state of KafkaConnect
+            properties:
+              customConnectors:
+                description: CustomConnectors defines the location for custom connector
+                  storage and access info.
+                items:
+                  properties:
+                    awsConnectorSettings:
+                      description: Settings to access custom connectors located in
+                        a S3 bucket.
+                      items:
+                        properties:
+                          accessKey:
+                            description: AWS Access Key id that can access your specified
+                              S3 bucket for Kafka Connect custom connector.
+                            type: string
+                          s3BucketName:
+                            description: S3 bucket name for Kafka Connect custom connector.
+                            type: string
+                          secretKey:
+                            description: AWS Secret Key associated with the Access
+                              Key id that can access your specified S3 bucket for
+                              Kafka Connect custom connector.
+                            type: string
+                        required:
+                        - accessKey
+                        - s3BucketName
+                        - secretKey
+                        type: object
+                      type: array
+                    azureConnectorSettings:
+                      description: Settings to access custom connectors located in
+                        an azure storage container.
+                      items:
+                        properties:
+                          storageAccountKey:
+                            description: Azure storage account key to access your
+                              Azure bucket for Kafka Connect custom connector.
+                            type: string
+                          storageAccountName:
+                            description: Azure storage account name to access your
+                              Azure bucket for Kafka Connect custom connector.
+                            type: string
+                          storageContainerName:
+                            description: Azure storage container name for Kafka Connect
+                              custom connector.
+                            type: string
+                        required:
+                        - storageAccountKey
+                        - storageAccountName
+                        - storageContainerName
+                        type: object
+                      type: array
+                    gcpConnectorSettings:
+                      description: Settings to access custom connectors located in
+                        a gcp storage container.
+                      items:
+                        properties:
+                          clientEmail:
+                            type: string
+                          clientId:
+                            type: string
+                          privateKey:
+                            type: string
+                          privateKeyId:
+                            type: string
+                          projectId:
+                            type: string
+                          storageBucketName:
+                            type: string
+                        required:
+                        - clientEmail
+                        - clientId
+                        - privateKey
+                        - privateKeyId
+                        - projectId
+                        - storageBucketName
+                        type: object
+                      type: array
+                  type: object
+                type: array
+              dataCentres:
+                items:
+                  properties:
+                    accountName:
+                      type: string
+                    cloudProvider:
+                      type: string
+                    cloudProviderSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                          diskEncryptionKey:
+                            type: string
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
+                    name:
+                      description: When use one data centre name of field is dataCentreCustomName
+                        for APIv1
+                      type: string
+                    network:
+                      type: string
+                    nodeSize:
+                      type: string
+                    nodesNumber:
+                      description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
+                      format: int32
+                      type: integer
+                    racksNumber:
+                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
+                      format: int32
+                      type: integer
+                    region:
+                      description: 'Region. APIv1 : "dataCentre"'
+                      type: string
+                    tags:
+                      additionalProperties:
+                        type: string
+                      type: object
+                  required:
+                  - cloudProvider
+                  - network
+                  - nodeSize
+                  - nodesNumber
+                  - racksNumber
+                  - region
+                  type: object
+                type: array
+              name:
+                description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
+                  "clusterName".'
+                type: string
+              pciCompliance:
+                description: "The PCI compliance standards relate to the security
+                  of user data and transactional information. Can only be applied
+                  clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
+                  and Redis. PCI compliance cannot be enabled if the cluster has Spark.
+                  \n APIv1 : \"pciCompliantCluster,omitempty\"; APIv2 : pciComplianceMode."
+                type: boolean
+              privateNetworkCluster:
+                description: Required for APIv2, but for APIv1 set "false" as a default.
+                type: boolean
+              slaTier:
+                description: 'Non-production clusters may receive lower priority support
+                  and reduced SLAs. Production tier is not available when using Developer
+                  class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
+                  "NON_PRODUCTION". Required for APIv2, but for APIv1 set "NON_PRODUCTION"
+                  as a default.'
+                type: string
+              targetCluster:
+                items:
+                  properties:
+                    externalCluster:
+                      description: Details to connect to a Non-Instaclustr managed
+                        cluster. Cannot be provided if targeting an Instaclustr managed
+                        cluster.
+                      items:
+                        properties:
+                          bootstrapServers:
+                            type: string
+                          saslJaasConfig:
+                            type: string
+                          saslMechanism:
+                            type: string
+                          securityProtocol:
+                            type: string
+                          sslEnabledProtocols:
+                            type: string
+                          sslProtocol:
+                            type: string
+                          sslTruststorePassword:
+                            type: string
+                          truststore:
+                            type: string
+                        type: object
+                      type: array
+                    managedCluster:
+                      description: Details to connect to a Instaclustr managed cluster.
+                        Cannot be provided if targeting an external cluster.
+                      items:
+                        properties:
+                          kafkaConnectVpcType:
+                            description: Available options are KAFKA_VPC, VPC_PEERED,
+                              SEPARATE_VPC
+                            type: string
+                          targetKafkaClusterId:
+                            type: string
+                        required:
+                        - kafkaConnectVpcType
+                        - targetKafkaClusterId
+                        type: object
+                      type: array
+                  type: object
+                type: array
+              twoFactorDelete:
+                description: APIv2, unlike AP1, receives an array of TwoFactorDelete
+                  (<= 1 items);
+                items:
+                  properties:
+                    email:
+                      description: 'Email address which will be contacted when the
+                        cluster is requested to be deleted. APIv1: deleteVerifyEmail;
+                        APIv2: confirmationEmail.'
+                      type: string
+                    phone:
+                      description: 'APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.'
+                      type: string
+                  required:
+                  - email
+                  type: object
+                type: array
+              version:
+                type: string
+            required:
+            - dataCentres
+            - name
+            - slaTier
+            - targetCluster
+            - version
+            type: object
+          status:
+            description: KafkaConnectStatus defines the observed state of KafkaConnect
+            properties:
+              cdcid:
+                type: string
+              dataCentres:
+                items:
+                  properties:
+                    encryptionKeyId:
+                      type: string
+                    id:
+                      type: string
+                    nodeNumber:
+                      format: int32
+                      type: integer
+                    nodes:
+                      items:
+                        properties:
+                          id:
+                            type: string
+                          privateAddress:
+                            type: string
+                          publicAddress:
+                            type: string
+                          rack:
+                            type: string
+                          roles:
+                            items:
+                              type: string
+                            type: array
+                          size:
+                            type: string
+                          status:
+                            type: string
+                        type: object
+                      type: array
+                    status:
+                      type: string
+                  type: object
+                type: array
+              id:
+                type: string
+              status:
+                type: string
+              twoFactorDeleteEnabled:
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

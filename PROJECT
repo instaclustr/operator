@@ -77,4 +77,13 @@ resources:
   kind: AzureVNetPeering
   path: github.com/instaclustr/operator/apis/clusterresources/v2alpha1
   version: v2alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusters
+  kind: KafkaConnect
+  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
+  version: v1alpha1
 version: "3"

@@ -1,0 +1,20 @@
+# permissions for end users to view kafkaconnects.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kafkaconnect-viewer-role
+rules:
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - kafkaconnects
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - kafkaconnects/status
+  verbs:
+  - get
