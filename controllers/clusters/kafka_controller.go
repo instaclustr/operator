@@ -78,8 +78,8 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return reconcile.Result{}, err
 	}
 
-	switch kafka.Annotations[models.CurrentEventAnnotation] {
-	case models.CreateEvent:
+	switch kafka.Annotations[models.ResourceStateAnnotation] {
+	case models.CreatingEvent:
 		err = r.handleCreateCluster(ctx, &kafka, l)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: models.Requeue60}, nil
@@ -88,7 +88,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return reconcile.Result{}, nil
 
 	//TODO: handle update
-	case models.UpdateEvent:
+	case models.UpdatingEvent:
 		err = r.handleUpdateCluster(ctx, &kafka, l)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: models.Requeue60}, nil
@@ -96,7 +96,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 		return reconcile.Result{}, nil
 
-	case models.DeleteEvent:
+	case models.DeletingEvent:
 		err = r.handleDeleteCluster(ctx, &kafka, l)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
@@ -120,7 +120,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.GenericEvent:
 		l.Info("event isn't handled",
 			"Cluster name", kafka.Spec.Name, "request", req,
-			"event", kafka.Annotations[models.CurrentEventAnnotation])
+			"event", kafka.Annotations[models.ResourceStateAnnotation])
 		return reconcile.Result{}, nil
 	}
 
@@ -250,7 +250,7 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Kafka{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
+				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
@@ -259,18 +259,18 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 					return true
 				}
 
-				event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UpdateEvent})
+				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
 				return false
 			},
 			GenericFunc: func(event event.GenericEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.GenericEvent})
+				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
 				return true
 			},
 		})).Complete(r)

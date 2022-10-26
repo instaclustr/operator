@@ -78,8 +78,8 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	pgAnnotations := pgCluster.Annotations
-	switch pgAnnotations[models.CurrentEventAnnotation] {
-	case models.CreateEvent:
+	switch pgAnnotations[models.ResourceStateAnnotation] {
+	case models.CreatingEvent:
 		err = r.HandleCreateCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
 			logger.Error(err, "cannot create PostgreSQL cluster",
@@ -90,7 +90,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		return reconcile.Result{Requeue: true}, nil
-	case models.UpdateEvent:
+	case models.UpdatingEvent:
 		reconcileResult, err := r.HandleUpdateCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
 			logger.Error(err, "cannot update PostgreSQL cluster",
@@ -100,7 +100,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		return *reconcileResult, nil
-	case models.DeleteEvent:
+	case models.DeletingEvent:
 		err = r.HandleDeleteCluster(pgCluster, &logger, &ctx, &req)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
@@ -155,9 +155,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return err
 	}
 
-	pgCluster.Annotations[models.PreviousEventAnnotation] = pgCluster.Annotations[models.CurrentEventAnnotation]
-	pgCluster.Annotations[models.CurrentEventAnnotation] = models.UpdateEvent
-	pgCluster.Annotations[models.IsClusterCreatedAnnotation] = "true"
+	pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 	pgCluster.SetFinalizers([]string{models.DeletionFinalizer})
 
 	err = r.patchClusterMetadata(ctx, pgCluster, logger)
@@ -278,8 +276,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		return &reconcile.Result{}, err
 	}
 
-	pgCluster.Annotations[models.PreviousEventAnnotation] = pgCluster.Annotations[models.CurrentEventAnnotation]
-	pgCluster.Annotations[models.CurrentEventAnnotation] = ""
+	pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	pgInstClusterStatus, err = r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil {
 		logger.Error(
@@ -338,6 +335,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	}
 
 	controllerutil.RemoveFinalizer(pgCluster, models.DeletionFinalizer)
+	pgCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Update(*ctx, pgCluster)
 	if err != nil {
 		logger.Error(
@@ -362,17 +360,17 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 					return true
 				}
 
 				annotations := event.Object.GetAnnotations()
-				if annotations[models.IsClusterCreatedAnnotation] == "true" {
-					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UpdateEvent})
+				if annotations[models.ResourceStateAnnotation] != "" {
+					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
 					return true
 				}
 
-				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
+				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
@@ -381,17 +379,17 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 					return true
 				}
 
 				event.ObjectNew.SetAnnotations(map[string]string{
-					models.CurrentEventAnnotation: models.UpdateEvent,
+					models.ResourceStateAnnotation: models.UpdatingEvent,
 				})
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.GenericEvent})
+				genericEvent.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
 				return true
 			},
 		})).
