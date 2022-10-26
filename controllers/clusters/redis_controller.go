@@ -75,8 +75,8 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	redisAnnotations := redisCluster.Annotations
-	switch redisAnnotations[models.CurrentEventAnnotation] {
-	case models.CreateEvent:
+	switch redisAnnotations[models.ResourceStateAnnotation] {
+	case models.CreatingEvent:
 		err = r.HandleCreateCluster(redisCluster, &logger, &ctx, &req)
 		if err != nil {
 			logger.Error(err, "cannot create Redis cluster",
@@ -87,7 +87,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		return reconcile.Result{Requeue: true}, nil
-	case models.UpdateEvent:
+	case models.UpdatingEvent:
 		reconcileResult, err := r.HandleUpdateCluster(redisCluster, &logger, &ctx, &req)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterNotRunning) {
@@ -104,7 +104,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		return *reconcileResult, nil
-	case models.DeleteEvent:
+	case models.DeletingEvent:
 		err = r.HandleDeleteCluster(redisCluster, &logger, &ctx, &req)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
@@ -157,9 +157,7 @@ func (r *RedisReconciler) HandleCreateCluster(
 		return err
 	}
 
-	redisCluster.Annotations[models.PreviousEventAnnotation] = redisCluster.Annotations[models.CurrentEventAnnotation]
-	redisCluster.Annotations[models.CurrentEventAnnotation] = models.UpdateEvent
-	redisCluster.Annotations[models.IsClusterCreatedAnnotation] = "true"
+	redisCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 	redisCluster.SetFinalizers([]string{models.DeletionFinalizer})
 
 	err = r.patchClusterMetadata(ctx, redisCluster, logger)
@@ -250,8 +248,7 @@ func (r *RedisReconciler) HandleUpdateCluster(
 		return &reconcile.Result{}, err
 	}
 
-	redisCluster.Annotations[models.PreviousEventAnnotation] = redisCluster.Annotations[models.CurrentEventAnnotation]
-	redisCluster.Annotations[models.CurrentEventAnnotation] = ""
+	redisCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.patchClusterMetadata(ctx, redisCluster, logger)
 	if err != nil {
 		logger.Error(err, "cannot patch Redis cluster after update",
@@ -293,6 +290,7 @@ func (r *RedisReconciler) HandleDeleteCluster(
 	}
 
 	controllerutil.RemoveFinalizer(redisCluster, models.DeletionFinalizer)
+	redisCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Update(*ctx, redisCluster)
 	if err != nil {
 		logger.Error(
@@ -317,17 +315,17 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&clustersv1alpha1.Redis{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 					return true
 				}
 
 				annotations := event.Object.GetAnnotations()
-				if annotations[models.IsClusterCreatedAnnotation] == "true" {
-					event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.UpdateEvent})
+				if annotations[models.ResourceStateAnnotation] != "" {
+					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
 					return true
 				}
 
-				event.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.CreateEvent})
+				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
@@ -336,17 +334,17 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.DeleteEvent})
+					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 					return true
 				}
 
 				event.ObjectNew.SetAnnotations(map[string]string{
-					models.CurrentEventAnnotation: models.UpdateEvent,
+					models.ResourceStateAnnotation: models.UpdatingEvent,
 				})
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{models.CurrentEventAnnotation: models.GenericEvent})
+				genericEvent.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
 				return true
 			},
 		})).
