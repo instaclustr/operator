@@ -22,11 +22,6 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr"
-	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
-	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/scheduler"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,6 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
+	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
 const (

@@ -3,6 +3,7 @@ package convertors
 import (
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 func OpenSearchToInstAPI(openSearchSpec *v1alpha1.OpenSearchSpec) *modelsv1.OpenSearchCluster {
@@ -12,13 +13,13 @@ func OpenSearchToInstAPI(openSearchSpec *v1alpha1.OpenSearchSpec) *modelsv1.Open
 
 	openSearchInstTwoFactorDelete := twoFactorDeleteToInstAPI(openSearchSpec.TwoFactorDelete)
 
-	openSearchRackAllocation := &modelsv1.RackAllocation{
+	openSearchRackAllocation := &models.RackAllocation{
 		NodesPerRack:  openSearchSpec.DataCentres[0].NodesNumber,
 		NumberOfRacks: openSearchSpec.DataCentres[0].RacksNumber,
 	}
 
 	return &modelsv1.OpenSearchCluster{
-		Cluster: modelsv1.Cluster{
+		Cluster: models.Cluster{
 			ClusterName:           openSearchSpec.Name,
 			NodeSize:              openSearchSpec.DataCentres[0].NodeSize,
 			PrivateNetworkCluster: openSearchSpec.PrivateNetworkCluster,
@@ -40,7 +41,7 @@ func openSearchBundlesToInstAPI(
 ) []*modelsv1.OpenSearchBundle {
 	var openSearchBundles []*modelsv1.OpenSearchBundle
 	openSearchBundle := &modelsv1.OpenSearchBundle{
-		Bundle: modelsv1.Bundle{
+		Bundle: models.Bundle{
 			Bundle:  modelsv1.OpenSearch,
 			Version: version,
 		},
@@ -56,7 +57,7 @@ func openSearchBundlesToInstAPI(
 	return openSearchBundles
 }
 
-func openSearchProviderToInstAPI(dataCentre *v1alpha1.OpenSearchDataCentre) *modelsv1.ClusterProvider {
+func openSearchProviderToInstAPI(dataCentre *v1alpha1.OpenSearchDataCentre) *models.ClusterProvider {
 	var instCustomVirtualNetworkId string
 	var instResourceGroup string
 	var insDiskEncryptionKey string
@@ -66,7 +67,7 @@ func openSearchProviderToInstAPI(dataCentre *v1alpha1.OpenSearchDataCentre) *mod
 		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
 	}
 
-	return &modelsv1.ClusterProvider{
+	return &models.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
 		Tags:                   dataCentre.Tags,

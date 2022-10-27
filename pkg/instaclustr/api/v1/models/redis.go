@@ -1,5 +1,7 @@
 package models
 
+import "github.com/instaclustr/operator/pkg/models"
+
 const (
 	Redis            = "REDIS"
 	RedisNodePurpose = "REDIS"
@@ -67,14 +69,14 @@ var RedisGCPNodeTypes = map[string]int{
 }
 
 type RedisCluster struct {
-	Cluster     `json:",inline"`
-	Bundles     []*RedisBundle     `json:"bundles"`
-	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
+	models.Cluster `json:",inline"`
+	Bundles        []*RedisBundle     `json:"bundles"`
+	DataCentres    []*RedisDataCentre `json:"dataCentres,omitempty"`
 }
 
 type RedisBundle struct {
-	Bundle  `json:",inline"`
-	Options *RedisOptions `json:"options"`
+	models.Bundle `json:",inline"`
+	Options       *RedisOptions `json:"options"`
 }
 
 type RedisOptions struct {
@@ -85,6 +87,6 @@ type RedisOptions struct {
 }
 
 type RedisDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []*RedisBundle `json:"bundles"`
+	models.DataCentre `json:",inline"`
+	Bundles           []*RedisBundle `json:"bundles"`
 }

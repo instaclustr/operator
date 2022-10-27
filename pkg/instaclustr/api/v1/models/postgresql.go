@@ -1,5 +1,7 @@
 package models
 
+import "github.com/instaclustr/operator/pkg/models"
+
 const (
 	PgSQL         = "POSTGRESQL"
 	PgBouncer     = "PGBOUNCER"
@@ -90,8 +92,8 @@ var PgGCPNodeTypes = map[string]int{
 }
 
 type PgBundle struct {
-	Bundle  `json:",inline"`
-	Options *PgBundleOptions `json:"options"`
+	models.Bundle `json:",inline"`
+	Options       *PgBundleOptions `json:"options"`
 }
 
 type PgBundleOptions struct {
@@ -105,17 +107,17 @@ type PgBundleOptions struct {
 }
 
 type PgDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []*PgBundle `json:"bundles"`
+	models.DataCentre `json:",inline"`
+	Bundles           []*PgBundle `json:"bundles"`
 }
 
 type PgCluster struct {
-	Cluster     `json:",inline"`
-	Bundles     []*PgBundle     `json:"bundles"`
-	DataCentres []*PgDataCentre `json:"dataCentres,omitempty"`
+	models.Cluster `json:",inline"`
+	Bundles        []*PgBundle     `json:"bundles"`
+	DataCentres    []*PgDataCentre `json:"dataCentres,omitempty"`
 }
 
 type PgStatus struct {
-	ClusterStatus `json:",inline"`
-	DataCentres   []*DataCentreStatus `json:"dataCentres,omitempty"`
+	models.ClusterStatus `json:",inline"`
+	DataCentres          []*models.DataCentreStatus `json:"dataCentres,omitempty"`
 }

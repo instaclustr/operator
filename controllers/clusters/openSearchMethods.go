@@ -199,7 +199,7 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 func (r *OpenSearchReconciler) getDataCentreOperations(
 	clusterID,
 	dataCentreID string,
-) ([]*modelsv1.DataCentreResizeOperations, error) {
+) ([]*models.DataCentreResizeOperations, error) {
 	activeResizeOperations, err := r.API.GetActiveDataCentreResizeOperations(clusterID, dataCentreID)
 	if err != nil {
 		return nil, err

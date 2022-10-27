@@ -1,6 +1,9 @@
 package v1alpha1
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/instaclustr/operator/pkg/models"
+)
 
 // Bundle is deprecated: delete when not used.
 type Bundle struct {
@@ -128,4 +131,24 @@ type PatchRequest struct {
 
 type PrivateLink struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
+}
+
+func (dataCentre *DataCentre) providerToInstAPIv1() *models.ClusterProvider {
+	var instCustomVirtualNetworkId string
+	var instResourceGroup string
+	var insDiskEncryptionKey string
+	if len(dataCentre.CloudProviderSettings) > 0 {
+		instCustomVirtualNetworkId = dataCentre.CloudProviderSettings[0].CustomVirtualNetworkID
+		instResourceGroup = dataCentre.CloudProviderSettings[0].ResourceGroup
+		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
+	}
+
+	return &models.ClusterProvider{
+		Name:                   dataCentre.CloudProvider,
+		AccountName:            dataCentre.ProviderAccountName,
+		Tags:                   dataCentre.Tags,
+		CustomVirtualNetworkId: instCustomVirtualNetworkId,
+		ResourceGroup:          instResourceGroup,
+		DiskEncryptionKey:      insDiskEncryptionKey,
+	}
 }

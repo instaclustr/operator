@@ -5,10 +5,11 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
-	var clusterStatusFromInst modelsv1.ClusterStatus
+	var clusterStatusFromInst models.ClusterStatus
 	err := json.Unmarshal(body, &clusterStatusFromInst)
 	if err != nil {
 		return nil, err
@@ -39,7 +40,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 	pgInstTwoFactorDelete := twoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
 
 	pg := &modelsv1.PgCluster{
-		Cluster: modelsv1.Cluster{
+		Cluster: models.Cluster{
 			ClusterName:           pgClusterSpec.Name,
 			NodeSize:              pgClusterSpec.DataCentres[0].NodeSize,
 			PrivateNetworkCluster: pgClusterSpec.PrivateNetworkCluster,
@@ -50,7 +51,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 		Bundles: pgBundles,
 	}
 
-	pgRackAllocation := &modelsv1.RackAllocation{
+	pgRackAllocation := &models.RackAllocation{
 		NodesPerRack:  pgClusterSpec.DataCentres[0].NodesNumber,
 		NumberOfRacks: pgClusterSpec.DataCentres[0].RacksNumber,
 	}
@@ -62,44 +63,12 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 	pg.RackAllocation = pgRackAllocation
 
 	return pg
-
-	// Can be used in APIv2 if it supports multiple DC for PostgreSQL
-	//
-	//var pgInstDCs []*modelsv1.PgDataCentre
-	//for _, dataCentre := range pgClusterSpec.DataCentres {
-	//	pgBundles = pgBundlesToInstAPI(dataCentre, pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
-	//
-	//	pgInstProvider = pgProviderToInstAPI(dataCentre)
-	//
-	//	pgRackAlloc := &modelsv1.RackAllocation{
-	//		NodesPerRack:  dataCentre.NodesNumber,
-	//		NumberOfRacks: dataCentre.RacksNumber,
-	//	}
-	//
-	//	pgInstDC := &modelsv1.PgDataCentre{
-	//		DataCentre: modelsv1.DataCentre{
-	//			Name:           dataCentre.Name,
-	//			DataCentre:     dataCentre.Region,
-	//			Network:        dataCentre.Network,
-	//			Provider:       pgInstProvider,
-	//			NodeSize:       dataCentre.NodeSize,
-	//			RackAllocation: pgRackAlloc,
-	//		},
-	//		Bundles: pgBundles,
-	//	}
-	//
-	//	pgInstDCs = append(pgInstDCs, pgInstDC)
-	//}
-	//
-	//pg.DataCentres = pgInstDCs
-	//
-	//return pg
 }
 
 func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*modelsv1.PgBundle {
 	var pgBundles []*modelsv1.PgBundle
 	pgBundle := &modelsv1.PgBundle{
-		Bundle: modelsv1.Bundle{
+		Bundle: models.Bundle{
 			Bundle:  modelsv1.PgSQL,
 			Version: version,
 		},
@@ -114,7 +83,7 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 
 	if pgBouncerVersion != "" {
 		pgBouncerBundle := &modelsv1.PgBundle{
-			Bundle: modelsv1.Bundle{
+			Bundle: models.Bundle{
 				Bundle:  modelsv1.PgBouncer,
 				Version: pgBouncerVersion,
 			},
@@ -127,7 +96,7 @@ func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVer
 	return pgBundles
 }
 
-func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterProvider {
+func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *models.ClusterProvider {
 	var instCustomVirtualNetworkId string
 	var instResourceGroup string
 	var insDiskEncryptionKey string
@@ -136,7 +105,7 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterPro
 		instResourceGroup = dataCentre.CloudProviderSettings[0].ResourceGroup
 		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
 	}
-	return &modelsv1.ClusterProvider{
+	return &models.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
 		Tags:                   dataCentre.Tags,
@@ -146,7 +115,7 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *modelsv1.ClusterPro
 	}
 }
 
-func dataCentresFromInstAPI(instaDataCentres []*modelsv1.DataCentreStatus) []*v1alpha1.DataCentreStatus {
+func dataCentresFromInstAPI(instaDataCentres []*models.DataCentreStatus) []*v1alpha1.DataCentreStatus {
 	var dataCentres []*v1alpha1.DataCentreStatus
 
 	for _, dataCentre := range instaDataCentres {
@@ -163,7 +132,7 @@ func dataCentresFromInstAPI(instaDataCentres []*modelsv1.DataCentreStatus) []*v1
 	return dataCentres
 }
 
-func nodesFromInstAPI(instaNodes []*modelsv1.NodeStatus) []*v1alpha1.Node {
+func nodesFromInstAPI(instaNodes []*models.NodeStatus) []*v1alpha1.Node {
 	var nodes []*v1alpha1.Node
 	for _, node := range instaNodes {
 		nodes = append(nodes, &v1alpha1.Node{
@@ -178,12 +147,12 @@ func nodesFromInstAPI(instaNodes []*modelsv1.NodeStatus) []*v1alpha1.Node {
 	return nodes
 }
 
-func twoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
+func twoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *models.TwoFactorDelete {
 	if len(twoFactorDelete) < 1 {
 		return nil
 	}
 
-	return &modelsv1.TwoFactorDelete{
+	return &models.TwoFactorDelete{
 		DeleteVerifyEmail: twoFactorDelete[0].Email,
 		DeleteVerifyPhone: twoFactorDelete[0].Phone,
 	}

@@ -34,7 +34,6 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -207,7 +206,7 @@ func (r *RedisReconciler) HandleUpdateCluster(
 		return &reconcile.Result{}, err
 	}
 
-	if redisInstClusterStatus.Status != modelsv1.RunningStatus {
+	if redisInstClusterStatus.Status != models.RunningStatus {
 		return &reconcile.Result{
 			Requeue:      true,
 			RequeueAfter: models.Requeue60,

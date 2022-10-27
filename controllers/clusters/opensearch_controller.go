@@ -35,7 +35,6 @@ import (
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	convertorsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -206,7 +205,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return &reconcile.Result{}, err
 	}
 
-	if openSearchInstClusterStatus.Status != modelsv1.RunningStatus {
+	if openSearchInstClusterStatus.Status != models.RunningStatus {
 		return &reconcile.Result{
 			Requeue:      true,
 			RequeueAfter: models.Requeue60,

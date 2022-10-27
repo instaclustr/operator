@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 type API interface {
@@ -12,7 +12,7 @@ type API interface {
 	CreateCluster(url string, clusterSpec any) (string, error)
 	GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error)
 	UpdateNodeSize(clusterEndpoint, clusterID string, resizedDataCentre *v1alpha1.ResizedDataCentre, concurrentResizes int, notifySupportContacts bool, nodePurpose string) error
-	GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*modelsv1.DataCentreResizeOperations, error)
+	GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error)
 	GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error)
 	UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error
 	ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName string) error

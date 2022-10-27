@@ -9,4 +9,22 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: cadence-sample
 spec:
-  # TODO(user): Add fields here
+  name: "operatorCadence"
+  version: "cadence:0.24.0"
+#  concurrentResizes: 1
+#  notifySupportContacts: false
+  dataCentres:
+  - region: "US_EAST_1"
+    network: "10.1.0.0/16"
+    cloudProvider: "AWS_VPC"
+    nodeSize: "CAD-SI-DEV-t3.small-5"
+    racksNumber: 2
+    nodesNumber: 1
+    cadenceNodeCount: 1
+    provisioningType: "SHARED"
+    targetCassandraVpcType: "TARGET_VPC"
+    targetCassandraCdcId: "f2a61989-7df9-475e-87c6-26f5b6775519"
+    #  twoFactorDelete:
+    #    - email: "rostyslp@netapp.com"
+    #  description: "test 222"
+  slaTier: "NON_PRODUCTION"
