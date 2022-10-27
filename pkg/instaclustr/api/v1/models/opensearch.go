@@ -1,5 +1,7 @@
 package models
 
+import "github.com/instaclustr/operator/pkg/models"
+
 const (
 	OpenSearch                      = "OPENSEARCH"
 	OpenSearchDataNodePurpose       = "OPENSEARCH_DATA_AND_INGEST"
@@ -8,8 +10,8 @@ const (
 )
 
 type OpenSearchBundle struct {
-	Bundle  `json:",inline"`
-	Options *OpenSearchBundleOptions `json:"options"`
+	models.Bundle `json:",inline"`
+	Options       *OpenSearchBundleOptions `json:"options"`
 }
 
 type OpenSearchBundleOptions struct {
@@ -20,17 +22,17 @@ type OpenSearchBundleOptions struct {
 }
 
 type OpenSearchDataCentre struct {
-	DataCentre `json:",inline"`
-	Bundles    []*OpenSearchBundle `json:"bundles"`
+	models.DataCentre `json:",inline"`
+	Bundles           []*OpenSearchBundle `json:"bundles"`
 }
 
 type OpenSearchCluster struct {
-	Cluster     `json:",inline"`
-	Bundles     []*OpenSearchBundle     `json:"bundles"`
-	DataCentres []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
+	models.Cluster `json:",inline"`
+	Bundles        []*OpenSearchBundle     `json:"bundles"`
+	DataCentres    []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
 }
 
 type OpenSearchStatus struct {
-	ClusterStatus `json:",inline"`
-	DataCentres   []*DataCentreStatus `json:"dataCentres,omitempty"`
+	models.ClusterStatus `json:",inline"`
+	DataCentres          []*models.DataCentreStatus `json:"dataCentres,omitempty"`
 }

@@ -10,8 +10,8 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 type Client struct {
@@ -146,7 +146,7 @@ func (c *Client) UpdateNodeSize(
 		url = fmt.Sprintf(ClustersResizeEndpoint, c.serverHostname, clusterID, resizedDataCentre.DataCentreID)
 	}
 
-	resizeRequest := &modelsv1.ResizeRequest{
+	resizeRequest := &models.ResizeRequest{
 		NewNodeSize:           resizedDataCentre.NewNodeSize,
 		ConcurrentResizes:     concurrentResizes,
 		NotifySupportContacts: notifySupportContacts,
@@ -180,8 +180,8 @@ func (c *Client) UpdateNodeSize(
 	return nil
 }
 
-func (c *Client) GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*modelsv1.DataCentreResizeOperations, error) {
-	var dcResizeOperations []*modelsv1.DataCentreResizeOperations
+func (c *Client) GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
+	var dcResizeOperations []*models.DataCentreResizeOperations
 
 	url := fmt.Sprintf(ClustersResizeEndpoint+"?%s", c.serverHostname, clusterID, dataCentreID, ActiveOnly)
 
@@ -209,7 +209,7 @@ func (c *Client) GetActiveDataCentreResizeOperations(clusterID, dataCentreID str
 }
 
 func (c *Client) GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error) {
-	var instClusterConfigurations []*modelsv1.ClusterConfigurations
+	var instClusterConfigurations []*models.ClusterConfigurations
 
 	url := c.serverHostname + clusterEndpoint + clusterID + "/" + bundle + ClusterConfigurationsEndpoint
 
@@ -244,7 +244,7 @@ func (c *Client) GetClusterConfigurations(clusterEndpoint, clusterID, bundle str
 }
 
 func (c *Client) UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error {
-	clusterConfigurationsToUpdate := &modelsv1.ClusterConfigurations{
+	clusterConfigurationsToUpdate := &models.ClusterConfigurations{
 		ParameterName:  paramName,
 		ParameterValue: paramValue,
 	}
@@ -298,12 +298,12 @@ func (c *Client) ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, p
 func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error {
 	url := c.serverHostname + clusterEndpoint + clusterID
 
-	clusterModifyRequest := &modelsv1.ClusterModifyRequest{
+	clusterModifyRequest := &models.ClusterModifyRequest{
 		Description: description,
 	}
 
 	if twoFactorDelete != nil {
-		clusterModifyRequest.TwoFactorDelete = &modelsv1.TwoFactorDelete{
+		clusterModifyRequest.TwoFactorDelete = &models.TwoFactorDelete{
 			DeleteVerifyEmail: twoFactorDelete.Email,
 			DeleteVerifyPhone: twoFactorDelete.Phone,
 		}

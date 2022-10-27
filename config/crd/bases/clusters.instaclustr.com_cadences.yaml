@@ -35,53 +35,94 @@ spec:
           spec:
             description: CadenceSpec defines the desired state of Cadence
             properties:
-              bundles:
+              dataCentres:
                 items:
                   properties:
-                    bundle:
+                    accountName:
                       type: string
-                    options:
-                      properties:
-                        archivalS3Region:
-                          type: string
-                        archivalS3Uri:
-                          type: string
-                        awsAccessKeySecretName:
-                          type: string
-                        enableArchival:
-                          type: boolean
-                        targetCassandraCdcId:
-                          type: string
-                        targetCassandraVpcType:
-                          type: string
-                        targetKafkaCdcId:
-                          type: string
-                        targetKafkaVpcType:
-                          type: string
-                        targetOpenSearchCdcId:
-                          type: string
-                        targetOpenSearchVpcType:
-                          type: string
-                        useAdvancedVisibility:
-                          type: boolean
-                      required:
-                      - targetCassandraCdcId
-                      - targetOpenSearchCdcId
-                      - targetOpenSearchVpcType
+                    archivalS3Region:
+                      type: string
+                    archivalS3Uri:
+                      type: string
+                    awsAccessKeySecretName:
+                      type: string
+                    awsAccessKeySecretNamespace:
+                      type: string
+                    cadenceNodeCount:
+                      type: integer
+                    clientEncryption:
+                      type: boolean
+                    cloudProvider:
+                      type: string
+                    cloudProviderSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                          diskEncryptionKey:
+                            type: string
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
+                    enableArchival:
+                      type: boolean
+                    name:
+                      description: When use one data centre name of field is dataCentreCustomName
+                        for APIv1
+                      type: string
+                    network:
+                      type: string
+                    nodeSize:
+                      type: string
+                    nodesNumber:
+                      description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
+                      format: int32
+                      type: integer
+                    provisioningType:
+                      type: string
+                    racksNumber:
+                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
+                      format: int32
+                      type: integer
+                    region:
+                      description: 'Region. APIv1 : "dataCentre"'
+                      type: string
+                    tags:
+                      additionalProperties:
+                        type: string
                       type: object
-                    version:
+                    targetCassandraCdcId:
                       type: string
+                    targetCassandraVpcType:
+                      type: string
+                    targetKafkaCdcId:
+                      type: string
+                    targetKafkaVpcType:
+                      type: string
+                    targetOpenSearchCdcId:
+                      type: string
+                    targetOpenSearchVpcType:
+                      type: string
+                    useAdvancedVisibility:
+                      type: boolean
+                    useCadenceWebAuth:
+                      type: boolean
                   required:
-                  - bundle
-                  - version
+                  - cadenceNodeCount
+                  - cloudProvider
+                  - network
+                  - nodeSize
+                  - nodesNumber
+                  - provisioningType
+                  - racksNumber
+                  - region
                   type: object
                 type: array
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
-              packaged_solution:
-                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -119,7 +160,6 @@ spec:
               version:
                 type: string
             required:
-            - bundles
             - name
             - slaTier
             - version

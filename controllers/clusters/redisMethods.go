@@ -24,13 +24,13 @@ func (r *RedisReconciler) ToInstAPIv1(redisSpec *clustersv1alpha1.RedisSpec) *mo
 
 	redisRackAllocation := r.rackAllocationToInstAPIv1(redisSpec.DataCentres[0])
 
-	var redisTwoFactorDelete *modelsv1.TwoFactorDelete
+	var redisTwoFactorDelete *models.TwoFactorDelete
 	if len(redisSpec.TwoFactorDelete) != 0 {
 		redisTwoFactorDelete = r.twoFactorDeleteToInstAPIv1(redisSpec.TwoFactorDelete)
 	}
 
 	return &modelsv1.RedisCluster{
-		Cluster: modelsv1.Cluster{
+		Cluster: models.Cluster{
 			ClusterName:           redisSpec.Name,
 			NodeSize:              redisSpec.DataCentres[0].NodeSize,
 			PrivateNetworkCluster: redisSpec.PrivateNetworkCluster,
@@ -50,7 +50,7 @@ func (r *RedisReconciler) bundlesToInstAPIv1(dataCentre *clustersv1alpha1.RedisD
 	var redisBundles []*modelsv1.RedisBundle
 
 	redisBundle := &modelsv1.RedisBundle{
-		Bundle: modelsv1.Bundle{
+		Bundle: models.Bundle{
 			Bundle:  modelsv1.Redis,
 			Version: version,
 		},
@@ -66,7 +66,7 @@ func (r *RedisReconciler) bundlesToInstAPIv1(dataCentre *clustersv1alpha1.RedisD
 	return redisBundles
 }
 
-func (r *RedisReconciler) providerToInstAPIv1(dataCentre *clustersv1alpha1.RedisDataCentre) *modelsv1.ClusterProvider {
+func (r *RedisReconciler) providerToInstAPIv1(dataCentre *clustersv1alpha1.RedisDataCentre) *models.ClusterProvider {
 	var instCustomVirtualNetworkId string
 	var instResourceGroup string
 	var insDiskEncryptionKey string
@@ -76,7 +76,7 @@ func (r *RedisReconciler) providerToInstAPIv1(dataCentre *clustersv1alpha1.Redis
 		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
 	}
 
-	return &modelsv1.ClusterProvider{
+	return &models.ClusterProvider{
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
 		Tags:                   dataCentre.Tags,
@@ -86,15 +86,15 @@ func (r *RedisReconciler) providerToInstAPIv1(dataCentre *clustersv1alpha1.Redis
 	}
 }
 
-func (r *RedisReconciler) rackAllocationToInstAPIv1(dataCentre *clustersv1alpha1.RedisDataCentre) *modelsv1.RackAllocation {
-	return &modelsv1.RackAllocation{
+func (r *RedisReconciler) rackAllocationToInstAPIv1(dataCentre *clustersv1alpha1.RedisDataCentre) *models.RackAllocation {
+	return &models.RackAllocation{
 		NodesPerRack:  dataCentre.NodesNumber,
 		NumberOfRacks: dataCentre.RacksNumber,
 	}
 }
 
-func (r *RedisReconciler) twoFactorDeleteToInstAPIv1(twoFactorDelete []*clustersv1alpha1.TwoFactorDelete) *modelsv1.TwoFactorDelete {
-	return &modelsv1.TwoFactorDelete{
+func (r *RedisReconciler) twoFactorDeleteToInstAPIv1(twoFactorDelete []*clustersv1alpha1.TwoFactorDelete) *models.TwoFactorDelete {
+	return &models.TwoFactorDelete{
 		DeleteVerifyEmail: twoFactorDelete[0].Email,
 		DeleteVerifyPhone: twoFactorDelete[0].Phone,
 	}
@@ -192,7 +192,7 @@ func (r *RedisReconciler) dataCentreToInstAPIv1(dataCentre *clustersv1alpha1.Red
 	redisRackAllocation := r.rackAllocationToInstAPIv1(dataCentre)
 
 	return &modelsv1.RedisDataCentre{
-		DataCentre: modelsv1.DataCentre{
+		DataCentre: models.DataCentre{
 			Name:           dataCentre.Name,
 			DataCentre:     dataCentre.Region,
 			Network:        dataCentre.Network,
@@ -297,7 +297,7 @@ func (r *RedisReconciler) resizeDataCentres(
 	return nil
 }
 
-func (r *RedisReconciler) getDataCentreOperations(clusterID, dataCentreID string) ([]*modelsv1.DataCentreResizeOperations, error) {
+func (r *RedisReconciler) getDataCentreOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
 	activeResizeOperations, err := r.API.GetActiveDataCentreResizeOperations(clusterID, dataCentreID)
 	if err != nil {
 		return nil, nil

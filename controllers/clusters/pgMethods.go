@@ -71,7 +71,7 @@ func (r *PostgreSQLReconciler) reconcileDataCentresNodeSize(
 ) error {
 	dataCentresToResize := r.checkNodeSizeUpdate(pgInstClusterStatus.DataCentres, pgCluster.Spec.DataCentres)
 	if len(dataCentresToResize) > 0 {
-		if pgInstClusterStatus.Status != modelsv1.RunningStatus {
+		if pgInstClusterStatus.Status != models.RunningStatus {
 			return instaclustr.ClusterNotRunning
 		}
 
@@ -154,7 +154,7 @@ func (r *PostgreSQLReconciler) resizeDataCentres(
 	return nil
 }
 
-func (r *PostgreSQLReconciler) getDataCentreOperations(clusterID, dataCentreID string) ([]*modelsv1.DataCentreResizeOperations, error) {
+func (r *PostgreSQLReconciler) getDataCentreOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
 	activeResizeOperations, err := r.API.GetActiveDataCentreResizeOperations(clusterID, dataCentreID)
 	if err != nil {
 		return nil, nil
@@ -182,7 +182,7 @@ func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 	clusterConfigurationsToUpdate, clusterConfigurationsToReset := r.checkClusterConfigurationsUpdate(instClusterConfigurations, clusterConfigurations)
 
 	if len(clusterConfigurationsToUpdate) != 0 {
-		if clusterStatus != modelsv1.RunningStatus {
+		if clusterStatus != models.RunningStatus {
 			return instaclustr.ClusterNotRunning
 		}
 		for name, value := range clusterConfigurationsToUpdate {
