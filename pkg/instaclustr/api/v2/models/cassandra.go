@@ -1,9 +1,5 @@
 package models
 
-const (
-	CassandraFinalizerName = "cassandra-insta-finalizer/finalizer"
-)
-
 type CassandraCluster struct {
 	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres"`

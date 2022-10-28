@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/instaclustr/operator/pkg/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -75,6 +76,13 @@ type CassandraList struct {
 func (c *Cassandra) GetJobID(jobName string) string {
 	return client.ObjectKeyFromObject(c).String() + "/" + jobName
 }
+
+func (c *Cassandra) NewPatch() client.Patch {
+	old := c.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
+	return client.MergeFrom(old)
+}
+
 func init() {
 	SchemeBuilder.Register(&Cassandra{}, &CassandraList{})
 }
