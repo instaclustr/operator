@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"time"
+)
 
 const (
 	ResourceStateAnnotation = "instaclustr.com/resourceState"
@@ -26,3 +29,8 @@ const (
 const (
 	Requeue60 = time.Second * 60
 )
+
+var ReconcileResult = &reconcile.Result{
+	Requeue:      true,
+	RequeueAfter: Requeue60,
+}

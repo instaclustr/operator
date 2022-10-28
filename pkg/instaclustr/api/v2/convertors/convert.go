@@ -78,6 +78,7 @@ func nodesFromInstAPI(instaNodes []*modelsv2.Node) []*v1alpha1.Node {
 			PrivateAddress: node.PrivateAddress,
 			Status:         node.Status,
 			Size:           node.Size,
+			Roles:          node.Roles,
 		})
 	}
 	return nodes
