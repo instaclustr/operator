@@ -134,24 +134,10 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 	return clusterStatus, nil
 }
 
-func (c *Client) UpdateNodeSize(
-	clusterEndpoint,
-	clusterID string,
-	resizedDataCentre *v1alpha1.ResizedDataCentre,
-	concurrentResizes int,
-	notifySupportContacts bool,
-	nodePurpose string,
-) error {
+func (c *Client) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
 	var url string
 	if clusterEndpoint == ClustersEndpointV1 {
-		url = fmt.Sprintf(ClustersResizeEndpoint, c.serverHostname, clusterID, resizedDataCentre.DataCentreID)
-	}
-
-	resizeRequest := &models.ResizeRequest{
-		NewNodeSize:           resizedDataCentre.NewNodeSize,
-		ConcurrentResizes:     concurrentResizes,
-		NotifySupportContacts: notifySupportContacts,
-		NodePurpose:           nodePurpose,
+		url = fmt.Sprintf(ClustersResizeEndpoint, c.serverHostname, resizeRequest.ClusterID, resizeRequest.DataCentreID)
 	}
 
 	resizePayload, err := json.Marshal(resizeRequest)

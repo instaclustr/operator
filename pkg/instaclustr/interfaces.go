@@ -12,7 +12,7 @@ type API interface {
 	DoRequest(url string, method string, data []byte) (*http.Response, error)
 	CreateCluster(url string, clusterSpec any) (string, error)
 	GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error)
-	UpdateNodeSize(clusterEndpoint, clusterID string, resizedDataCentre *v1alpha1.ResizedDataCentre, concurrentResizes int, notifySupportContacts bool, nodePurpose string) error
+	UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error
 	GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error)
 	GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error)
 	UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error

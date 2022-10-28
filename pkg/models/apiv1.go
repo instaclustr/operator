@@ -98,6 +98,8 @@ type ResizeRequest struct {
 	ConcurrentResizes     int    `json:"concurrentResizes"`
 	NotifySupportContacts bool   `json:"notifySupportContacts"`
 	NodePurpose           string `json:"nodePurpose"`
+	ClusterID             string `json:"-"`
+	DataCentreID          string `json:"-"`
 }
 
 type DataCentreResizeOperations struct {

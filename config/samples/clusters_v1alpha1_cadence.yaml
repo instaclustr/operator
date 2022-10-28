@@ -1,3 +1,11 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: inst-test-aws-cred-secret
+data:
+  awsAccessKeyId: access_key
+  awsSecretAccessKey: secret_key
+---
 apiVersion: clusters.instaclustr.com/v1alpha1
 kind: Cadence
 metadata:
@@ -8,23 +16,34 @@ metadata:
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
   name: cadence-sample
+  annotations:
+    test.annotation/first: testAnnotation
+#    test.annotation/second: testAnnotation
 spec:
   name: "operatorCadence"
   version: "cadence:0.24.0"
-#  concurrentResizes: 1
-#  notifySupportContacts: false
+  concurrentResizes: 1
+  notifySupportContacts: false
   dataCentres:
   - region: "US_EAST_1"
-    network: "10.1.0.0/16"
+    network: "10.4.0.0/16"
     cloudProvider: "AWS_VPC"
-    nodeSize: "CAD-SI-DEV-t3.small-5"
-    racksNumber: 2
+#    nodeSize: "CAD-SI-DEV-t3.small-5"
+#    nodeSize: "CAD-DEV-t3.medium-30"
+    nodeSize: "CAD-DEV-t3.small-5"
+    racksNumber: 3
     nodesNumber: 1
-    cadenceNodeCount: 1
-    provisioningType: "SHARED"
+    cadenceNodeCount: 2
+#    provisioningType: "SHARED"
+    provisioningType: "STANDARD"
     targetCassandraVpcType: "TARGET_VPC"
-    targetCassandraCdcId: "f2a61989-7df9-475e-87c6-26f5b6775519"
+    targetCassandraCdcId: "424a1e29-a288-4b7c-863e-00ff231fd3f0"
+    enableArchival: true
+    archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
+    archivalS3Region: "us-east-1"
+    awsAccessKeySecretName: "inst-test-aws-cred-secret"
+    awsAccessKeySecretNamespace: "default"
     #  twoFactorDelete:
     #    - email: "rostyslp@netapp.com"
-    #  description: "test 222"
+  description: "test 222"
   slaTier: "NON_PRODUCTION"

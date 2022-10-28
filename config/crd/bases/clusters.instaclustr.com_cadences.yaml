@@ -35,6 +35,8 @@ spec:
           spec:
             description: CadenceSpec defines the desired state of Cadence
             properties:
+              concurrentResizes:
+                type: integer
               dataCentres:
                 items:
                   properties:
@@ -119,10 +121,14 @@ spec:
                   - region
                   type: object
                 type: array
+              description:
+                type: string
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
+              notifySupportContacts:
+                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied

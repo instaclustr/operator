@@ -275,14 +275,15 @@ func (r *RedisReconciler) resizeDataCentres(
 			return instaclustr.IncorrectNodeSize
 		}
 
-		err = r.API.UpdateNodeSize(
-			instaclustr.ClustersEndpointV1,
-			cluster.Status.ID,
-			dataCentre,
-			cluster.Spec.ConcurrentResizes,
-			cluster.Spec.NotifySupportContacts,
-			modelsv1.RedisNodePurpose,
-		)
+		resizeRequest := &models.ResizeRequest{
+			NewNodeSize:           dataCentre.NewNodeSize,
+			ConcurrentResizes:     cluster.Spec.ConcurrentResizes,
+			NotifySupportContacts: cluster.Spec.NotifySupportContacts,
+			ClusterID:             cluster.Status.ID,
+			DataCentreID:          dataCentre.DataCentreID,
+			NodePurpose:           modelsv1.RedisNodePurpose,
+		}
+		err = r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
 		if err != nil {
 			return err
 		}
