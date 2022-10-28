@@ -2,6 +2,8 @@ package models
 
 const (
 	Cadence            = "CADENCE"
+	CadenceNodePurpose = "CADENCE"
+
 	AWSAccessKeyID     = "awsAccessKeyId"
 	AWSSecretAccessKey = "awsSecretAccessKey"
 
@@ -41,4 +43,10 @@ type CadenceBundleOptionsAPIv1 struct {
 	AWSSecretAccessKey      string `json:"awsSecretAccessKey,omitempty"`
 	CadenceNodeCount        int    `json:"cadenceNodeCount"`
 	ProvisioningType        string `json:"provisioningType"`
+}
+
+type CadenceUpdatedFields struct {
+	NodeSizeUpdated        bool `json:"nodeSize"`
+	DescriptionUpdated     bool `json:"description"`
+	TwoFactorDeleteUpdated bool `json:"twoFactorDelete"`
 }

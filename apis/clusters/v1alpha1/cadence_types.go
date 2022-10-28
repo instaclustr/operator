@@ -55,8 +55,11 @@ type CadenceDataCentre struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster     `json:",inline"`
-	DataCentres []*CadenceDataCentre `json:"dataCentres,omitempty"`
+	Cluster               `json:",inline"`
+	DataCentres           []*CadenceDataCentre `json:"dataCentres,omitempty"`
+	ConcurrentResizes     int                  `json:"concurrentResizes,omitempty"`
+	NotifySupportContacts bool                 `json:"notifySupportContacts,omitempty"`
+	Description           string               `json:"description,omitempty"`
 }
 
 // CadenceSpec defines the observed state of Cadence
@@ -89,10 +92,15 @@ func init() {
 	SchemeBuilder.Register(&Cadence{}, &CadenceList{})
 }
 
-func (spec *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Client) (*models.CadenceClusterAPIv1, error) {
-	cadenceBundles, err := spec.bundlesToInstAPIv1(ctx, k8sClient)
+func (spec *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) (*models.CadenceClusterAPIv1, error) {
+	cadenceBundles, err := spec.bundlesToInstAPIv1(ctx, k8sClient, logger)
 	if err != nil {
 		return nil, err
+	}
+
+	var twoFactorDelete *models.TwoFactorDelete
+	if len(spec.TwoFactorDelete) > 0 {
+		twoFactorDelete = spec.TwoFactorDelete[0].ToInstAPIv1()
 	}
 
 	return &models.CadenceClusterAPIv1{
@@ -102,8 +110,8 @@ func (spec *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Clie
 			PrivateNetworkCluster: spec.PrivateNetworkCluster,
 			SLATier:               spec.SLATier,
 			Provider:              spec.DataCentres[0].providerToInstAPIv1(),
-			TwoFactorDelete:       spec.twoFactorDeleteToInstAPIv1(),
-			RackAllocation:        spec.rackAllocationToInstAPIv1(),
+			TwoFactorDelete:       twoFactorDelete,
+			RackAllocation:        spec.DataCentres[0].rackAllocationToInstAPIv1(),
 			DataCentre:            spec.DataCentres[0].Region,
 			DataCentreCustomName:  spec.DataCentres[0].Name,
 			ClusterNetwork:        spec.DataCentres[0].Network,
@@ -112,22 +120,24 @@ func (spec *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Clie
 	}, nil
 }
 
-func (spec *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client.Client) ([]*models.CadenceBundleAPIv1, error) {
+func (spec *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) ([]*models.CadenceBundleAPIv1, error) {
 	dataCentre := spec.DataCentres[0]
 
 	var AWSAccessKeyID string
 	var AWSSecretAccessKey string
 
 	if dataCentre.EnableArchival {
-		var awsCredsSecret *v1.Secret
+		awsCredsSecret := &v1.Secret{}
 		awsSecretNamespacedName := types.NamespacedName{Name: dataCentre.AWSAccessKeySecretName, Namespace: dataCentre.AWSAccessKeySecretNamespace}
 		err := k8sClient.Get(*ctx, awsSecretNamespacedName, awsCredsSecret)
 		if err != nil {
 			return nil, err
 		}
 
-		AWSAccessKeyID = awsCredsSecret.StringData[models.AWSAccessKeyID]
-		AWSSecretAccessKey = awsCredsSecret.StringData[models.AWSSecretAccessKey]
+		keyID := awsCredsSecret.Data[models.AWSAccessKeyID]
+		secretAccessKey := awsCredsSecret.Data[models.AWSSecretAccessKey]
+		AWSAccessKeyID = string(keyID[:len(keyID)-1])
+		AWSSecretAccessKey = string(secretAccessKey[:len(secretAccessKey)-1])
 	}
 
 	cadenceBundle := &models.CadenceBundleAPIv1{
@@ -159,28 +169,21 @@ func (spec *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient clie
 	return cadenceBundles, nil
 }
 
-func (spec *CadenceSpec) rackAllocationToInstAPIv1() *models.RackAllocation {
+func (dataCentre *CadenceDataCentre) rackAllocationToInstAPIv1() *models.RackAllocation {
 	return &models.RackAllocation{
-		NodesPerRack:  spec.DataCentres[0].NodesNumber,
-		NumberOfRacks: spec.DataCentres[0].RacksNumber,
+		NodesPerRack:  dataCentre.NodesNumber,
+		NumberOfRacks: dataCentre.RacksNumber,
 	}
 }
 
-func (spec *CadenceSpec) twoFactorDeleteToInstAPIv1() *models.TwoFactorDelete {
-	if len(spec.TwoFactorDelete) < 1 {
-		return nil
-	}
-
+func (twoFactorDelete *TwoFactorDelete) ToInstAPIv1() *models.TwoFactorDelete {
 	return &models.TwoFactorDelete{
-		DeleteVerifyEmail: spec.TwoFactorDelete[0].Email,
-		DeleteVerifyPhone: spec.TwoFactorDelete[0].Phone,
+		DeleteVerifyEmail: twoFactorDelete.Email,
+		DeleteVerifyPhone: twoFactorDelete.Phone,
 	}
 }
 
-func (cadence *Cadence) NewClusterMetadataPatch(
-	ctx *context.Context,
-	logger *logr.Logger,
-) (*client.Patch, error) {
+func (cadence *Cadence) NewClusterMetadataPatch() (*client.Patch, error) {
 	patchRequest := []*PatchRequest{}
 
 	annotationsPayload, err := json.Marshal(cadence.Annotations)
@@ -215,4 +218,24 @@ func (cadence *Cadence) NewClusterMetadataPatch(
 	patch := client.RawPatch(types.JSONPatchType, patchPayload)
 
 	return &patch, nil
+}
+
+func (spec *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) *models.CadenceUpdatedFields {
+	updatedFields := new(models.CadenceUpdatedFields)
+
+	if spec.DataCentres[0].NodeSize != oldSpec.DataCentres[0].NodeSize {
+		updatedFields.NodeSizeUpdated = true
+	}
+
+	if spec.Description != oldSpec.Description {
+		updatedFields.DescriptionUpdated = true
+	}
+
+	if len(spec.TwoFactorDelete) != 0 {
+		if spec.TwoFactorDelete[0] != oldSpec.TwoFactorDelete[0] {
+			updatedFields.TwoFactorDeleteUpdated = true
+		}
+	}
+
+	return updatedFields
 }

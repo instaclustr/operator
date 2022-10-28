@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+
 	"github.com/instaclustr/operator/pkg/models"
 )
 

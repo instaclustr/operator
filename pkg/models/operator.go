@@ -9,6 +9,7 @@ import (
 const (
 	ResourceStateAnnotation = "instaclustr.com/resourceState"
 	DeletionFinalizer       = "instaclustr.com/deletionFinalizer"
+	UpdatedFieldsAnnotation = "instaclustr.com/updatedFields"
 )
 
 const (

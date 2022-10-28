@@ -127,15 +127,17 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 		return instaclustr.HasActiveResizeOperation
 	}
 
+	resizeRequest := &models.ResizeRequest{
+		NewNodeSize:           openSearchCluster.Spec.DataCentres[0].NodeSize,
+		ConcurrentResizes:     openSearchCluster.Spec.ConcurrentResizes,
+		NotifySupportContacts: openSearchCluster.Spec.NotifySupportContacts,
+		ClusterID:             openSearchCluster.Status.ID,
+		DataCentreID:          openSearchCluster.Status.CDCID,
+	}
+
 	if dataCentreToResize.NewNodeSize != "" {
-		err = r.API.UpdateNodeSize(
-			instaclustr.ClustersEndpointV1,
-			openSearchCluster.Status.ID,
-			dataCentreToResize,
-			openSearchCluster.Spec.ConcurrentResizes,
-			openSearchCluster.Spec.NotifySupportContacts,
-			modelsv1.OpenSearchDataNodePurpose,
-		)
+		resizeRequest.NodePurpose = modelsv1.OpenSearchDataNodePurpose
+		err = r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
 		if err != nil {
 			return err
 		}
@@ -150,14 +152,8 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 	}
 
 	if dataCentreToResize.MasterNewNodeSize != "" {
-		err = r.API.UpdateNodeSize(
-			instaclustr.ClustersEndpointV1,
-			openSearchCluster.Status.ID,
-			dataCentreToResize,
-			openSearchCluster.Spec.ConcurrentResizes,
-			openSearchCluster.Spec.NotifySupportContacts,
-			modelsv1.OpenSearchMasterNodePurpose,
-		)
+		resizeRequest.NodePurpose = modelsv1.OpenSearchMasterNodePurpose
+		err = r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
 		if err != nil {
 			return err
 		}
@@ -172,14 +168,8 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 	}
 
 	if dataCentreToResize.DashboardNewNodeSize != "" {
-		err = r.API.UpdateNodeSize(
-			instaclustr.ClustersEndpointV1,
-			openSearchCluster.Status.ID,
-			dataCentreToResize,
-			openSearchCluster.Spec.ConcurrentResizes,
-			openSearchCluster.Spec.NotifySupportContacts,
-			modelsv1.OpenSearchDashBoardsNodePurpose,
-		)
+		resizeRequest.NodePurpose = modelsv1.OpenSearchDashBoardsNodePurpose
+		err = r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
 		if err != nil {
 			return err
 		}

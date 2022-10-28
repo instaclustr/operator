@@ -19,7 +19,6 @@ package clusters
 import (
 	"context"
 	"errors"
-	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -36,6 +35,7 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
