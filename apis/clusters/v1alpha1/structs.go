@@ -95,16 +95,6 @@ type ClusterStatus struct {
 	Options                *Options            `json:"options,omitempty"`
 }
 
-type FirewallRule struct {
-	Network         string      `json:"network,omitempty"`
-	SecurityGroupId string      `json:"securityGroupId,omitempty"`
-	Rules           []*RuleType `json:"rules"`
-}
-
-type RuleType struct {
-	Type string `json:"type"`
-}
-
 type TwoFactorDelete struct {
 	// Email address which will be contacted when the cluster is requested to be deleted.
 	// APIv1: deleteVerifyEmail; APIv2: confirmationEmail.

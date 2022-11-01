@@ -25,4 +25,6 @@ type API interface {
 	UpdateAWSPeering(peerID, peeringEndpoint string, peerSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec) error
 	DeleteAWSPeering(peerID, peeringEndpoint string) error
 	CreateAWSPeering(url string, AWSSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error)
+	GetFirewallRuleStatus(firewallRuleId string) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
+	CreateFirewallRule(url string, firewallRuleSpec *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleSpec) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
 }

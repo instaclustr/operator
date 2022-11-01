@@ -60,6 +60,32 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - clusternetworkfirewallrules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - clusternetworkfirewallrules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - clusternetworkfirewallrules/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - gcpvpcpeerings
   verbs:
   - create
