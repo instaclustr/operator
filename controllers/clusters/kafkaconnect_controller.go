@@ -223,23 +223,13 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 	}
 }
 
-// checkDeletion confirms if resource is deleting and set appropriate annotation.
-func checkDeletion(obj client.Object) {
-	if obj.GetDeletionTimestamp() != nil {
-		obj.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-		return
-	}
-
-	return
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.KafkaConnect{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
-				checkDeletion(event.Object)
+				confirmDeletion(event.Object)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
@@ -248,7 +238,7 @@ func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
-				checkDeletion(event.ObjectNew)
+				confirmDeletion(event.ObjectNew)
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {

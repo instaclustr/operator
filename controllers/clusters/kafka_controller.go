@@ -19,8 +19,6 @@ package clusters
 import (
 	"context"
 	"errors"
-	"reflect"
-
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -230,10 +228,11 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			return err
 		}
 
-		if !reflect.DeepEqual(*instaclusterStatus, kafka.Status.ClusterStatus) {
+		if !isStatusesEqual(instaclusterStatus, &kafka.Status.ClusterStatus) {
 			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclusterStatus", instaclusterStatus,
 				"kafka.Status.ClusterStatus", kafka.Status.ClusterStatus)
+
 			kafka.Status.ClusterStatus = *instaclusterStatus
 			err := r.Status().Update(context.Background(), kafka)
 			if err != nil {
