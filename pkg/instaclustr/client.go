@@ -524,3 +524,69 @@ func (c *Client) DeleteAWSPeering(peerID, peeringEndpoint string) error {
 
 	return nil
 }
+
+func (c *Client) GetFirewallRuleStatus(
+	firewallRuleId string,
+) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error) {
+	url := c.serverHostname + FirewallRuleEndpoint + firewallRuleId
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var firewallRuleStatus clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus
+	err = json.Unmarshal(body, &firewallRuleStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return &firewallRuleStatus, nil
+}
+
+func (c *Client) CreateFirewallRule(
+	url string,
+	firewallRuleSpec *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleSpec,
+) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error) {
+	jsonFirewallRule, err := json.Marshal(firewallRuleSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, jsonFirewallRule)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}

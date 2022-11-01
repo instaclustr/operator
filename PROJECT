@@ -86,4 +86,13 @@ resources:
   kind: KafkaConnect
   path: github.com/instaclustr/operator/apis/clusters/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: ClusterNetworkFirewallRule
+  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
+  version: v1alpha1
 version: "3"

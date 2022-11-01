@@ -17,3 +17,14 @@ type PatchRequest struct {
 	Path      string          `json:"path"`
 	Value     json.RawMessage `json:"value"`
 }
+
+type FirewallRuleSpec struct {
+	ClusterID string `json:"clusterId"`
+	Type      string `json:"type"`
+}
+
+type FirewallRuleStatus struct {
+	ID             string `json:"id,omitempty"`
+	DeferredReason string `json:"deferredReason,omitempty"`
+	Status         string `json:"status,omitempty"`
+}
