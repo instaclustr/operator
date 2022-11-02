@@ -18,6 +18,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/instaclustr/operator/pkg/models"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -58,16 +60,28 @@ type KafkaSpec struct {
 	ReplicationFactorNumber int32 `json:"replicationFactorNumber"`
 
 	// PartitionsNumber number of partitions to use when created new topics.
-	PartitionsNumber          int32         `json:"partitionsNumber"`
-	RestProxy                 []*RestProxy  `json:"restProxy,omitempty"`
-	AllowDeleteTopics         bool          `json:"allowDeleteTopics"`
-	AutoCreateTopics          bool          `json:"autoCreateTopics"`
-	ClientToClusterEncryption bool          `json:"clientToClusterEncryption"`
-	DataCentres               []*DataCentre `json:"dataCentres"`
+	PartitionsNumber          int32              `json:"partitionsNumber"`
+	RestProxy                 []*RestProxy       `json:"restProxy,omitempty"`
+	AllowDeleteTopics         bool               `json:"allowDeleteTopics"`
+	AutoCreateTopics          bool               `json:"autoCreateTopics"`
+	ClientToClusterEncryption bool               `json:"clientToClusterEncryption"`
+	DataCentres               []*KafkaDataCentre `json:"dataCentres"`
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
 	// Zookeeper nodes will be co-located with Kafka if this is not provided
 	DedicatedZookeeper []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
+}
+
+type KafkaDataCentre struct {
+	Name                  string                   `json:"name,omitempty"`
+	Region                string                   `json:"region"`
+	CloudProvider         string                   `json:"cloudProvider"`
+	ProviderAccountName   string                   `json:"accountName,omitempty"`
+	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
+	Network               string                   `json:"network"`
+	NodeSize              string                   `json:"nodeSize"`
+	NodesNumber           int32                    `json:"nodesNumber"`
+	Tags                  map[string]string        `json:"tags,omitempty"`
 }
 
 // KafkaStatus defines the observed state of Kafka
@@ -106,6 +120,12 @@ type KafkaList struct {
 
 func (k *Kafka) GetJobID(jobName string) string {
 	return client.ObjectKeyFromObject(k).String() + "/" + jobName
+}
+
+func (k *Kafka) NewPatch() client.Patch {
+	old := k.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
+	return client.MergeFrom(old)
 }
 
 func init() {
