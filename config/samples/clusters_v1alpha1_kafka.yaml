@@ -11,18 +11,24 @@ spec:
   allowDeleteTopics: true
   autoCreateTopics: true
   clientToClusterEncryption: true
+  privateNetworkCluster: true
   slaTier: "NON_PRODUCTION"
+  schemaRegistry:
+    - version: "5.0.0"
+#  restProxy:
+#    - integrateRestProxyWithSchemaRegistry: false
+#      version: "5.0.0"
   dataCentres:
-    - name: "US_EAST_1_DC_KAFKA"
+    - name: "AWS_VPC_US_EAST_1"
       nodesNumber: 3
       cloudProvider: "AWS_VPC"
       tags:
         tag: "oneTag"
         tag2: "twoTags"
-      nodeSize: "KFK-DEV-t4g.small-5"
-      network: "192.168.0.0/18"
+      nodeSize: "KFK-PRD-r6g.large-250"
+#      nodeSize: "KFK-DEV-t4g.small-5"
+      network: "10.0.0.0/16"
       region: "US_EAST_1"
-  dedicatedZookeeper:
-    - nodeSize: "KDZ-DEV-t4g.small-30"
-      nodesNumber: 3
-  privateNetworkCluster: true
+#  dedicatedZookeeper:
+#    - nodeSize: "KDZ-DEV-t4g.small-30"
+#      nodesNumber: 3

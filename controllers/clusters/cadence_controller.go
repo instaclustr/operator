@@ -112,7 +112,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			logger.Error(err, "cannot convert Cadence cluster manifest to API spec",
 				"Cluster manifest", cadenceCluster.Spec,
 			)
-			return &models.ReconcileRequeue60
+			return &models.ReconcileRequeue
 		}
 
 		id, err := r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, cadenceAPISpec)
@@ -121,7 +121,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				err, "cannot create Cadence cluster",
 				"Cadence manifest", cadenceCluster.Spec,
 			)
-			return &models.ReconcileRequeue60
+			return &models.ReconcileRequeue
 		}
 
 		cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
@@ -133,7 +133,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				"Cluster name", cadenceCluster.Spec.Name,
 				"Cluster metadata", cadenceCluster.ObjectMeta,
 			)
-			return &models.ReconcileRequeue60
+			return &models.ReconcileRequeue
 		}
 
 		err = r.Client.Patch(*ctx, cadenceCluster, *patch)
@@ -142,7 +142,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				"Cluster name", cadenceCluster.Spec.Name,
 				"Patch", *patch,
 			)
-			return &models.ReconcileRequeue60
+			return &models.ReconcileRequeue
 		}
 
 		cadenceCluster.Status.ID = id
@@ -152,7 +152,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				"Cluster name", cadenceCluster.Spec.Name,
 				"Cluster status", cadenceCluster.Status,
 			)
-			return &models.ReconcileRequeue60
+			return &models.ReconcileRequeue
 		}
 
 		logger.Info(
@@ -197,7 +197,7 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 			"Cluster name", cadenceCluster.Spec.Name,
 			"Cluster ID", cadenceCluster.Status.ID,
 		)
-		return &models.ReconcileRequeue60
+		return &models.ReconcileRequeue
 	}
 
 	logger.Info("Cadence deletion is not implemented",

@@ -60,23 +60,15 @@ spec:
                         type: object
                       type: array
                     name:
-                      description: When use one data centre name of field is dataCentreCustomName
-                        for APIv1
                       type: string
                     network:
                       type: string
                     nodeSize:
                       type: string
                     nodesNumber:
-                      description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
-                      format: int32
-                      type: integer
-                    racksNumber:
-                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
                       format: int32
                       type: integer
                     region:
-                      description: 'Region. APIv1 : "dataCentre"'
                       type: string
                     tags:
                       additionalProperties:
@@ -87,7 +79,6 @@ spec:
                   - network
                   - nodeSize
                   - nodesNumber
-                  - racksNumber
                   - region
                   type: object
                 type: array

@@ -84,33 +84,6 @@ func nodesFromInstAPI(instaNodes []*modelsv2.Node) []*v1alpha1.Node {
 	return nodes
 }
 
-func dataCentresToInstAPI(crdDCs []*v1alpha1.DataCentre) []*modelsv2.DataCentre {
-	if crdDCs == nil {
-		return nil
-	}
-
-	var instaDCs []*modelsv2.DataCentre
-
-	for _, crdDC := range crdDCs {
-		instaDC := &modelsv2.DataCentre{
-			Name:                crdDC.Name,
-			Network:             crdDC.Network,
-			NodeSize:            crdDC.NodeSize,
-			NumberOfNodes:       crdDC.NodesNumber,
-			Tags:                TagsToInstAPI(crdDC.Tags),
-			CloudProvider:       crdDC.CloudProvider,
-			Region:              crdDC.Region,
-			ProviderAccountName: crdDC.ProviderAccountName,
-		}
-
-		allocateProviderSettingsToInstAPI(crdDC, instaDC)
-
-		instaDCs = append(instaDCs, instaDC)
-	}
-
-	return instaDCs
-}
-
 func allocateProviderSettingsToInstAPI(crdDC *v1alpha1.DataCentre, instaDC *modelsv2.DataCentre) {
 	for _, crdSetting := range crdDC.CloudProviderSettings {
 		switch crdDC.CloudProvider {
