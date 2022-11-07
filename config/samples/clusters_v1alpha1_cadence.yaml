@@ -26,7 +26,7 @@ spec:
   notifySupportContacts: false
   dataCentres:
   - region: "US_EAST_1"
-    network: "10.4.0.0/16"
+    network: "10.5.0.0/16"
     cloudProvider: "AWS_VPC"
 #    nodeSize: "CAD-SI-DEV-t3.small-5"
 #    nodeSize: "CAD-DEV-t3.medium-30"
@@ -37,12 +37,12 @@ spec:
 #    provisioningType: "SHARED"
     provisioningType: "STANDARD"
     targetCassandraVpcType: "TARGET_VPC"
-    targetCassandraCdcId: "424a1e29-a288-4b7c-863e-00ff231fd3f0"
-    enableArchival: true
-    archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
-    archivalS3Region: "us-east-1"
-    awsAccessKeySecretName: "inst-test-aws-cred-secret"
-    awsAccessKeySecretNamespace: "default"
+    targetCassandraCdcId: "eb7a41dd-d48b-475b-85a9-bb913b039656"
+#    enableArchival: true
+#    archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
+#    archivalS3Region: "us-east-1"
+#    awsAccessKeySecretName: "inst-test-aws-cred-secret"
+#    awsAccessKeySecretNamespace: "default"
     #  twoFactorDelete:
     #    - email: "rostyslp@netapp.com"
   description: "test 222"

@@ -361,78 +361,61 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	ctx *context.Context,
 	req *ctrl.Request,
 ) *reconcile.Result {
-	controllerutil.RemoveFinalizer(cadenceCluster, models.DeletionFinalizer)
-	err := r.Update(*ctx, cadenceCluster)
-	if err != nil {
-		logger.Error(err, "cannot update Cadence cluster resource after finalizer removal",
+	cadenceInstClusterStatus, err := r.API.GetClusterStatus(cadenceCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		logger.Error(
+			err, "cannot get Cadence cluster status from the Instaclustr API",
 			"Cluster name", cadenceCluster.Spec.Name,
 			"Cluster ID", cadenceCluster.Status.ID,
+		)
+
+		return &models.ReconcileRequeue
+	}
+
+	if cadenceInstClusterStatus != nil {
+		err = r.API.DeleteCluster(cadenceCluster.Status.ID, instaclustr.ClustersEndpointV1)
+		if err != nil {
+			logger.Error(err, "cannot delete Cadence cluster",
+				"Cluster name", cadenceCluster.Spec.Name,
+				"Cluster status", cadenceInstClusterStatus.Status,
+			)
+			return &models.ReconcileRequeue
+		}
+
+		logger.Info("Cadence cluster is deleting",
+			"Cluster name", cadenceCluster.Spec.Name,
+			"Cluster status", cadenceInstClusterStatus.Status,
+		)
+
+		return &models.ReconcileRequeue
+	}
+
+	controllerutil.RemoveFinalizer(cadenceCluster, models.DeletionFinalizer)
+	cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	patch, err := cadenceCluster.NewClusterMetadataPatch()
+	if err != nil {
+		logger.Error(err, "cannot create Cadence cluster metadata patch",
+			"Cluster name", cadenceCluster.Spec.Name,
+			"Cluster metadata", cadenceCluster.ObjectMeta,
 		)
 		return &models.ReconcileRequeue
 	}
 
-	logger.Info("Cadence deletion is not implemented",
+	err = r.Client.Patch(*ctx, cadenceCluster, *patch)
+	if err != nil {
+		logger.Error(err, "cannot patch Cadence cluster",
+			"Cluster name", cadenceCluster.Spec.Name,
+			"Patch", *patch,
+		)
+		return &models.ReconcileRequeue
+	}
+
+	logger.Info("Cadence cluster was deleted",
 		"Cluster name", cadenceCluster.Spec.Name,
 		"Cluster ID", cadenceCluster.Status.ID,
 	)
 
 	return &reconcile.Result{}
-}
-
-func (r *CadenceReconciler) reconcileDataCentresNodeSize(
-	instClusterStatus *clustersv1alpha1.ClusterStatus,
-	cluster *clustersv1alpha1.Cadence,
-	logger *logr.Logger,
-) error {
-	dataCentreToResize := r.checkNodeSizeUpdate(instClusterStatus.DataCentres[0], cluster.Spec.DataCentres[0])
-	if dataCentreToResize != nil {
-		err := r.resizeDataCentres(dataCentreToResize, cluster, logger)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *CadenceReconciler) checkNodeSizeUpdate(dataCentreFromInst *clustersv1alpha1.DataCentreStatus, dataCentre *clustersv1alpha1.CadenceDataCentre) *clustersv1alpha1.ResizedDataCentre {
-	var resizedDataCentre *clustersv1alpha1.ResizedDataCentre
-	if dataCentreFromInst.Nodes[0].Size != dataCentre.NodeSize {
-		resizedDataCentre = &clustersv1alpha1.ResizedDataCentre{
-			CurrentNodeSize: dataCentreFromInst.Nodes[0].Size,
-			NewNodeSize:     dataCentre.NodeSize,
-			DataCentreID:    dataCentreFromInst.ID,
-			Provider:        dataCentre.CloudProvider,
-		}
-	}
-
-	return resizedDataCentre
-}
-
-func (r *CadenceReconciler) resizeDataCentres(
-	dataCentreToResize *clustersv1alpha1.ResizedDataCentre,
-	cluster *clustersv1alpha1.Cadence,
-	logger *logr.Logger,
-) error {
-	activeResizeOperations, err := r.getDataCentreOperations(cluster.Status.ID, dataCentreToResize.DataCentreID)
-	if err != nil {
-		return err
-	}
-	if len(activeResizeOperations) > 0 {
-		return nil
-	}
-
-	if err != nil {
-		return err
-	}
-
-	logger.Info("Cadence data centre resize request was sent",
-		"Cluster name", cluster.Spec.Name,
-		"Data centre id", dataCentreToResize.DataCentreID,
-		"New node size", dataCentreToResize.NewNodeSize,
-	)
-
-	return nil
 }
 
 func (r *CadenceReconciler) getDataCentreOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
