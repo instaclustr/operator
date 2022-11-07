@@ -52,6 +52,18 @@ spec:
                       type: string
                     cadenceNodeCount:
                       type: integer
+                    cassandraNetwork:
+                      type: string
+                    cassandraNodeSize:
+                      type: string
+                    cassandraNodesNumber:
+                      type: integer
+                    cassandraPasswordAndUserAuth:
+                      type: boolean
+                    cassandraPrivateIPBroadcastForDiscovery:
+                      type: boolean
+                    cassandraReplicationFactor:
+                      type: integer
                     clientEncryption:
                       type: boolean
                     cloudProvider:
@@ -69,6 +81,8 @@ spec:
                       type: array
                     enableArchival:
                       type: boolean
+                    kafkaNodeSize:
+                      type: string
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -81,7 +95,7 @@ spec:
                       description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
-                    provisioningType:
+                    opensearchNodeSize:
                       type: string
                     racksNumber:
                       description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
@@ -116,7 +130,6 @@ spec:
                   - network
                   - nodeSize
                   - nodesNumber
-                  - provisioningType
                   - racksNumber
                   - region
                   type: object
@@ -139,6 +152,8 @@ spec:
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
+              provisioningType:
+                type: string
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
                   and reduced SLAs. Production tier is not available when using Developer
@@ -167,6 +182,7 @@ spec:
                 type: string
             required:
             - name
+            - provisioningType
             - slaTier
             - version
             type: object

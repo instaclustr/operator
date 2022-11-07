@@ -17,9 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/instaclustr/operator/pkg/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // ClusterNetworkFirewallRuleSpec defines the desired state of ClusterNetworkFirewallRule

@@ -30,22 +30,29 @@ import (
 )
 
 type CadenceBundleOptions struct {
-	UseAdvancedVisibility       bool   `json:"useAdvancedVisibility,omitempty"`
-	UseCadenceWebAuth           bool   `json:"useCadenceWebAuth,omitempty"`
-	EnableArchival              bool   `json:"enableArchival,omitempty"`
-	ClientEncryption            bool   `json:"clientEncryption,omitempty"`
-	TargetCassandraCDCID        string `json:"targetCassandraCdcId,omitempty"`
-	TargetCassandraVPCType      string `json:"targetCassandraVpcType,omitempty"`
-	TargetKafkaCDCID            string `json:"targetKafkaCdcId,omitempty"`
-	TargetKafkaVPCType          string `json:"targetKafkaVpcType,omitempty"`
-	TargetOpenSearchCDCID       string `json:"targetOpenSearchCdcId,omitempty"`
-	TargetOpenSearchVPCType     string `json:"targetOpenSearchVpcType,omitempty"`
-	ArchivalS3URI               string `json:"archivalS3Uri,omitempty"`
-	ArchivalS3Region            string `json:"archivalS3Region,omitempty"`
-	AWSAccessKeySecretNamespace string `json:"awsAccessKeySecretNamespace,omitempty"`
-	AWSAccessKeySecretName      string `json:"awsAccessKeySecretName,omitempty"`
-	CadenceNodeCount            int    `json:"cadenceNodeCount"`
-	ProvisioningType            string `json:"provisioningType"`
+	UseAdvancedVisibility                   bool   `json:"useAdvancedVisibility,omitempty"`
+	UseCadenceWebAuth                       bool   `json:"useCadenceWebAuth,omitempty"`
+	EnableArchival                          bool   `json:"enableArchival,omitempty"`
+	ClientEncryption                        bool   `json:"clientEncryption,omitempty"`
+	TargetCassandraCDCID                    string `json:"targetCassandraCdcId,omitempty"`
+	TargetCassandraVPCType                  string `json:"targetCassandraVpcType,omitempty"`
+	TargetKafkaCDCID                        string `json:"targetKafkaCdcId,omitempty"`
+	TargetKafkaVPCType                      string `json:"targetKafkaVpcType,omitempty"`
+	TargetOpenSearchCDCID                   string `json:"targetOpenSearchCdcId,omitempty"`
+	TargetOpenSearchVPCType                 string `json:"targetOpenSearchVpcType,omitempty"`
+	ArchivalS3URI                           string `json:"archivalS3Uri,omitempty"`
+	ArchivalS3Region                        string `json:"archivalS3Region,omitempty"`
+	AWSAccessKeySecretNamespace             string `json:"awsAccessKeySecretNamespace,omitempty"`
+	AWSAccessKeySecretName                  string `json:"awsAccessKeySecretName,omitempty"`
+	CadenceNodeCount                        int    `json:"cadenceNodeCount"`
+	CassandraNodeSize                       string `json:"cassandraNodeSize,omitempty"`
+	CassandraNodesNumber                    int    `json:"cassandraNodesNumber,omitempty"`
+	CassandraReplicationFactor              int    `json:"cassandraReplicationFactor,omitempty"`
+	CassandraNetwork                        string `json:"cassandraNetwork,omitempty"`
+	CassandraPrivateIPBroadcastForDiscovery bool   `json:"cassandraPrivateIPBroadcastForDiscovery,omitempty"`
+	CassandraPasswordAndUserAuth            bool   `json:"cassandraPasswordAndUserAuth,omitempty"`
+	OpensearchNodeSize                      string `json:"opensearchNodeSize,omitempty"`
+	KafkaNodeSize                           string `json:"kafkaNodeSize,omitempty"`
 }
 
 type CadenceDataCentre struct {
@@ -60,6 +67,7 @@ type CadenceSpec struct {
 	ConcurrentResizes     int                  `json:"concurrentResizes,omitempty"`
 	NotifySupportContacts bool                 `json:"notifySupportContacts,omitempty"`
 	Description           string               `json:"description,omitempty"`
+	ProvisioningType      string               `json:"provisioningType"`
 }
 
 // CadenceSpec defines the observed state of Cadence
@@ -92,36 +100,43 @@ func init() {
 	SchemeBuilder.Register(&Cadence{}, &CadenceList{})
 }
 
-func (spec *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) (*models.CadenceClusterAPIv1, error) {
-	cadenceBundles, err := spec.bundlesToInstAPIv1(ctx, k8sClient, logger)
+func (cs *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) (*models.CadenceClusterAPIv1, error) {
+	cadenceBundles, err := cs.bundlesToInstAPIv1(ctx, k8sClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	var twoFactorDelete *models.TwoFactorDelete
-	if len(spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = spec.TwoFactorDelete[0].ToInstAPIv1()
+	if len(cs.TwoFactorDelete) > 0 {
+		twoFactorDelete = cs.TwoFactorDelete[0].ToInstAPIv1()
+	}
+
+	if len(cs.DataCentres) < 1 {
+		return nil, models.ZeroDataCentres
 	}
 
 	return &models.CadenceClusterAPIv1{
 		Cluster: models.Cluster{
-			ClusterName:           spec.Name,
-			NodeSize:              spec.DataCentres[0].NodeSize,
-			PrivateNetworkCluster: spec.PrivateNetworkCluster,
-			SLATier:               spec.SLATier,
-			Provider:              spec.DataCentres[0].providerToInstAPIv1(),
+			ClusterName:           cs.Name,
+			NodeSize:              cs.DataCentres[0].NodeSize,
+			PrivateNetworkCluster: cs.PrivateNetworkCluster,
+			SLATier:               cs.SLATier,
+			Provider:              cs.DataCentres[0].providerToInstAPIv1(),
 			TwoFactorDelete:       twoFactorDelete,
-			RackAllocation:        spec.DataCentres[0].rackAllocationToInstAPIv1(),
-			DataCentre:            spec.DataCentres[0].Region,
-			DataCentreCustomName:  spec.DataCentres[0].Name,
-			ClusterNetwork:        spec.DataCentres[0].Network,
+			RackAllocation:        cs.DataCentres[0].rackAllocationToInstAPIv1(),
+			DataCentre:            cs.DataCentres[0].Region,
+			DataCentreCustomName:  cs.DataCentres[0].Name,
+			ClusterNetwork:        cs.DataCentres[0].Network,
 		},
 		Bundles: cadenceBundles,
 	}, nil
 }
 
-func (spec *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) ([]*models.CadenceBundleAPIv1, error) {
-	dataCentre := spec.DataCentres[0]
+func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) ([]*models.CadenceBundleAPIv1, error) {
+	if len(cs.DataCentres) < 1 {
+		return nil, models.ZeroDataCentres
+	}
+	dataCentre := cs.DataCentres[0]
 
 	var AWSAccessKeyID string
 	var AWSSecretAccessKey string
@@ -143,7 +158,7 @@ func (spec *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient clie
 	cadenceBundle := &models.CadenceBundleAPIv1{
 		Bundle: models.Bundle{
 			Bundle:  models.Cadence,
-			Version: spec.Version,
+			Version: cs.Version,
 		},
 		Options: &models.CadenceBundleOptionsAPIv1{
 			UseAdvancedVisibility:   dataCentre.UseAdvancedVisibility,
@@ -161,7 +176,7 @@ func (spec *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient clie
 			AWSAccessKeyID:          AWSAccessKeyID,
 			AWSSecretAccessKey:      AWSSecretAccessKey,
 			CadenceNodeCount:        dataCentre.CadenceNodeCount,
-			ProvisioningType:        dataCentre.ProvisioningType,
+			ProvisioningType:        cs.ProvisioningType,
 		},
 	}
 	cadenceBundles := []*models.CadenceBundleAPIv1{cadenceBundle}
@@ -220,19 +235,19 @@ func (cadence *Cadence) NewClusterMetadataPatch() (*client.Patch, error) {
 	return &patch, nil
 }
 
-func (spec *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) *models.CadenceUpdatedFields {
+func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) *models.CadenceUpdatedFields {
 	updatedFields := new(models.CadenceUpdatedFields)
 
-	if spec.DataCentres[0].NodeSize != oldSpec.DataCentres[0].NodeSize {
+	if cs.DataCentres[0].NodeSize != oldSpec.DataCentres[0].NodeSize {
 		updatedFields.NodeSizeUpdated = true
 	}
 
-	if spec.Description != oldSpec.Description {
+	if cs.Description != oldSpec.Description {
 		updatedFields.DescriptionUpdated = true
 	}
 
-	if len(spec.TwoFactorDelete) != 0 {
-		if spec.TwoFactorDelete[0] != oldSpec.TwoFactorDelete[0] {
+	if len(cs.TwoFactorDelete) != 0 {
+		if cs.TwoFactorDelete[0] != oldSpec.TwoFactorDelete[0] {
 			updatedFields.TwoFactorDeleteUpdated = true
 		}
 	}
