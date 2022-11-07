@@ -219,7 +219,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 		patch := cc.NewPatch()
 		cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err := r.Patch(ctx, cc, patch)
+		err = r.Patch(ctx, cc, patch)
 		if err != nil {
 			l.Error(err, "cannot patch Cassandra cluster",
 				"Cluster name", cc.Spec.Name,
@@ -382,7 +382,9 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
+				annotations := event.Object.GetAnnotations()
+				annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+				event.Object.SetAnnotations(annotations)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {

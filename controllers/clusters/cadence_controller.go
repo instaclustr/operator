@@ -20,9 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -111,6 +114,23 @@ func (r *CadenceReconciler) HandleCreateCluster(
 	}
 
 	if cadenceCluster.Status.ID == "" {
+		if cadenceCluster.Spec.ProvisioningType == models.PackagedProvisioningType {
+			requeueNeeded, err := r.preparePackagedSolution(ctx, cadenceCluster)
+			if err != nil {
+				logger.Error(err, "cannot prepare packaged solution for Cadence cluster",
+					"Cluster name", cadenceCluster.Spec.Name,
+				)
+				return &models.ReconcileRequeue
+			}
+
+			if requeueNeeded {
+				logger.Info("Waiting for bundled clusters to be created",
+					"Cadence cluster name", cadenceCluster.Spec.Name,
+				)
+				return &models.ReconcileRequeue
+			}
+		}
+
 		logger.Info(
 			"Creating Cadence cluster",
 			"Cluster name", cadenceCluster.Spec.Name,
@@ -136,6 +156,13 @@ func (r *CadenceReconciler) HandleCreateCluster(
 
 		if cadenceCluster.Spec.Description != "" {
 			err = r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, id, cadenceCluster.Spec.Description, nil)
+			if err != nil {
+				logger.Error(err, "cannot update Cadence cluster description and TwoFactorDelete",
+					"Cluster name", cadenceCluster.Spec.Name,
+					"Description", cadenceCluster.Spec.Description,
+					"TwoFactorDelete", cadenceCluster.Spec.TwoFactorDelete,
+				)
+			}
 		}
 
 		cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -198,6 +225,14 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 			"Cluster ID", cadenceCluster.Status.ID,
 		)
 
+		return &models.ReconcileRequeue
+	}
+
+	if len(cadenceInstClusterStatus.DataCentres) < 1 {
+		logger.Error(models.ZeroDataCentres, "Cadence cluster data centres in Instaclustr are empty",
+			"Cluster name", cadenceCluster.Spec.Name,
+			"Cluster status", cadenceInstClusterStatus,
+		)
 		return &models.ReconcileRequeue
 	}
 
@@ -270,6 +305,13 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 				"Operation status", cadenceResizeOperations[0].Status,
 			)
 
+			return &models.ReconcileRequeue
+		}
+
+		if len(cadenceCluster.Spec.DataCentres) < 1 {
+			logger.Error(models.ZeroDataCentres, "Cadence resource data centres field is empty",
+				"Cluster name", cadenceCluster.Spec.Name,
+			)
 			return &models.ReconcileRequeue
 		}
 
@@ -425,6 +467,135 @@ func (r *CadenceReconciler) getDataCentreOperations(clusterID, dataCentreID stri
 	}
 
 	return activeResizeOperations, nil
+}
+
+func (r *CadenceReconciler) preparePackagedSolution(ctx *context.Context, cluster *clustersv1alpha1.Cadence) (bool, error) {
+	if len(cluster.Spec.DataCentres) < 1 {
+		return false, models.ZeroDataCentres
+	}
+
+	cassandraList := &clustersv1alpha1.CassandraList{}
+	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, cluster.Name)
+
+	selector, err := labels.Parse(labelsToQuery)
+	if err != nil {
+		return false, err
+	}
+
+	err = r.Client.List(*ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return false, err
+	}
+
+	if len(cassandraList.Items) < 1 {
+		cassandraSpec, err := r.newCassandraSpec(cluster)
+		if err != nil {
+			return false, err
+		}
+
+		err = r.Client.Create(*ctx, cassandraSpec)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
+	}
+
+	// TODO Create Kafka and OpenSearch cluster if UseAdvancedVisibility == true
+
+	if len(cassandraList.Items[0].Status.DataCentres) < 1 {
+		return true, nil
+	}
+
+	cluster.Spec.DataCentres[0].TargetCassandraCDCID = cassandraList.Items[0].Status.DataCentres[0].ID
+	cluster.Spec.DataCentres[0].TargetCassandraVPCType = models.VPC_PEERED
+
+	return false, nil
+}
+
+func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.Cassandra, error) {
+	typeMeta := v1.TypeMeta{
+		Kind:       models.CassandraKind,
+		APIVersion: models.ClustersV1alpha1APIVersion,
+	}
+
+	metadata := v1.ObjectMeta{
+		Name:        models.CassandraChildPrefix + cadence.Name,
+		Labels:      map[string]string{models.ControlledByLabel: cadence.Name},
+		Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
+		Namespace:   cadence.ObjectMeta.Namespace,
+		Finalizers:  []string{},
+	}
+
+	if len(cadence.Spec.DataCentres) < 1 {
+		return nil, models.ZeroDataCentres
+	}
+	cassNodeSize := cadence.Spec.DataCentres[0].CassandraNodeSize
+	cassNodesNumber := cadence.Spec.DataCentres[0].CassandraNodesNumber
+	cassReplicationFactor := cadence.Spec.DataCentres[0].CassandraReplicationFactor
+	slaTier := cadence.Spec.SLATier
+	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
+	pciCompliance := cadence.Spec.PCICompliance
+
+	var twoFactorDelete []*clustersv1alpha1.TwoFactorDelete
+	if len(cadence.Spec.TwoFactorDelete) > 0 {
+		twoFactorDelete = []*clustersv1alpha1.TwoFactorDelete{
+			&clustersv1alpha1.TwoFactorDelete{
+				Email: cadence.Spec.TwoFactorDelete[0].Email,
+				Phone: cadence.Spec.TwoFactorDelete[0].Phone,
+			},
+		}
+	}
+
+	isCassNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(cadence.Spec.DataCentres[0].CassandraNetwork)
+	if err != nil {
+		return nil, err
+	}
+	if isCassNetworkOverlaps {
+		return nil, models.NetworkOverlaps
+	}
+
+	dcName := models.CassandraChildDCName
+	dcRegion := cadence.Spec.DataCentres[0].Region
+	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
+	network := cadence.Spec.DataCentres[0].CassandraNetwork
+	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
+	cassPrivateIPBroadcastForDiscovery := cadence.Spec.DataCentres[0].CassandraPrivateIPBroadcastForDiscovery
+	cassPasswordAndUserAuth := cadence.Spec.DataCentres[0].CassandraPasswordAndUserAuth
+
+	cassandraDataCentres := []*clustersv1alpha1.CassandraDataCentre{
+		&clustersv1alpha1.CassandraDataCentre{
+			DataCentre: clustersv1alpha1.DataCentre{
+				Name:                dcName,
+				Region:              dcRegion,
+				CloudProvider:       cloudProvider,
+				ProviderAccountName: providerAccountName,
+				NodeSize:            cassNodeSize,
+				NodesNumber:         int32(cassNodesNumber),
+				RacksNumber:         int32(cassReplicationFactor),
+				Network:             network,
+			},
+			PrivateIPBroadcastForDiscovery: cassPrivateIPBroadcastForDiscovery,
+		},
+	}
+	spec := clustersv1alpha1.CassandraSpec{
+		Cluster: clustersv1alpha1.Cluster{
+			Name:                  models.CassandraChildPrefix + cadence.Name,
+			Version:               models.V3_11_13,
+			SLATier:               slaTier,
+			PrivateNetworkCluster: privateClusterNetwork,
+			TwoFactorDelete:       twoFactorDelete,
+			PCICompliance:         pciCompliance,
+		},
+		DataCentres:         cassandraDataCentres,
+		PasswordAndUserAuth: cassPasswordAndUserAuth,
+	}
+
+	return &clustersv1alpha1.Cassandra{
+		TypeMeta:   typeMeta,
+		ObjectMeta: metadata,
+		Spec:       spec,
+	}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

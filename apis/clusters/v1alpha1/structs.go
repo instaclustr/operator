@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"net"
 
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -142,4 +143,22 @@ func (dataCentre *DataCentre) providerToInstAPIv1() *models.ClusterProvider {
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}
+}
+
+func (dataCentre *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
+	_, ipnet, err := net.ParseCIDR(dataCentre.Network)
+	if err != nil {
+		return false, err
+	}
+
+	cassIP, _, err := net.ParseCIDR(networkToCheck)
+	if err != nil {
+		return false, err
+	}
+
+	if ipnet.Contains(cassIP) {
+		return true, nil
+	}
+
+	return false, nil
 }

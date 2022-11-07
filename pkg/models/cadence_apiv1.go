@@ -7,7 +7,8 @@ const (
 	AWSAccessKeyID     = "awsAccessKeyId"
 	AWSSecretAccessKey = "awsSecretAccessKey"
 
-	SharedProvisioningType = "SHARED"
+	SharedProvisioningType   = "SHARED"
+	PackagedProvisioningType = "PACKAGED"
 )
 
 type CadenceClusterAPIv1 struct {
