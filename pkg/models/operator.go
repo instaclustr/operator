@@ -33,3 +33,4 @@ const (
 )
 
 var ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
+var ReconcileResult = reconcile.Result{}
