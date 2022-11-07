@@ -18,6 +18,7 @@ package clusterresources
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +36,10 @@ import (
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
+)
+
+const (
+	statusDELETED = "DELETED"
 )
 
 // ClusterNetworkFirewallRuleReconciler reconciles a ClusterNetworkFirewallRule object
@@ -76,13 +81,13 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 
 	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.HandleCreateFirewallRule(firewallRule, &l, ctx, &req)
+		reconcileResult := r.HandleCreateFirewallRule(ctx, firewallRule, &l, &req)
 		return reconcileResult, nil
 	case models.UpdatingEvent:
-		reconcileResult := r.HandleUpdateFirewallRule(firewallRule, &l, ctx, &req)
+		reconcileResult := r.HandleUpdateFirewallRule(ctx, firewallRule, &l, &req)
 		return reconcileResult, nil
 	case models.DeletingEvent:
-		reconcileResult := r.HandleDeleteFirewallRule(firewallRule, &l, ctx, &req)
+		reconcileResult := r.HandleDeleteFirewallRule(ctx, firewallRule, &l, &req)
 		return reconcileResult, nil
 	default:
 		l.Info("UNKNOWN EVENT",
@@ -93,9 +98,9 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
+	ctx context.Context,
 	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
-	ctx context.Context,
 	req *ctrl.Request,
 ) reconcile.Result {
 	if firewallRule.Status.ID == "" {
@@ -107,7 +112,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 		patch := firewallRule.NewPatch()
 
-		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.FirewallRuleEndpoint, &firewallRule.Spec)
+		firewallRuleStatus, err := r.API.CreateClusterNetworkFirewallRule(instaclustr.FirewallRuleEndpoint, &firewallRule.Spec)
 		if err != nil {
 			l.Error(
 				err, "Cannot create cluster network firewall rule",
@@ -154,9 +159,9 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
+	ctx context.Context,
 	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
-	ctx context.Context,
 	req *ctrl.Request,
 ) reconcile.Result {
 	l.Info("Cluster network firewall rule update is not implemented",
@@ -168,23 +173,62 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
+	ctx context.Context,
 	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
-	ctx context.Context,
 	req *ctrl.Request,
 ) reconcile.Result {
-	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
-	err := r.Update(ctx, firewallRule)
+	patch := firewallRule.NewPatch()
+	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
-		l.Error(err, "Cannot update cluster network firewall rule resource after finalizer removal",
+		l.Error(err, "Cannot patch cluster network firewall rule metadata",
 			"cluster ID", firewallRule.Spec.ClusterID,
+			"type", firewallRule.Spec.Type,
+		)
+		return models.ReconcileRequeue
+	}
+
+	status, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		l.Error(
+			err, "Cannot get cluster network firewall rule status from the Instaclustr API",
+			"cluster ID", firewallRule.Spec.ClusterID,
+			"type", firewallRule.Spec.Type,
+		)
+		return models.ReconcileRequeue
+	}
+
+	if status != nil && status.Status != statusDELETED {
+		r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+		err = r.API.DeleteClusterNetworkFirewallRule(firewallRule.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot delete cluster network firewall rule",
+				"rule ID", firewallRule.Status.ID,
+				"cluster ID", firewallRule.Spec.ClusterID,
+				"type", firewallRule.Spec.Type,
+			)
+			return models.ReconcileRequeue
+		}
+
+		return models.ReconcileRequeue
+	}
+
+	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
+	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+
+	err = r.Patch(ctx, firewallRule, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster network firewall rule metadata",
+			"cluster ID", firewallRule.Spec.ClusterID,
+			"type", firewallRule.Spec.Type,
 			"status", firewallRule.Status,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Cluster network firewall rule deletion is not implemented",
+	l.Info("Cluster network firewall rule has been deleted",
 		"cluster ID", firewallRule.Spec.ClusterID,
+		"type", firewallRule.Spec.Type,
 		"status", firewallRule.Status,
 	)
 
