@@ -25,6 +25,7 @@ type API interface {
 	UpdatePeering(peerID, peeringEndpoint string, peerSpec any) error
 	DeletePeering(peerID, peeringEndpoint string) error
 	CreatePeering(url string, peeringSpec any) (*clusterresourcesv1alpha1.PeeringStatus, error)
-	GetFirewallRuleStatus(firewallRuleId string) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
-	CreateFirewallRule(url string, firewallRuleSpec *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleSpec) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
+	GetFirewallRuleStatus(firewallRuleID string) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
+	CreateClusterNetworkFirewallRule(url string, firewallRuleSpec *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleSpec) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
+	DeleteClusterNetworkFirewallRule(firewallRuleID string) error
 }

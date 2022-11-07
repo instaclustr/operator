@@ -9,6 +9,4 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: clusternetworkfirewallrule-sample
 spec:
-  network: 198.16.74.44/32
-  clusterId: 06aab530-01d7-4aae-9e1c-1099ad371704
-  type: KAFKA
+  # TODO(user): Add fields here
