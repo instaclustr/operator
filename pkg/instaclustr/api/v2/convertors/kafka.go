@@ -159,3 +159,17 @@ func allocateKafkaProviderSettingsToInstAPI(crdDC *v1alpha1.KafkaDataCentre, ins
 	}
 
 }
+
+type updateKafkaInstAPI struct {
+	DataCentre         []*models.DataCentre  `json:"dataCentres"`
+	DedicatedZookeeper []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
+}
+
+func KafkaToInstAPIUpdate(k *v1alpha1.KafkaSpec) *updateKafkaInstAPI {
+	var newKafka updateKafkaInstAPI
+
+	newKafka.DataCentre = kafkaDataCentresToInstAPI(k.DataCentres)
+	newKafka.DedicatedZookeeper = dedicatedZookeeperToInstAPI(k.DedicatedZookeeper)
+
+	return &newKafka
+}

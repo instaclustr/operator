@@ -36,8 +36,7 @@ func isDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
 		return true
 	}
 
-	if a == nil && b != nil ||
-		a != nil && b == nil {
+	if a == nil || b == nil {
 		return false
 	}
 

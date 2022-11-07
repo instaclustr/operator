@@ -81,7 +81,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	//TODO: handle update
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &kafka, l), nil
+		return r.handleUpdateCluster(&kafka, l), nil
 
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, &kafka, l), nil
@@ -140,9 +140,33 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 	return reconcile.Result{}
 }
 
-func (r *KafkaReconciler) handleUpdateCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleUpdateCluster(
+	k *clustersv1alpha1.Kafka,
+	l logr.Logger,
+) reconcile.Result {
+	l = l.WithName("Update Event")
 
-	l.Info("handleUpdateCluster is not implemented")
+	if k.Status.ClusterStatus.Status != StatusRUNNING {
+		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
+			"Cluster name", k.Spec.Name,
+			"k.Status.ClusterStatus.Status", k.Status.ClusterStatus.Status,
+		)
+		return models.ReconcileRequeue
+	}
+
+	err := r.API.UpdateCluster(
+		k.Status.ID,
+		instaclustr.KafkaEndpoint,
+		convertors.KafkaToInstAPIUpdate(&k.Spec))
+	if err != nil {
+		l.Error(err, "Unable to update cluster, got error from Instaclustr",
+			"Cluster name", k.Spec.Name,
+			"Cluster status", k.Status,
+		)
+		return models.ReconcileRequeue
+	}
+
+	l.Info("cluster update has been launched")
 
 	return reconcile.Result{}
 }
@@ -217,9 +241,13 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 				"instaclusterStatus", instaclusterStatus,
 				"kafka.Status.ClusterStatus", kafka.Status.ClusterStatus)
 
+			patch := kafka.NewPatch()
+
 			kafka.Status.ClusterStatus = *instaclusterStatus
-			err := r.Status().Update(context.Background(), kafka)
+			err := r.Status().Patch(context.Background(), kafka, patch)
 			if err != nil {
+				l.Error(err, "cannot patch Kafka cluster",
+					"Cluster name", kafka.Spec.Name, "Status", kafka.Status.Status)
 				return err
 			}
 		}
