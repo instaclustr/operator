@@ -173,8 +173,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterresourcescontrollers.AzureVNetPeeringReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AzureVNetPeering")
 		os.Exit(1)

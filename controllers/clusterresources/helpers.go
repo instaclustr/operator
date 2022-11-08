@@ -19,3 +19,14 @@ func isFirewallRuleStatusesEqual(a, b *v1alpha1.ClusterNetworkFirewallRuleStatus
 
 	return true
 }
+
+func isPeeringStatusesEqual(a, b *v1alpha1.PeeringStatus) bool {
+	if a.ID != b.ID ||
+		a.Name != b.Name ||
+		a.StatusCode != b.StatusCode ||
+		a.FailureReason != b.FailureReason {
+		return false
+	}
+
+	return true
+}

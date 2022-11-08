@@ -18,6 +18,9 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // AzureVNetPeeringSpec defines the desired state of AzureVNetPeering
@@ -31,9 +34,7 @@ type AzureVNetPeeringSpec struct {
 
 // AzureVNetPeeringStatus defines the observed state of AzureVNetPeering
 type AzureVNetPeeringStatus struct {
-	VPCPeeringStatus `json:",inline"`
-	Name             string `json:"name"`
-	FailureReason    string `json:"failureReason"`
+	PeeringStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true
@@ -55,6 +56,16 @@ type AzureVNetPeeringList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []AzureVNetPeering `json:"items"`
+}
+
+func (azure *AzureVNetPeering) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(azure).String() + "/" + jobName
+}
+
+func (azure *AzureVNetPeering) NewPatch() client.Patch {
+	old := azure.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
+	return client.MergeFrom(old)
 }
 
 func init() {

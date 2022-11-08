@@ -56,22 +56,14 @@ spec:
           status:
             description: AWSVPCPeeringStatus defines the observed state of AWSVPCPeering
             properties:
-              cdcId:
+              failureReason:
                 type: string
               id:
                 type: string
-              peerAwsAccountId:
-                type: string
-              peerVpcId:
+              name:
                 type: string
               statusCode:
                 type: string
-            required:
-            - cdcId
-            - id
-            - peerAwsAccountId
-            - peerVpcId
-            - statusCode
             type: object
         type: object
     served: true

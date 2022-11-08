@@ -19,8 +19,6 @@ package clusterresources
 import (
 	"context"
 	"errors"
-	"reflect"
-
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -63,8 +61,8 @@ type AWSVPCPeeringReconciler struct {
 func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var awsPeering clusterresourcesv1alpha1.AWSVPCPeering
-	err := r.Client.Get(ctx, req.NamespacedName, &awsPeering)
+	var aws clusterresourcesv1alpha1.AWSVPCPeering
+	err := r.Client.Get(ctx, req.NamespacedName, &aws)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "AWS VPC Peering resource is not found", "request", req)
@@ -74,27 +72,30 @@ func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return reconcile.Result{}, err
 	}
 
-	switch awsPeering.Annotations[models.ResourceStateAnnotation] {
+	switch aws.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.handleCreateCluster(&awsPeering, l, ctx)
-		return reconcileResult, nil
+		return r.handleCreateCluster(ctx, &aws, l), nil
+
 	case models.UpdatingEvent:
-		reconcileResult := r.handleUpdateCluster(&awsPeering, &l, &ctx)
-		return reconcileResult, nil
+		return r.handleUpdateCluster(ctx, &aws, &l), nil
+
 	case models.DeletingEvent:
-		reconcileResult := r.handleDeleteCluster(&awsPeering, &l, &ctx)
-		return reconcileResult, nil
+		return r.handleDeleteCluster(ctx, &aws, &l), nil
 	default:
-		l.Info("UNKNOWN EVENT",
-			"AWS VPC Peering", awsPeering.Spec)
+		l.Info("event isn't handled",
+			"AWS Account ID", aws.Spec.PeerAWSAccountID,
+			"VPC ID", aws.Spec.PeerVPCID,
+			"Region", aws.Spec.PeerRegion,
+			"Request", req,
+			"event", aws.Annotations[models.ResourceStateAnnotation])
 		return reconcile.Result{}, nil
 	}
 }
 
 func (r *AWSVPCPeeringReconciler) handleCreateCluster(
+	ctx context.Context,
 	aws *clusterresourcesv1alpha1.AWSVPCPeering,
 	l logr.Logger,
-	ctx context.Context,
 ) reconcile.Result {
 
 	if aws.Status.ID == "" {
@@ -105,7 +106,7 @@ func (r *AWSVPCPeeringReconciler) handleCreateCluster(
 			"Region", aws.Spec.PeerRegion,
 		)
 
-		awsStatus, err := r.API.CreateAWSPeering(instaclustr.AWSPeeringEndpoint, &aws.Spec)
+		awsStatus, err := r.API.CreatePeering(instaclustr.AWSPeeringEndpoint, &aws.Spec)
 		if err != nil {
 			l.Error(
 				err, "cannot create AWS VPC Peering resource",
@@ -115,10 +116,24 @@ func (r *AWSVPCPeeringReconciler) handleCreateCluster(
 		}
 
 		patch := aws.NewPatch()
-		aws.Status = *awsStatus
+		aws.Status.PeeringStatus = *awsStatus
 		err = r.Status().Patch(ctx, aws, patch)
 		if err != nil {
 			l.Error(err, "cannot patch AWS VPC Peering resource status",
+				"AWS Peering ID", awsStatus.ID,
+				"AWS Account ID", aws.Spec.PeerAWSAccountID,
+				"VPC ID", aws.Spec.PeerVPCID,
+				"Region", aws.Spec.PeerRegion,
+				"AWS VPC Peering metadata", aws.ObjectMeta,
+			)
+			return models.ReconcileRequeue
+		}
+
+		controllerutil.AddFinalizer(aws, models.DeletionFinalizer)
+		aws.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		err = r.Patch(ctx, aws, patch)
+		if err != nil {
+			l.Error(err, "cannot patch AWS VPC Peering resource metadata",
 				"AWS Peering ID", awsStatus.ID,
 				"AWS Account ID", aws.Spec.PeerAWSAccountID,
 				"VPC ID", aws.Spec.PeerVPCID,
@@ -135,61 +150,23 @@ func (r *AWSVPCPeeringReconciler) handleCreateCluster(
 			"VPC ID", aws.Spec.PeerVPCID,
 			"Region", aws.Spec.PeerRegion,
 		)
-
-		controllerutil.AddFinalizer(aws, models.DeletionFinalizer)
-		aws.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		err = r.Patch(ctx, aws, patch)
-		if err != nil {
-			l.Error(err, "cannot patch AWS VPC Peering resource metadata",
-				"AWS Peering ID", awsStatus.ID,
-				"AWS Account ID", aws.Spec.PeerAWSAccountID,
-				"VPC ID", aws.Spec.PeerVPCID,
-				"Region", aws.Spec.PeerRegion,
-				"AWS VPC Peering metadata", aws.ObjectMeta,
-			)
-			return models.ReconcileRequeue
-		}
-		err = r.startAWSVPCPeeringStatusJob(aws)
-		if err != nil {
-			l.Error(err, "cannot start AWS VPC Peering checker status job",
-				"AWS VPC Peering ID", aws.Status.ID)
-			return models.ReconcileRequeue
-		}
 	}
+	err := r.startAWSVPCPeeringStatusJob(aws)
+	if err != nil {
+		l.Error(err, "cannot start AWS VPC Peering checker status job",
+			"AWS VPC Peering ID", aws.Status.ID)
+		return models.ReconcileRequeue
+	}
+
 	return reconcile.Result{}
 }
 
 func (r *AWSVPCPeeringReconciler) handleUpdateCluster(
+	ctx context.Context,
 	aws *clusterresourcesv1alpha1.AWSVPCPeering,
 	l *logr.Logger,
-	ctx *context.Context,
 ) reconcile.Result {
-
-	r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
-
-	currentPeeringStatus, err := r.API.GetAWSPeeringStatus(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
-	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(
-			err, "cannot get AWS VPC Peering status from the Instaclustr API",
-			"AWS Peering ID", currentPeeringStatus.ID,
-			"AWS Account ID", aws.Spec.PeerAWSAccountID,
-			"VPC ID", aws.Spec.PeerVPCID,
-			"Region", aws.Spec.PeerRegion,
-		)
-		return models.ReconcileRequeue
-	}
-
-	err = r.API.UpdateAWSPeering(currentPeeringStatus.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
-	if errors.Is(err, instaclustr.NotFound) {
-		l.Error(err, "AWS VPC Peering is not found",
-			"AWS Account ID", aws.Spec.PeerAWSAccountID,
-			"VPC ID", aws.Spec.PeerVPCID,
-			"Region", aws.Spec.PeerRegion,
-			"Subnets", aws.Spec.PeerSubnets,
-		)
-		return models.ReconcileRequeue
-	}
-
+	err := r.API.UpdatePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
 	if err != nil {
 		l.Error(err, "cannot update AWS VPC Peering",
 			"AWS Account ID", aws.Spec.PeerAWSAccountID,
@@ -201,7 +178,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdateCluster(
 
 	patch := aws.NewPatch()
 	aws.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Patch(*ctx, aws, patch)
+	err = r.Patch(ctx, aws, patch)
 	if err != nil {
 		l.Error(err, "cannot patch AWS VPC Peering resource metadata",
 			"AWS Peering ID", aws.Status.ID,
@@ -213,33 +190,26 @@ func (r *AWSVPCPeeringReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	err = r.startAWSVPCPeeringStatusJob(aws)
-	if err != nil {
-		l.Error(err, "cannot start AWS VPC peering status job",
-			"AWS peering ID", aws.Status.ID)
-		return models.ReconcileRequeue
-	}
-
-	l.Info("AWS VPC Peering resource status has been updated",
+	l.Info("AWS VPC Peering resource has been updated",
 		"AWS VPC Peering ID", aws.Status.ID,
 		"AWS Account ID", aws.Spec.PeerAWSAccountID,
 		"VPC ID", aws.Spec.PeerVPCID,
 		"Region", aws.Spec.PeerRegion,
-		"AWS VPC Peering Data Centre ID", aws.Status.CDCID,
-		"AWS VPC Peering Status", aws.Status.VPCPeeringStatus,
+		"AWS VPC Peering Data Centre ID", aws.Spec.DataCentreID,
+		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
 	return reconcile.Result{}
 }
 
 func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
+	ctx context.Context,
 	aws *clusterresourcesv1alpha1.AWSVPCPeering,
 	l *logr.Logger,
-	ctx *context.Context,
 ) reconcile.Result {
 
 	patch := aws.NewPatch()
-	err := r.Patch(*ctx, aws, patch)
+	err := r.Patch(ctx, aws, patch)
 	if err != nil {
 		l.Error(err, "cannot patch AWS VPC Peering resource metadata",
 			"AWS Peering ID", aws.Status.ID,
@@ -251,7 +221,7 @@ func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
-	status, err := r.API.GetAWSPeeringStatus(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
+	status, err := r.API.GetPeeringStatus(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "cannot get AWS VPC Peering status from the Instaclustr API",
@@ -265,7 +235,7 @@ func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
 
 	if status != nil {
 		r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
-		err = r.API.DeleteAWSPeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
+		err = r.API.DeletePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
 		if err != nil {
 			l.Error(err, "cannot update AWS VPC Peering resource statuss",
 				"AWS Peering ID", aws.Status.ID,
@@ -282,8 +252,7 @@ func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
 
 	controllerutil.RemoveFinalizer(aws, models.DeletionFinalizer)
 	aws.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-
-	err = r.Patch(*ctx, aws, patch)
+	err = r.Patch(ctx, aws, patch)
 	if err != nil {
 		l.Error(err, "cannot patch AWS VPC Peering resource metadata",
 			"AWS Peering ID", aws.Status.ID,
@@ -299,8 +268,8 @@ func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
 		"AWS VPC Peering ID", aws.Status.ID,
 		"VPC ID", aws.Spec.PeerVPCID,
 		"Region", aws.Spec.PeerRegion,
-		"AWS VPC Peering Data Centre ID", aws.Status.CDCID,
-		"AWS VPC Peering Status", aws.Status.VPCPeeringStatus,
+		"AWS VPC Peering Data Centre ID", aws.Spec.DataCentreID,
+		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
 	return reconcile.Result{}
@@ -320,18 +289,20 @@ func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsvpcPeering *clu
 func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsvpcPeering *clusterresourcesv1alpha1.AWSVPCPeering) scheduler.Job {
 	l := log.Log.WithValues("component", "AWSVPCPeeringStatusJob")
 	return func() error {
-		instaPeeringStatus, err := r.API.GetAWSPeeringStatus(awsvpcPeering.Status.ID, instaclustr.AWSPeeringEndpoint)
+		instaPeeringStatus, err := r.API.GetPeeringStatus(awsvpcPeering.Status.ID, instaclustr.AWSPeeringEndpoint)
 		if err != nil {
 			l.Error(err, "cannot get AWS VPC Peering Status from Inst API", "AWS VPC Peering ID", awsvpcPeering.Status.ID)
 			return err
 		}
 
-		if !reflect.DeepEqual(*instaPeeringStatus, awsvpcPeering.Status) {
+		if !isPeeringStatusesEqual(instaPeeringStatus, &awsvpcPeering.Status.PeeringStatus) {
 			l.Info("AWS VPC Peering status of k8s is different from Instaclustr. Reconcile statuses..",
 				"AWS VPC Peering Status from Inst API", instaPeeringStatus,
 				"AWS VPC Peering Status", awsvpcPeering.Status)
-			awsvpcPeering.Status = *instaPeeringStatus
-			err := r.Status().Update(context.Background(), awsvpcPeering)
+
+			patch := awsvpcPeering.NewPatch()
+			awsvpcPeering.Status.PeeringStatus = *instaPeeringStatus
+			err := r.Status().Patch(context.Background(), awsvpcPeering, patch)
 			if err != nil {
 				return err
 			}
@@ -341,38 +312,25 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsvpcPeering *clusterresour
 	}
 }
 
-func isResourceDeleting(obj client.Object) bool {
-	if obj.GetDeletionTimestamp() != nil {
-		obj.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-		return true
-	}
-
-	return false
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clusterresourcesv1alpha1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				// for operator reboots
-				if isResourceDeleting(event.Object) {
-					return true
-				}
-
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
+				if event.Object.GetDeletionTimestamp() != nil {
+					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
+				}
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
-
-				if isResourceDeleting(event.ObjectNew) {
-					return true
-				}
-
 				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
+				if event.ObjectNew.GetDeletionTimestamp() != nil {
+					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
+				}
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {

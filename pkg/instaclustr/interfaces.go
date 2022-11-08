@@ -21,10 +21,10 @@ type API interface {
 	UpdateCluster(id, clusterEndpoint string, InstaDCs any) error
 	DeleteCluster(id, clusterEndpoint string) error
 	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
-	GetAWSPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error)
-	UpdateAWSPeering(peerID, peeringEndpoint string, peerSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec) error
-	DeleteAWSPeering(peerID, peeringEndpoint string) error
-	CreateAWSPeering(url string, AWSSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error)
+	GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.PeeringStatus, error)
+	UpdatePeering(peerID, peeringEndpoint string, peerSpec any) error
+	DeletePeering(peerID, peeringEndpoint string) error
+	CreatePeering(url string, peeringSpec any) (*clusterresourcesv1alpha1.PeeringStatus, error)
 	GetFirewallRuleStatus(firewallRuleId string) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
 	CreateFirewallRule(url string, firewallRuleSpec *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleSpec) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error)
 }
