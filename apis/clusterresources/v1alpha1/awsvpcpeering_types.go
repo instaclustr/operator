@@ -33,10 +33,7 @@ type AWSVPCPeeringSpec struct {
 
 // AWSVPCPeeringStatus defines the observed state of AWSVPCPeering
 type AWSVPCPeeringStatus struct {
-	VPCPeeringStatus `json:",inline"`
-	PeerAwsAccountId string `json:"peerAwsAccountId"`
-	PeerVPCID        string `json:"peerVpcId"`
-	CDCID            string `json:"cdcId"`
+	PeeringStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true

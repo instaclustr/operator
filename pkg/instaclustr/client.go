@@ -395,9 +395,9 @@ func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 	return nil
 }
 
-func (c *Client) GetAWSPeeringStatus(peerID,
+func (c *Client) GetPeeringStatus(peerID,
 	peeringEndpoint string,
-) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error) {
+) (*clusterresourcesv1alpha1.PeeringStatus, error) {
 	url := c.serverHostname + peeringEndpoint + peerID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -418,7 +418,7 @@ func (c *Client) GetAWSPeeringStatus(peerID,
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var peeringStatus clusterresourcesv1alpha1.AWSVPCPeeringStatus
+	var peeringStatus clusterresourcesv1alpha1.PeeringStatus
 	err = json.Unmarshal(body, &peeringStatus)
 	if err != nil {
 		return nil, err
@@ -427,11 +427,9 @@ func (c *Client) GetAWSPeeringStatus(peerID,
 	return &peeringStatus, nil
 }
 
-func (c *Client) CreateAWSPeering(url string,
-	AWSSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec,
-) (*clusterresourcesv1alpha1.AWSVPCPeeringStatus, error) {
+func (c *Client) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1alpha1.PeeringStatus, error) {
 
-	jsonDataCreate, err := json.Marshal(AWSSpec)
+	jsonDataCreate, err := json.Marshal(peeringSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +450,7 @@ func (c *Client) CreateAWSPeering(url string,
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *clusterresourcesv1alpha1.AWSVPCPeeringStatus
+	var creationResponse *clusterresourcesv1alpha1.PeeringStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -461,9 +459,9 @@ func (c *Client) CreateAWSPeering(url string,
 	return creationResponse, nil
 }
 
-func (c *Client) UpdateAWSPeering(peerID,
+func (c *Client) UpdatePeering(peerID,
 	peeringEndpoint string,
-	peerSpec *clusterresourcesv1alpha1.AWSVPCPeeringSpec,
+	peerSpec any,
 ) error {
 	url := c.serverHostname + peeringEndpoint + peerID
 
@@ -481,10 +479,6 @@ func (c *Client) UpdateAWSPeering(peerID,
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return NotFound
-	}
-
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
@@ -492,7 +486,7 @@ func (c *Client) UpdateAWSPeering(peerID,
 	return nil
 }
 
-func (c *Client) DeleteAWSPeering(peerID, peeringEndpoint string) error {
+func (c *Client) DeletePeering(peerID, peeringEndpoint string) error {
 	url := c.serverHostname + peeringEndpoint + peerID
 
 	resp, err := c.DoRequest(url, http.MethodDelete, nil)

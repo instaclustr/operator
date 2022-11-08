@@ -29,9 +29,7 @@ type GCPVPCPeeringSpec struct {
 
 // GCPVPCPeeringStatus defines the observed state of GCPVPCPeering
 type GCPVPCPeeringStatus struct {
-	VPCPeeringStatus `json:",inline"`
-	Name             string `json:"name"`
-	FailureReason    string `json:"failureReason"`
+	PeeringStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true

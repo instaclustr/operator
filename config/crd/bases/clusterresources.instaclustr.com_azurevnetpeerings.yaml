@@ -67,11 +67,6 @@ spec:
                 type: string
               statusCode:
                 type: string
-            required:
-            - failureReason
-            - id
-            - name
-            - statusCode
             type: object
         type: object
     served: true

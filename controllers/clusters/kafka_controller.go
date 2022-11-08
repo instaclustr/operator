@@ -79,7 +79,6 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, &kafka, l), nil
 
-	//TODO: handle update
 	case models.UpdatingEvent:
 		return r.handleUpdateCluster(&kafka, l), nil
 

@@ -7,9 +7,11 @@ type VPCPeeringSpec struct {
 	PeerSubnets  []string `json:"peerSubnets"`
 }
 
-type VPCPeeringStatus struct {
-	ID         string `json:"id"`
-	StatusCode string `json:"statusCode"`
+type PeeringStatus struct {
+	ID            string `json:"id,omitempty"`
+	StatusCode    string `json:"statusCode,omitempty"`
+	Name          string `json:"name,omitempty"`
+	FailureReason string `json:"failureReason,omitempty"`
 }
 
 type PatchRequest struct {
