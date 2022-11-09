@@ -19,7 +19,6 @@ package clusters
 import (
 	"context"
 	"errors"
-	"reflect"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -80,7 +79,6 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, &kafkaConnect, l), nil
 
-	//TODO: handle update
 	case models.UpdatingEvent:
 		return r.handleUpdateCluster(ctx, &kafkaConnect, l), nil
 
@@ -137,8 +135,29 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *cl
 }
 
 func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
+	l = l.WithName("Update Event")
 
-	l.Info("handleUpdateCluster is not implemented")
+	if kc.Status.ClusterStatus.Status != StatusRUNNING {
+		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
+			"Cluster name", kc.Spec.Name,
+			"k.Status.ClusterStatus.Status", kc.Status.ClusterStatus.Status,
+		)
+		return models.ReconcileRequeue
+	}
+
+	err := r.API.UpdateCluster(
+		kc.Status.ID,
+		instaclustr.KafkaConnectEndpoint,
+		convertors.KafkaConnectToInstAPIUpdate(kc.Spec.DataCentres))
+	if err != nil {
+		l.Error(err, "Unable to update cluster, got error from Instaclustr",
+			"Cluster name", kc.Spec.Name,
+			"Cluster status", kc.Status,
+		)
+		return models.ReconcileRequeue
+	}
+
+	l.Info("cluster update has been launched")
 
 	return reconcile.Result{}
 }
@@ -208,13 +227,18 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 			return err
 		}
 
-		if !reflect.DeepEqual(*instaclusterStatus, kc.Status.ClusterStatus) {
+		if !isStatusesEqual(instaclusterStatus, &kc.Status.ClusterStatus) {
 			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclustrStatus", instaclusterStatus,
 				"kc.Status.ClusterStatus", kc.Status.ClusterStatus)
+
+			patch := kc.NewPatch()
+
 			kc.Status.ClusterStatus = *instaclusterStatus
-			err := r.Status().Update(context.Background(), kc)
+			err := r.Status().Patch(context.Background(), kc, patch)
 			if err != nil {
+				l.Error(err, "cannot patch Kafka Connect cluster",
+					"Cluster name", kc.Spec.Name, "Status", kc.Status.Status)
 				return err
 			}
 		}

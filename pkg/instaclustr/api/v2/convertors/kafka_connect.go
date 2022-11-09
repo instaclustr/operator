@@ -59,3 +59,13 @@ func kafkaConnectDCsToInstAPI(crdDCs []*v1alpha1.DataCentre) []*KafkaConnectData
 
 	return instaDCs
 }
+
+type updateKafkaConnectInstAPI struct {
+	DataCentre []*KafkaConnectDataCentre `json:"dataCentres"`
+}
+
+func KafkaConnectToInstAPIUpdate(k []*v1alpha1.DataCentre) *updateKafkaConnectInstAPI {
+	return &updateKafkaConnectInstAPI{
+		DataCentre: kafkaConnectDCsToInstAPI(k),
+	}
+}
