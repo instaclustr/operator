@@ -12,13 +12,13 @@ spec:
         tag: "oneTag"
         tag2: "twoTags"
       nodeSize: "KCN-DEV-t4g.medium-30"
-      network: "192.168.128.0/17"
+      network: "10.3.0.0/16"
       region: "US_EAST_1"
   name: "kafkaConnectOperator"
-  version: "2.7.1"
+  version: "3.1.2"
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
   targetCluster:
     - managedCluster:
-        - targetKafkaClusterId: "695bda16-0991-41b3-94e2-66b26a70ed88"
+        - targetKafkaClusterId: "7b40424f-0372-4aac-a900-b4819f619f35"
           kafkaConnectVpcType: "KAFKA_VPC"
