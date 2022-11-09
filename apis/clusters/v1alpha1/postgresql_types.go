@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type PgDataCentre struct {
@@ -70,4 +71,13 @@ type PostgreSQLList struct {
 
 func init() {
 	SchemeBuilder.Register(&PostgreSQL{}, &PostgreSQLList{})
+}
+
+func (pg *PostgreSQL) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(pg).String() + "/" + jobName
+}
+
+func (pg *PostgreSQL) NewPatch() client.Patch {
+	old := pg.DeepCopy()
+	return client.MergeFrom(old)
 }
