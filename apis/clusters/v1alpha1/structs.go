@@ -125,28 +125,28 @@ type PrivateLink struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
 
-func (dataCentre *DataCentre) providerToInstAPIv1() *models.ClusterProvider {
+func (dc *DataCentre) providerToInstAPIv1() *models.ClusterProvider {
 	var instCustomVirtualNetworkId string
 	var instResourceGroup string
 	var insDiskEncryptionKey string
-	if len(dataCentre.CloudProviderSettings) > 0 {
-		instCustomVirtualNetworkId = dataCentre.CloudProviderSettings[0].CustomVirtualNetworkID
-		instResourceGroup = dataCentre.CloudProviderSettings[0].ResourceGroup
-		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
+	if len(dc.CloudProviderSettings) > 0 {
+		instCustomVirtualNetworkId = dc.CloudProviderSettings[0].CustomVirtualNetworkID
+		instResourceGroup = dc.CloudProviderSettings[0].ResourceGroup
+		insDiskEncryptionKey = dc.CloudProviderSettings[0].DiskEncryptionKey
 	}
 
 	return &models.ClusterProvider{
-		Name:                   dataCentre.CloudProvider,
-		AccountName:            dataCentre.ProviderAccountName,
-		Tags:                   dataCentre.Tags,
+		Name:                   dc.CloudProvider,
+		AccountName:            dc.ProviderAccountName,
+		Tags:                   dc.Tags,
 		CustomVirtualNetworkId: instCustomVirtualNetworkId,
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}
 }
 
-func (dataCentre *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
-	_, ipnet, err := net.ParseCIDR(dataCentre.Network)
+func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
+	_, ipnet, err := net.ParseCIDR(dc.Network)
 	if err != nil {
 		return false, err
 	}
