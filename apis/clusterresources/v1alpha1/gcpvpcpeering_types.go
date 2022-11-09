@@ -18,6 +18,9 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // GCPVPCPeeringSpec defines the desired state of GCPVPCPeering
@@ -51,6 +54,16 @@ type GCPVPCPeeringList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []GCPVPCPeering `json:"items"`
+}
+
+func (gcp *GCPVPCPeering) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(gcp).String() + "/" + jobName
+}
+
+func (gcp *GCPVPCPeering) NewPatch() client.Patch {
+	old := gcp.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
+	return client.MergeFrom(old)
 }
 
 func init() {

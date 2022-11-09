@@ -276,10 +276,10 @@ func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
 	return reconcile.Result{}
 }
 
-func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsvpcPeering *clusterresourcesv1alpha1.AWSVPCPeering) error {
-	job := r.newWatchStatusJob(awsvpcPeering)
+func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *clusterresourcesv1alpha1.AWSVPCPeering) error {
+	job := r.newWatchStatusJob(awsPeering)
 
-	err := r.Scheduler.ScheduleJob(awsvpcPeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(awsPeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -287,23 +287,23 @@ func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsvpcPeering *clu
 	return nil
 }
 
-func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsvpcPeering *clusterresourcesv1alpha1.AWSVPCPeering) scheduler.Job {
+func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *clusterresourcesv1alpha1.AWSVPCPeering) scheduler.Job {
 	l := log.Log.WithValues("component", "AWSVPCPeeringStatusJob")
 	return func() error {
-		instaPeeringStatus, err := r.API.GetPeeringStatus(awsvpcPeering.Status.ID, instaclustr.AWSPeeringEndpoint)
+		instaPeeringStatus, err := r.API.GetPeeringStatus(awsPeering.Status.ID, instaclustr.AWSPeeringEndpoint)
 		if err != nil {
-			l.Error(err, "cannot get AWS VPC Peering Status from Inst API", "AWS VPC Peering ID", awsvpcPeering.Status.ID)
+			l.Error(err, "cannot get AWS VPC Peering Status from Inst API", "AWS VPC Peering ID", awsPeering.Status.ID)
 			return err
 		}
 
-		if !isPeeringStatusesEqual(instaPeeringStatus, &awsvpcPeering.Status.PeeringStatus) {
+		if !isPeeringStatusesEqual(instaPeeringStatus, &awsPeering.Status.PeeringStatus) {
 			l.Info("AWS VPC Peering status of k8s is different from Instaclustr. Reconcile statuses..",
 				"AWS VPC Peering Status from Inst API", instaPeeringStatus,
-				"AWS VPC Peering Status", awsvpcPeering.Status)
+				"AWS VPC Peering Status", awsPeering.Status)
 
-			patch := awsvpcPeering.NewPatch()
-			awsvpcPeering.Status.PeeringStatus = *instaPeeringStatus
-			err := r.Status().Patch(context.Background(), awsvpcPeering, patch)
+			patch := awsPeering.NewPatch()
+			awsPeering.Status.PeeringStatus = *instaPeeringStatus
+			err := r.Status().Patch(context.Background(), awsPeering, patch)
 			if err != nil {
 				return err
 			}
