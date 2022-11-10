@@ -17,7 +17,7 @@ spec:
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
-      nodeSize: "CAS-DEV-t4g.small-5"
+      nodeSize: "CAS-DEV-t4g.small-30"
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: false

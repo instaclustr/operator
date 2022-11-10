@@ -14,4 +14,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: danilamaster/insta
-  newTag: "5"
+  newTag: "9"
