@@ -15,7 +15,7 @@ metadata:
     app.kubernetes.io/part-of: operator
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
-  name: cadence-sample2
+  name: cadence-sample
   annotations:
     test.annotation/first: testAnnotation
 #    test.annotation/second: testAnnotation
@@ -54,7 +54,7 @@ spec:
   cassandraNodesNumber: 3
   cassandraPrivateIPBroadcastForDiscovery: false
   cassandraPasswordAndUserAuth: true
-  useAdvancedVisibility: true
+  useAdvancedVisibility: false
   kafkaNodeSize: "KFK-DEV-t4g.small-5"
   kafkaNodesNumber: 3
   kafkaNetwork: "10.2.0.0/16"

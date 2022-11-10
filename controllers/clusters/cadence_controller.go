@@ -39,13 +39,15 @@ import (
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
 // CadenceReconciler reconciles a Cadence object
 type CadenceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme    *runtime.Scheme
+	API       instaclustr.API
+	Scheduler scheduler.Interface
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cadences,verbs=get;list;watch;create;update;patch;delete
@@ -186,8 +188,9 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			return &models.ReconcileRequeue
 		}
 
+		statusPatch := cadenceCluster.NewPatch()
 		cadenceCluster.Status.ID = id
-		err = r.Status().Update(*ctx, cadenceCluster)
+		err = r.Status().Patch(*ctx, cadenceCluster, statusPatch)
 		if err != nil {
 			logger.Error(err, "cannot update Cadence cluster status",
 				"Cluster name", cadenceCluster.Spec.Name,
@@ -206,7 +209,13 @@ func (r *CadenceReconciler) HandleCreateCluster(
 		)
 	}
 
-	// TODO start status checker job
+	err := r.startClusterStatusJob(cadenceCluster)
+	if err != nil {
+		logger.Error(err, "cannot start cluster status job",
+			"Cadence cluster ID", cadenceCluster.Status.ID,
+		)
+		return &models.ReconcileRequeue
+	}
 
 	return &reconcile.Result{}
 }
@@ -379,8 +388,9 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return &models.ReconcileRequeue
 	}
 
+	statusPatch := cadenceCluster.NewPatch()
 	cadenceCluster.Status.ClusterStatus = *cadenceInstClusterStatus
-	err = r.Status().Update(*ctx, cadenceCluster)
+	err = r.Status().Patch(*ctx, cadenceCluster, statusPatch)
 	if err != nil {
 		logger.Error(err, "cannot update Cadence cluster status",
 			"Cluster name", cadenceCluster.Spec.Name,
@@ -444,6 +454,7 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 		}
 	}
 
+	r.Scheduler.RemoveJob(cadenceCluster.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(cadenceCluster, models.DeletionFinalizer)
 	cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	patch, err := cadenceCluster.NewClusterMetadataPatch()
@@ -658,6 +669,50 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		ObjectMeta: metadata,
 		Spec:       spec,
 	}, nil
+}
+
+func (r *CadenceReconciler) startClusterStatusJob(cadence *clustersv1alpha1.Cadence) error {
+	job := r.newWatchStatusJob(cadence)
+
+	err := r.Scheduler.ScheduleJob(cadence.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence) scheduler.Job {
+	l := log.Log.WithValues("component", "cadenceStatusClusterJob")
+	return func() error {
+		instStatus, err := r.API.GetClusterStatus(cadence.Status.ID, instaclustr.ClustersEndpointV1)
+		if err != nil {
+			l.Error(err, "cannot get Cadence cluster status",
+				"ClusterID", cadence.Status.ID,
+			)
+			return err
+		}
+
+		if !isStatusesEqual(instStatus, &cadence.Status.ClusterStatus) {
+			l.Info("Updating Cadence cluster status",
+				"New status", instStatus,
+				"Old status", cadence.Status.ClusterStatus,
+			)
+
+			patch := cadence.NewPatch()
+			cadence.Status.ClusterStatus = *instStatus
+			err = r.Status().Patch(context.Background(), cadence, patch)
+			if err != nil {
+				l.Error(err, "cannot patch Cadence cluster",
+					"Cluster name", cadence.Spec.Name,
+					"Status", cadence.Status.Status,
+				)
+				return err
+			}
+		}
+
+		return nil
+	}
 }
 
 func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.Kafka, error) {
@@ -902,6 +957,12 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				if oldObj.Generation == newObj.Generation {
 					return false
+				}
+
+				if oldObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					event.ObjectNew.SetAnnotations(newObj.Annotations)
+					return true
 				}
 
 				if newObj.DeletionTimestamp != nil {
