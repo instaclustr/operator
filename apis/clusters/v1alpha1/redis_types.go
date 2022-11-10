@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type RedisDataCentre struct {
@@ -61,6 +62,15 @@ type RedisList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Redis `json:"items"`
+}
+
+func (r *Redis) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(r).String() + "/" + jobName
+}
+
+func (r *Redis) NewPatch() client.Patch {
+	old := r.DeepCopy()
+	return client.MergeFrom(old)
 }
 
 func init() {
