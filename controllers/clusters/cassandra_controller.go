@@ -19,8 +19,6 @@ package clusters
 import (
 	"context"
 	"errors"
-	"reflect"
-
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,39 +66,44 @@ type CassandraReconciler struct {
 func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var cassandraCluster clustersv1alpha1.Cassandra
-	err := r.Client.Get(ctx, req.NamespacedName, &cassandraCluster)
+	var cassandra clustersv1alpha1.Cassandra
+	err := r.Client.Get(ctx, req.NamespacedName, &cassandra)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Cassandra resource is not found", "request", req)
 			return models.ReconcileResult, nil
 		}
-		l.Error(err, "unable to fetch Cassandra cluster")
-		return models.ReconcileResult, err
+
+		l.Error(err, "unable to fetch Cassandra cluster", "request", req)
+		return reconcile.Result{}, err
 	}
 
-	switch cassandraCluster.Annotations[models.ResourceStateAnnotation] {
+	switch cassandra.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.handleCreateCluster(&cassandraCluster, l, ctx)
-		return *reconcileResult, nil
+		return r.handleCreateCluster(ctx, l, &cassandra), nil
+
 	case models.UpdatingEvent:
-		reconcileResult := r.handleUpdateCluster(&cassandraCluster, l, ctx)
-		return *reconcileResult, nil
+		return r.handleUpdateCluster(ctx, l, &cassandra), nil
+
 	case models.DeletingEvent:
-		reconcileResult := r.handleDeleteCluster(&cassandraCluster, l, ctx)
-		return *reconcileResult, nil
-	default:
-		l.Info("UNKNOWN EVENT",
-			"Cluster spec", cassandraCluster.Spec)
-		return models.ReconcileResult, nil
+		return r.handleDeleteCluster(ctx, l, &cassandra), nil
+
+	case models.GenericEvent:
+		l.Info("event isn't handled",
+			"Cluster name", cassandra.Spec.Name,
+			"request", req,
+			"event", cassandra.Annotations[models.ResourceStateAnnotation])
+		return reconcile.Result{}, nil
 	}
+
+	return reconcile.Result{}, nil
 }
 
 func (r *CassandraReconciler) handleCreateCluster(
-	cc *clustersv1alpha1.Cassandra,
-	l logr.Logger,
 	ctx context.Context,
-) *reconcile.Result {
+	l logr.Logger,
+	cc *clustersv1alpha1.Cassandra,
+) reconcile.Result {
 
 	if cc.Status.ID == "" {
 		l.Info(
@@ -116,7 +119,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				err, "cannot create Cassandra cluster",
 				"Cassandra cluster spec", cc.Spec,
 			)
-			return &models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
 		patch := cc.NewPatch()
@@ -131,17 +134,8 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"Namespace", cc.Namespace,
 				"Cluster metadata", cc.ObjectMeta,
 			)
-			return &models.ReconcileResult
+			return models.ReconcileRequeue
 		}
-
-		l.Info(
-			"Cassandra cluster has been created",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
-			"Kind", cc.Kind,
-			"API Version", cc.APIVersion,
-			"Namespace", cc.Namespace,
-		)
 
 		controllerutil.AddFinalizer(cc, models.DeletionFinalizer)
 		cc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -155,26 +149,33 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"Namespace", cc.Namespace,
 				"Cluster metadata", cc.ObjectMeta,
 			)
-			return &models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
-		err = r.startClusterStatusJob(cc)
-		if err != nil {
-			l.Error(err, "cannot start cluster status job",
-				"Cassandra cluster ID", cc.Status.ID)
-			return &models.ReconcileResult
-		}
+		l.Info(
+			"Cassandra cluster has been created",
+			"Cluster name", cc.Spec.Name,
+			"Cluster ID", cc.Status.ID,
+			"Kind", cc.Kind,
+			"API Version", cc.APIVersion,
+			"Namespace", cc.Namespace,
+		)
 	}
-	return &models.ReconcileResult
+	err := r.startClusterStatusJob(cc)
+	if err != nil {
+		l.Error(err, "cannot start cluster status job",
+			"Cassandra cluster ID", cc.Status.ID)
+		return models.ReconcileRequeue
+	}
+
+	return reconcile.Result{}
 }
 
 func (r *CassandraReconciler) handleUpdateCluster(
-	cc *clustersv1alpha1.Cassandra,
-	l logr.Logger,
 	ctx context.Context,
-) *reconcile.Result {
-	r.Scheduler.RemoveJob(cc.GetJobID(scheduler.StatusChecker))
-
+	l logr.Logger,
+	cc *clustersv1alpha1.Cassandra,
+) reconcile.Result {
 	currentClusterStatus, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -182,15 +183,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"Cluster name", cc.Spec.Name,
 			"Cluster ID", cc.Status.ID,
 		)
-		return &models.ReconcileResult
-	}
-
-	if currentClusterStatus.Status != StatusRUNNING {
-		l.Error(instaclustr.ClusterNotRunning, "Cluster is not ready to resize",
-			"Cluster name", cc.Spec.Name,
-			"Cluster status", cc.Status,
-		)
-		return &models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	result := apiv2.CompareCassandraDCs(cc.Spec.DataCentres, currentClusterStatus)
@@ -199,63 +192,53 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			instaclustr.CassandraEndpoint,
 			result,
 		)
-
 		if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
 			l.Error(err, "cluster is not ready to resize",
 				"Cluster name", cc.Spec.Name,
 				"Cluster status", cc.Status,
 			)
-			return &models.ReconcileResult
+			return models.ReconcileRequeue
 		}
-
 		if err != nil {
 			l.Error(
 				err, "cannot update Cassandra cluster status from the Instaclustr API",
 				"Cluster name", cc.Spec.Name,
 				"Cluster ID", cc.Status.ID,
 			)
-			return &models.ReconcileResult
+			return models.ReconcileRequeue
 		}
-
-		patch := cc.NewPatch()
-		cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err = r.Patch(ctx, cc, patch)
-		if err != nil {
-			l.Error(err, "cannot patch Cassandra cluster",
-				"Cluster name", cc.Spec.Name,
-				"Cluster ID", cc.Status.ID,
-				"Kind", cc.Kind,
-				"API Version", cc.APIVersion,
-				"Namespace", cc.Namespace,
-				"Cluster metadata", cc.ObjectMeta,
-			)
-			return &models.ReconcileResult
-		}
-
-		err = r.startClusterStatusJob(cc)
-		if err != nil {
-			l.Error(err, "cannot start cluster status job",
-				"Cassandra cluster ID", cc.Status.ID)
-			return &models.ReconcileResult
-		}
-
-		l.Info(
-			"Cassandra cluster status has been updated",
+	}
+	patch := cc.NewPatch()
+	cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.Patch(ctx, cc, patch)
+	if err != nil {
+		l.Error(err, "cannot patch Cassandra cluster",
 			"Cluster name", cc.Spec.Name,
 			"Cluster ID", cc.Status.ID,
 			"Kind", cc.Kind,
 			"API Version", cc.APIVersion,
 			"Namespace", cc.Namespace,
+			"Cluster metadata", cc.ObjectMeta,
 		)
+		return models.ReconcileRequeue
 	}
-	return &models.ReconcileResult
+	l.Info(
+		"Cassandra cluster status has been updated",
+		"Cluster name", cc.Spec.Name,
+		"Cluster ID", cc.Status.ID,
+		"Kind", cc.Kind,
+		"API Version", cc.APIVersion,
+		"Namespace", cc.Namespace,
+	)
+
+	return reconcile.Result{}
 }
 
 func (r *CassandraReconciler) handleDeleteCluster(
-	cc *clustersv1alpha1.Cassandra,
-	l logr.Logger,
 	ctx context.Context,
-) *reconcile.Result {
+	l logr.Logger,
+	cc *clustersv1alpha1.Cassandra,
+) reconcile.Result {
 
 	patch := cc.NewPatch()
 	err := r.Patch(ctx, cc, patch)
@@ -268,7 +251,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"Namespace", cc.Namespace,
 			"Cluster metadata", cc.ObjectMeta,
 		)
-		return &models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	status, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
@@ -281,7 +264,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"API Version", cc.APIVersion,
 			"Namespace", cc.Namespace,
 		)
-		return &models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	if status != nil {
@@ -295,10 +278,10 @@ func (r *CassandraReconciler) handleDeleteCluster(
 				"API Version", cc.APIVersion,
 				"Namespace", cc.Namespace,
 			)
-			return &models.ReconcileResult
+			return models.ReconcileRequeue
 		}
 
-		return &models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	controllerutil.RemoveFinalizer(cc, models.DeletionFinalizer)
@@ -314,7 +297,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"Namespace", cc.Namespace,
 			"Cluster metadata", cc.ObjectMeta,
 		)
-		return &models.ReconcileResult
+		return models.ReconcileRequeue
 	}
 
 	l.Info("Cassandra cluster has been deleted",
@@ -325,7 +308,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		"Namespace", cc.Namespace,
 	)
 
-	return &models.ReconcileResult
+	return reconcile.Result{}
 }
 
 func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) error {
@@ -348,12 +331,14 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 			return err
 		}
 
-		if !reflect.DeepEqual(*instaclusterStatus, cassandraCluster.Status.ClusterStatus) {
+		if !isStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
 			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclusterStatus", instaclusterStatus,
 				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
+
+			patch := cassandraCluster.NewPatch()
 			cassandraCluster.Status.ClusterStatus = *instaclusterStatus
-			err := r.Status().Update(context.Background(), cassandraCluster)
+			err := r.Status().Patch(context.Background(), cassandraCluster, patch)
 			if err != nil {
 				return err
 			}
@@ -363,40 +348,22 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 	}
 }
 
-func isResourceDeleting(obj client.Object) bool {
-	if obj.GetDeletionTimestamp() != nil {
-		obj.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-		return true
-	}
-
-	return false
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cassandra{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				// for operator reboots
-				if isResourceDeleting(event.Object) {
-					return true
-				}
-
-				annotations := event.Object.GetAnnotations()
-				annotations[models.ResourceStateAnnotation] = models.CreatingEvent
-				event.Object.SetAnnotations(annotations)
+				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
+				confirmDeletion(event.Object)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
-
-				if isResourceDeleting(event.ObjectNew) {
-					return true
-				}
-
 				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
+				confirmDeletion(event.ObjectNew)
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
