@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,13 +37,15 @@ import (
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	convertorsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
 // OpenSearchReconciler reconciles a OpenSearch object
 type OpenSearchReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme    *runtime.Scheme
+	API       instaclustr.API
+	Scheduler scheduler.Interface
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=opensearches,verbs=get;list;watch;create;update;patch;delete
@@ -75,7 +78,7 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	openSearchAnnotations := openSearch.Annotations
 	switch openSearchAnnotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		err = r.HandleCreateCluster(openSearch, &logger, &ctx, &req)
+		err = r.HandleCreateCluster(openSearch, &logger, &ctx)
 		if err != nil {
 			logger.Error(err, "cannot create OpenSearch cluster",
 				"Cluster name", openSearch.Spec.Name,
@@ -85,7 +88,7 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		return reconcile.Result{Requeue: true}, nil
 	case models.UpdatingEvent:
-		reconcileResult, err := r.HandleUpdateCluster(openSearch, &logger, &ctx, &req)
+		reconcileResult, err := r.HandleUpdateCluster(&ctx, openSearch, &logger)
 		if err != nil {
 			if errors.Is(err, instaclustr.ClusterNotRunning) {
 				logger.Info("OpenSearch cluster is not ready to update",
@@ -103,31 +106,21 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		return *reconcileResult, nil
 	case models.DeletingEvent:
-		err = r.HandleDeleteCluster(openSearch, &logger, &ctx, &req)
-		if err != nil {
-			if errors.Is(err, instaclustr.ClusterIsBeingDeleted) {
-				logger.Info("OpenSearch cluster is being deleted",
-					"Cluster name", openSearch.Spec.Name,
-					"Cluster status", openSearch.Status.Status,
-				)
-				return reconcile.Result{
-					Requeue:      true,
-					RequeueAfter: models.Requeue60,
-				}, nil
-			}
-
-			logger.Error(err, "cannot delete OpenSearch cluster",
-				"Cluster name", openSearch.Spec.Name,
-			)
-			return reconcile.Result{}, err
-		}
-
-		return reconcile.Result{}, err
-	default:
-		logger.Info("UNKNOWN EVENT",
+		return *r.HandleDeleteCluster(&ctx, openSearch, &logger), nil
+	case models.GenericEvent:
+		logger.Info("Opensearch resource generic event",
 			"Cluster manifest", openSearch.Spec,
+			"Request", req,
+			"Event", openSearch.Annotations[models.ResourceStateAnnotation],
 		)
-		return reconcile.Result{}, err
+		return models.ReconcileResult, err
+	default:
+		logger.Info("OpenSearch resource event isn't handled",
+			"Cluster manifest", openSearch.Spec,
+			"Request", req,
+			"Event", openSearch.Annotations[models.ResourceStateAnnotation],
+		)
+		return models.ReconcileResult, err
 	}
 }
 
@@ -135,7 +128,6 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	openSearch *clustersv1alpha1.OpenSearch,
 	logger *logr.Logger,
 	ctx *context.Context,
-	req *ctrl.Request,
 ) error {
 	logger.Info(
 		"Creating OpenSearch cluster",
@@ -156,6 +148,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	}
 
 	openSearch.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+	openSearch.Finalizers = append(openSearch.Finalizers, models.DeletionFinalizer)
 
 	err = r.patchClusterMetadata(ctx, openSearch, logger)
 	if err != nil {
@@ -166,13 +159,21 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		return err
 	}
 
+	patch := openSearch.NewPatch()
 	openSearch.Status.ID = id
-	err = r.Status().Update(*ctx, openSearch)
+	err = r.Status().Patch(*ctx, openSearch, patch)
 	if err != nil {
 		logger.Error(err, "cannot update OpenSearch cluster status",
 			"Cluster name", openSearch.Spec.Name,
 			"Cluster status", openSearch.Status,
 		)
+		return err
+	}
+
+	err = r.startClusterStatusJob(openSearch)
+	if err != nil {
+		logger.Error(err, "cannot start cluster status job",
+			"OpenSearch cluster ID", openSearch.Status.ID)
 		return err
 	}
 
@@ -189,10 +190,9 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 }
 
 func (r *OpenSearchReconciler) HandleUpdateCluster(
+	ctx *context.Context,
 	openSearch *clustersv1alpha1.OpenSearch,
 	logger *logr.Logger,
-	ctx *context.Context,
-	req *ctrl.Request,
 ) (*reconcile.Result, error) {
 	openSearchInstClusterStatus, err := r.API.GetClusterStatus(openSearch.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil {
@@ -272,8 +272,9 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return &reconcile.Result{}, err
 	}
 
+	patch := openSearch.NewPatch()
 	openSearch.Status.ClusterStatus = *openSearchInstClusterStatus
-	err = r.Status().Update(*ctx, openSearch)
+	err = r.Status().Patch(*ctx, openSearch, patch)
 	if err != nil {
 		logger.Error(err, "cannot update OpenSearch cluster status",
 			"Cluster name", openSearch.Spec.Name,
@@ -291,14 +292,36 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 }
 
 func (r *OpenSearchReconciler) HandleDeleteCluster(
+	ctx *context.Context,
 	openSearch *clustersv1alpha1.OpenSearch,
 	logger *logr.Logger,
-	ctx *context.Context,
-	req *ctrl.Request,
-) error {
+) *reconcile.Result {
+	if openSearch.DeletionTimestamp == nil {
+		openSearch.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+		err := r.patchClusterMetadata(ctx, openSearch, logger)
+		if err != nil {
+			logger.Error(
+				err, "cannot update OpenSearch resource metadata",
+				"Cluster name", openSearch.Spec.Name,
+				"Cluster ID", openSearch.Status.ID,
+			)
+			return &models.ReconcileRequeue
+		}
+
+		logger.Info("OpenSearch cluster is no longer deleting",
+			"Cluster name", openSearch.Spec.Name,
+		)
+		return &models.ReconcileResult
+	}
+
 	status, err := r.API.GetClusterStatus(openSearch.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		return err
+		logger.Error(err, "cannot get OpenSearch cluster status",
+			"Cluster name", openSearch.Spec.Name,
+			"Cluster status", openSearch.Status.Status,
+		)
+
+		return &models.ReconcileRequeue
 	}
 
 	if status != nil {
@@ -309,20 +332,26 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 				"Cluster status", openSearch.Status.Status,
 			)
 
-			return err
+			return &models.ReconcileRequeue
 		}
-		return instaclustr.ClusterIsBeingDeleted
+
+		logger.Info("OpenSearch cluster is being deleted",
+			"Cluster name", openSearch.Spec.Name,
+			"Cluster status", openSearch.Status.Status,
+		)
+		return &models.ReconcileRequeue
 	}
 
+	r.Scheduler.RemoveJob(openSearch.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(openSearch, models.DeletionFinalizer)
-	err = r.Update(*ctx, openSearch)
+	err = r.patchClusterMetadata(ctx, openSearch, logger)
 	if err != nil {
 		logger.Error(
-			err, "cannot update OpenSearch cluster CRD after finalizer removal",
+			err, "cannot update OpenSearch resource metadata after finalizer removal",
 			"Cluster name", openSearch.Spec.Name,
 			"Cluster ID", openSearch.Status.ID,
 		)
-		return err
+		return &models.ReconcileRequeue
 	}
 
 	logger.Info("OpenSearch cluster was deleted",
@@ -330,7 +359,62 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		"Cluster ID", openSearch.Status.ID,
 	)
 
+	return &models.ReconcileResult
+}
+
+func (r *OpenSearchReconciler) startClusterStatusJob(cluster *clustersv1alpha1.OpenSearch) error {
+	job := r.newWatchStatusJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenSearch) scheduler.Job {
+	l := log.Log.WithValues("component", "openSearchStatusClusterJob")
+	return func() error {
+		err := r.Get(context.Background(), types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		if err != nil {
+			return err
+		}
+		if cluster.DeletionTimestamp != nil {
+			l.Info("OpenSearch cluster is being deleted. Status check job skipped",
+				"Cluster name", cluster.Spec.Name,
+				"Cluster ID", cluster.Status.ID,
+			)
+
+			return nil
+		}
+
+		instStatus, err := r.API.GetClusterStatus(cluster.Status.ID, instaclustr.ClustersEndpointV1)
+		if err != nil {
+			l.Error(err, "cannot get OpenSearch cluster status", "ClusterID", cluster.Status.ID)
+			return err
+		}
+
+		if !isStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
+			l.Info("Updating Opensearh cluster status",
+				"New status", instStatus,
+				"Old status", cluster.Status.ClusterStatus,
+			)
+
+			patch := cluster.NewPatch()
+			cluster.Status.ClusterStatus = *instStatus
+			err = r.Status().Patch(context.Background(), cluster, patch)
+			if err != nil {
+				l.Error(err, "cannot patch OpenSearch cluster",
+					"Cluster name", cluster.Spec.Name,
+					"Status", cluster.Status.Status,
+				)
+				return err
+			}
+		}
+
+		return nil
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -339,36 +423,28 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&clustersv1alpha1.OpenSearch{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
+					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
 				}
 
-				annotations := event.Object.GetAnnotations()
-				if annotations[models.ResourceStateAnnotation] != "" {
-					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
-					return true
-				}
-
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				if event.ObjectOld.GetGeneration() == event.ObjectNew.GetGeneration() {
 					return false
 				}
 
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
+					event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
 				}
 
-				event.ObjectNew.SetAnnotations(map[string]string{
-					models.ResourceStateAnnotation: models.UpdatingEvent,
-				})
+				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
+				genericEvent.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.GenericEvent
 				return true
 			},
 		})).

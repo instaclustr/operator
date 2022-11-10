@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // OpenSearchSpec defines the desired state of OpenSearch
@@ -63,6 +64,15 @@ type OpenSearchList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []OpenSearch `json:"items"`
+}
+
+func (os *OpenSearch) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(os).String() + "/" + jobName
+}
+
+func (os *OpenSearch) NewPatch() client.Patch {
+	old := os.DeepCopy()
+	return client.MergeFrom(old)
 }
 
 func init() {

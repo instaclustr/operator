@@ -132,9 +132,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterscontrollers.OpenSearchReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OpenSearch")
 		os.Exit(1)
