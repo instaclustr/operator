@@ -8,6 +8,8 @@ metadata:
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
   name: opensearch-sample
+  annotations:
+    test.annotation/first: testAnnotation
 spec:
   name: "k8sOpOS"
   version: "opensearch:2.2.1"
