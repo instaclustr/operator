@@ -267,3 +267,12 @@ func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) *models.CadenceUpd
 
 	return updatedFields
 }
+
+func (c *Cadence) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(c).String() + "/" + jobName
+}
+
+func (c *Cadence) NewPatch() client.Patch {
+	old := c.DeepCopy()
+	return client.MergeFrom(old)
+}
