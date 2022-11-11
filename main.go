@@ -207,6 +207,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterNetworkFirewallRule")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcescontrollers.AWSSecurityGroupFirewallRuleReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSSecurityGroupFirewallRule")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

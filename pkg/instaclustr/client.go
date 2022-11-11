@@ -507,8 +507,9 @@ func (c *Client) DeletePeering(peerID, peeringEndpoint string) error {
 
 func (c *Client) GetFirewallRuleStatus(
 	firewallRuleID string,
-) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error) {
-	url := c.serverHostname + FirewallRuleEndpoint + firewallRuleID
+	firewallRuleEndpoint string,
+) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
+	url := c.serverHostname + firewallRuleEndpoint + firewallRuleID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -528,7 +529,7 @@ func (c *Client) GetFirewallRuleStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var firewallRuleStatus *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus
+	var firewallRuleStatus *clusterresourcesv1alpha1.FirewallRuleStatus
 	err = json.Unmarshal(body, &firewallRuleStatus)
 	if err != nil {
 		return nil, err
@@ -537,10 +538,10 @@ func (c *Client) GetFirewallRuleStatus(
 	return firewallRuleStatus, nil
 }
 
-func (c *Client) CreateClusterNetworkFirewallRule(
+func (c *Client) CreateFirewallRule(
 	url string,
-	firewallRuleSpec *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleSpec,
-) (*clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus, error) {
+	firewallRuleSpec any,
+) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
 	jsonFirewallRule, err := json.Marshal(firewallRuleSpec)
 	if err != nil {
 		return nil, err
@@ -562,7 +563,7 @@ func (c *Client) CreateClusterNetworkFirewallRule(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *clusterresourcesv1alpha1.ClusterNetworkFirewallRuleStatus
+	var creationResponse *clusterresourcesv1alpha1.FirewallRuleStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -571,8 +572,11 @@ func (c *Client) CreateClusterNetworkFirewallRule(
 	return creationResponse, nil
 }
 
-func (c *Client) DeleteClusterNetworkFirewallRule(firewallRuleID string) error {
-	url := c.serverHostname + FirewallRuleEndpoint + firewallRuleID
+func (c *Client) DeleteFirewallRule(
+	firewallRuleID string,
+	firewallRuleEndpoint string,
+) error {
+	url := c.serverHostname + firewallRuleEndpoint + firewallRuleID
 
 	resp, err := c.DoRequest(url, http.MethodDelete, nil)
 	if err != nil {

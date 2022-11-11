@@ -9,4 +9,6 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: clusternetworkfirewallrule-sample
 spec:
-  # TODO(user): Add fields here
+  network: 62.212.64.19/32
+  clusterId: bb7166e4-cffa-48e7-8f0a-5ee32873b750
+  type: CASSANDRA_CQL

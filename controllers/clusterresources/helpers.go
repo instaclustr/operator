@@ -4,7 +4,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 )
 
-func isFirewallRuleStatusesEqual(a, b *v1alpha1.ClusterNetworkFirewallRuleStatus) bool {
+func isFirewallRuleStatusesEqual(a, b *v1alpha1.FirewallRuleStatus) bool {
 	if a == nil && b == nil {
 		return true
 	}
