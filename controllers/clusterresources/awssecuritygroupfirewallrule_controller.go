@@ -18,7 +18,6 @@ package clusterresources
 
 import (
 	"context"
-	"errors"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,44 +37,40 @@ import (
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
-const (
-	statusDELETED = "DELETED"
-)
-
-// ClusterNetworkFirewallRuleReconciler reconciles a ClusterNetworkFirewallRule object
-type ClusterNetworkFirewallRuleReconciler struct {
+// AWSSecurityGroupFirewallRuleReconciler reconciles a AWSSecurityGroupFirewallRule object
+type AWSSecurityGroupFirewallRuleReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	API       instaclustr.API
 	Scheduler scheduler.Interface
 }
 
-//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusternetworkfirewallrules,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusternetworkfirewallrules/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusternetworkfirewallrules/finalizers,verbs=update
+//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the ClusterNetworkFirewallRule object against the actual cluster state, and then
+// the AWSSecurityGroupFirewallRule object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
-func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
-	firewallRule := &clusterresourcesv1alpha1.ClusterNetworkFirewallRule{}
+	firewallRule := &clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule{}
 	err := r.Client.Get(ctx, req.NamespacedName, firewallRule)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Info("Cluster network firewall rule resource is not found",
+			l.Info("AWS security group firewall rule resource is not found",
 				"resource name", req.NamespacedName,
 			)
 			return reconcile.Result{}, nil
 		}
 
-		l.Error(err, "Unable to fetch cluster network firewall rule")
+		l.Error(err, "Unable to fetch AWS security group firewall rule")
 		return reconcile.Result{}, err
 	}
 
@@ -90,7 +85,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 		reconcileResult := r.HandleDeleteFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
 	case models.GenericEvent:
-		l.Info("Cluster network firewall rule event isn't handled",
+		l.Info("AWS security group firewall rule event isn't handled",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
@@ -101,24 +96,24 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 	return reconcile.Result{}, nil
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
+func (r *AWSSecurityGroupFirewallRuleReconciler) HandleCreateFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
+	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
 	if firewallRule.Status.ID == "" {
 		l.Info(
-			"Creating cluster network firewall rule",
+			"Creating AWS security group firewall rule",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 
 		patch := firewallRule.NewPatch()
 
-		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.ClusterNetworkFirewallRuleEndpoint, &firewallRule.Spec)
+		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.AWSSecurityGroupFirewallRuleEndpoint, &firewallRule.Spec)
 		if err != nil {
 			l.Error(
-				err, "Cannot create cluster network firewall rule",
+				err, "Cannot create AWS security group firewall rule",
 				"spec", firewallRule.Spec,
 			)
 			return models.ReconcileRequeue
@@ -128,7 +123,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 		err = r.Status().Patch(ctx, firewallRule, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch cluster network firewall rule status ", "ID", firewallRule.Status.ID)
+			l.Error(err, "Cannot patch AWS security group firewall rule status ", "ID", firewallRule.Status.ID)
 			return models.ReconcileRequeue
 		}
 
@@ -137,7 +132,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 		err = r.Patch(ctx, firewallRule, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch cluster network firewall rule",
+			l.Error(err, "Cannot patch AWS security group firewall rule",
 				"cluster ID", firewallRule.Spec.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
@@ -145,7 +140,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		}
 
 		l.Info(
-			"Cluster network firewall rule resource has been created",
+			"AWS security group firewall rule resource has been created",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
@@ -153,7 +148,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 	err := r.startFirewallRuleStatusJob(firewallRule)
 	if err != nil {
-		l.Error(err, "Cannot start cluster network firewall rule status checker job",
+		l.Error(err, "Cannot start AWS security group firewall rule status checker job",
 			"firewall rule ID", firewallRule.Status.ID)
 		return models.ReconcileRequeue
 	}
@@ -161,12 +156,12 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 	return reconcile.Result{}
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
+func (r *AWSSecurityGroupFirewallRuleReconciler) HandleUpdateFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
+	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
-	l.Info("Cluster network firewall rule update is not implemented",
+	l.Info("AWS security group firewall rule update is not implemented",
 		"firewall rule ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
 	)
@@ -174,69 +169,20 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 	return reconcile.Result{}
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
+func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
+	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
-	patch := firewallRule.NewPatch()
-	err := r.Patch(ctx, firewallRule, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster network firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
-			"type", firewallRule.Spec.Type,
-		)
-		return models.ReconcileRequeue
-	}
-
-	status, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
-	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(
-			err, "Cannot get cluster network firewall rule status from the Instaclustr API",
-			"cluster ID", firewallRule.Spec.ClusterID,
-			"type", firewallRule.Spec.Type,
-		)
-		return models.ReconcileRequeue
-	}
-
-	if status != nil && status.Status != statusDELETED {
-		r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
-		err = r.API.DeleteFirewallRule(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
-		if err != nil {
-			l.Error(err, "Cannot delete cluster network firewall rule",
-				"rule ID", firewallRule.Status.ID,
-				"cluster ID", firewallRule.Spec.ClusterID,
-				"type", firewallRule.Spec.Type,
-			)
-			return models.ReconcileRequeue
-		}
-
-		return models.ReconcileRequeue
-	}
-
-	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
-	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-
-	err = r.Patch(ctx, firewallRule, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster network firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
-			"type", firewallRule.Spec.Type,
-			"status", firewallRule.Status,
-		)
-		return models.ReconcileRequeue
-	}
-
-	l.Info("Cluster network firewall rule has been deleted",
-		"cluster ID", firewallRule.Spec.ClusterID,
+	l.Info("AWS security group firewall rule deletion is not implemented",
+		"firewall rule ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
-		"status", firewallRule.Status,
 	)
 
 	return reconcile.Result{}
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule) error {
+func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule) error {
 	job := r.newWatchStatusJob(firewallRule)
 
 	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -247,23 +193,28 @@ func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewa
 	return nil
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule) scheduler.Job {
+func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule) scheduler.Job {
 	l := log.Log.WithValues("component", "FirewallRuleStatusJob")
 	return func() error {
-		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
+		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
 		if err != nil {
-			l.Error(err, "Cannot get cluster network firewall rule status from Inst API", "firewall rule ID", firewallRule.Status.ID)
+			l.Error(err, "Cannot get AWS security group firewall rule status from Inst API", "firewall rule ID", firewallRule.Status.ID)
 			return err
 		}
 
 		if !isFirewallRuleStatusesEqual(instaFirewallRuleStatus, &firewallRule.Status.FirewallRuleStatus) {
-			l.Info("Cluster network firewall rule status of k8s is different from Instaclustr. Reconcile statuses..",
+			l.Info("AWS security group firewall rule status of k8s is different from Instaclustr. Reconcile statuses..",
 				"firewall rule Status from Inst API", instaFirewallRuleStatus,
 				"firewall rule status", firewallRule.Status)
+			patch := firewallRule.NewPatch()
 			firewallRule.Status.FirewallRuleStatus = *instaFirewallRuleStatus
-			err := r.Status().Update(context.Background(), firewallRule)
+			err := r.Status().Patch(context.Background(), firewallRule, patch)
 			if err != nil {
 				return err
+			}
+
+			if instaFirewallRuleStatus.Status == statusDELETED {
+				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 			}
 		}
 
@@ -272,9 +223,9 @@ func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *c
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ClusterNetworkFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *AWSSecurityGroupFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.ClusterNetworkFirewallRule{}, builder.WithPredicates(predicate.Funcs{
+		For(&clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
 					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent

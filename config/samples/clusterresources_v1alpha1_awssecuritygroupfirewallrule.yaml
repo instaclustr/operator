@@ -1,0 +1,14 @@
+apiVersion: clusterresources.instaclustr.com/v1alpha1
+kind: AWSSecurityGroupFirewallRule
+metadata:
+  labels:
+    app.kubernetes.io/name: awssecuritygroupfirewallrule
+    app.kubernetes.io/instance: awssecuritygroupfirewallrule-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: awssecuritygroupfirewallrule-sample
+spec:
+  securityGroupId: sg-2b750b54
+  clusterId: 8421d8a3-2c3c-4a51-aa40-8a58a985c3dd
+  type: KAFKA
