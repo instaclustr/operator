@@ -36,8 +36,10 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
+	kafkamanagementcontrollers "github.com/instaclustr/operator/controllers/kafkamanagement"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
@@ -54,6 +56,7 @@ func init() {
 	utilruntime.Must(clustersv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv2alpha1.AddToScheme(scheme))
+	utilruntime.Must(kafkamanagementv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -217,6 +220,14 @@ func main() {
 		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSSecurityGroupFirewallRule")
+		os.Exit(1)
+	}
+	if err = (&kafkamanagementcontrollers.TopicReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		API:    instaClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TopicName")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

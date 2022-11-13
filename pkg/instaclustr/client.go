@@ -10,6 +10,7 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	topic "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	"github.com/instaclustr/operator/pkg/models"
@@ -589,6 +590,83 @@ func (c *Client) DeleteFirewallRule(
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) CreateKafkaTopic(url string, t *topic.Topic) error {
+	data, err := json.Marshal(t.Spec)
+	if err != nil {
+		return err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	t.Status, err = apiv2convertors.TopicStatusFromInstAPI(body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteKafkaTopic(url, id string) error {
+	url = c.serverHostname + url + id
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdateKafkaTopic(url string, t *topic.Topic) error {
+	data, err := json.Marshal(apiv2convertors.TopicConfigsUpdateToInstAPI(t.Spec.TopicConfigs))
+	if err != nil {
+		return err
+	}
+
+	url = c.serverHostname + url
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	t.Status, err = apiv2convertors.TopicStatusFromInstAPI(body)
+	if err != nil {
+		return err
 	}
 
 	return nil
