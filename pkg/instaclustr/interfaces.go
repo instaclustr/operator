@@ -5,6 +5,7 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	topic "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -28,4 +29,7 @@ type API interface {
 	GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1alpha1.FirewallRuleStatus, error)
 	CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1alpha1.FirewallRuleStatus, error)
 	DeleteFirewallRule(firewallRuleID string, firewallRuleEndpoint string) error
+	CreateKafkaTopic(url string, topic *topic.Topic) error
+	DeleteKafkaTopic(url, id string) error
+	UpdateKafkaTopic(url string, topic *topic.Topic) error
 }
