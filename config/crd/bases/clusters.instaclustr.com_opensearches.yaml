@@ -35,10 +35,6 @@ spec:
           spec:
             description: OpenSearchSpec defines the desired state of OpenSearch
             properties:
-              clusterConfigurations:
-                additionalProperties:
-                  type: string
-                type: object
               concurrentResizes:
                 type: integer
               dataCentres:

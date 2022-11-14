@@ -432,6 +432,18 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 		return &models.ReconcileRequeue
 	}
 
+	if cadenceCluster.Spec.ProvisioningType == models.PackagedProvisioningType {
+		err = r.deletePackagedResources(ctx, cadenceCluster, logger)
+		if err != nil {
+			logger.Error(
+				err, "cannot delete Cadence packaged resources",
+				"Cluster name", cadenceCluster.Spec.Name,
+				"Cluster ID", cadenceCluster.Status.ID,
+			)
+			return &models.ReconcileRequeue
+		}
+	}
+
 	controllerutil.RemoveFinalizer(cadenceCluster, models.DeletionFinalizer)
 	cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	patch, err := cadenceCluster.NewClusterMetadataPatch()
@@ -474,19 +486,17 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx *context.Context, cluste
 		return false, models.ZeroDataCentres
 	}
 
-	cassandraList := &clustersv1alpha1.CassandraList{}
 	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, cluster.Name)
-
 	selector, err := labels.Parse(labelsToQuery)
 	if err != nil {
 		return false, err
 	}
 
+	cassandraList := &clustersv1alpha1.CassandraList{}
 	err = r.Client.List(*ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return false, err
 	}
-
 	if len(cassandraList.Items) < 1 {
 		cassandraSpec, err := r.newCassandraSpec(cluster)
 		if err != nil {
@@ -501,9 +511,61 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx *context.Context, cluste
 		return true, nil
 	}
 
-	// TODO Create Kafka and OpenSearch cluster if UseAdvancedVisibility == true
+	kafkaList := &clustersv1alpha1.KafkaList{}
+	osList := &clustersv1alpha1.OpenSearchList{}
+	if cluster.Spec.UseAdvancedVisibility {
+		err = r.Client.List(*ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
+		if err != nil {
+			return false, err
+		}
+		if len(kafkaList.Items) == 0 {
+			kafkaSpec, err := r.newKafkaSpec(cluster)
+			if err != nil {
+				return false, err
+			}
 
-	if len(cassandraList.Items[0].Status.DataCentres) < 1 {
+			err = r.Client.Create(*ctx, kafkaSpec)
+			if err != nil {
+				return false, err
+			}
+
+			return true, nil
+		}
+
+		if len(kafkaList.Items[0].Status.DataCentres) == 0 {
+			return true, nil
+		}
+
+		cluster.Spec.DataCentres[0].TargetKafkaCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
+		cluster.Spec.DataCentres[0].TargetKafkaVPCType = models.VPC_PEERED
+
+		err = r.Client.List(*ctx, osList, &client.ListOptions{LabelSelector: selector})
+		if err != nil {
+			return false, err
+		}
+		if len(osList.Items) == 0 {
+			osSpec, err := r.newOpenSearchSpec(cluster)
+			if err != nil {
+				return false, err
+			}
+
+			err = r.Client.Create(*ctx, osSpec)
+			if err != nil {
+				return false, err
+			}
+
+			return true, nil
+		}
+
+		if len(osList.Items[0].Status.DataCentres) == 0 {
+			return true, nil
+		}
+
+		cluster.Spec.DataCentres[0].TargetOpenSearchCDCID = osList.Items[0].Status.DataCentres[0].ID
+		cluster.Spec.DataCentres[0].TargetOpenSearchVPCType = models.VPC_PEERED
+	}
+
+	if len(cassandraList.Items[0].Status.DataCentres) == 0 {
 		return true, nil
 	}
 
@@ -530,9 +592,9 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	if len(cadence.Spec.DataCentres) < 1 {
 		return nil, models.ZeroDataCentres
 	}
-	cassNodeSize := cadence.Spec.DataCentres[0].CassandraNodeSize
-	cassNodesNumber := cadence.Spec.DataCentres[0].CassandraNodesNumber
-	cassReplicationFactor := cadence.Spec.DataCentres[0].CassandraReplicationFactor
+	cassNodeSize := cadence.Spec.CassandraNodeSize
+	cassNodesNumber := cadence.Spec.CassandraNodesNumber
+	cassReplicationFactor := cadence.Spec.CassandraReplicationFactor
 	slaTier := cadence.Spec.SLATier
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
@@ -547,7 +609,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		}
 	}
 
-	isCassNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(cadence.Spec.DataCentres[0].CassandraNetwork)
+	isCassNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(cadence.Spec.CassandraNetwork)
 	if err != nil {
 		return nil, err
 	}
@@ -558,10 +620,10 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	dcName := models.CassandraChildDCName
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
-	network := cadence.Spec.DataCentres[0].CassandraNetwork
+	network := cadence.Spec.CassandraNetwork
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
-	cassPrivateIPBroadcastForDiscovery := cadence.Spec.DataCentres[0].CassandraPrivateIPBroadcastForDiscovery
-	cassPasswordAndUserAuth := cadence.Spec.DataCentres[0].CassandraPasswordAndUserAuth
+	cassPrivateIPBroadcastForDiscovery := cadence.Spec.CassandraPrivateIPBroadcastForDiscovery
+	cassPasswordAndUserAuth := cadence.Spec.CassandraPasswordAndUserAuth
 
 	cassandraDataCentres := []*clustersv1alpha1.CassandraDataCentre{
 		&clustersv1alpha1.CassandraDataCentre{
@@ -596,6 +658,226 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		ObjectMeta: metadata,
 		Spec:       spec,
 	}, nil
+}
+
+func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.Kafka, error) {
+	typeMeta := v1.TypeMeta{
+		Kind:       models.KafkaKind,
+		APIVersion: models.ClustersV1alpha1APIVersion,
+	}
+
+	metadata := v1.ObjectMeta{
+		Name:        models.KafkaChildPrefix + cadence.Name,
+		Labels:      map[string]string{models.ControlledByLabel: cadence.Name},
+		Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
+		Namespace:   cadence.ObjectMeta.Namespace,
+		Finalizers:  []string{},
+	}
+
+	if len(cadence.Spec.DataCentres) < 1 {
+		return nil, models.ZeroDataCentres
+	}
+
+	kafkaNodeSize := cadence.Spec.KafkaNodeSize
+	kafkaNodesNumber := cadence.Spec.KafkaNodesNumber
+	slaTier := cadence.Spec.SLATier
+	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
+	pciCompliance := cadence.Spec.PCICompliance
+
+	var twoFactorDelete []*clustersv1alpha1.TwoFactorDelete
+	if len(cadence.Spec.TwoFactorDelete) > 0 {
+		twoFactorDelete = []*clustersv1alpha1.TwoFactorDelete{
+			&clustersv1alpha1.TwoFactorDelete{
+				Email: cadence.Spec.TwoFactorDelete[0].Email,
+				Phone: cadence.Spec.TwoFactorDelete[0].Phone,
+			},
+		}
+	}
+
+	kafkaNetwork := cadence.Spec.KafkaNetwork
+	isKafkaNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(kafkaNetwork)
+	if err != nil {
+		return nil, err
+	}
+	if isKafkaNetworkOverlaps {
+		return nil, models.NetworkOverlaps
+	}
+
+	dcName := models.KafkaChildDCName
+	dcRegion := cadence.Spec.DataCentres[0].Region
+	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
+	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
+
+	kafkaDataCentres := []*clustersv1alpha1.KafkaDataCentre{
+		&clustersv1alpha1.KafkaDataCentre{
+			Name:                dcName,
+			Region:              dcRegion,
+			CloudProvider:       cloudProvider,
+			ProviderAccountName: providerAccountName,
+			NodeSize:            kafkaNodeSize,
+			NodesNumber:         int32(kafkaNodesNumber),
+			Network:             kafkaNetwork,
+		},
+	}
+	spec := clustersv1alpha1.KafkaSpec{
+		Cluster: clustersv1alpha1.Cluster{
+			Name:                  models.KafkaChildPrefix + cadence.Name,
+			Version:               models.V2_7_1,
+			SLATier:               slaTier,
+			PrivateNetworkCluster: privateClusterNetwork,
+			TwoFactorDelete:       twoFactorDelete,
+			PCICompliance:         pciCompliance,
+		},
+		DataCentres:               kafkaDataCentres,
+		ReplicationFactorNumber:   int32(cadence.Spec.KafkaReplicationFactor),
+		PartitionsNumber:          int32(cadence.Spec.KafkaPartitionsNumber),
+		AllowDeleteTopics:         true,
+		AutoCreateTopics:          true,
+		ClientToClusterEncryption: cadence.Spec.ClientEncryption,
+	}
+
+	return &clustersv1alpha1.Kafka{
+		TypeMeta:   typeMeta,
+		ObjectMeta: metadata,
+		Spec:       spec,
+	}, nil
+}
+
+func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.OpenSearch, error) {
+	typeMeta := v1.TypeMeta{
+		Kind:       models.OpenSearchKind,
+		APIVersion: models.ClustersV1alpha1APIVersion,
+	}
+
+	metadata := v1.ObjectMeta{
+		Name:        models.OpenSearchChildPrefix + cadence.Name,
+		Labels:      map[string]string{models.ControlledByLabel: cadence.Name},
+		Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
+		Namespace:   cadence.ObjectMeta.Namespace,
+		Finalizers:  []string{},
+	}
+
+	if len(cadence.Spec.DataCentres) < 1 {
+		return nil, models.ZeroDataCentres
+	}
+
+	osNodeSize := cadence.Spec.OpensearchNodeSize
+	osReplicationFactor := cadence.Spec.OpensearchReplicationFactor
+	osNodesNumber := cadence.Spec.OpenSearchNodesPerReplicationFactor
+	slaTier := cadence.Spec.SLATier
+	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
+	pciCompliance := cadence.Spec.PCICompliance
+
+	var twoFactorDelete []*clustersv1alpha1.TwoFactorDelete
+	if len(cadence.Spec.TwoFactorDelete) > 0 {
+		twoFactorDelete = []*clustersv1alpha1.TwoFactorDelete{
+			&clustersv1alpha1.TwoFactorDelete{
+				Email: cadence.Spec.TwoFactorDelete[0].Email,
+				Phone: cadence.Spec.TwoFactorDelete[0].Phone,
+			},
+		}
+	}
+
+	osNetwork := cadence.Spec.OpenSearchNetwork
+	isOsNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(osNetwork)
+	if err != nil {
+		return nil, err
+	}
+	if isOsNetworkOverlaps {
+		return nil, models.NetworkOverlaps
+	}
+
+	dcName := models.OpenSearchChildDCName
+	dcRegion := cadence.Spec.DataCentres[0].Region
+	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
+	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
+
+	osDataCentres := []*clustersv1alpha1.OpenSearchDataCentre{
+		&clustersv1alpha1.OpenSearchDataCentre{
+			DataCentre: clustersv1alpha1.DataCentre{
+				Name:                dcName,
+				Region:              dcRegion,
+				CloudProvider:       cloudProvider,
+				ProviderAccountName: providerAccountName,
+				NodeSize:            osNodeSize,
+				RacksNumber:         int32(osReplicationFactor),
+				NodesNumber:         int32(osNodesNumber),
+				Network:             osNetwork,
+			},
+		},
+	}
+	spec := clustersv1alpha1.OpenSearchSpec{
+		Cluster: clustersv1alpha1.Cluster{
+			Name:                  models.OpenSearchChildPrefix + cadence.Name,
+			Version:               models.V1_3_5,
+			SLATier:               slaTier,
+			PrivateNetworkCluster: privateClusterNetwork,
+			TwoFactorDelete:       twoFactorDelete,
+			PCICompliance:         pciCompliance,
+		},
+		DataCentres: osDataCentres,
+	}
+
+	return &clustersv1alpha1.OpenSearch{
+		TypeMeta:   typeMeta,
+		ObjectMeta: metadata,
+		Spec:       spec,
+	}, nil
+}
+
+func (r *CadenceReconciler) deletePackagedResources(ctx *context.Context, cadence *clustersv1alpha1.Cadence, logger *logr.Logger) error {
+	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, cadence.Name)
+	selector, err := labels.Parse(labelsToQuery)
+	if err != nil {
+		return err
+	}
+
+	cassandraList := &clustersv1alpha1.CassandraList{}
+	err = r.Client.List(*ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return err
+	}
+
+	if len(cassandraList.Items) != 0 {
+		for _, cassandraCluster := range cassandraList.Items {
+			err = r.Client.Delete(*ctx, &cassandraCluster)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if cadence.Spec.UseAdvancedVisibility {
+		kafkaList := &clustersv1alpha1.KafkaList{}
+		err = r.Client.List(*ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
+		if err != nil {
+			return err
+		}
+		if len(kafkaList.Items) != 0 {
+			for _, kafkaCluster := range kafkaList.Items {
+				err = r.Client.Delete(*ctx, &kafkaCluster)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		osList := &clustersv1alpha1.OpenSearchList{}
+		err = r.Client.List(*ctx, osList, &client.ListOptions{LabelSelector: selector})
+		if err != nil {
+			return err
+		}
+		if len(osList.Items) != 0 {
+			for _, osCluster := range osList.Items {
+				err = r.Client.Delete(*ctx, &osCluster)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -26,7 +26,7 @@ spec:
   notifySupportContacts: false
   dataCentres:
   - region: "US_EAST_1"
-    network: "10.2.0.0/16"
+    network: "10.3.0.0/16"
     cloudProvider: "AWS_VPC"
 #    nodeSize: "CAD-SI-DEV-t3.small-5"
 #    nodeSize: "CAD-DEV-t3.medium-30"
@@ -34,23 +34,33 @@ spec:
     racksNumber: 3
     nodesNumber: 1
     cadenceNodeCount: 2
-#    provisioningType: "SHARED"
-#    provisioningType: "STANDARD"
 #    targetCassandraVpcType: "TARGET_VPC"
 #    targetCassandraCdcId: "424a1e29-a288-4b7c-863e-00ff231fd3f0"
-    cassandraNodeSize: "CAS-DEV-t4g.small-5"
-    cassandraNetwork: "10.1.0.0/16"
-    cassandraReplicationFactor: 3
-    cassandraNodesNumber: 3
-    cassandraPrivateIPBroadcastForDiscovery: false
-    cassandraPasswordAndUserAuth: true
-#    enableArchival: true
-#    archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
-#    archivalS3Region: "us-east-1"
-#    awsAccessKeySecretName: "inst-test-aws-cred-secret"
-#    awsAccessKeySecretNamespace: "default"
     #  twoFactorDelete:
     #    - email: "rostyslp@netapp.com"
   description: "test 222"
   slaTier: "NON_PRODUCTION"
   provisioningType: "PACKAGED"
+#  provisioningType: "SHARED"
+#  provisioningType: "STANDARD"
+#  enableArchival: true
+#  archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
+#  archivalS3Region: "us-east-1"
+#  awsAccessKeySecretName: "inst-test-aws-cred-secret"
+#  awsAccessKeySecretNamespace: "default"
+  cassandraNodeSize: "CAS-DEV-t4g.small-5"
+  cassandraNetwork: "10.1.0.0/16"
+  cassandraReplicationFactor: 3
+  cassandraNodesNumber: 3
+  cassandraPrivateIPBroadcastForDiscovery: false
+  cassandraPasswordAndUserAuth: true
+  useAdvancedVisibility: true
+  kafkaNodeSize: "KFK-DEV-t4g.small-5"
+  kafkaNodesNumber: 3
+  kafkaNetwork: "10.2.0.0/16"
+  kafkaReplicationFactor: 3
+  kafkaPartitionsNumber: 3
+  opensearchNodeSize: "SRH-DEV-t4g.small-5"
+  opensearchReplicationFactor: 3
+  openSearchNodesPerReplicationFactor: 1
+  openSearchNetwork: "10.4.0.0/16"
