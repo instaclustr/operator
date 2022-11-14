@@ -975,13 +975,6 @@ func (in *OpenSearchSpec) DeepCopyInto(out *OpenSearchSpec) {
 			}
 		}
 	}
-	if in.ClusterConfigurations != nil {
-		in, out := &in.ClusterConfigurations, &out.ClusterConfigurations
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.PrivateLink != nil {
 		in, out := &in.PrivateLink, &out.PrivateLink
 		*out = new(PrivateLink)

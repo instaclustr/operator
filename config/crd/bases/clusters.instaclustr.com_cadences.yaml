@@ -35,6 +35,29 @@ spec:
           spec:
             description: CadenceSpec defines the desired state of Cadence
             properties:
+              archivalS3Region:
+                type: string
+              archivalS3Uri:
+                type: string
+              awsAccessKeySecretName:
+                type: string
+              awsAccessKeySecretNamespace:
+                type: string
+              cassandraNetwork:
+                type: string
+              cassandraNodeSize:
+                description: Packaged Cassandra
+                type: string
+              cassandraNodesNumber:
+                type: integer
+              cassandraPasswordAndUserAuth:
+                type: boolean
+              cassandraPrivateIPBroadcastForDiscovery:
+                type: boolean
+              cassandraReplicationFactor:
+                type: integer
+              clientEncryption:
+                type: boolean
               concurrentResizes:
                 type: integer
               dataCentres:
@@ -42,30 +65,8 @@ spec:
                   properties:
                     accountName:
                       type: string
-                    archivalS3Region:
-                      type: string
-                    archivalS3Uri:
-                      type: string
-                    awsAccessKeySecretName:
-                      type: string
-                    awsAccessKeySecretNamespace:
-                      type: string
                     cadenceNodeCount:
                       type: integer
-                    cassandraNetwork:
-                      type: string
-                    cassandraNodeSize:
-                      type: string
-                    cassandraNodesNumber:
-                      type: integer
-                    cassandraPasswordAndUserAuth:
-                      type: boolean
-                    cassandraPrivateIPBroadcastForDiscovery:
-                      type: boolean
-                    cassandraReplicationFactor:
-                      type: integer
-                    clientEncryption:
-                      type: boolean
                     cloudProvider:
                       type: string
                     cloudProviderSettings:
@@ -81,8 +82,6 @@ spec:
                       type: array
                     enableArchival:
                       type: boolean
-                    kafkaNodeSize:
-                      type: string
                     name:
                       description: When use one data centre name of field is dataCentreCustomName
                         for APIv1
@@ -95,8 +94,6 @@ spec:
                       description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
-                    opensearchNodeSize:
-                      type: string
                     racksNumber:
                       description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
                       format: int32
@@ -120,10 +117,6 @@ spec:
                       type: string
                     targetOpenSearchVpcType:
                       type: string
-                    useAdvancedVisibility:
-                      type: boolean
-                    useCadenceWebAuth:
-                      type: boolean
                   required:
                   - cadenceNodeCount
                   - cloudProvider
@@ -136,12 +129,32 @@ spec:
                 type: array
               description:
                 type: string
+              kafkaNetwork:
+                type: string
+              kafkaNodeSize:
+                description: Packaged Kafka
+                type: string
+              kafkaNodesNumber:
+                type: integer
+              kafkaPartitionsNumber:
+                type: integer
+              kafkaReplicationFactor:
+                type: integer
               name:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
               notifySupportContacts:
                 type: boolean
+              openSearchNetwork:
+                type: string
+              openSearchNodesPerReplicationFactor:
+                type: integer
+              opensearchNodeSize:
+                description: Packaged OpenSearch
+                type: string
+              opensearchReplicationFactor:
+                type: integer
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -178,9 +191,14 @@ spec:
                   - email
                   type: object
                 type: array
+              useAdvancedVisibility:
+                type: boolean
+              useCadenceWebAuth:
+                type: boolean
               version:
                 type: string
             required:
+            - kafkaNetwork
             - name
             - provisioningType
             - slaTier

@@ -30,29 +30,14 @@ import (
 )
 
 type CadenceBundleOptions struct {
-	UseAdvancedVisibility                   bool   `json:"useAdvancedVisibility,omitempty"`
-	UseCadenceWebAuth                       bool   `json:"useCadenceWebAuth,omitempty"`
-	EnableArchival                          bool   `json:"enableArchival,omitempty"`
-	ClientEncryption                        bool   `json:"clientEncryption,omitempty"`
-	TargetCassandraCDCID                    string `json:"targetCassandraCdcId,omitempty"`
-	TargetCassandraVPCType                  string `json:"targetCassandraVpcType,omitempty"`
-	TargetKafkaCDCID                        string `json:"targetKafkaCdcId,omitempty"`
-	TargetKafkaVPCType                      string `json:"targetKafkaVpcType,omitempty"`
-	TargetOpenSearchCDCID                   string `json:"targetOpenSearchCdcId,omitempty"`
-	TargetOpenSearchVPCType                 string `json:"targetOpenSearchVpcType,omitempty"`
-	ArchivalS3URI                           string `json:"archivalS3Uri,omitempty"`
-	ArchivalS3Region                        string `json:"archivalS3Region,omitempty"`
-	AWSAccessKeySecretNamespace             string `json:"awsAccessKeySecretNamespace,omitempty"`
-	AWSAccessKeySecretName                  string `json:"awsAccessKeySecretName,omitempty"`
-	CadenceNodeCount                        int    `json:"cadenceNodeCount"`
-	CassandraNodeSize                       string `json:"cassandraNodeSize,omitempty"`
-	CassandraNodesNumber                    int    `json:"cassandraNodesNumber,omitempty"`
-	CassandraReplicationFactor              int    `json:"cassandraReplicationFactor,omitempty"`
-	CassandraNetwork                        string `json:"cassandraNetwork,omitempty"`
-	CassandraPrivateIPBroadcastForDiscovery bool   `json:"cassandraPrivateIPBroadcastForDiscovery,omitempty"`
-	CassandraPasswordAndUserAuth            bool   `json:"cassandraPasswordAndUserAuth,omitempty"`
-	OpensearchNodeSize                      string `json:"opensearchNodeSize,omitempty"`
-	KafkaNodeSize                           string `json:"kafkaNodeSize,omitempty"`
+	EnableArchival          bool   `json:"enableArchival,omitempty"`
+	TargetCassandraCDCID    string `json:"targetCassandraCdcId,omitempty"`
+	TargetCassandraVPCType  string `json:"targetCassandraVpcType,omitempty"`
+	TargetKafkaCDCID        string `json:"targetKafkaCdcId,omitempty"`
+	TargetKafkaVPCType      string `json:"targetKafkaVpcType,omitempty"`
+	TargetOpenSearchCDCID   string `json:"targetOpenSearchCdcId,omitempty"`
+	TargetOpenSearchVPCType string `json:"targetOpenSearchVpcType,omitempty"`
+	CadenceNodeCount        int    `json:"cadenceNodeCount"`
 }
 
 type CadenceDataCentre struct {
@@ -68,6 +53,34 @@ type CadenceSpec struct {
 	NotifySupportContacts bool                 `json:"notifySupportContacts,omitempty"`
 	Description           string               `json:"description,omitempty"`
 	ProvisioningType      string               `json:"provisioningType"`
+
+	// Packaged Cassandra
+	CassandraNodeSize                       string `json:"cassandraNodeSize,omitempty"`
+	CassandraNodesNumber                    int    `json:"cassandraNodesNumber,omitempty"`
+	CassandraReplicationFactor              int    `json:"cassandraReplicationFactor,omitempty"`
+	CassandraNetwork                        string `json:"cassandraNetwork,omitempty"`
+	CassandraPrivateIPBroadcastForDiscovery bool   `json:"cassandraPrivateIPBroadcastForDiscovery,omitempty"`
+	CassandraPasswordAndUserAuth            bool   `json:"cassandraPasswordAndUserAuth,omitempty"`
+
+	UseAdvancedVisibility bool `json:"useAdvancedVisibility,omitempty"`
+	// Packaged Kafka
+	KafkaNodeSize          string `json:"kafkaNodeSize,omitempty"`
+	KafkaNodesNumber       int    `json:"kafkaNodesNumber,omitempty"`
+	KafkaNetwork           string `json:"kafkaNetwork"`
+	KafkaReplicationFactor int    `json:"kafkaReplicationFactor,omitempty"`
+	KafkaPartitionsNumber  int    `json:"kafkaPartitionsNumber,omitempty"`
+	// Packaged OpenSearch
+	OpensearchNodeSize                  string `json:"opensearchNodeSize,omitempty"`
+	OpensearchReplicationFactor         int    `json:"opensearchReplicationFactor,omitempty"`
+	OpenSearchNodesPerReplicationFactor int    `json:"openSearchNodesPerReplicationFactor,omitempty"`
+	OpenSearchNetwork                   string `json:"openSearchNetwork,omitempty"`
+
+	UseCadenceWebAuth           bool   `json:"useCadenceWebAuth,omitempty"`
+	ArchivalS3URI               string `json:"archivalS3Uri,omitempty"`
+	ArchivalS3Region            string `json:"archivalS3Region,omitempty"`
+	AWSAccessKeySecretNamespace string `json:"awsAccessKeySecretNamespace,omitempty"`
+	AWSAccessKeySecretName      string `json:"awsAccessKeySecretName,omitempty"`
+	ClientEncryption            bool   `json:"clientEncryption,omitempty"`
 }
 
 // CadenceSpec defines the observed state of Cadence
@@ -143,7 +156,7 @@ func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client
 
 	if dataCentre.EnableArchival {
 		awsCredsSecret := &v1.Secret{}
-		awsSecretNamespacedName := types.NamespacedName{Name: dataCentre.AWSAccessKeySecretName, Namespace: dataCentre.AWSAccessKeySecretNamespace}
+		awsSecretNamespacedName := types.NamespacedName{Name: cs.AWSAccessKeySecretName, Namespace: cs.AWSAccessKeySecretNamespace}
 		err := k8sClient.Get(*ctx, awsSecretNamespacedName, awsCredsSecret)
 		if err != nil {
 			return nil, err
@@ -161,9 +174,9 @@ func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client
 			Version: cs.Version,
 		},
 		Options: &models.CadenceBundleOptionsAPIv1{
-			UseAdvancedVisibility:   dataCentre.UseAdvancedVisibility,
-			UseCadenceWebAuth:       dataCentre.UseCadenceWebAuth,
-			ClientEncryption:        dataCentre.ClientEncryption,
+			UseAdvancedVisibility:   cs.UseAdvancedVisibility,
+			UseCadenceWebAuth:       cs.UseCadenceWebAuth,
+			ClientEncryption:        cs.ClientEncryption,
 			TargetCassandraCDCID:    dataCentre.TargetCassandraCDCID,
 			TargetCassandraVPCType:  dataCentre.TargetCassandraVPCType,
 			TargetKafkaCDCID:        dataCentre.TargetKafkaCDCID,
@@ -171,8 +184,8 @@ func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client
 			TargetOpenSearchCDCID:   dataCentre.TargetOpenSearchCDCID,
 			TargetOpenSearchVPCType: dataCentre.TargetOpenSearchVPCType,
 			EnableArchival:          dataCentre.EnableArchival,
-			ArchivalS3URI:           dataCentre.ArchivalS3URI,
-			ArchivalS3Region:        dataCentre.ArchivalS3Region,
+			ArchivalS3URI:           cs.ArchivalS3URI,
+			ArchivalS3Region:        cs.ArchivalS3Region,
 			AWSAccessKeyID:          AWSAccessKeyID,
 			AWSSecretAccessKey:      AWSSecretAccessKey,
 			CadenceNodeCount:        dataCentre.CadenceNodeCount,

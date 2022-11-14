@@ -318,12 +318,6 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				annotations := event.Object.GetAnnotations()
-				if annotations[models.ResourceStateAnnotation] != "" {
-					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
-					return true
-				}
-
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				return true
 			},

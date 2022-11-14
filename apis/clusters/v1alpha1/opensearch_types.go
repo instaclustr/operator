@@ -27,7 +27,6 @@ type OpenSearchSpec struct {
 	DataCentres           []*OpenSearchDataCentre `json:"dataCentres"`
 	ConcurrentResizes     int                     `json:"concurrentResizes,omitempty"`
 	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
-	ClusterConfigurations map[string]string       `json:"clusterConfigurations,omitempty"`
 	Description           string                  `json:"description,omitempty"`
 	PrivateLink           *PrivateLink            `json:"privateLink,omitempty"`
 }
