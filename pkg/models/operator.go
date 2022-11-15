@@ -8,6 +8,7 @@ import (
 
 const (
 	ResourceStateAnnotation = "instaclustr.com/resourceState"
+	DeletionConfirmed       = "instaclustr.com/deletionConfirmed"
 	DeletionFinalizer       = "instaclustr.com/deletionFinalizer"
 	UpdatedFieldsAnnotation = "instaclustr.com/updatedFields"
 
@@ -19,6 +20,9 @@ const (
 	CassandraChildDCName       = "cassandra-cadence-dc"
 	V3_11_13                   = "3.11.13"
 	VPC_PEERED                 = "VPC_PEERED"
+
+	True  = "true"
+	False = "false"
 )
 
 const (

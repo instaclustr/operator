@@ -223,7 +223,7 @@ func (r *RedisReconciler) reconcileDataCentresNodeSize(
 				RequeueAfter: models.Requeue60,
 			}, nil
 		}
-		if errors.Is(err, instaclustr.IncorrectNodeSize) {
+		if errors.Is(err, instaclustr.CannotDownsizeNode) {
 			logger.Info("cannot downsize node type",
 				"Cluster name", cluster.Spec.Name,
 				"Current node size", instClusterStatus.DataCentres[0].Nodes[0].Size,
@@ -272,7 +272,7 @@ func (r *RedisReconciler) resizeDataCentres(
 		}
 
 		if currentNodeSizeIndex > newNodeSizeIndex {
-			return instaclustr.IncorrectNodeSize
+			return instaclustr.CannotDownsizeNode
 		}
 
 		resizeRequest := &models.ResizeRequest{
