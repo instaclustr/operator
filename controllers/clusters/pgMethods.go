@@ -71,10 +71,6 @@ func (r *PostgreSQLReconciler) reconcileDataCentresNodeSize(
 ) error {
 	dataCentresToResize := r.checkNodeSizeUpdate(pgInstClusterStatus.DataCentres, pgCluster.Spec.DataCentres)
 	if len(dataCentresToResize) > 0 {
-		if pgInstClusterStatus.Status != models.RunningStatus {
-			return instaclustr.ClusterNotRunning
-		}
-
 		err := r.resizeDataCentres(dataCentresToResize, pgCluster, logger)
 		if err != nil {
 			return err
@@ -129,7 +125,7 @@ func (r *PostgreSQLReconciler) resizeDataCentres(
 		}
 
 		if currentNodeSizeIndex > newNodeSizeIndex {
-			return instaclustr.IncorrectNodeSize
+			return instaclustr.CannotDownsizeNode
 		}
 
 		resizeRequest := &models.ResizeRequest{
@@ -165,14 +161,12 @@ func (r *PostgreSQLReconciler) getDataCentreOperations(clusterID, dataCentreID s
 }
 
 func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
-	clusterID,
-	clusterStatus string,
+	clusterID string,
 	clusterConfigurations map[string]string,
 	logger *logr.Logger,
 ) error {
 	instClusterConfigurations, err := r.API.GetClusterConfigurations(instaclustr.ClustersEndpointV1, clusterID, modelsv1.PgSQL)
 	if err != client.IgnoreNotFound(err) {
-		logger.Error(err, "cannot get cluster configurations")
 		return err
 	}
 
@@ -183,15 +177,12 @@ func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 	clusterConfigurationsToUpdate, clusterConfigurationsToReset := r.checkClusterConfigurationsUpdate(instClusterConfigurations, clusterConfigurations)
 
 	if len(clusterConfigurationsToUpdate) != 0 {
-		if clusterStatus != models.RunningStatus {
-			return instaclustr.ClusterNotRunning
-		}
 		for name, value := range clusterConfigurationsToUpdate {
 			err = r.API.UpdateClusterConfiguration(instaclustr.ClustersEndpointV1, clusterID, modelsv1.PgSQL, name, value)
 			if err != nil {
-				logger.Error(err, "cannot update cluster configurations")
 				return err
 			}
+
 			logger.Info("Cluster configuration updated",
 				"Cluster ID", clusterID,
 				"Parameter name", name,
@@ -204,9 +195,9 @@ func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 		for _, name := range clusterConfigurationsToReset {
 			err = r.API.ResetClusterConfiguration(instaclustr.ClustersEndpointV1, clusterID, modelsv1.PgSQL, name)
 			if err != nil {
-				logger.Error(err, "cannot reset cluster configurations")
 				return err
 			}
+
 			logger.Info("Cluster configuration was reset",
 				"ClusterID", clusterID,
 				"Parameter name", name,

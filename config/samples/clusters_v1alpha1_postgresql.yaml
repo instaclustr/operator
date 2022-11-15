@@ -2,6 +2,8 @@ apiVersion: clusters.instaclustr.com/v1alpha1
 kind: PostgreSQL
 metadata:
   name: postgresql-sample
+  annotations:
+    testAnnotation: test
 spec:
   name: "testPostgre"
   version: "postgresql:14.5"
