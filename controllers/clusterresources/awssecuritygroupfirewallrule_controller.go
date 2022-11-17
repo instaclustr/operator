@@ -18,6 +18,7 @@ package clusterresources
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -174,9 +175,58 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
-	l.Info("AWS security group firewall rule deletion is not implemented",
-		"firewall rule ID", firewallRule.Spec.ClusterID,
+	patch := firewallRule.NewPatch()
+	err := r.Patch(ctx, firewallRule, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
+			"cluster ID", firewallRule.Spec.ClusterID,
+			"type", firewallRule.Spec.Type,
+		)
+		return models.ReconcileRequeue
+	}
+
+	status, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		l.Error(
+			err, "Cannot get AWS security group firewall rule status from the Instaclustr API",
+			"cluster ID", firewallRule.Spec.ClusterID,
+			"type", firewallRule.Spec.Type,
+		)
+		return models.ReconcileRequeue
+	}
+
+	if status != nil && status.Status != statusDELETED {
+		err = r.API.DeleteFirewallRule(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
+		if err != nil {
+			l.Error(err, "Cannot delete AWS security group firewall rule",
+				"rule ID", firewallRule.Status.ID,
+				"cluster ID", firewallRule.Spec.ClusterID,
+				"type", firewallRule.Spec.Type,
+			)
+			return models.ReconcileRequeue
+		}
+
+		return models.ReconcileRequeue
+	}
+
+	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
+	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+
+	err = r.Patch(ctx, firewallRule, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
+			"cluster ID", firewallRule.Spec.ClusterID,
+			"type", firewallRule.Spec.Type,
+			"status", firewallRule.Status,
+		)
+		return models.ReconcileRequeue
+	}
+
+	l.Info("AWS security group firewall rule has been deleted",
+		"cluster ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
+		"status", firewallRule.Status,
 	)
 
 	return reconcile.Result{}
