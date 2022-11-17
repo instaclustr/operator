@@ -200,7 +200,6 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	}
 
 	if status != nil && status.Status != statusDELETED {
-		r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 		err = r.API.DeleteFirewallRule(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot delete cluster network firewall rule",
@@ -214,6 +213,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 		return models.ReconcileRequeue
 	}
 
+	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
 	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 
