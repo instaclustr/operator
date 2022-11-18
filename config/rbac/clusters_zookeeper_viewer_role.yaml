@@ -1,0 +1,20 @@
+# permissions for end users to view zookeepers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zookeeper-viewer-role
+rules:
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers/status
+  verbs:
+  - get

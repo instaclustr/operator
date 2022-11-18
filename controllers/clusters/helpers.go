@@ -11,7 +11,7 @@ import (
 // confirmDeletion confirms if resource is deleting and set appropriate annotation.
 func confirmDeletion(obj client.Object) {
 	if obj.GetDeletionTimestamp() != nil {
-		obj.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
+		obj.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
 		return
 	}
 

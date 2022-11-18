@@ -35,7 +35,7 @@ type AWSSetting struct {
 }
 
 type GCPSetting struct {
-	CustomVirtualNetworkID string `json:"customVirtualNetworkid,omitempty"`
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
 }
 
 type AzureSetting struct {

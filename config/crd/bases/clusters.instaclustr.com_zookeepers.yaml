@@ -1,0 +1,171 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: zookeepers.clusters.instaclustr.com
+spec:
+  group: clusters.instaclustr.com
+  names:
+    kind: Zookeeper
+    listKind: ZookeeperList
+    plural: zookeepers
+    singular: zookeeper
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Zookeeper is the Schema for the zookeepers API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ZookeeperSpec defines the desired state of Zookeeper
+            properties:
+              dataCentres:
+                items:
+                  properties:
+                    clientToServerEncryption:
+                      type: boolean
+                    cloudProvider:
+                      type: string
+                    cloudProviderSettings:
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            type: string
+                          diskEncryptionKey:
+                            type: string
+                          resourceGroup:
+                            type: string
+                        type: object
+                      type: array
+                    name:
+                      type: string
+                    network:
+                      type: string
+                    nodeSize:
+                      type: string
+                    nodesNumber:
+                      format: int32
+                      type: integer
+                    providerAccountName:
+                      type: string
+                    region:
+                      type: string
+                    tags:
+                      additionalProperties:
+                        type: string
+                      type: object
+                  required:
+                  - clientToServerEncryption
+                  - cloudProvider
+                  - network
+                  - nodeSize
+                  - nodesNumber
+                  - region
+                  type: object
+                type: array
+              name:
+                type: string
+              privateNetworkCluster:
+                type: boolean
+              slaTier:
+                type: string
+              twoFactorDelete:
+                items:
+                  properties:
+                    email:
+                      description: 'Email address which will be contacted when the
+                        cluster is requested to be deleted. APIv1: deleteVerifyEmail;
+                        APIv2: confirmationEmail.'
+                      type: string
+                    phone:
+                      description: 'APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.'
+                      type: string
+                  required:
+                  - email
+                  type: object
+                type: array
+              version:
+                type: string
+            required:
+            - dataCentres
+            - name
+            - slaTier
+            - version
+            type: object
+          status:
+            description: ZookeeperStatus defines the observed state of Zookeeper
+            properties:
+              cdcid:
+                type: string
+              dataCentres:
+                items:
+                  properties:
+                    encryptionKeyId:
+                      type: string
+                    id:
+                      type: string
+                    nodeNumber:
+                      format: int32
+                      type: integer
+                    nodes:
+                      items:
+                        properties:
+                          id:
+                            type: string
+                          privateAddress:
+                            type: string
+                          publicAddress:
+                            type: string
+                          rack:
+                            type: string
+                          roles:
+                            items:
+                              type: string
+                            type: array
+                          size:
+                            type: string
+                          status:
+                            type: string
+                        type: object
+                      type: array
+                    status:
+                      type: string
+                  type: object
+                type: array
+              id:
+                type: string
+              options:
+                properties:
+                  dataNodeSize:
+                    type: string
+                  masterNodeSize:
+                    type: string
+                  openSearchDashboardsNodeSize:
+                    type: string
+                type: object
+              status:
+                type: string
+              twoFactorDeleteEnabled:
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

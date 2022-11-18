@@ -351,3 +351,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers/status
+  verbs:
+  - get
+  - patch
+  - update
