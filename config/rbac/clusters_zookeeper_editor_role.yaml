@@ -1,0 +1,24 @@
+# permissions for end users to edit zookeepers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zookeeper-editor-role
+rules:
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers/status
+  verbs:
+  - get
