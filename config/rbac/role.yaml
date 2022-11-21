@@ -12,6 +12,7 @@ rules:
   verbs:
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - clusterresources.instaclustr.com
@@ -325,6 +326,43 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - kafkausers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - kafkausers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - kafkausers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - secrets
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - kafkamanagement.instaclustr.com
   resources:
