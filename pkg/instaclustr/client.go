@@ -10,9 +10,11 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	topic "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
+	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -667,6 +669,120 @@ func (c *Client) UpdateKafkaTopic(url string, t *topic.Topic) error {
 	t.Status, err = apiv2convertors.TopicStatusFromInstAPI(body)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c *Client) GetKafkaUserStatus(
+	kafkaUserID,
+	kafkaUserEndpoint string,
+) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+	url := c.serverHostname + kafkaUserEndpoint + kafkaUserID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var kafkaUserStatus kafkamanagementv1alpha1.KafkaUserStatus
+	err = json.Unmarshal(body, &kafkaUserStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kafkaUserStatus, nil
+}
+
+func (c *Client) CreateKafkaUser(
+	url string,
+	kafkaUser *models2.KafkaUserAPIv2,
+) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+	jsonKafkaUser, err := json.Marshal(kafkaUser)
+	if err != nil {
+		return nil, err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, jsonKafkaUser)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *kafkamanagementv1alpha1.KafkaUserStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) UpdateKafkaUser(
+	kafkaUserID,
+	kafkaUserEndpoint string,
+	kafkaUserSpec *models2.KafkaUserAPIv2,
+) error {
+	url := c.serverHostname + kafkaUserEndpoint + kafkaUserID
+
+	data, err := json.Marshal(kafkaUserSpec)
+	if err != nil {
+		return err
+	}
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
+	url := c.serverHostname + kafkaUserEndpoint + kafkaUserID
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
 	return nil

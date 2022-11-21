@@ -20,6 +20,7 @@ const (
 	ClusterNetworkFirewallRuleEndpoint   = "/cluster-management/v2/resources/network-firewall-rules/v2/"
 	AWSSecurityGroupFirewallRuleEndpoint = "/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/"
 	GCPPeeringEndpoint                   = "/cluster-management/v2/resources/providers/gcp/vpc-peers/v2/"
+	KafkaUserEndpoint                    = "/cluster-management/v2/resources/applications/kafka/users/v2/"
 )
 
 // constants for API v1

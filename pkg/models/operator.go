@@ -33,6 +33,7 @@ const (
 	DeletingEvent = "deleting"
 	DeletedEvent  = "deleted"
 	GenericEvent  = "generic"
+	SecretEvent   = "secret"
 )
 
 const (

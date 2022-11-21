@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-test
+data:
+  Username: "ZGFueWxvCg=="
+  Password: "ZGFzRGQ5X2FzMjEK"
+---
+apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+kind: KafkaUser
+metadata:
+  name: kafkauser-sample
+spec:
+  kafkaUserSecretName: "secret-test"
+  kafkaUserSecretNamespace: "default"
+  clusterId: "cc762648-6bc1-470c-8856-20e02f5ebbc2"
+  initialPermissions: "standard"
+  options:
+    overrideExistingUser: true
+    saslScramMechanism: "SCRAM-SHA-512"
