@@ -953,6 +953,176 @@ func (c *Client) TriggerClusterBackup(url, clusterID string) error {
 	return nil
 }
 
+func (c *Client) CreateExclusionWindow(url string,
+	me *clusterresourcesv1alpha1.MaintenanceEventsSpec,
+) (*clusterresourcesv1alpha1.MaintenanceEventsStatus,
+	error,
+) {
+	url = c.serverHostname + url
+
+	type exclusionWindowRequest struct {
+		ClusterID       string `json:"clusterId"`
+		DayOfWeek       string `json:"dayOfWeek"`
+		StartHour       int32  `json:"startHour"`
+		DurationInHours int32  `json:"durationInHours"`
+	}
+
+	exclusionWindow := &exclusionWindowRequest{
+		ClusterID:       me.ClusterID,
+		DayOfWeek:       me.DayOfWeek,
+		StartHour:       me.StartHour,
+		DurationInHours: me.DurationInHours,
+	}
+
+	data, err := json.Marshal(exclusionWindow)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1alpha1.MaintenanceEventsStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) GetMaintenanceEventStatus(
+	clusterID string,
+	endpoint string,
+) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
+	url := c.serverHostname + endpoint + "?clusterId=" + clusterID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus
+	err = json.Unmarshal(body, &meStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return meStatus, nil
+}
+
+func (c *Client) GetExclusionWindowStatus(
+	clusterId string,
+	endpoint string,
+) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
+	url := c.serverHostname + endpoint + "?clusterId=" + clusterId
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus
+	err = json.Unmarshal(body, &meStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return meStatus, nil
+}
+
+func (c *Client) DeleteExclusionWindow(
+	meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus,
+	endpoint string,
+) error {
+	url := c.serverHostname + endpoint + "/" + meStatus.ID
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec,
+	endpoint string,
+) error {
+	url := c.serverHostname + endpoint + me.EventID
+	type request struct {
+		ScheduledStartTime string `json:"scheduledStartTime,omitempty"`
+	}
+	requestBody := &request{
+		ScheduledStartTime: me.ScheduledStartTime,
+	}
+
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		return err
+	}
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("me code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
 func (c *Client) CreateNodeReload(bundle,
 	nodeID string,
 	nr *modelsv1.NodeReload,

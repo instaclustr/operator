@@ -1,0 +1,11 @@
+apiVersion: clusterresources.instaclustr.com/v1alpha1
+kind: MaintenanceEvents
+metadata:
+  name: maintenanceevents-sample
+spec:
+  clusterId: "ff37daa5-ee64-4c19-83b4-23d05b4f3b5e"
+  dayOfWeek: "TUESDAY"
+  startHour: 1
+  durationInHours: 1
+  scheduledStartTime: "2022-12-25T23:00:00Z"
+  eventId: "a0f383ee-0b0d-4bd1-b5b6-d080307f9bf5"

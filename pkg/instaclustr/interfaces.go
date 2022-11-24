@@ -44,6 +44,11 @@ type API interface {
 	UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
 	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
 	TriggerClusterBackup(url, clusterID string) error
+	CreateExclusionWindow(url string, me *clusterresourcesv1alpha1.MaintenanceEventsSpec) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
+	GetExclusionWindowStatus(clusterId string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
+	GetMaintenanceEventStatus(eventID string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
+	DeleteExclusionWindow(meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus, endpoint string) error
+	UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec, endpoint string) error
 	CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error
 	GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error)
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
