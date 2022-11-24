@@ -15,6 +15,7 @@ resources:
 - bases/clusterresources.instaclustr.com_clusternetworkfirewallrules.yaml
 - bases/clusterresources.instaclustr.com_awssecuritygroupfirewallrules.yaml
 - bases/kafkamanagement.instaclustr.com_topics.yaml
+- bases/clusterresources.instaclustr.com_maintenanceevents.yaml
 - bases/clusters.instaclustr.com_zookeepers.yaml
 - bases/kafkamanagement.instaclustr.com_kafkausers.yaml
 - bases/kafkamanagement.instaclustr.com_mirrors.yaml
@@ -40,6 +41,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_kafkausers.yaml
 #- patches/webhook_in_awssecuritygroupfirewallrules.yaml
 #- patches/webhook_in_topics.yaml
+#- patches/webhook_in_maintenanceevents.yaml
 #- patches/webhook_in_zookeepers.yaml
 #- patches/webhook_in_nodereloads.yaml
 #- patches/webhook_in_mirrors.yaml
@@ -62,6 +64,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_kafkausers.yaml
 #- patches/cainjection_in_awssecuritygroupfirewallrules.yaml
 #- patches/cainjection_in_topics.yaml
+#- patches/cainjection_in_maintenanceevents.yaml
 #- patches/cainjection_in_zookeepers.yaml
 #- patches/cainjection_in_nodereloads.yaml
 #- patches/cainjection_in_mirrors.yaml

@@ -1,0 +1,20 @@
+# permissions for end users to view maintenanceevents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: maintenanceevents-viewer-role
+rules:
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - maintenanceevents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - maintenanceevents/status
+  verbs:
+  - get

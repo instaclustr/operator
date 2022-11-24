@@ -43,4 +43,7 @@ const (
 	// ClustersResizeEndpoint is used for nodes resizing in a cluster data centre.
 	// Example: fmt.Sprintf("%s/provisioning/v1/%s/%s/resize", serverHostname, clusterID, dataCentreID)
 	ClustersResizeEndpoint = "%s/provisioning/v1/%s/%s/resize"
+
+	ExclusionWindowEndpoint  = "/v1/maintenance-events/exclusion-windows"
+	MaintenanceEventEndpoint = "/v1/maintenance-events/events/"
 )

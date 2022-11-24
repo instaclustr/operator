@@ -1,0 +1,24 @@
+# permissions for end users to edit maintenanceevents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: maintenanceevents-editor-role
+rules:
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - maintenanceevents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - maintenanceevents/status
+  verbs:
+  - get
