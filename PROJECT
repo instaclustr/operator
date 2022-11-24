@@ -131,4 +131,13 @@ resources:
   kind: KafkaUser
   path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: kafkamanagement
+  kind: Mirror
+  path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
+  version: v1alpha1
 version: "3"

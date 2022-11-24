@@ -1,0 +1,186 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: mirrors.kafkamanagement.instaclustr.com
+spec:
+  group: kafkamanagement.instaclustr.com
+  names:
+    kind: Mirror
+    listKind: MirrorList
+    plural: mirrors
+    singular: mirror
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Mirror is the Schema for the mirrors API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MirrorSpec defines the desired state of Mirror
+            properties:
+              kafkaConnectClusterId:
+                description: ID of the kafka connect cluster
+                type: string
+              maxTasks:
+                description: Maximum number of tasks for Kafka Connect to use. Should
+                  be greater than 0
+                format: int32
+                type: integer
+              renameMirroredTopics:
+                description: Whether to rename topics as they are mirrored, by prefixing
+                  the sourceCluster.alias to the topic name
+                type: boolean
+              sourceCluster:
+                description: Details to connect to the source kafka cluster
+                items:
+                  properties:
+                    alias:
+                      description: Alias to use for the source kafka cluster. This
+                        will be used to rename topics if renameMirroredTopics is turned
+                        on
+                      type: string
+                    externalCluster:
+                      description: Details to connect to a Non-Instaclustr managed
+                        cluster. Cannot be provided if targeting an Instaclustr managed
+                        cluster
+                      items:
+                        properties:
+                          sourceConnectionProperties:
+                            description: Kafka connection properties string used to
+                              connect to external kafka cluster
+                            type: string
+                        required:
+                        - sourceConnectionProperties
+                        type: object
+                      type: array
+                    managedCluster:
+                      description: Details to connect to a Instaclustr managed cluster.
+                        Cannot be provided if targeting a non-Instaclustr managed
+                        cluster
+                      items:
+                        properties:
+                          sourceKafkaClusterId:
+                            description: Source kafka cluster id
+                            type: string
+                          usePrivateIps:
+                            description: Whether or not to connect to source cluster's
+                              private IP addresses
+                            type: boolean
+                        required:
+                        - sourceKafkaClusterId
+                        - usePrivateIps
+                        type: object
+                      type: array
+                  required:
+                  - alias
+                  type: object
+                type: array
+              targetLatency:
+                description: The latency in milliseconds above which this mirror will
+                  be considered out of sync. It can not be less than 1000ms The suggested
+                  initial latency is 30000ms for connectors to be created.
+                format: int32
+                type: integer
+              topicsRegex:
+                description: Regex to select which topics to mirror
+                type: string
+            required:
+            - kafkaConnectClusterId
+            - maxTasks
+            - renameMirroredTopics
+            - sourceCluster
+            - targetLatency
+            - topicsRegex
+            type: object
+          status:
+            description: MirrorStatus defines the observed state of Mirror
+            properties:
+              connectorName:
+                description: 'Name of the mirror connector. The value of this property
+                  has the form: [source-cluster].[target-cluster].[random-string]'
+                type: string
+              connectors:
+                description: Detailed list of Connectors for the mirror.
+                items:
+                  properties:
+                    config:
+                      description: Configuration of the connector.
+                      type: string
+                    name:
+                      description: Name of the connector. Could be one of [Mirror
+                        Connector, Checkpoint Connector].
+                      type: string
+                    status:
+                      description: Status of the connector.
+                      type: string
+                  required:
+                  - config
+                  - name
+                  - status
+                  type: object
+                type: array
+              id:
+                description: ID of the mirror
+                type: string
+              mirroredTopics:
+                description: Detailed list of Mirrored topics.
+                items:
+                  properties:
+                    averageLatency:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Average latency in milliseconds for messages to
+                        travel from source to destination topics.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    averageRate:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Average record rate for messages to travel from
+                        source to destination topics, it is 0 if there are no messages
+                        travelling in between.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    name:
+                      description: Name of the mirrored topic.
+                      type: string
+                  required:
+                  - averageLatency
+                  - averageRate
+                  - name
+                  type: object
+                type: array
+              status:
+                description: The overall status of this mirror.
+                type: string
+            required:
+            - connectorName
+            - connectors
+            - id
+            - mirroredTopics
+            - status
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

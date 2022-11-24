@@ -1,0 +1,15 @@
+apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+kind: Mirror
+metadata:
+  name: mirror-sample
+spec:
+  kafkaConnectClusterId: "11ce9aa0-1580-49cd-8932-7669ee5ffd0c"
+  maxTasks: 3
+  renameMirroredTopics: true
+  sourceCluster:
+    - alias: "source-cluster"
+      managedCluster:
+        - "sourceKafkaClusterId": "c6c9669d-f000-4daf-9b6f-77dd5f37c3d0"
+          "usePrivateIps": true
+  "targetLatency": 5500
+  "topicsRegex": ".*"
