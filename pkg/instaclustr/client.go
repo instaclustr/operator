@@ -11,7 +11,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
-	topic "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
@@ -597,7 +596,7 @@ func (c *Client) DeleteFirewallRule(
 	return nil
 }
 
-func (c *Client) CreateKafkaTopic(url string, t *topic.Topic) error {
+func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
 	data, err := json.Marshal(t.Spec)
 	if err != nil {
 		return err
@@ -634,7 +633,9 @@ func (c *Client) DeleteKafkaTopic(url, id string) error {
 	if err != nil {
 		return err
 	}
+
 	body, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -643,7 +644,7 @@ func (c *Client) DeleteKafkaTopic(url, id string) error {
 	return nil
 }
 
-func (c *Client) UpdateKafkaTopic(url string, t *topic.Topic) error {
+func (c *Client) UpdateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
 	data, err := json.Marshal(apiv2convertors.TopicConfigsUpdateToInstAPI(t.Spec.TopicConfigs))
 	if err != nil {
 		return err
@@ -783,6 +784,89 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error {
+	data, err := json.Marshal(m.Spec)
+	if err != nil {
+		return err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	err = json.Unmarshal(body, &m.Status)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteKafkaMirror(url, id string) error {
+	url = c.serverHostname + url + id
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error {
+	updateTargetLatency := &struct {
+		TargetLatency int32 `json:"targetLatency"`
+	}{TargetLatency: m.Spec.TargetLatency}
+
+	data, err := json.Marshal(updateTargetLatency)
+	if err != nil {
+		return err
+	}
+
+	url = c.serverHostname + url + m.Status.ID
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	err = json.Unmarshal(body, &m.Status)
+	if err != nil {
+		return err
 	}
 
 	return nil

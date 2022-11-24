@@ -6,7 +6,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
-	topic "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -35,7 +34,10 @@ type API interface {
 	CreateKafkaUser(url string, kafkaUser *models2.KafkaUserAPIv2) (*kafkamanagementv1alpha1.KafkaUserStatus, error)
 	UpdateKafkaUser(kafkaUserID, kafkaUserEndpoint string, kafkaUserSpec *models2.KafkaUserAPIv2) error
 	DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error
-	CreateKafkaTopic(url string, topic *topic.Topic) error
+	CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
 	DeleteKafkaTopic(url, id string) error
-	UpdateKafkaTopic(url string, topic *topic.Topic) error
+	UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
+	CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
+	DeleteKafkaMirror(url, id string) error
+	UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
 }

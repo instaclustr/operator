@@ -20,5 +20,5 @@ spec:
   slaTier: "NON_PRODUCTION"
   targetCluster:
     - managedCluster:
-        - targetKafkaClusterId: "7b40424f-0372-4aac-a900-b4819f619f35"
+        - targetKafkaClusterId: "c6c9669d-f000-4daf-9b6f-77dd5f37c3d0"
           kafkaConnectVpcType: "KAFKA_VPC"

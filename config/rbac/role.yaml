@@ -327,6 +327,32 @@ rules:
   - patch
   - update
 - apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusters.instaclustr.com
+  resources:
+  - zookeepers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - kafkamanagement.instaclustr.com
   resources:
   - kafkausers
@@ -348,6 +374,32 @@ rules:
   - kafkamanagement.instaclustr.com
   resources:
   - kafkausers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - mirrors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - mirrors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - mirrors/status
   verbs:
   - get
   - patch
@@ -385,32 +437,6 @@ rules:
   - kafkamanagement.instaclustr.com
   resources:
   - topics/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - clusters.instaclustr.com
-  resources:
-  - zookeepers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - clusters.instaclustr.com
-  resources:
-  - zookeepers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - clusters.instaclustr.com
-  resources:
-  - zookeepers/status
   verbs:
   - get
   - patch

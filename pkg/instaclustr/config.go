@@ -12,6 +12,7 @@ const (
 	CassandraEndpoint                    = "/cluster-management/v2/resources/applications/cassandra/clusters/v2/"
 	KafkaEndpoint                        = "/cluster-management/v2/resources/applications/kafka/clusters/v2/"
 	KafkaConnectEndpoint                 = "/cluster-management/v2/resources/applications/kafka-connect/clusters/v2/"
+	KafkaMirrorEndpoint                  = "/cluster-management/v2/resources/applications/kafka_connect/mirrors/v2/"
 	KafkaTopicEndpoint                   = "/cluster-management/v2/resources/applications/kafka/topics/v2/"
 	KafkaTopicConfigsUpdateEndpoint      = "/cluster-management/v2/operations/applications/kafka/topics/v2/%s/modify-configs/v2"
 	ZookeeperEndpoint                    = "/cluster-management/v2/resources/applications/zookeeper/clusters/v2/"
