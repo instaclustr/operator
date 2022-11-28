@@ -71,6 +71,8 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.DurationVar(&scheduler.ClusterStatusInterval, "cluster-status-interval", 60*time.Second,
 		"An interval to check cluster status")
+	flag.DurationVar(&scheduler.ClusterBackupsInterval, "cluster-backups-interval", 60*time.Second,
+		"An interval to check cluster backups")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -221,6 +223,14 @@ func main() {
 		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSSecurityGroupFirewallRule")
+		os.Exit(1)
+	}
+	if err = (&clusterresourcescontrollers.ClusterBackupReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		API:    instaClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterBackup")
 		os.Exit(1)
 	}
 	if err = (&kafkamanagementcontrollers.KafkaUserReconciler{

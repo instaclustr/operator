@@ -18,6 +18,7 @@ resources:
 - bases/clusters.instaclustr.com_zookeepers.yaml
 - bases/kafkamanagement.instaclustr.com_kafkausers.yaml
 - bases/kafkamanagement.instaclustr.com_mirrors.yaml
+- bases/clusterresources.instaclustr.com_clusterbackups.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

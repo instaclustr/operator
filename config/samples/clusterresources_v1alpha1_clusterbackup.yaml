@@ -1,0 +1,6 @@
+apiVersion: clusterresources.instaclustr.com/v1alpha1
+kind: ClusterBackup
+metadata:
+  name: clusterbackup-sample
+spec:
+  clusterId: 770c5e41-c1ba-4d71-b9e2-1e243ef78db2

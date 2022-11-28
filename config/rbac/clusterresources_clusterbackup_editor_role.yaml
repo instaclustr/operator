@@ -1,0 +1,24 @@
+# permissions for end users to edit clusterbackups.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterbackup-editor-role
+rules:
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - clusterbackups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - clusterbackups/status
+  verbs:
+  - get
