@@ -871,3 +871,55 @@ func (c *Client) UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror
 
 	return nil
 }
+
+func (c *Client) GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error) {
+	url := c.serverHostname + endpoint + clusterID + BackupsEndpoint
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	clusterBackups := &models.ClusterBackup{}
+	err = json.Unmarshal(body, clusterBackups)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterBackups, nil
+}
+
+func (c *Client) TriggerClusterBackup(url, clusterID string) error {
+	url = c.serverHostname + url + clusterID + BackupsEndpoint
+
+	resp, err := c.DoRequest(url, http.MethodPost, nil)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}

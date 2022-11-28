@@ -95,6 +95,33 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - clusterbackups
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - clusterbackups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - clusterbackups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - clusternetworkfirewallrules
   verbs:
   - create

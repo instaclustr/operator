@@ -9,8 +9,10 @@ import (
 )
 
 var ClusterStatusInterval time.Duration
+var ClusterBackupsInterval time.Duration
 
 const StatusChecker = "statusChecker"
+const BackupsChecker = "backupsChecker"
 
 type Job func() error
 

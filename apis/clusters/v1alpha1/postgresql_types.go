@@ -17,8 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strconv"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 type PgDataCentre struct {
@@ -80,4 +86,21 @@ func (pg *PostgreSQL) GetJobID(jobName string) string {
 func (pg *PostgreSQL) NewPatch() client.Patch {
 	old := pg.DeepCopy()
 	return client.MergeFrom(old)
+}
+
+func (pg *PostgreSQL) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.ClusterBackup {
+	return &clusterresourcesv1alpha1.ClusterBackup{
+		TypeMeta: ctrl.TypeMeta{
+			Kind:       models.ClusterBackupKind,
+			APIVersion: models.ClusterresourcesV1alpha1APIVersion,
+		},
+		ObjectMeta: ctrl.ObjectMeta{
+			Name:        models.PgBackupPrefix + pg.Status.ID + "-" + strconv.Itoa(startTimestamp),
+			Namespace:   pg.Namespace,
+			Annotations: map[string]string{models.StartAnnotation: strconv.Itoa(startTimestamp)},
+			Labels:      map[string]string{models.ClusterIDLabel: pg.Status.ID},
+			Finalizers:  []string{models.DeletionFinalizer},
+		},
+		Spec: clusterresourcesv1alpha1.ClusterBackupSpec{ClusterID: pg.Status.ID},
+	}
 }

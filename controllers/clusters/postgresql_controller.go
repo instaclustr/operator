@@ -19,6 +19,7 @@ package clusters
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	apiv1convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
@@ -51,6 +53,7 @@ type PostgreSQLReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls/finalizers,verbs=update
+//+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups,verbs=get;list;create;update;patch;deletecollection;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -167,6 +170,15 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	err := r.startClusterStatusJob(pgCluster)
 	if err != nil {
 		logger.Error(err, "cannot start PostgreSQL cluster status check job",
+			"Cluster ID", pgCluster.Status.ID,
+		)
+
+		return &models.ReconcileRequeue
+	}
+
+	err = r.startClusterBackupsJob(pgCluster)
+	if err != nil {
+		logger.Error(err, "cannot start PostgreSQL cluster backups check job",
 			"Cluster ID", pgCluster.Status.ID,
 		)
 
@@ -349,6 +361,24 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		return &models.ReconcileRequeue
 	}
 
+	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.BackupsChecker))
+
+	logger.Info("Deleting cluster backup resources",
+		"Cluster ID", pgCluster.Status.ID,
+	)
+
+	err = r.deleteBackups(ctx, pgCluster.Status.ID, pgCluster.Namespace)
+	if err != nil {
+		logger.Error(err, "cannot delete cluster backup resources",
+			"Cluster ID", pgCluster.Status.ID,
+		)
+		return &models.ReconcileRequeue
+	}
+
+	logger.Info("Cluster backup resources were deleted",
+		"Cluster ID", pgCluster.Status.ID,
+	)
+
 	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(pgCluster, models.DeletionFinalizer)
 	pgCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -382,6 +412,17 @@ func (r *PostgreSQLReconciler) startClusterStatusJob(cluster *clustersv1alpha1.P
 	return nil
 }
 
+func (r *PostgreSQLReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.PostgreSQL) error {
+	job := r.newWatchBackupsJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *PostgreSQLReconciler) newWatchStatusJob(cluster *clustersv1alpha1.PostgreSQL) scheduler.Job {
 	l := log.Log.WithValues("component", "postgreSQLStatusClusterJob")
 
@@ -394,11 +435,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Postg
 			return err
 		}
 
-		if cluster.DeletionTimestamp != nil {
-			if len(cluster.Spec.TwoFactorDelete) != 0 &&
-				cluster.Annotations[models.DeletionConfirmed] != models.True {
-				return nil
-			}
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
 			l.Info("PostgreSQL cluster is being deleted. Status check job skipped",
 				"Cluster name", cluster.Spec.Name,
 				"Cluster ID", cluster.Status.ID,
@@ -435,6 +472,160 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Postg
 	}
 }
 
+func (r *PostgreSQLReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.PostgreSQL) scheduler.Job {
+	l := log.Log.WithValues("component", "postgreSQLBackupsClusterJob")
+
+	return func() error {
+		ctx := context.Background()
+		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		if err != nil {
+			return err
+		}
+
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
+			l.Info("PostgreSQL cluster is being deleted. Backups check job skipped",
+				"Cluster name", cluster.Spec.Name,
+				"Cluster ID", cluster.Status.ID,
+			)
+
+			return nil
+		}
+
+		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "cannot get PostgreSQL cluster backups",
+				"Cluster name", cluster.Spec.Name,
+				"ClusterID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		instBackupEvents := instBackups.GetBackupEvents(models.PgBackupEventType)
+
+		k8sBackupList, err := r.listClusterBackups(&ctx, cluster.Status.ID, cluster.Namespace)
+		if err != nil {
+			return err
+		}
+
+		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		for _, k8sBackup := range k8sBackupList.Items {
+			if k8sBackup.Status.Start != 0 {
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+			if k8sBackup.Annotations[models.StartAnnotation] != "" {
+				patch := k8sBackup.NewPatch()
+				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartAnnotation])
+				if err != nil {
+					return err
+				}
+
+				err = r.Status().Patch(ctx, &k8sBackup, patch)
+				if err != nil {
+					return err
+				}
+
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+
+			unassignedBackups = append(unassignedBackups, &k8sBackup)
+		}
+
+		for start, instBackup := range instBackupEvents {
+			if _, exists := k8sBackups[start]; exists {
+				if k8sBackups[start].Status.End != 0 {
+					continue
+				}
+
+				patch := k8sBackups[start].NewPatch()
+				k8sBackups[start].Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(ctx, k8sBackups[start], patch)
+				if err != nil {
+					return err
+				}
+
+				l.Info("Backup resource was updated",
+					"Backup resource name", k8sBackups[start].Name,
+				)
+				continue
+			}
+
+			if len(unassignedBackups) != 0 {
+				backupToAssign := unassignedBackups[len(unassignedBackups)-1]
+				unassignedBackups = unassignedBackups[:len(unassignedBackups)-1]
+				patch := backupToAssign.NewPatch()
+				backupToAssign.Status.Start = instBackup.Start
+				backupToAssign.Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(context.TODO(), backupToAssign, patch)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
+			backupSpec := cluster.NewBackupSpec(start)
+			err = r.Create(ctx, backupSpec)
+			if err != nil {
+				return err
+			}
+			l.Info("Found new backup on Instaclustr. New backup resource was created",
+				"Backup resource name", backupSpec.Name,
+			)
+		}
+
+		return nil
+	}
+}
+
+func (r *PostgreSQLReconciler) listClusterBackups(ctx *context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err := r.Client.List(*ctx, backupsList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return backupsList, nil
+}
+
+func (r *PostgreSQLReconciler) deleteBackups(ctx *context.Context, clusterID, namespace string) error {
+	backupsList, err := r.listClusterBackups(ctx, clusterID, namespace)
+	if err != nil {
+		return err
+	}
+
+	if len(backupsList.Items) == 0 {
+		return nil
+	}
+
+	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	opts := []client.DeleteAllOfOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err = r.DeleteAllOf(*ctx, backupType, opts...)
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backupsList.Items {
+		patch := backup.NewPatch()
+		controllerutil.RemoveFinalizer(&backup, models.DeletionFinalizer)
+		err = r.Patch(*ctx, &backup, patch)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -468,5 +659,6 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		})).
+		Owns(&clusterresourcesv1alpha1.ClusterBackup{}).
 		Complete(r)
 }

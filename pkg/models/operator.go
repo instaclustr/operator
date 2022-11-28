@@ -13,6 +13,7 @@ const (
 	UpdatedFieldsAnnotation = "instaclustr.com/updatedFields"
 
 	ControlledByLabel          = "instaclustr.com/controlledBy"
+	ClusterIDLabel             = "instaclustr.com/clusterID"
 	ClustersV1alpha1APIVersion = "clusters.instaclustr.com/v1alpha1"
 
 	CassandraKind        = "Cassandra"
@@ -34,6 +35,12 @@ const (
 
 	True  = "true"
 	False = "false"
+
+	ClusterBackupKind                  = "ClusterBackup"
+	PgBackupEventType                  = "postgresql-backup"
+	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
+	StartAnnotation                    = "instaclustr.com/startTimestamp"
+	PgBackupPrefix                     = "postgresql-backup-"
 )
 
 const (

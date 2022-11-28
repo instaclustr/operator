@@ -1,6 +1,12 @@
 package v1alpha1
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/instaclustr/operator/pkg/models"
+)
 
 type VPCPeeringSpec struct {
 	DataCentreID string   `json:"cdcId"`
@@ -29,4 +35,18 @@ type FirewallRuleStatus struct {
 	ID             string `json:"id,omitempty"`
 	DeferredReason string `json:"deferredReason,omitempty"`
 	Status         string `json:"status,omitempty"`
+}
+
+func IsClusterBeingDeleted(deletionTimestamp *metav1.Time, twoFactorDeleteLen int, deletionConfirmedAnnotation string) bool {
+	if deletionTimestamp != nil {
+		if twoFactorDeleteLen == 0 {
+			return true
+		}
+
+		if deletionConfirmedAnnotation == models.True {
+			return true
+		}
+	}
+
+	return false
 }
