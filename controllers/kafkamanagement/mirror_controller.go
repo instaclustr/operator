@@ -135,27 +135,32 @@ func (r *MirrorReconciler) handleCreateCluster(
 
 func (r *MirrorReconciler) handleUpdateCluster(
 	ctx context.Context,
-	t *kafkamanagementv1alpha1.Mirror,
+	mirror *kafkamanagementv1alpha1.Mirror,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Update Event")
 
-	patch := t.NewPatch()
+	patch := mirror.NewPatch()
 
-	err := r.API.UpdateKafkaMirror(instaclustr.KafkaMirrorEndpoint, t)
+	err := r.API.UpdateKafkaMirror(instaclustr.KafkaMirrorEndpoint, mirror)
 	if err != nil {
 		l.Error(err, "Unable to update mirror, got error from Instaclustr",
-			"Cluster name", t.Spec.KafkaConnectClusterID,
-			"Cluster ID", t.Status.ID,
+			"kafka connect ID", mirror.Spec.KafkaConnectClusterID,
+			"mirror ID", mirror.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
-	l.Info("kafka mirror has been updated")
+	l.Info("Kafka mirror has been updated",
+		"cluster ID", mirror.Spec.KafkaConnectClusterID,
+		"mirror.Status.ID", mirror.Status.ID,
+		"target latency", mirror.Spec.TargetLatency,
+		"connector name", mirror.Status.ConnectorName)
 
-	err = r.Status().Patch(ctx, t, patch)
+	err = r.Status().Patch(ctx, mirror, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Kafka mirror management after update op",
-			"spec", t.Spec)
+		l.Error(err, "Cannot patch Kafka mirror management after update op",
+			"spec", mirror.Spec,
+			"status", mirror.Status)
 		return models.ReconcileRequeue
 	}
 

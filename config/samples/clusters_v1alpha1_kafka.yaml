@@ -13,11 +13,17 @@ spec:
   clientToClusterEncryption: true
   privateNetworkCluster: true
   slaTier: "NON_PRODUCTION"
-#  schemaRegistry:
-#    - version: "5.0.0"
-#  restProxy:
-#    - integrateRestProxyWithSchemaRegistry: false
-#      version: "5.0.0"
+#  karapaceSchemaRegistry:
+#    - version: "3.2.0"
+  schemaRegistry:
+    - version: "5.0.0"
+#  karapaceRestProxy:
+#    - integrateRestProxyWithSchemaRegistry: true
+#      version: "3.2.0"
+  restProxy:
+    - integrateRestProxyWithSchemaRegistry: false
+      "useLocalSchemaRegistry": true
+      version: "5.0.0"
   dataCentres:
     - name: "AWS_VPC_US_EAST_1"
       nodesNumber: 3
@@ -26,7 +32,7 @@ spec:
         tag: "oneTag"
         tag2: "twoTags"
 #      nodeSize: "KFK-PRD-r6g.large-250"
-      nodeSize: "KFK-DEV-t4g.small-5"
+      nodeSize: "KFK-DEV-t4g.medium-80"
       network: "10.0.0.0/16"
       region: "US_EAST_1"
 #  dedicatedZookeeper:
