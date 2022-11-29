@@ -48,6 +48,15 @@ type DedicatedZookeeper struct {
 	NodesNumber int32 `json:"nodesNumber"`
 }
 
+type KarapaceRestProxy struct {
+	IntegrateRestProxyWithSchemaRegistry bool   `json:"integrateRestProxyWithSchemaRegistry"`
+	Version                              string `json:"version"`
+}
+
+type KarapaceSchemaRegistry struct {
+	Version string `json:"version"`
+}
+
 // KafkaSpec defines the desired state of Kafka
 type KafkaSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -70,7 +79,12 @@ type KafkaSpec struct {
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
 	// Zookeeper nodes will be co-located with Kafka if this is not provided
-	DedicatedZookeeper []*DedicatedZookeeper `json:"dedicatedZookeeper,omitempty"`
+	DedicatedZookeeper                []*DedicatedZookeeper     `json:"dedicatedZookeeper,omitempty"`
+	ClientBrokerAuthWithMTLS          bool                      `json:"clientBrokerAuthWithMtls,omitempty"`
+	ClientAuthBrokerWithoutEncryption bool                      `json:"clientAuthBrokerWithoutEncryption,omitempty"`
+	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption,omitempty"`
+	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
+	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 }
 
 type KafkaDataCentre struct {
