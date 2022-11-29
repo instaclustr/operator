@@ -39,6 +39,12 @@ spec:
                 type: boolean
               autoCreateTopics:
                 type: boolean
+              clientAuthBrokerWithEncryption:
+                type: boolean
+              clientAuthBrokerWithoutEncryption:
+                type: boolean
+              clientBrokerAuthWithMtls:
+                type: boolean
               clientToClusterEncryption:
                 type: boolean
               dataCentres:
@@ -100,6 +106,27 @@ spec:
                   required:
                   - nodeSize
                   - nodesNumber
+                  type: object
+                type: array
+              karapaceRestProxy:
+                items:
+                  properties:
+                    integrateRestProxyWithSchemaRegistry:
+                      type: boolean
+                    version:
+                      type: string
+                  required:
+                  - integrateRestProxyWithSchemaRegistry
+                  - version
+                  type: object
+                type: array
+              karapaceSchemaRegistry:
+                items:
+                  properties:
+                    version:
+                      type: string
+                  required:
+                  - version
                   type: object
                 type: array
               name:

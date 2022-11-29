@@ -190,11 +190,10 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 			return models.ReconcileRequeue
 		}
 
-		r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
-
 		return models.ReconcileRequeue
 	}
 
+	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(kc, models.DeletionFinalizer)
 	kc.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, kc, patch)
@@ -203,6 +202,10 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 			"Cluster name", kc.Spec.Name)
 		return models.ReconcileRequeue
 	}
+
+	l.Info("Kafka Connect cluster was deleted",
+		"cluster name", kc.Spec.Name,
+		"cluster ID", kc.Status.ID)
 
 	return reconcile.Result{}
 }

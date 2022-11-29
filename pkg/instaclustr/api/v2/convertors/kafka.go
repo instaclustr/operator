@@ -6,21 +6,26 @@ import (
 )
 
 type CreateKafka struct {
-	PCIComplianceMode         bool                      `json:"pciComplianceMode"`
-	SchemaRegistry            []*SchemaRegistry         `json:"schemaRegistry,omitempty"`
-	DefaultReplicationFactor  int32                     `json:"defaultReplicationFactor"`
-	DefaultNumberOfPartitions int32                     `json:"defaultNumberOfPartitions"`
-	RestProxy                 []*RestProxy              `json:"restProxy,omitempty"`
-	TwoFactorDelete           []*models.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	AllowDeleteTopics         bool                      `json:"allowDeleteTopics"`
-	AutoCreateTopics          bool                      `json:"autoCreateTopics"`
-	ClientToClusterEncryption bool                      `json:"clientToClusterEncryption"`
-	KafkaDataCentre           []*models.DataCentre      `json:"dataCentres"`
-	DedicatedZookeeper        []*DedicatedZookeeper     `json:"dedicatedZookeeper,omitempty"`
-	PrivateNetworkCluster     bool                      `json:"privateNetworkCluster"`
-	KafkaVersion              string                    `json:"kafkaVersion"`
-	Name                      string                    `json:"name"`
-	SLATier                   string                    `json:"slaTier"`
+	PCIComplianceMode                 bool                      `json:"pciComplianceMode"`
+	SchemaRegistry                    []*SchemaRegistry         `json:"schemaRegistry,omitempty"`
+	DefaultReplicationFactor          int32                     `json:"defaultReplicationFactor"`
+	DefaultNumberOfPartitions         int32                     `json:"defaultNumberOfPartitions"`
+	RestProxy                         []*RestProxy              `json:"restProxy,omitempty"`
+	TwoFactorDelete                   []*models.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	AllowDeleteTopics                 bool                      `json:"allowDeleteTopics"`
+	AutoCreateTopics                  bool                      `json:"autoCreateTopics"`
+	ClientToClusterEncryption         bool                      `json:"clientToClusterEncryption"`
+	KafkaDataCentre                   []*models.DataCentre      `json:"dataCentres"`
+	DedicatedZookeeper                []*DedicatedZookeeper     `json:"dedicatedZookeeper,omitempty"`
+	PrivateNetworkCluster             bool                      `json:"privateNetworkCluster"`
+	KafkaVersion                      string                    `json:"kafkaVersion"`
+	Name                              string                    `json:"name"`
+	SLATier                           string                    `json:"slaTier"`
+	ClientBrokerAuthWithMTLS          bool                      `json:"clientBrokerAuthWithMtls,omitempty"`
+	ClientAuthBrokerWithoutEncryption bool                      `json:"clientAuthBrokerWithoutEncryption,omitempty"`
+	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption,omitempty"`
+	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
+	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 }
 
 type SchemaRegistry struct {
@@ -36,6 +41,15 @@ type RestProxy struct {
 	Version                              string `json:"version"`
 }
 
+type KarapaceRestProxy struct {
+	IntegrateRestProxyWithSchemaRegistry bool   `json:"integrateRestProxyWithSchemaRegistry"`
+	Version                              string `json:"version"`
+}
+
+type KarapaceSchemaRegistry struct {
+	Version string `json:"version"`
+}
+
 type DedicatedZookeeper struct {
 	ZookeeperNodeSize  string `json:"zookeeperNodeSize"`
 	ZookeeperNodeCount int32  `json:"zookeeperNodeCount"`
@@ -43,21 +57,26 @@ type DedicatedZookeeper struct {
 
 func KafkaToInstAPI(k v1alpha1.KafkaSpec) CreateKafka {
 	return CreateKafka{
-		SchemaRegistry:            schemaRegistryToInstAPI(k.SchemaRegistry),
-		RestProxy:                 restProxyToInstAPI(k.RestProxy),
-		PCIComplianceMode:         k.PCICompliance,
-		DefaultReplicationFactor:  k.ReplicationFactorNumber,
-		DefaultNumberOfPartitions: k.PartitionsNumber,
-		TwoFactorDelete:           twoFactorDeleteToInstAPI(k.TwoFactorDelete),
-		AllowDeleteTopics:         k.AllowDeleteTopics,
-		AutoCreateTopics:          k.AutoCreateTopics,
-		ClientToClusterEncryption: k.ClientToClusterEncryption,
-		DedicatedZookeeper:        dedicatedZookeeperToInstAPI(k.DedicatedZookeeper),
-		PrivateNetworkCluster:     k.PrivateNetworkCluster,
-		Name:                      k.Name,
-		SLATier:                   k.SLATier,
-		KafkaVersion:              k.Version,
-		KafkaDataCentre:           kafkaDataCentresToInstAPI(k.DataCentres),
+		SchemaRegistry:                    schemaRegistryToInstAPI(k.SchemaRegistry),
+		RestProxy:                         restProxyToInstAPI(k.RestProxy),
+		PCIComplianceMode:                 k.PCICompliance,
+		DefaultReplicationFactor:          k.ReplicationFactorNumber,
+		DefaultNumberOfPartitions:         k.PartitionsNumber,
+		TwoFactorDelete:                   twoFactorDeleteToInstAPI(k.TwoFactorDelete),
+		AllowDeleteTopics:                 k.AllowDeleteTopics,
+		AutoCreateTopics:                  k.AutoCreateTopics,
+		ClientToClusterEncryption:         k.ClientToClusterEncryption,
+		DedicatedZookeeper:                dedicatedZookeeperToInstAPI(k.DedicatedZookeeper),
+		PrivateNetworkCluster:             k.PrivateNetworkCluster,
+		Name:                              k.Name,
+		SLATier:                           k.SLATier,
+		KafkaVersion:                      k.Version,
+		KafkaDataCentre:                   kafkaDataCentresToInstAPI(k.DataCentres),
+		ClientBrokerAuthWithMTLS:          k.ClientBrokerAuthWithMTLS,
+		ClientAuthBrokerWithoutEncryption: k.ClientAuthBrokerWithoutEncryption,
+		ClientAuthBrokerWithEncryption:    k.ClientAuthBrokerWithEncryption,
+		KarapaceRestProxy:                 karapaceRestProxyToInstAPI(k.KarapaceRestProxy),
+		KarapaceSchemaRegistry:            karapaceSchemaRegistryToInstAPI(k.KarapaceSchemaRegistry),
 	}
 }
 
@@ -69,6 +88,21 @@ func schemaRegistryToInstAPI(crdSchemas []*v1alpha1.SchemaRegistry) []*SchemaReg
 	var instaSchemas []*SchemaRegistry
 	for _, schema := range crdSchemas {
 		instaSchemas = append(instaSchemas, &SchemaRegistry{
+			Version: schema.Version,
+		})
+	}
+
+	return instaSchemas
+}
+
+func karapaceSchemaRegistryToInstAPI(crdSchemas []*v1alpha1.KarapaceSchemaRegistry) []*KarapaceSchemaRegistry {
+	if crdSchemas == nil {
+		return nil
+	}
+
+	var instaSchemas []*KarapaceSchemaRegistry
+	for _, schema := range crdSchemas {
+		instaSchemas = append(instaSchemas, &KarapaceSchemaRegistry{
 			Version: schema.Version,
 		})
 	}
@@ -89,6 +123,22 @@ func restProxyToInstAPI(crdProxies []*v1alpha1.RestProxy) []*RestProxy {
 			SchemaRegistryServerURL:              proxy.SchemaRegistryServerURL,
 			SchemaRegistryUsername:               proxy.SchemaRegistryUsername,
 			SchemaRegistryPassword:               proxy.SchemaRegistryPassword,
+			Version:                              proxy.Version,
+		})
+	}
+
+	return instaRestProxies
+}
+
+func karapaceRestProxyToInstAPI(crdProxies []*v1alpha1.KarapaceRestProxy) []*KarapaceRestProxy {
+	if crdProxies == nil {
+		return nil
+	}
+
+	var instaRestProxies []*KarapaceRestProxy
+	for _, proxy := range crdProxies {
+		instaRestProxies = append(instaRestProxies, &KarapaceRestProxy{
+			IntegrateRestProxyWithSchemaRegistry: proxy.IntegrateRestProxyWithSchemaRegistry,
 			Version:                              proxy.Version,
 		})
 	}
