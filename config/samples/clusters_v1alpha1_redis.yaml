@@ -14,6 +14,8 @@ spec:
   slaTier: "NON_PRODUCTION"
   concurrentResizes: 1
   notifySupportContacts: false
+#  twoFactorDelete:
+#    - email: "rostyslp@netapp.com"
   dataCentres:
     - region: "US_WEST_2"
       cloudProvider: "AWS_VPC"
