@@ -1,0 +1,12 @@
+apiVersion: clusterresources.instaclustr.com/v1alpha1
+kind: NodeReload
+metadata:
+  name: nodereload-sample
+spec:
+  nodes:
+    - bundle: "POSTGRESQL"
+      nodeID: "ce567c90-3ce4-49e7-9ac9-fc1f3f91e33e"
+    - bundle: "POSTGRESQL"
+      nodeID: "e7acd145-8329-4577-9eaf-cc8dce4c54eb"
+    - bundle: "POSTGRESQL"
+      nodeID: "2f94dd6d-3a65-4ad6-81bd-d3db8115ad63"

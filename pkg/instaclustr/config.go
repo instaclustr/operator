@@ -34,6 +34,7 @@ const (
 	TerraformDescription                   = "/terraform-description"
 	ClustersCreationEndpoint               = "/provisioning/v1/extended/"
 	BackupsEndpoint                        = "/backups"
+	NodeReloadEndpoint                     = "/provisioning/v1/%s/node/%s/reload"
 
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
 	ClustersEndpointV1 = "/provisioning/v1/"

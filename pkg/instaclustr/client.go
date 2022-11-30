@@ -12,6 +12,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
+	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
@@ -922,4 +923,65 @@ func (c *Client) TriggerClusterBackup(url, clusterID string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) CreateNodeReload(bundle,
+	nodeID string,
+	nr *modelsv1.NodeReload,
+) error {
+	data, err := json.Marshal(nr)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf(c.serverHostname+NodeReloadEndpoint, bundle, nodeID)
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) GetNodeReloadStatus(
+	bundle,
+	nodeID string,
+) (*modelsv1.NodeReloadStatusAPIv1, error) {
+	url := fmt.Sprintf(c.serverHostname+NodeReloadEndpoint, bundle, nodeID)
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var nodeReload *modelsv1.NodeReloadStatusAPIv1
+	err = json.Unmarshal(body, &nodeReload)
+	if err != nil {
+		return nil, err
+	}
+
+	return nodeReload, nil
 }

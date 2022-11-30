@@ -3,6 +3,7 @@ package convertors
 import (
 	"encoding/json"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
@@ -164,4 +165,22 @@ func CheckSingleDCCluster(dataCentresNumber int) bool {
 	}
 
 	return true
+}
+
+func NodeReloadStatusFromInstAPI(nodeInProgress clusterresourcesv1alpha1.Node, nrStatus *modelsv1.NodeReloadStatusAPIv1) clusterresourcesv1alpha1.NodeReloadStatus {
+	var nrOperations []*clusterresourcesv1alpha1.Operation
+	for _, nro := range nrStatus.Operations {
+		nrOperation := &clusterresourcesv1alpha1.Operation{
+			TimeCreated:  nro.TimeCreated,
+			TimeModified: nro.TimeModified,
+			Status:       nro.Status,
+			Message:      nro.Message,
+		}
+		nrOperations = append(nrOperations, nrOperation)
+	}
+	nodeReloadStatus := clusterresourcesv1alpha1.NodeReloadStatus{
+		NodeInProgress:         nodeInProgress,
+		CurrentOperationStatus: nrOperations,
+	}
+	return nodeReloadStatus
 }
