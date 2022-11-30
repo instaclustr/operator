@@ -172,6 +172,32 @@ rules:
   - patch
   - update
 - apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - nodereloads
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - nodereloads/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - nodereloads/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - clusters.instaclustr.com
   resources:
   - cadences

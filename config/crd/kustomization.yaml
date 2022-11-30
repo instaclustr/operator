@@ -19,6 +19,7 @@ resources:
 - bases/kafkamanagement.instaclustr.com_kafkausers.yaml
 - bases/kafkamanagement.instaclustr.com_mirrors.yaml
 - bases/clusterresources.instaclustr.com_clusterbackups.yaml
+- bases/clusterresources.instaclustr.com_nodereloads.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -39,6 +40,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_awssecuritygroupfirewallrules.yaml
 #- patches/webhook_in_topics.yaml
 #- patches/webhook_in_zookeepers.yaml
+#- patches/webhook_in_nodereloads.yaml
 #- patches/webhook_in_mirrors.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
@@ -59,6 +61,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_awssecuritygroupfirewallrules.yaml
 #- patches/cainjection_in_topics.yaml
 #- patches/cainjection_in_zookeepers.yaml
+#- patches/cainjection_in_nodereloads.yaml
 #- patches/cainjection_in_mirrors.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
