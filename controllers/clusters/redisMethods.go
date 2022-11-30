@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -101,9 +100,9 @@ func (r *RedisReconciler) twoFactorDeleteToInstAPIv1(twoFactorDelete []*clusters
 }
 
 func (r *RedisReconciler) patchClusterMetadata(
-	ctx *context.Context,
+	ctx context.Context,
 	redisCluster *clustersv1alpha1.Redis,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	patchRequest := []*clustersv1alpha1.PatchRequest{}
 
@@ -136,7 +135,7 @@ func (r *RedisReconciler) patchClusterMetadata(
 		return err
 	}
 
-	err = r.Patch(*ctx, redisCluster, client.RawPatch(types.JSONPatchType, patchPayload))
+	err = r.Patch(ctx, redisCluster, client.RawPatch(types.JSONPatchType, patchPayload))
 	if err != nil {
 		return err
 	}
@@ -152,7 +151,7 @@ func (r *RedisReconciler) patchClusterMetadata(
 func (r *RedisReconciler) reconcileDataCentresNumber(
 	clusterStatusFromInst *clustersv1alpha1.ClusterStatus,
 	cluster *clustersv1alpha1.Redis,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	dataCentresToAdd := r.checkDataCentresToAdd(clusterStatusFromInst, cluster)
 	if len(dataCentresToAdd) > 0 {
@@ -207,46 +206,29 @@ func (r *RedisReconciler) dataCentreToInstAPIv1(dataCentre *clustersv1alpha1.Red
 func (r *RedisReconciler) reconcileDataCentresNodeSize(
 	instClusterStatus *clustersv1alpha1.ClusterStatus,
 	cluster *clustersv1alpha1.Redis,
-	logger *logr.Logger,
-) (*reconcile.Result, error) {
+	logger logr.Logger,
+) error {
 	dataCentresToResize := r.checkDataCentresToResize(instClusterStatus.DataCentres, cluster.Spec.DataCentres)
 	if len(dataCentresToResize) > 0 {
 		err := r.resizeDataCentres(dataCentresToResize, cluster, logger)
-		if errors.Is(err, instaclustr.StatusPreconditionFailed) {
-			logger.Info("cluster is not ready to resize",
-				"Cluster name", cluster.Spec.Name,
-				"Cluster status", instClusterStatus.Status,
-				"Reason", err,
-			)
-			return &reconcile.Result{
-				Requeue:      true,
-				RequeueAfter: models.Requeue60,
-			}, nil
-		}
-		if errors.Is(err, instaclustr.CannotDownsizeNode) {
-			logger.Info("cannot downsize node type",
-				"Cluster name", cluster.Spec.Name,
-				"Current node size", instClusterStatus.DataCentres[0].Nodes[0].Size,
-				"New node size", cluster.Spec.DataCentres[0].NodeSize,
-				"Reason", err,
-			)
-			return &reconcile.Result{
-				Requeue:      true,
-				RequeueAfter: models.Requeue60,
-			}, nil
-		}
 		if err != nil {
-			return &reconcile.Result{}, err
+			logger.Error(err, "cannot resize Redis cluster data centres",
+				"Cluster name", cluster.Spec.Name,
+				"New data centres", cluster.Spec.DataCentres,
+				"Old data centres", instClusterStatus.DataCentres,
+			)
+
+			return err
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (r *RedisReconciler) resizeDataCentres(
 	dataCentresToResize []*clustersv1alpha1.ResizedDataCentre,
 	cluster *clustersv1alpha1.Redis,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	for _, dataCentre := range dataCentresToResize {
 		activeResizeOperations, err := r.getDataCentreOperations(cluster.Status.ID, dataCentre.DataCentreID)
@@ -285,6 +267,16 @@ func (r *RedisReconciler) resizeDataCentres(
 		}
 		err = r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
 		if err != nil {
+			if errors.Is(err, instaclustr.StatusPreconditionFailed) {
+				logger.Info("Redis cluster is not ready to resize",
+					"Cluster name", cluster.Spec.Name,
+					"Cluster status", cluster.Status.Status,
+					"Reason", err,
+				)
+
+				return err
+			}
+
 			return err
 		}
 
