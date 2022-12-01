@@ -15,6 +15,8 @@ spec:
   version: "opensearch:2.2.1"
   concurrentResizes: 1
   notifySupportContacts: false
+#  twoFactorDelete:
+#    - email: "rostyslp@netapp.com"
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
