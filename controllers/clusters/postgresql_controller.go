@@ -435,7 +435,11 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Postg
 			return err
 		}
 
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(
+			cluster.DeletionTimestamp,
+			len(cluster.Spec.TwoFactorDelete),
+			cluster.Annotations[models.DeletionConfirmed],
+		) {
 			l.Info("PostgreSQL cluster is being deleted. Status check job skipped",
 				"Cluster name", cluster.Spec.Name,
 				"Cluster ID", cluster.Status.ID,

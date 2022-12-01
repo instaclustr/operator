@@ -15,9 +15,9 @@ import (
 )
 
 func (r *OpenSearchReconciler) patchClusterMetadata(
-	ctx *context.Context,
+	ctx context.Context,
 	openSearchCluster *clustersv1alpha1.OpenSearch,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	patchRequest := []*clustersv1alpha1.PatchRequest{}
 
@@ -50,7 +50,7 @@ func (r *OpenSearchReconciler) patchClusterMetadata(
 		return err
 	}
 
-	err = r.Patch(*ctx, openSearchCluster, client.RawPatch(types.JSONPatchType, patchPayload))
+	err = r.Patch(ctx, openSearchCluster, client.RawPatch(types.JSONPatchType, patchPayload))
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (r *OpenSearchReconciler) patchClusterMetadata(
 func (r *OpenSearchReconciler) reconcileDataCentresNodeSize(
 	openSearchInstClusterStatus *clustersv1alpha1.ClusterStatus,
 	openSearchCluster *clustersv1alpha1.OpenSearch,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	dataCentreToResize := r.newDataCentreResize(openSearchInstClusterStatus.Options,
 		openSearchCluster.Spec.DataCentres[0],
@@ -117,7 +117,7 @@ func (r *OpenSearchReconciler) newDataCentreResize(
 func (r *OpenSearchReconciler) resizeDataCentres(
 	dataCentreToResize *clustersv1alpha1.ResizedDataCentre,
 	openSearchCluster *clustersv1alpha1.OpenSearch,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	activeResizeOperations, err := r.getDataCentreOperations(openSearchCluster.Status.ID, dataCentreToResize.DataCentreID)
 	if err != nil {
