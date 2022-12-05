@@ -37,8 +37,11 @@ spec:
             properties:
               clusterId:
                 type: string
+              clusterKind:
+                type: string
             required:
             - clusterId
+            - clusterKind
             type: object
           status:
             description: ClusterBackupStatus defines the observed state of ClusterBackup

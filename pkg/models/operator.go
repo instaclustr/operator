@@ -37,10 +37,14 @@ const (
 	False = "false"
 
 	ClusterBackupKind                  = "ClusterBackup"
+	PgClusterKind                      = "PostgreSQL"
+	RedisClusterKind                   = "Redis"
 	PgBackupEventType                  = "postgresql-backup"
+	SnapshotUploadEventType            = "snapshot-upload"
 	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
 	StartAnnotation                    = "instaclustr.com/startTimestamp"
 	PgBackupPrefix                     = "postgresql-backup-"
+	SnapshotUploadPrefix               = "snapshot-upload-"
 )
 
 const (

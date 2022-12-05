@@ -101,6 +101,9 @@ func (pg *PostgreSQL) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha
 			Labels:      map[string]string{models.ClusterIDLabel: pg.Status.ID},
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
-		Spec: clusterresourcesv1alpha1.ClusterBackupSpec{ClusterID: pg.Status.ID},
+		Spec: clusterresourcesv1alpha1.ClusterBackupSpec{
+			ClusterID:   pg.Status.ID,
+			ClusterKind: models.PgClusterKind,
+		},
 	}
 }

@@ -143,7 +143,16 @@ type BackupEvent struct {
 	End      int     `json:"end"`
 }
 
-func (cb *ClusterBackup) GetBackupEvents(eventType string) map[int]*BackupEvent {
+func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEvent {
+	var eventType string
+
+	switch clusterKind {
+	case RedisClusterKind:
+		eventType = SnapshotUploadEventType
+	case PgClusterKind:
+		eventType = PgBackupEventType
+	}
+
 	instBackupEvents := map[int]*BackupEvent{}
 	for _, instDC := range cb.ClusterDataCentres {
 		for _, instNode := range instDC.Nodes {
