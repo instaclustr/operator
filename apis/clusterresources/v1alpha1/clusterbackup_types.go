@@ -27,7 +27,8 @@ import (
 
 // ClusterBackupSpec defines the desired state of ClusterBackup
 type ClusterBackupSpec struct {
-	ClusterID string `json:"clusterId"`
+	ClusterID   string `json:"clusterId"`
+	ClusterKind string `json:"clusterKind"`
 }
 
 // ClusterBackupStatus defines the observed state of ClusterBackup

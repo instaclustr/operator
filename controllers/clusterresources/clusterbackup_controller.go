@@ -18,7 +18,6 @@ package clusterresources
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -104,7 +104,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return models.ReconcileRequeue, nil
 	}
 
-	instBackupEvents := instBackup.GetBackupEvents(models.PgBackupEventType)
+	instBackupEvents := instBackup.GetBackupEvents(backup.Spec.ClusterKind)
 
 	backupsList, err := r.listClusterBackups(ctx, backup.Spec.ClusterID, backup.Namespace)
 	if err != nil {
