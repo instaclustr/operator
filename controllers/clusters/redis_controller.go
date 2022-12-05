@@ -19,6 +19,7 @@ package clusters
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -150,6 +151,15 @@ func (r *RedisReconciler) HandleCreateCluster(
 	if err != nil {
 		logger.Error(err, "cannot start cluster status job",
 			"Redis cluster ID", redisCluster.Status.ID,
+		)
+
+		return models.ReconcileRequeue
+	}
+
+	err = r.startClusterBackupsJob(redisCluster)
+	if err != nil {
+		logger.Error(err, "cannot start Redis cluster backups check job",
+			"Cluster ID", redisCluster.Status.ID,
 		)
 
 		return models.ReconcileRequeue
@@ -297,6 +307,24 @@ func (r *RedisReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	r.Scheduler.RemoveJob(redisCluster.GetJobID(scheduler.BackupsChecker))
+
+	logger.Info("Deleting cluster backup resources",
+		"cluster ID", redisCluster.Status.ID,
+	)
+
+	err = r.deleteBackups(ctx, redisCluster.Status.ID, redisCluster.Namespace)
+	if err != nil {
+		logger.Error(err, "Cannot delete cluster backup resources",
+			"cluster ID", redisCluster.Status.ID,
+		)
+		return models.ReconcileRequeue
+	}
+
+	logger.Info("Cluster backup resources were deleted",
+		"cluster ID", redisCluster.Status.ID,
+	)
+
 	r.Scheduler.RemoveJob(redisCluster.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(redisCluster, models.DeletionFinalizer)
 	redisCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -322,6 +350,17 @@ func (r *RedisReconciler) startClusterStatusJob(cluster *clustersv1alpha1.Redis)
 	job := r.newWatchStatusJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *RedisReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Redis) error {
+	job := r.newWatchBackupsJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
 	if err != nil {
 		return err
 	}
@@ -374,6 +413,160 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 
 		return nil
 	}
+}
+
+func (r *RedisReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Redis) scheduler.Job {
+	l := log.Log.WithValues("component", "redisBackupsClusterJob")
+
+	return func() error {
+		ctx := context.Background()
+		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		if err != nil {
+			return err
+		}
+
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
+			l.Info("Redis cluster is being deleted. Backups check job skipped",
+				"Cluster name", cluster.Spec.Name,
+				"Cluster ID", cluster.Status.ID,
+			)
+
+			return nil
+		}
+
+		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "cannot get Redis cluster backups",
+				"Cluster name", cluster.Spec.Name,
+				"ClusterID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		instBackupEvents := instBackups.GetBackupEvents(models.RedisClusterKind)
+
+		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
+		if err != nil {
+			return err
+		}
+
+		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		for _, k8sBackup := range k8sBackupList.Items {
+			if k8sBackup.Status.Start != 0 {
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+			if k8sBackup.Annotations[models.StartAnnotation] != "" {
+				patch := k8sBackup.NewPatch()
+				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartAnnotation])
+				if err != nil {
+					return err
+				}
+
+				err = r.Status().Patch(ctx, &k8sBackup, patch)
+				if err != nil {
+					return err
+				}
+
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+
+			unassignedBackups = append(unassignedBackups, &k8sBackup)
+		}
+
+		for start, instBackup := range instBackupEvents {
+			if _, exists := k8sBackups[start]; exists {
+				if k8sBackups[start].Status.End != 0 {
+					continue
+				}
+
+				patch := k8sBackups[start].NewPatch()
+				k8sBackups[start].Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(ctx, k8sBackups[start], patch)
+				if err != nil {
+					return err
+				}
+
+				l.Info("Backup resource was updated",
+					"Backup resource name", k8sBackups[start].Name,
+				)
+				continue
+			}
+
+			if len(unassignedBackups) != 0 {
+				backupToAssign := unassignedBackups[len(unassignedBackups)-1]
+				unassignedBackups = unassignedBackups[:len(unassignedBackups)-1]
+				patch := backupToAssign.NewPatch()
+				backupToAssign.Status.Start = instBackup.Start
+				backupToAssign.Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(context.TODO(), backupToAssign, patch)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
+			backupSpec := cluster.NewBackupSpec(start)
+			err = r.Create(ctx, backupSpec)
+			if err != nil {
+				return err
+			}
+			l.Info("Found new backup on Instaclustr. New backup resource was created",
+				"Backup resource name", backupSpec.Name,
+			)
+		}
+
+		return nil
+	}
+}
+
+func (r *RedisReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err := r.Client.List(ctx, backupsList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return backupsList, nil
+}
+
+func (r *RedisReconciler) deleteBackups(ctx context.Context, clusterID, namespace string) error {
+	backupsList, err := r.listClusterBackups(ctx, clusterID, namespace)
+	if err != nil {
+		return err
+	}
+
+	if len(backupsList.Items) == 0 {
+		return nil
+	}
+
+	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	opts := []client.DeleteAllOfOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err = r.DeleteAllOf(ctx, backupType, opts...)
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backupsList.Items {
+		patch := backup.NewPatch()
+		controllerutil.RemoveFinalizer(&backup, models.DeletionFinalizer)
+		err = r.Patch(ctx, &backup, patch)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

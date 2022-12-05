@@ -16,9 +16,9 @@ import (
 )
 
 func (r *PostgreSQLReconciler) patchClusterMetadata(
-	ctx *context.Context,
+	ctx context.Context,
 	pgCluster *clustersv1alpha1.PostgreSQL,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	patchRequest := []*clustersv1alpha1.PatchRequest{}
 
@@ -51,7 +51,7 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 		return err
 	}
 
-	err = r.Patch(*ctx, pgCluster, client.RawPatch(types.JSONPatchType, patchPayload))
+	err = r.Patch(ctx, pgCluster, client.RawPatch(types.JSONPatchType, patchPayload))
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 func (r *PostgreSQLReconciler) reconcileDataCentresNodeSize(
 	pgInstClusterStatus *clustersv1alpha1.ClusterStatus,
 	pgCluster *clustersv1alpha1.PostgreSQL,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	dataCentresToResize := r.checkNodeSizeUpdate(pgInstClusterStatus.DataCentres, pgCluster.Spec.DataCentres)
 	if len(dataCentresToResize) > 0 {
@@ -99,7 +99,7 @@ func (r *PostgreSQLReconciler) checkNodeSizeUpdate(dataCentresFromInst []*cluste
 func (r *PostgreSQLReconciler) resizeDataCentres(
 	dataCentresToResize []*clustersv1alpha1.ResizedDataCentre,
 	pgCluster *clustersv1alpha1.PostgreSQL,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	for _, dataCentre := range dataCentresToResize {
 		activeResizeOperations, err := r.getDataCentreOperations(pgCluster.Status.ID, dataCentre.DataCentreID)
@@ -163,7 +163,7 @@ func (r *PostgreSQLReconciler) getDataCentreOperations(clusterID, dataCentreID s
 func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 	clusterID string,
 	clusterConfigurations map[string]string,
-	logger *logr.Logger,
+	logger logr.Logger,
 ) error {
 	instClusterConfigurations, err := r.API.GetClusterConfigurations(instaclustr.ClustersEndpointV1, clusterID, modelsv1.PgSQL)
 	if err != client.IgnoreNotFound(err) {
