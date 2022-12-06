@@ -147,10 +147,10 @@ func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEven
 	var eventType string
 
 	switch clusterKind {
-	case RedisClusterKind:
-		eventType = SnapshotUploadEventType
 	case PgClusterKind:
 		eventType = PgBackupEventType
+	default:
+		eventType = SnapshotUploadEventType
 	}
 
 	instBackupEvents := map[int]*BackupEvent{}
