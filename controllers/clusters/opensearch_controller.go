@@ -19,6 +19,7 @@ package clusters
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -175,6 +176,15 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	if err != nil {
 		logger.Error(err, "cannot start OpenSearch cluster status job",
 			"Cluster ID", openSearch.Status.ID,
+		)
+
+		return models.ReconcileRequeue
+	}
+
+	err = r.startClusterBackupsJob(openSearch)
+	if err != nil {
+		logger.Error(err, "Cannot start OpenSearch cluster backups check job",
+			"cluster ID", openSearch.Status.ID,
 		)
 
 		return models.ReconcileRequeue
@@ -357,6 +367,24 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	r.Scheduler.RemoveJob(openSearch.GetJobID(scheduler.BackupsChecker))
+
+	logger.Info("Deleting cluster backup resources",
+		"cluster ID", openSearch.Status.ID,
+	)
+
+	err = r.deleteBackups(ctx, openSearch.Status.ID, openSearch.Namespace)
+	if err != nil {
+		logger.Error(err, "Cannot delete cluster backup resources",
+			"cluster ID", openSearch.Status.ID,
+		)
+		return models.ReconcileRequeue
+	}
+
+	logger.Info("Cluster backup resources were deleted",
+		"cluster ID", openSearch.Status.ID,
+	)
+
 	r.Scheduler.RemoveJob(openSearch.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(openSearch, models.DeletionFinalizer)
 	err = r.patchClusterMetadata(ctx, openSearch, logger)
@@ -371,8 +399,8 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	}
 
 	logger.Info("OpenSearch cluster was deleted",
-		"Cluster name", openSearch.Spec.Name,
-		"Cluster ID", openSearch.Status.ID,
+		"cluster name", openSearch.Spec.Name,
+		"cluster ID", openSearch.Status.ID,
 	)
 
 	return models.ReconcileResult
@@ -382,6 +410,17 @@ func (r *OpenSearchReconciler) startClusterStatusJob(cluster *clustersv1alpha1.O
 	job := r.newWatchStatusJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *OpenSearchReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.OpenSearch) error {
+	job := r.newWatchBackupsJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
 	if err != nil {
 		return err
 	}
@@ -434,13 +473,174 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 	}
 }
 
+func (r *OpenSearchReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.OpenSearch) scheduler.Job {
+	l := log.Log.WithValues("component", "openSearchBackupsClusterJob")
+
+	return func() error {
+		ctx := context.Background()
+		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		if err != nil {
+			return err
+		}
+
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
+			l.Info("OpenSearch cluster is being deleted. Backups check job skipped",
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
+			)
+
+			return nil
+		}
+
+		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get OpenSearch cluster backups",
+				"cluster name", cluster.Spec.Name,
+				"clusterID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		instBackupEvents := instBackups.GetBackupEvents(models.OsClusterKind)
+
+		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
+		if err != nil {
+			l.Error(err, "Cannot list OpenSearch cluster backups",
+				"cluster name", cluster.Spec.Name,
+				"clusterID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		for _, k8sBackup := range k8sBackupList.Items {
+			if k8sBackup.Status.Start != 0 {
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+			if k8sBackup.Annotations[models.StartAnnotation] != "" {
+				patch := k8sBackup.NewPatch()
+				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartAnnotation])
+				if err != nil {
+					return err
+				}
+
+				err = r.Status().Patch(ctx, &k8sBackup, patch)
+				if err != nil {
+					return err
+				}
+
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+
+			unassignedBackups = append(unassignedBackups, &k8sBackup)
+		}
+
+		for start, instBackup := range instBackupEvents {
+			if _, exists := k8sBackups[start]; exists {
+				if k8sBackups[start].Status.End != 0 {
+					continue
+				}
+
+				patch := k8sBackups[start].NewPatch()
+				k8sBackups[start].Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(ctx, k8sBackups[start], patch)
+				if err != nil {
+					return err
+				}
+
+				l.Info("Backup resource was updated",
+					"backup resource name", k8sBackups[start].Name,
+				)
+				continue
+			}
+
+			if len(unassignedBackups) != 0 {
+				backupToAssign := unassignedBackups[len(unassignedBackups)-1]
+				unassignedBackups = unassignedBackups[:len(unassignedBackups)-1]
+				patch := backupToAssign.NewPatch()
+				backupToAssign.Status.Start = instBackup.Start
+				backupToAssign.Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(context.TODO(), backupToAssign, patch)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
+			backupSpec := cluster.NewBackupSpec(start)
+			err = r.Create(ctx, backupSpec)
+			if err != nil {
+				return err
+			}
+			l.Info("Found new backup on Instaclustr. New backup resource was created",
+				"backup resource name", backupSpec.Name,
+			)
+		}
+
+		return nil
+	}
+}
+
+func (r *OpenSearchReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err := r.Client.List(ctx, backupsList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return backupsList, nil
+}
+
+func (r *OpenSearchReconciler) deleteBackups(ctx context.Context, clusterID, namespace string) error {
+	backupsList, err := r.listClusterBackups(ctx, clusterID, namespace)
+	if err != nil {
+		return err
+	}
+
+	if len(backupsList.Items) == 0 {
+		return nil
+	}
+
+	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	opts := []client.DeleteAllOfOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err = r.DeleteAllOf(ctx, backupType, opts...)
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backupsList.Items {
+		patch := backup.NewPatch()
+		controllerutil.RemoveFinalizer(&backup, models.DeletionFinalizer)
+		err = r.Patch(ctx, &backup, patch)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.OpenSearch{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
+				newObj := event.Object.(*clustersv1alpha1.OpenSearch)
+				if newObj.DeletionTimestamp != nil &&
+					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
 				}
 

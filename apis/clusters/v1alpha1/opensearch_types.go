@@ -17,8 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strconv"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // OpenSearchSpec defines the desired state of OpenSearch
@@ -72,6 +78,26 @@ func (os *OpenSearch) GetJobID(jobName string) string {
 func (os *OpenSearch) NewPatch() client.Patch {
 	old := os.DeepCopy()
 	return client.MergeFrom(old)
+}
+
+func (r *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.ClusterBackup {
+	return &clusterresourcesv1alpha1.ClusterBackup{
+		TypeMeta: ctrl.TypeMeta{
+			Kind:       models.ClusterBackupKind,
+			APIVersion: models.ClusterresourcesV1alpha1APIVersion,
+		},
+		ObjectMeta: ctrl.ObjectMeta{
+			Name:        models.SnapshotUploadPrefix + r.Status.ID + "-" + strconv.Itoa(startTimestamp),
+			Namespace:   r.Namespace,
+			Annotations: map[string]string{models.StartAnnotation: strconv.Itoa(startTimestamp)},
+			Labels:      map[string]string{models.ClusterIDLabel: r.Status.ID},
+			Finalizers:  []string{models.DeletionFinalizer},
+		},
+		Spec: clusterresourcesv1alpha1.ClusterBackupSpec{
+			ClusterID:   r.Status.ID,
+			ClusterKind: models.OsClusterKind,
+		},
+	}
 }
 
 func init() {
