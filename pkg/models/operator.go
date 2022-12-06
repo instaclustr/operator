@@ -39,6 +39,7 @@ const (
 	ClusterBackupKind                  = "ClusterBackup"
 	PgClusterKind                      = "PostgreSQL"
 	RedisClusterKind                   = "Redis"
+	OsClusterKind                      = "OpenSearch"
 	PgBackupEventType                  = "postgresql-backup"
 	SnapshotUploadEventType            = "snapshot-upload"
 	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
