@@ -19,10 +19,12 @@ package clusters
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
@@ -140,6 +143,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 
 		controllerutil.AddFinalizer(cc, models.DeletionFinalizer)
 		cc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		cc.Annotations[models.DeletionConfirmed] = models.False
 		err = r.Patch(ctx, cc, patch)
 		if err != nil {
 			l.Error(err, "cannot patch Cassandra cluster",
@@ -162,6 +166,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"Namespace", cc.Namespace,
 		)
 	}
+
 	err := r.startClusterStatusJob(cc)
 	if err != nil {
 		l.Error(err, "cannot start cluster status job",
@@ -169,7 +174,16 @@ func (r *CassandraReconciler) handleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	err = r.startClusterBackupsJob(cc)
+	if err != nil {
+		l.Error(err, "Cannot start Cassandra cluster backups check job",
+			"cluster ID", cc.Status.ID,
+		)
+
+		return models.ReconcileRequeue
+	}
+
+	return models.ReconcileResult
 }
 
 func (r *CassandraReconciler) handleUpdateCluster(
@@ -240,7 +254,6 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	l logr.Logger,
 	cc *clustersv1alpha1.Cassandra,
 ) reconcile.Result {
-
 	patch := cc.NewPatch()
 	err := r.Patch(ctx, cc, patch)
 	if err != nil {
@@ -253,6 +266,27 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"Cluster metadata", cc.ObjectMeta,
 		)
 		return models.ReconcileRequeue
+	}
+
+	if len(cc.Spec.TwoFactorDelete) != 0 &&
+		cc.Annotations[models.DeletionConfirmed] != models.True {
+		l.Info("Cassandra cluster deletion is not confirmed",
+			"cluster ID", cc.Status.ID,
+			"cluster name", cc.Spec.Name,
+		)
+
+		cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+		err = r.Status().Patch(ctx, cc, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch Cassandra cluster metadata after finalizer removal",
+				"cluster name", cc.Spec.Name,
+				"cluster ID", cc.Status.ID,
+			)
+
+			return models.ReconcileRequeue
+		}
+
+		return models.ReconcileResult
 	}
 
 	status, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
@@ -282,8 +316,30 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
+		l.Info("Cassandra cluster is being deleted",
+			"cluster ID", cc.Status.ID,
+		)
+
 		return models.ReconcileRequeue
 	}
+
+	r.Scheduler.RemoveJob(cc.GetJobID(scheduler.BackupsChecker))
+
+	l.Info("Deleting cluster backup resources",
+		"cluster ID", cc.Status.ID,
+	)
+
+	err = r.deleteBackups(ctx, cc.Status.ID, cc.Namespace)
+	if err != nil {
+		l.Error(err, "Cannot delete cluster backup resources",
+			"cluster ID", cc.Status.ID,
+		)
+		return models.ReconcileRequeue
+	}
+
+	l.Info("Cluster backup resources were deleted",
+		"cluster ID", cc.Status.ID,
+	)
 
 	controllerutil.RemoveFinalizer(cc, models.DeletionFinalizer)
 	cc.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -323,9 +379,37 @@ func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *clustersv1
 	return nil
 }
 
+func (r *CassandraReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Cassandra) error {
+	job := r.newWatchBackupsJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "cassandraStatusClusterJob")
 	return func() error {
+		err := r.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: cassandraCluster.Name}, cassandraCluster)
+		if err != nil {
+			l.Error(err, "Cannot get Cassandra custom resource",
+				"resource name", cassandraCluster.Name,
+			)
+			return err
+		}
+
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cassandraCluster.DeletionTimestamp, len(cassandraCluster.Spec.TwoFactorDelete), cassandraCluster.Annotations[models.DeletionConfirmed]) {
+			l.Info("Cassandra cluster is being deleted. Status check job skipped",
+				"cluster name", cassandraCluster.Spec.Name,
+				"cluster ID", cassandraCluster.Status.ID,
+			)
+
+			return nil
+		}
+
 		instaclusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(err, "cannot get cassandraCluster instaclusterStatus", "ClusterID", cassandraCluster.Status.ID)
@@ -349,29 +433,199 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 	}
 }
 
+func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassandra) scheduler.Job {
+	l := log.Log.WithValues("component", "cassandraBackupsClusterJob")
+
+	return func() error {
+		ctx := context.Background()
+		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		if err != nil {
+			return err
+		}
+
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
+			l.Info("Cassandra cluster is being deleted. Backups check job skipped",
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
+			)
+
+			return nil
+		}
+
+		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Cassandra cluster backups",
+				"cluster name", cluster.Spec.Name,
+				"clusterID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		instBackupEvents := instBackups.GetBackupEvents(models.CassandraKind)
+
+		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
+		if err != nil {
+			l.Error(err, "Cannot list Cassandra cluster backups",
+				"cluster name", cluster.Spec.Name,
+				"clusterID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		for _, k8sBackup := range k8sBackupList.Items {
+			if k8sBackup.Status.Start != 0 {
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+			if k8sBackup.Annotations[models.StartAnnotation] != "" {
+				patch := k8sBackup.NewPatch()
+				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartAnnotation])
+				if err != nil {
+					return err
+				}
+
+				err = r.Status().Patch(ctx, &k8sBackup, patch)
+				if err != nil {
+					return err
+				}
+
+				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
+				continue
+			}
+
+			unassignedBackups = append(unassignedBackups, &k8sBackup)
+		}
+
+		for start, instBackup := range instBackupEvents {
+			if _, exists := k8sBackups[start]; exists {
+				if k8sBackups[start].Status.End != 0 {
+					continue
+				}
+
+				patch := k8sBackups[start].NewPatch()
+				k8sBackups[start].Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(ctx, k8sBackups[start], patch)
+				if err != nil {
+					return err
+				}
+
+				l.Info("Backup resource was updated",
+					"backup resource name", k8sBackups[start].Name,
+				)
+				continue
+			}
+
+			if len(unassignedBackups) != 0 {
+				backupToAssign := unassignedBackups[len(unassignedBackups)-1]
+				unassignedBackups = unassignedBackups[:len(unassignedBackups)-1]
+				patch := backupToAssign.NewPatch()
+				backupToAssign.Status.Start = instBackup.Start
+				backupToAssign.Status.UpdateStatus(instBackup)
+				err = r.Status().Patch(context.TODO(), backupToAssign, patch)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
+			backupSpec := cluster.NewBackupSpec(start)
+			err = r.Create(ctx, backupSpec)
+			if err != nil {
+				return err
+			}
+			l.Info("Found new backup on Instaclustr. New backup resource was created",
+				"backup resource name", backupSpec.Name,
+			)
+		}
+
+		return nil
+	}
+}
+
+func (r *CassandraReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err := r.Client.List(ctx, backupsList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return backupsList, nil
+}
+
+func (r *CassandraReconciler) deleteBackups(ctx context.Context, clusterID, namespace string) error {
+	backupsList, err := r.listClusterBackups(ctx, clusterID, namespace)
+	if err != nil {
+		return err
+	}
+
+	if len(backupsList.Items) == 0 {
+		return nil
+	}
+
+	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	opts := []client.DeleteAllOfOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels{models.ClusterIDLabel: clusterID},
+	}
+	err = r.DeleteAllOf(ctx, backupType, opts...)
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backupsList.Items {
+		patch := backup.NewPatch()
+		controllerutil.RemoveFinalizer(&backup, models.DeletionFinalizer)
+		err = r.Patch(ctx, &backup, patch)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cassandra{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				// for operator reboots
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
-				confirmDeletion(event.Object)
+				obj := event.Object.(*clustersv1alpha1.Cassandra)
+				if obj.DeletionTimestamp != nil &&
+					(len(obj.Spec.TwoFactorDelete) == 0 || obj.Annotations[models.DeletionConfirmed] == models.True) {
+					obj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					return true
+				}
+
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
+				newObj := event.ObjectNew.(*clustersv1alpha1.Cassandra)
+				if newObj.DeletionTimestamp != nil &&
+					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					return true
+				}
+
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
-				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
-				confirmDeletion(event.ObjectNew)
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
 				return false
 			},
 			GenericFunc: func(event event.GenericEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.GenericEvent
 				return true
 			},
 		})).Complete(r)

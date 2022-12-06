@@ -17,9 +17,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strconv"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -82,6 +86,26 @@ func (c *Cassandra) NewPatch() client.Patch {
 	old := c.DeepCopy()
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
+}
+
+func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.ClusterBackup {
+	return &clusterresourcesv1alpha1.ClusterBackup{
+		TypeMeta: ctrl.TypeMeta{
+			Kind:       models.ClusterBackupKind,
+			APIVersion: models.ClusterresourcesV1alpha1APIVersion,
+		},
+		ObjectMeta: ctrl.ObjectMeta{
+			Name:        models.SnapshotUploadPrefix + c.Status.ID + "-" + strconv.Itoa(startTimestamp),
+			Namespace:   c.Namespace,
+			Annotations: map[string]string{models.StartAnnotation: strconv.Itoa(startTimestamp)},
+			Labels:      map[string]string{models.ClusterIDLabel: c.Status.ID},
+			Finalizers:  []string{models.DeletionFinalizer},
+		},
+		Spec: clusterresourcesv1alpha1.ClusterBackupSpec{
+			ClusterID:   c.Status.ID,
+			ClusterKind: models.CassandraClusterKind,
+		},
+	}
 }
 
 func init() {
