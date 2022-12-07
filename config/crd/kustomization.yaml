@@ -20,6 +20,7 @@ resources:
 - bases/kafkamanagement.instaclustr.com_mirrors.yaml
 - bases/clusterresources.instaclustr.com_clusterbackups.yaml
 - bases/clusterresources.instaclustr.com_nodereloads.yaml
+- bases/kafkamanagement.instaclustr.com_kafkaacls.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -42,6 +43,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_zookeepers.yaml
 #- patches/webhook_in_nodereloads.yaml
 #- patches/webhook_in_mirrors.yaml
+#- patches/webhook_in_kafkaacls.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
@@ -63,6 +65,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_zookeepers.yaml
 #- patches/cainjection_in_nodereloads.yaml
 #- patches/cainjection_in_mirrors.yaml
+#- patches/cainjection_in_kafkaacls.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.
