@@ -985,3 +985,125 @@ func (c *Client) GetNodeReloadStatus(
 
 	return nodeReload, nil
 }
+
+func (c *Client) CreateKafkaACL(
+	url string,
+	kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec,
+) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+	jsonKafkaACLUser, err := json.Marshal(kafkaACL)
+	if err != nil {
+		return nil, err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, jsonKafkaACLUser)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *kafkamanagementv1alpha1.KafkaACLStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) GetKafkaACLStatus(
+	kafkaACLID,
+	kafkaACLEndpoint string,
+) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+	url := c.serverHostname + kafkaACLEndpoint + kafkaACLID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var kafkaACLStatus kafkamanagementv1alpha1.KafkaACLStatus
+	err = json.Unmarshal(body, &kafkaACLStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kafkaACLStatus, nil
+}
+
+func (c *Client) DeleteKafkaACL(
+	kafkaACLID,
+	kafkaACLEndpoint string,
+) error {
+	url := c.serverHostname + kafkaACLEndpoint + kafkaACLID
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdateKafkaACL(
+	kafkaACLID,
+	kafkaACLEndpoint string,
+	kafkaACLSpec any,
+) error {
+	url := c.serverHostname + kafkaACLEndpoint + kafkaACLID
+
+	data, err := json.Marshal(kafkaACLSpec)
+	if err != nil {
+		return err
+	}
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}

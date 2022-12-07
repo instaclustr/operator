@@ -45,4 +45,8 @@ type API interface {
 	TriggerClusterBackup(url, clusterID string) error
 	CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error
 	GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error)
+	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
+	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
+	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
+	UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error
 }

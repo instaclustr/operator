@@ -198,6 +198,32 @@ rules:
   - patch
   - update
 - apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - kafkaacls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - kafkaacls/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - kafkaacls/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - clusters.instaclustr.com
   resources:
   - cadences
