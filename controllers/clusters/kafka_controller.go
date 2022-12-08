@@ -265,7 +265,12 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Kafka{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
+				annots := event.Object.GetAnnotations()
+				if annots == nil {
+					annots = make(map[string]string)
+				}
+
+				annots[models.ResourceStateAnnotation] = models.CreatingEvent
 				confirmDeletion(event.Object)
 				return true
 			},
