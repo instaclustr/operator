@@ -69,9 +69,12 @@ func (r *PostgreSQLReconciler) reconcileDataCentresNodeSize(
 	pgCluster *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) error {
-	dataCentresToResize := r.checkNodeSizeUpdate(pgInstClusterStatus.DataCentres, pgCluster.Spec.DataCentres)
+	dataCentresToResize, err := r.checkNodeSizeUpdate(pgInstClusterStatus.DataCentres, pgCluster.Spec.DataCentres)
+	if err != nil {
+		return err
+	}
 	if len(dataCentresToResize) > 0 {
-		err := r.resizeDataCentres(dataCentresToResize, pgCluster, logger)
+		err = r.resizeDataCentres(dataCentresToResize, pgCluster, logger)
 		if err != nil {
 			return err
 		}
@@ -80,7 +83,14 @@ func (r *PostgreSQLReconciler) reconcileDataCentresNodeSize(
 	return nil
 }
 
-func (r *PostgreSQLReconciler) checkNodeSizeUpdate(dataCentresFromInst []*clustersv1alpha1.DataCentreStatus, pgDataCentres []*clustersv1alpha1.PgDataCentre) []*clustersv1alpha1.ResizedDataCentre {
+func (r *PostgreSQLReconciler) checkNodeSizeUpdate(
+	dataCentresFromInst []*clustersv1alpha1.DataCentreStatus,
+	pgDataCentres []*clustersv1alpha1.PgDataCentre,
+) ([]*clustersv1alpha1.ResizedDataCentre, error) {
+	if len(pgDataCentres) == 0 {
+		return nil, models.ZeroDataCentres
+	}
+
 	var resizedDataCentres []*clustersv1alpha1.ResizedDataCentre
 	for i, instDataCentre := range dataCentresFromInst {
 		if instDataCentre.Nodes[0].Size != pgDataCentres[i].NodeSize {
@@ -93,7 +103,7 @@ func (r *PostgreSQLReconciler) checkNodeSizeUpdate(dataCentresFromInst []*cluste
 		}
 	}
 
-	return resizedDataCentres
+	return resizedDataCentres, nil
 }
 
 func (r *PostgreSQLReconciler) resizeDataCentres(

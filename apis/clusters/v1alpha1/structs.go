@@ -68,8 +68,8 @@ type Options struct {
 type Cluster struct {
 	// Name [ 3 .. 32 ] characters.
 	// APIv2 : "name", APIv1 : "clusterName".
-	Name    string `json:"name"`
-	Version string `json:"version"`
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
 	// The PCI compliance standards relate to the security of user data and transactional information.
 	// Can only be applied clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch and Redis.
 	// PCI compliance cannot be enabled if the cluster has Spark.
@@ -82,7 +82,7 @@ type Cluster struct {
 	// Production tier is not available when using Developer class nodes. See SLA Tier for more information.
 	// Enum: "PRODUCTION" "NON_PRODUCTION".
 	// Required for APIv2, but for APIv1 set "NON_PRODUCTION" as a default.
-	SLATier string `json:"slaTier"`
+	SLATier string `json:"slaTier,omitempty"`
 
 	// APIv2, unlike AP1, receives an array of TwoFactorDelete (<= 1 items);
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`

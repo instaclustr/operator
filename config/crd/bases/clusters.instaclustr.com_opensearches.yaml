@@ -150,9 +150,6 @@ spec:
                 type: string
             required:
             - dataCentres
-            - name
-            - slaTier
-            - version
             type: object
           status:
             description: OpenSearchStatus defines the observed state of OpenSearch

@@ -7,7 +7,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
-	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -32,8 +32,8 @@ type API interface {
 	CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1alpha1.FirewallRuleStatus, error)
 	DeleteFirewallRule(firewallRuleID string, firewallRuleEndpoint string) error
 	GetKafkaUserStatus(kafkaUserID, kafkaUserEndpoint string) (*kafkamanagementv1alpha1.KafkaUserStatus, error)
-	CreateKafkaUser(url string, kafkaUser *models2.KafkaUserAPIv2) (*kafkamanagementv1alpha1.KafkaUserStatus, error)
-	UpdateKafkaUser(kafkaUserID, kafkaUserEndpoint string, kafkaUserSpec *models2.KafkaUserAPIv2) error
+	CreateKafkaUser(url string, kafkaUser *modelsv2.KafkaUserAPIv2) (*kafkamanagementv1alpha1.KafkaUserStatus, error)
+	UpdateKafkaUser(kafkaUserID, kafkaUserEndpoint string, kafkaUserSpec *modelsv2.KafkaUserAPIv2) error
 	DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error
 	CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
 	DeleteKafkaTopic(url, id string) error
@@ -49,8 +49,10 @@ type API interface {
 	GetMaintenanceEventStatus(eventID string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
 	DeleteExclusionWindow(meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus, endpoint string) error
 	UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec, endpoint string) error
+	RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error)
 	CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error
 	GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error)
+	GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error)
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
