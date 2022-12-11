@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,58 +28,60 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-type CadenceBundleOptions struct {
-	EnableArchival          bool   `json:"enableArchival,omitempty"`
-	TargetCassandraCDCID    string `json:"targetCassandraCdcId,omitempty"`
-	TargetCassandraVPCType  string `json:"targetCassandraVpcType,omitempty"`
-	TargetKafkaCDCID        string `json:"targetKafkaCdcId,omitempty"`
-	TargetKafkaVPCType      string `json:"targetKafkaVpcType,omitempty"`
-	TargetOpenSearchCDCID   string `json:"targetOpenSearchCdcId,omitempty"`
-	TargetOpenSearchVPCType string `json:"targetOpenSearchVpcType,omitempty"`
-	CadenceNodeCount        int    `json:"cadenceNodeCount"`
+type CadenceDataCentre struct {
+	DataCentre       `json:",inline"`
+	CadenceNodeCount int `json:"cadenceNodeCount"`
 }
 
-type CadenceDataCentre struct {
-	DataCentre           `json:",inline"`
-	CadenceBundleOptions `json:",inline"`
+type BundledCassandraSpec struct {
+	NodeSize                       string `json:"nodeSize,omitempty"`
+	NodesNumber                    int    `json:"nodesNumber,omitempty"`
+	ReplicationFactor              int    `json:"replicationFactor,omitempty"`
+	Network                        string `json:"network,omitempty"`
+	PrivateIPBroadcastForDiscovery bool   `json:"privateIPBroadcastForDiscovery,omitempty"`
+	PasswordAndUserAuth            bool   `json:"passwordAndUserAuth,omitempty"`
+}
+
+type BundledKafkaSpec struct {
+	NodeSize          string `json:"nodeSize,omitempty"`
+	NodesNumber       int    `json:"nodesNumber,omitempty"`
+	Network           string `json:"network"`
+	ReplicationFactor int    `json:"replicationFactor,omitempty"`
+	PartitionsNumber  int    `json:"partitionsNumber,omitempty"`
+}
+
+type BundledOpenSearchSpec struct {
+	NodeSize                  string `json:"nodeSize,omitempty"`
+	ReplicationFactor         int    `json:"replicationFactor,omitempty"`
+	NodesPerReplicationFactor int    `json:"nodesPerReplicationFactor,omitempty"`
+	Network                   string `json:"network,omitempty"`
 }
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster               `json:",inline"`
-	DataCentres           []*CadenceDataCentre `json:"dataCentres,omitempty"`
-	ConcurrentResizes     int                  `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts bool                 `json:"notifySupportContacts,omitempty"`
-	Description           string               `json:"description,omitempty"`
-	ProvisioningType      string               `json:"provisioningType"`
-
-	// Packaged Cassandra
-	CassandraNodeSize                       string `json:"cassandraNodeSize,omitempty"`
-	CassandraNodesNumber                    int    `json:"cassandraNodesNumber,omitempty"`
-	CassandraReplicationFactor              int    `json:"cassandraReplicationFactor,omitempty"`
-	CassandraNetwork                        string `json:"cassandraNetwork,omitempty"`
-	CassandraPrivateIPBroadcastForDiscovery bool   `json:"cassandraPrivateIPBroadcastForDiscovery,omitempty"`
-	CassandraPasswordAndUserAuth            bool   `json:"cassandraPasswordAndUserAuth,omitempty"`
-
-	UseAdvancedVisibility bool `json:"useAdvancedVisibility,omitempty"`
-	// Packaged Kafka
-	KafkaNodeSize          string `json:"kafkaNodeSize,omitempty"`
-	KafkaNodesNumber       int    `json:"kafkaNodesNumber,omitempty"`
-	KafkaNetwork           string `json:"kafkaNetwork"`
-	KafkaReplicationFactor int    `json:"kafkaReplicationFactor,omitempty"`
-	KafkaPartitionsNumber  int    `json:"kafkaPartitionsNumber,omitempty"`
-	// Packaged OpenSearch
-	OpensearchNodeSize                  string `json:"opensearchNodeSize,omitempty"`
-	OpensearchReplicationFactor         int    `json:"opensearchReplicationFactor,omitempty"`
-	OpenSearchNodesPerReplicationFactor int    `json:"openSearchNodesPerReplicationFactor,omitempty"`
-	OpenSearchNetwork                   string `json:"openSearchNetwork,omitempty"`
-
-	UseCadenceWebAuth           bool   `json:"useCadenceWebAuth,omitempty"`
-	ArchivalS3URI               string `json:"archivalS3Uri,omitempty"`
-	ArchivalS3Region            string `json:"archivalS3Region,omitempty"`
-	AWSAccessKeySecretNamespace string `json:"awsAccessKeySecretNamespace,omitempty"`
-	AWSAccessKeySecretName      string `json:"awsAccessKeySecretName,omitempty"`
-	ClientEncryption            bool   `json:"clientEncryption,omitempty"`
+	Cluster                     `json:",inline"`
+	DataCentres                 []*CadenceDataCentre  `json:"dataCentres,omitempty"`
+	ConcurrentResizes           int                   `json:"concurrentResizes,omitempty"`
+	NotifySupportContacts       bool                  `json:"notifySupportContacts,omitempty"`
+	Description                 string                `json:"description,omitempty"`
+	ProvisioningType            string                `json:"provisioningType"`
+	BundledCassandraSpec        BundledCassandraSpec  `json:"bundledCassandraSpec,omitempty"`
+	UseAdvancedVisibility       bool                  `json:"useAdvancedVisibility,omitempty"`
+	BundledKafkaSpec            BundledKafkaSpec      `json:"bundledKafkaSpec,omitempty"`
+	BundledOpenSearchSpec       BundledOpenSearchSpec `json:"bundledOpenSearchSpec,omitempty"`
+	UseCadenceWebAuth           bool                  `json:"useCadenceWebAuth,omitempty"`
+	ArchivalS3URI               string                `json:"archivalS3Uri,omitempty"`
+	ArchivalS3Region            string                `json:"archivalS3Region,omitempty"`
+	AWSAccessKeySecretNamespace string                `json:"awsAccessKeySecretNamespace,omitempty"`
+	AWSAccessKeySecretName      string                `json:"awsAccessKeySecretName,omitempty"`
+	ClientEncryption            bool                  `json:"clientEncryption,omitempty"`
+	EnableArchival              bool                  `json:"enableArchival,omitempty"`
+	TargetCassandraCDCID        string                `json:"targetCassandraCdcId,omitempty"`
+	TargetCassandraVPCType      string                `json:"targetCassandraVpcType,omitempty"`
+	TargetKafkaCDCID            string                `json:"targetKafkaCdcId,omitempty"`
+	TargetKafkaVPCType          string                `json:"targetKafkaVpcType,omitempty"`
+	TargetOpenSearchCDCID       string                `json:"targetOpenSearchCdcId,omitempty"`
+	TargetOpenSearchVPCType     string                `json:"targetOpenSearchVpcType,omitempty"`
 }
 
 // CadenceSpec defines the observed state of Cadence
@@ -113,8 +114,8 @@ func init() {
 	SchemeBuilder.Register(&Cadence{}, &CadenceList{})
 }
 
-func (cs *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) (*models.CadenceClusterAPIv1, error) {
-	cadenceBundles, err := cs.bundlesToInstAPIv1(ctx, k8sClient, logger)
+func (cs *CadenceSpec) ToInstAPIv1(ctx context.Context, k8sClient client.Client) (*models.CadenceClusterAPIv1, error) {
+	cadenceBundles, err := cs.bundlesToInstAPIv1(ctx, k8sClient)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +146,7 @@ func (cs *CadenceSpec) ToInstAPIv1(ctx *context.Context, k8sClient client.Client
 	}, nil
 }
 
-func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client.Client, logger *logr.Logger) ([]*models.CadenceBundleAPIv1, error) {
+func (cs *CadenceSpec) bundlesToInstAPIv1(ctx context.Context, k8sClient client.Client) ([]*models.CadenceBundleAPIv1, error) {
 	if len(cs.DataCentres) < 1 {
 		return nil, models.ZeroDataCentres
 	}
@@ -154,10 +155,10 @@ func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client
 	var AWSAccessKeyID string
 	var AWSSecretAccessKey string
 
-	if dataCentre.EnableArchival {
+	if cs.EnableArchival {
 		awsCredsSecret := &v1.Secret{}
 		awsSecretNamespacedName := types.NamespacedName{Name: cs.AWSAccessKeySecretName, Namespace: cs.AWSAccessKeySecretNamespace}
-		err := k8sClient.Get(*ctx, awsSecretNamespacedName, awsCredsSecret)
+		err := k8sClient.Get(ctx, awsSecretNamespacedName, awsCredsSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -177,13 +178,13 @@ func (cs *CadenceSpec) bundlesToInstAPIv1(ctx *context.Context, k8sClient client
 			UseAdvancedVisibility:   cs.UseAdvancedVisibility,
 			UseCadenceWebAuth:       cs.UseCadenceWebAuth,
 			ClientEncryption:        cs.ClientEncryption,
-			TargetCassandraCDCID:    dataCentre.TargetCassandraCDCID,
-			TargetCassandraVPCType:  dataCentre.TargetCassandraVPCType,
-			TargetKafkaCDCID:        dataCentre.TargetKafkaCDCID,
-			TargetKafkaVPCType:      dataCentre.TargetKafkaVPCType,
-			TargetOpenSearchCDCID:   dataCentre.TargetOpenSearchCDCID,
-			TargetOpenSearchVPCType: dataCentre.TargetOpenSearchVPCType,
-			EnableArchival:          dataCentre.EnableArchival,
+			TargetCassandraCDCID:    cs.TargetCassandraCDCID,
+			TargetCassandraVPCType:  cs.TargetCassandraVPCType,
+			TargetKafkaCDCID:        cs.TargetKafkaCDCID,
+			TargetKafkaVPCType:      cs.TargetKafkaVPCType,
+			TargetOpenSearchCDCID:   cs.TargetOpenSearchCDCID,
+			TargetOpenSearchVPCType: cs.TargetOpenSearchVPCType,
+			EnableArchival:          cs.EnableArchival,
 			ArchivalS3URI:           cs.ArchivalS3URI,
 			ArchivalS3Region:        cs.ArchivalS3Region,
 			AWSAccessKeyID:          AWSAccessKeyID,
@@ -211,7 +212,7 @@ func (twoFactorDelete *TwoFactorDelete) ToInstAPIv1() *models.TwoFactorDelete {
 	}
 }
 
-func (cadence *Cadence) NewClusterMetadataPatch() (*client.Patch, error) {
+func (cadence *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
 	patchRequest := []*PatchRequest{}
 
 	annotationsPayload, err := json.Marshal(cadence.Annotations)
@@ -245,11 +246,11 @@ func (cadence *Cadence) NewClusterMetadataPatch() (*client.Patch, error) {
 
 	patch := client.RawPatch(types.JSONPatchType, patchPayload)
 
-	return &patch, nil
+	return patch, nil
 }
 
-func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) *models.CadenceUpdatedFields {
-	updatedFields := new(models.CadenceUpdatedFields)
+func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) models.CadenceUpdatedFields {
+	updatedFields := models.CadenceUpdatedFields{}
 
 	if cs.DataCentres[0].NodeSize != oldSpec.DataCentres[0].NodeSize {
 		updatedFields.NodeSizeUpdated = true

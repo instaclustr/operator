@@ -243,7 +243,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 
 	patch := cc.NewPatch()
 	err := r.Patch(ctx, cc, patch)
-	if err != nil {
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "cannot patch Cassandra cluster",
 			"Cluster name", cc.Spec.Name,
 			"Cluster ID", cc.Status.ID,
