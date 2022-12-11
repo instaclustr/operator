@@ -213,11 +213,8 @@ spec:
             - autoCreateTopics
             - clientToClusterEncryption
             - dataCentres
-            - name
             - partitionsNumber
             - replicationFactorNumber
-            - slaTier
-            - version
             type: object
           status:
             description: KafkaStatus defines the observed state of Kafka

@@ -184,3 +184,11 @@ func (c *mockClient) DeleteExclusionWindow(meStatus *clusterresourcesv1alpha1.Ma
 func (c *mockClient) UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec, endpoint string) error {
 	panic("UpdateMaintenanceEvent: is not implemented")
 }
+
+func (c *mockClient) GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error) {
+	panic("GetClusterSpec: is not implemented")
+}
+
+func (c *mockClient) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error) {
+	panic("RestorePgCluster: is not implemented")
+}

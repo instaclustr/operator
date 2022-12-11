@@ -3,6 +3,7 @@ package models
 const (
 	ProvisionedStatus = "PROVISIONED"
 	RunningStatus     = "RUNNING"
+	Disabled          = "DISABLED"
 )
 
 type Cluster struct {
@@ -30,6 +31,7 @@ type ClusterProvider struct {
 	Tags                   map[string]string `json:"tags,omitempty"`
 	ResourceGroup          string            `json:"resourceGroup,omitempty"`
 	DiskEncryptionKey      string            `json:"diskEncryptionKey,omitempty"`
+	ResourceName           string            `json:"resourceName,omitempty"`
 }
 
 type RackAllocation struct {
@@ -64,6 +66,20 @@ type DataCentre struct {
 	Provider       *ClusterProvider `json:"provider,omitempty"`
 	NodeSize       string           `json:"nodeSize,omitempty"`
 	RackAllocation *RackAllocation  `json:"rackAllocation,omitempty"`
+	Nodes          []*NodeStatus    `json:"nodes"`
+}
+
+type DataCentreSpec struct {
+	Name                          string        `json:"name"`
+	CDCName                       string        `json:"CDCName"`
+	Provider                      string        `json:"provider"`
+	CDCNetwork                    string        `json:"cdcNetwork"`
+	ClientEncryption              bool          `json:"clientEncryption"`
+	PasswordAuthentication        bool          `json:"passwordAuthentication"`
+	UserAuthorization             bool          `json:"userAuthorization"`
+	UsePrivateBroadcastRPCAddress bool          `json:"usePrivateBroadcastRPCAddress"`
+	PrivateIPOnly                 bool          `json:"privateIPOnly"`
+	Nodes                         []*NodeStatus `json:"nodes"`
 }
 
 type DataCentreStatus struct {
@@ -121,6 +137,11 @@ type BundleOptions struct {
 	DataNodeSize                 string `json:"dataNodeSize,omitempty"`
 	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
 	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
+	ClientEncryption             bool   `json:"clientEncryption,omitempty"`
+	ReplicationMode              string `json:"replicationMode,omitempty"`
+	SynchronousModeStrict        bool   `json:"synchronousModeStrict,omitempty"`
+	PostgresqlNodeCount          int32  `json:"postgresqlNodeCount,omitempty"`
+	PoolMode                     string `json:"poolMode,omitempty"`
 }
 
 type ClusterBackup struct {
@@ -165,4 +186,21 @@ func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEven
 	}
 
 	return instBackupEvents
+}
+
+type ClusterSpec struct {
+	ClusterName     string             `json:"clusterName"`
+	BundleVersion   string             `json:"bundleVersion"`
+	BundleOptions   BundleOptions      `json:"bundleOptions"`
+	SLATier         string             `json:"slaTier"`
+	PCICompliance   string             `json:"pciCompliance"`
+	DataCentres     []*DataCentreSpec  `json:"dataCentres"`
+	AddonBundles    []*AddonBundle     `json:"addonBundles"`
+	ClusterProvider []*ClusterProvider `json:"clusterProvider"`
+}
+
+type AddonBundle struct {
+	Bundle  string         `json:"bundle"`
+	Version string         `json:"version"`
+	Options *BundleOptions `json:"options"`
 }

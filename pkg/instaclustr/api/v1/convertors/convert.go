@@ -33,7 +33,11 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 	return clusterStatus, nil
 }
 
-func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
+func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) (*modelsv1.PgCluster, error) {
+	if len(pgClusterSpec.DataCentres) == 0 {
+		return nil, models.ZeroDataCentres
+	}
+
 	pgBundles := pgBundlesToInstAPI(pgClusterSpec.DataCentres[0], pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
 
 	pgInstProvider := pgProviderToInstAPI(pgClusterSpec.DataCentres[0])
@@ -63,7 +67,7 @@ func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) *modelsv1.PgCluster {
 	pg.ClusterNetwork = pgClusterSpec.DataCentres[0].Network
 	pg.RackAllocation = pgRackAllocation
 
-	return pg
+	return pg, nil
 }
 
 func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*modelsv1.PgBundle {

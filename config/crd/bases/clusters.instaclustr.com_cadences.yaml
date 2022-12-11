@@ -206,10 +206,7 @@ spec:
               version:
                 type: string
             required:
-            - name
             - provisioningType
-            - slaTier
-            - version
             type: object
           status:
             description: CadenceSpec defines the observed state of Cadence

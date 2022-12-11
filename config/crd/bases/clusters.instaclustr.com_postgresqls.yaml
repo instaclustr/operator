@@ -122,6 +122,31 @@ spec:
                 type: boolean
               pgBouncerVersion:
                 type: string
+              pgRestoreFrom:
+                properties:
+                  cdcInfos:
+                    items:
+                      properties:
+                        cdcId:
+                          type: string
+                        customVpcId:
+                          type: string
+                        customVpcNetwork:
+                          type: string
+                        restoreToSameVpc:
+                          type: boolean
+                      type: object
+                    type: array
+                  clusterId:
+                    type: string
+                  clusterNameOverride:
+                    type: string
+                  pointInTime:
+                    format: int64
+                    type: integer
+                required:
+                - clusterId
+                type: object
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
@@ -151,11 +176,6 @@ spec:
                 type: array
               version:
                 type: string
-            required:
-            - dataCentres
-            - name
-            - slaTier
-            - version
             type: object
           status:
             description: PgStatus defines the observed state of PostgreSQL
