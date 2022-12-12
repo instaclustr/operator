@@ -35,13 +35,15 @@ import (
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
 // MirrorReconciler reconciles a Mirror object
 type MirrorReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme    *runtime.Scheme
+	API       instaclustr.API
+	Scheduler scheduler.Interface
 }
 
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=mirrors,verbs=get;list;watch;create;update;patch;delete
@@ -130,6 +132,13 @@ func (r *MirrorReconciler) handleCreateCluster(
 		}
 	}
 
+	err := r.startClusterStatusJob(mirror)
+	if err != nil {
+		l.Error(err, "Cannot start cluster status job",
+			"mirror cluster ID", mirror.Status.ID)
+		return models.ReconcileRequeue
+	}
+
 	return reconcile.Result{}
 }
 
@@ -193,6 +202,8 @@ func (r *MirrorReconciler) handleDeleteCluster(
 	}
 
 	patch := mirror.NewPatch()
+
+	r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(mirror, models.DeletionFinalizer)
 	mirror.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, mirror, patch)
@@ -206,6 +217,103 @@ func (r *MirrorReconciler) handleDeleteCluster(
 		"Mirror name", mirror.Spec.KafkaConnectClusterID)
 
 	return reconcile.Result{}
+}
+
+func (r *MirrorReconciler) startClusterStatusJob(mirror *kafkamanagementv1alpha1.Mirror) error {
+	job := r.newWatchStatusJob(mirror)
+
+	err := r.Scheduler.ScheduleJob(mirror.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *MirrorReconciler) newWatchStatusJob(mirror *kafkamanagementv1alpha1.Mirror) scheduler.Job {
+	l := log.Log.WithValues("component", "mirrorStatusClusterJob")
+	return func() error {
+		instaclusterStatus, err := r.API.GetMirrorStatus(mirror.Status.ID, instaclustr.KafkaMirrorEndpoint)
+		if err != nil {
+			l.Error(err, "Cannot get mirror instaclusterStatus", "cluster ID", mirror.Status.ID)
+			return err
+		}
+
+		if !isMirrorStatusesEqual(instaclusterStatus, &mirror.Status) {
+			l.Info("Mirror status of k8s is different from Instaclustr. Reconcile statuses..",
+				"instaclusterStatus", instaclusterStatus,
+				"mirror.Status.ClusterStatus", mirror.Status)
+
+			patch := mirror.NewPatch()
+
+			mirror.Status = *instaclusterStatus
+			err := r.Status().Patch(context.Background(), mirror, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Kafka cluster",
+					"mirror ID name", mirror.Status.ID)
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+func isMirrorStatusesEqual(a, b *kafkamanagementv1alpha1.MirrorStatus) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil ||
+		b == nil ||
+		a.ConnectorName != b.ConnectorName ||
+		a.Status != b.Status ||
+		!isConnectorsEqual(a.Connectors, b.Connectors) ||
+		!isMirroredTopicEqual(a.MirroredTopics, b.MirroredTopics) {
+		return false
+	}
+
+	return true
+}
+
+func isMirroredTopicEqual(a, b []*kafkamanagementv1alpha1.MirroredTopic) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i].AverageLatency != b[i].AverageLatency ||
+			a[i].AverageRate != b[i].AverageRate ||
+			a[i].Name != b[i].Name {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isConnectorsEqual(a, b []*kafkamanagementv1alpha1.Connector) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i].Name != b[i].Name ||
+			a[i].Config != b[i].Config ||
+			a[i].Status != b[i].Status {
+			return false
+		}
+	}
+
+	return true
 }
 
 // SetupWithManager sets up the controller with the Manager.

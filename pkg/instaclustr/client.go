@@ -820,6 +820,34 @@ func (c *Client) CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror
 	return nil
 }
 
+func (c *Client) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+	url := c.serverHostname + mirrorEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	clusterStatus := &kafkamanagementv1alpha1.MirrorStatus{}
+
+	err = json.Unmarshal(body, &clusterStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterStatus, nil
+}
+
 func (c *Client) DeleteKafkaMirror(url, id string) error {
 	url = c.serverHostname + url + id
 

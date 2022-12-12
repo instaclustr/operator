@@ -39,6 +39,7 @@ type API interface {
 	DeleteKafkaTopic(url, id string) error
 	UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
 	CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
+	GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error)
 	DeleteKafkaMirror(url, id string) error
 	UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
 	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
