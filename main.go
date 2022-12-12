@@ -259,9 +259,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&kafkamanagementcontrollers.MirrorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		API:       instaClient,
+		Scheduler: s,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Mirror")
 		os.Exit(1)

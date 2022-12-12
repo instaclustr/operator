@@ -146,6 +146,10 @@ func (m *Mirror) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (m *Mirror) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(m).String() + "/" + jobName
+}
+
 func init() {
 	SchemeBuilder.Register(&Mirror{}, &MirrorList{})
 }

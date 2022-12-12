@@ -6,7 +6,7 @@ spec:
   partitions: 3
   replicationFactor: 3
   topic: "operator-topic-test"
-  clusterId: "c6c9669d-f000-4daf-9b6f-77dd5f37c3d0"
+  clusterId: "9fcd9820-96dc-49fe-9b58-e9a75fcdd6fc"
 #  configs:
 #    min.insync.replicas: "2"
 #    retention.ms: "603800000"
