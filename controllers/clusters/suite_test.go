@@ -93,6 +93,14 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&CassandraReconciler{
+		Client:    k8sManager.GetClient(),
+		Scheme:    k8sManager.GetScheme(),
+		API:       MockInstAPI,
+		Scheduler: scheduler.NewScheduler(logf.Log),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)

@@ -120,9 +120,26 @@ func (c *mockClient) TriggerClusterBackup(url, clusterID string) error {
 }
 
 func (c *mockClient) CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error {
-	panic("implement me")
+	panic("CreateNodeReload: is not implemented")
 }
 
 func (c *mockClient) GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error) {
-	panic("implement me")
+	panic("GetNodeReloadStatus: is not implemented")
+}
+
+func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+	panic("CreateKafkaACL: is not implemented")
+}
+func (c *mockClient) GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+	panic("GetKafkaACLStatus: is not implemented")
+}
+func (c *mockClient) DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error {
+	panic("DeleteKafkaACL: is not implemented")
+}
+func (c *mockClient) UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error {
+	panic("UpdateKafkaACL: is not implemented")
+}
+
+func (c *mockClient) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+	panic("GetMirrorStatus: is not implemented")
 }
