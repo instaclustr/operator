@@ -113,7 +113,7 @@ func (pg *PostgreSQL) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        models.PgBackupPrefix + pg.Status.ID + "-" + strconv.Itoa(startTimestamp),
 			Namespace:   pg.Namespace,
-			Annotations: map[string]string{models.StartAnnotation: strconv.Itoa(startTimestamp)},
+			Annotations: map[string]string{models.StartTimestampAnnotation: strconv.Itoa(startTimestamp)},
 			Labels:      map[string]string{models.ClusterIDLabel: pg.Status.ID},
 			Finalizers:  []string{models.DeletionFinalizer},
 		},

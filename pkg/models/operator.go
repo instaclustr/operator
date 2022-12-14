@@ -7,14 +7,16 @@ import (
 )
 
 const (
-	ResourceStateAnnotation = "instaclustr.com/resourceState"
-	DeletionConfirmed       = "instaclustr.com/deletionConfirmed"
-	DeletionFinalizer       = "instaclustr.com/deletionFinalizer"
-	UpdatedFieldsAnnotation = "instaclustr.com/updatedFields"
+	ResourceStateAnnotation  = "instaclustr.com/resourceState"
+	DeletionConfirmed        = "instaclustr.com/deletionConfirmed"
+	DeletionFinalizer        = "instaclustr.com/deletionFinalizer"
+	UpdatedFieldsAnnotation  = "instaclustr.com/updatedFields"
+	StartTimestampAnnotation = "instaclustr.com/startTimestamp"
 
-	ControlledByLabel          = "instaclustr.com/controlledBy"
-	ClusterIDLabel             = "instaclustr.com/clusterID"
-	ClustersV1alpha1APIVersion = "clusters.instaclustr.com/v1alpha1"
+	ControlledByLabel                  = "instaclustr.com/controlledBy"
+	ClusterIDLabel                     = "instaclustr.com/clusterID"
+	ClustersV1alpha1APIVersion         = "clusters.instaclustr.com/v1alpha1"
+	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
 
 	CassandraKind        = "Cassandra"
 	CassandraChildPrefix = "cassandra-"
@@ -36,17 +38,18 @@ const (
 	True  = "true"
 	False = "false"
 
-	ClusterBackupKind                  = "ClusterBackup"
-	PgClusterKind                      = "PostgreSQL"
-	RedisClusterKind                   = "Redis"
-	OsClusterKind                      = "OpenSearch"
-	CassandraClusterKind               = "Cassandra"
-	PgBackupEventType                  = "postgresql-backup"
-	SnapshotUploadEventType            = "snapshot-upload"
-	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
-	StartAnnotation                    = "instaclustr.com/startTimestamp"
-	PgBackupPrefix                     = "postgresql-backup-"
-	SnapshotUploadPrefix               = "snapshot-upload-"
+	ClusterBackupKind       = "ClusterBackup"
+	PgClusterKind           = "PostgreSQL"
+	RedisClusterKind        = "Redis"
+	OsClusterKind           = "OpenSearch"
+	CassandraClusterKind    = "Cassandra"
+	PgBackupEventType       = "postgresql-backup"
+	SnapshotUploadEventType = "snapshot-upload"
+	PgBackupPrefix          = "postgresql-backup-"
+	SnapshotUploadPrefix    = "snapshot-upload-"
+
+	Phone = "Phone"
+	Email = "Email"
 )
 
 const (

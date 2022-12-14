@@ -57,4 +57,6 @@ type API interface {
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
 	UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error
+	GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error)
+	RestoreCassandra(url string, restoreData v1alpha1.CassandraRestoreFrom) (string, error)
 }

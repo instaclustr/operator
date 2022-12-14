@@ -45,9 +45,10 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 
 	dataCentres := dataCentresFromInstAPI(clusterStatusFromInst.DataCentres)
 	clusterStatus := &v1alpha1.ClusterStatus{
-		ID:          clusterStatusFromInst.ID,
-		Status:      clusterStatusFromInst.Status,
-		DataCentres: dataCentres,
+		ID:                            clusterStatusFromInst.ID,
+		Status:                        clusterStatusFromInst.Status,
+		DataCentres:                   dataCentres,
+		CurrentClusterOperationStatus: clusterStatusFromInst.CurrentClusterOperationStatus,
 	}
 
 	return clusterStatus, nil

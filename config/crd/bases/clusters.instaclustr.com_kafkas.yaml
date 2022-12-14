@@ -222,9 +222,6 @@ spec:
               cdcid:
                 type: string
               currentClusterOperationStatus:
-                description: 'CurrentClusterOperation indicates if the cluster is
-                  currently performing any restructuring operation such as being created
-                  or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"'
                 type: string
               dataCentres:
                 items:

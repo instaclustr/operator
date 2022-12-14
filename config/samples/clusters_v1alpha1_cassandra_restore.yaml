@@ -1,0 +1,10 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: Cassandra
+metadata:
+  name: cassandra-cluster-restored
+spec:
+  restoreFrom:
+    clusterID: 16c07808-2a1f-4e42-83ae-1bd374f584eb
+    pointInTime: 1672703152784
+    clusterNameOverride: "restoredCASSANDRA"
+

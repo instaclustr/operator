@@ -74,11 +74,13 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Client.Get(ctx, req.NamespacedName, &cassandra)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra resource is not found", "request", req)
+			l.Error(err, "Cassandra resource is not found",
+				"request", req)
 			return models.ReconcileResult, nil
 		}
 
-		l.Error(err, "unable to fetch Cassandra cluster", "request", req)
+		l.Error(err, "Unable to fetch Cassandra cluster",
+			"request", req)
 		return reconcile.Result{}, err
 	}
 
@@ -93,8 +95,8 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.handleDeleteCluster(ctx, l, &cassandra), nil
 
 	case models.GenericEvent:
-		l.Info("event isn't handled",
-			"Cluster name", cassandra.Spec.Name,
+		l.Info("Event isn't handled",
+			"cluster name", cassandra.Spec.Name,
 			"request", req,
 			"event", cassandra.Annotations[models.ResourceStateAnnotation])
 		return reconcile.Result{}, nil
@@ -108,35 +110,52 @@ func (r *CassandraReconciler) handleCreateCluster(
 	l logr.Logger,
 	cc *clustersv1alpha1.Cassandra,
 ) reconcile.Result {
-
+	var id string
+	var err error
+	patch := cc.NewPatch()
 	if cc.Status.ID == "" {
-		l.Info(
-			"Creating Cassandra cluster",
-			"Cluster name", cc.Spec.Name,
-			"Data centres", cc.Spec.DataCentres,
-		)
-
-		cassandraSpec := apiv2.CassandraToInstAPI(&cc.Spec)
-		id, err := r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraSpec)
-		if err != nil {
-			l.Error(
-				err, "cannot create Cassandra cluster",
-				"Cassandra cluster spec", cc.Spec,
+		if cc.Spec.HasRestore() {
+			l.Info(
+				"Creating Cassandra cluster from backup",
+				"original cluster ID", cc.Spec.RestoreFrom.ClusterID,
 			)
-			return models.ReconcileRequeue
+
+			id, err = r.API.RestoreCassandra(instaclustr.ClustersEndpointV1, *cc.Spec.RestoreFrom)
+			if err != nil {
+				l.Error(err, "Cannot restore Cassandra cluster from backup",
+					"original cluster ID", cc.Spec.RestoreFrom.ClusterID,
+				)
+
+				return models.ReconcileRequeue
+			}
+		} else {
+			l.Info(
+				"Creating Cassandra cluster",
+				"cluster name", cc.Spec.Name,
+				"data centres", cc.Spec.DataCentres,
+			)
+
+			cassandraSpec := apiv2.CassandraToInstAPI(&cc.Spec)
+			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraSpec)
+			if err != nil {
+				l.Error(
+					err, "Cannot create Cassandra cluster",
+					"cassandra cluster spec", cc.Spec,
+				)
+				return models.ReconcileRequeue
+			}
 		}
 
-		patch := cc.NewPatch()
 		cc.Status.ID = id
 		err = r.Status().Patch(ctx, cc, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Cassandra cluster status",
-				"Cluster name", cc.Spec.Name,
-				"Cluster ID", cc.Status.ID,
-				"Kind", cc.Kind,
-				"API Version", cc.APIVersion,
-				"Namespace", cc.Namespace,
-				"Cluster metadata", cc.ObjectMeta,
+			l.Error(err, "Cannot patch Cassandra cluster status",
+				"cluster name", cc.Spec.Name,
+				"cluster ID", cc.Status.ID,
+				"kind", cc.Kind,
+				"api Version", cc.APIVersion,
+				"namespace", cc.Namespace,
+				"cluster metadata", cc.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
@@ -146,31 +165,31 @@ func (r *CassandraReconciler) handleCreateCluster(
 		cc.Annotations[models.DeletionConfirmed] = models.False
 		err = r.Patch(ctx, cc, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Cassandra cluster",
-				"Cluster name", cc.Spec.Name,
-				"Cluster ID", cc.Status.ID,
-				"Kind", cc.Kind,
-				"API Version", cc.APIVersion,
-				"Namespace", cc.Namespace,
-				"Cluster metadata", cc.ObjectMeta,
+			l.Error(err, "Cannot patch Cassandra cluster",
+				"cluster name", cc.Spec.Name,
+				"cluster ID", cc.Status.ID,
+				"kind", cc.Kind,
+				"api Version", cc.APIVersion,
+				"namespace", cc.Namespace,
+				"cluster metadata", cc.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
 
 		l.Info(
 			"Cassandra cluster has been created",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
-			"Kind", cc.Kind,
-			"API Version", cc.APIVersion,
-			"Namespace", cc.Namespace,
+			"cluster name", cc.Spec.Name,
+			"cluster ID", cc.Status.ID,
+			"kind", cc.Kind,
+			"api Version", cc.APIVersion,
+			"namespace", cc.Namespace,
 		)
 	}
 
-	err := r.startClusterStatusJob(cc)
+	err = r.startClusterStatusJob(cc)
 	if err != nil {
-		l.Error(err, "cannot start cluster status job",
-			"Cassandra cluster ID", cc.Status.ID)
+		l.Error(err, "Cannot start cluster status job",
+			"cassandra cluster ID", cc.Status.ID)
 		return models.ReconcileRequeue
 	}
 
@@ -194,9 +213,9 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	currentClusterStatus, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "cannot get Cassandra cluster status from the Instaclustr API",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
+			err, "Cannot get Cassandra cluster status from the Instaclustr API",
+			"cluster name", cc.Spec.Name,
+			"cluster ID", cc.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
@@ -208,17 +227,17 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			result,
 		)
 		if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
-			l.Error(err, "cluster is not ready to resize",
-				"Cluster name", cc.Spec.Name,
-				"Cluster status", cc.Status,
+			l.Error(err, "Cluster is not ready to resize",
+				"cluster name", cc.Spec.Name,
+				"cluster status", cc.Status,
 			)
 			return models.ReconcileRequeue
 		}
 		if err != nil {
 			l.Error(
-				err, "cannot update Cassandra cluster status from the Instaclustr API",
-				"Cluster name", cc.Spec.Name,
-				"Cluster ID", cc.Status.ID,
+				err, "Cannot update Cassandra cluster status from the Instaclustr API",
+				"cluster name", cc.Spec.Name,
+				"cluster ID", cc.Status.ID,
 			)
 			return models.ReconcileRequeue
 		}
@@ -227,23 +246,23 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.Patch(ctx, cc, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Cassandra cluster",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
-			"Kind", cc.Kind,
-			"API Version", cc.APIVersion,
-			"Namespace", cc.Namespace,
-			"Cluster metadata", cc.ObjectMeta,
+		l.Error(err, "Cannot patch Cassandra cluster",
+			"cluster name", cc.Spec.Name,
+			"cluster ID", cc.Status.ID,
+			"kind", cc.Kind,
+			"api Version", cc.APIVersion,
+			"namespace", cc.Namespace,
+			"cluster metadata", cc.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 	l.Info(
 		"Cassandra cluster status has been updated",
-		"Cluster name", cc.Spec.Name,
-		"Cluster ID", cc.Status.ID,
-		"Kind", cc.Kind,
-		"API Version", cc.APIVersion,
-		"Namespace", cc.Namespace,
+		"cluster name", cc.Spec.Name,
+		"cluster ID", cc.Status.ID,
+		"kind", cc.Kind,
+		"api Version", cc.APIVersion,
+		"namespace", cc.Namespace,
 	)
 
 	return reconcile.Result{}
@@ -257,13 +276,13 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	patch := cc.NewPatch()
 	err := r.Patch(ctx, cc, patch)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(err, "cannot patch Cassandra cluster",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
-			"Kind", cc.Kind,
-			"API Version", cc.APIVersion,
-			"Namespace", cc.Namespace,
-			"Cluster metadata", cc.ObjectMeta,
+		l.Error(err, "Cannot patch Cassandra cluster",
+			"cluster name", cc.Spec.Name,
+			"cluster ID", cc.Status.ID,
+			"kind", cc.Kind,
+			"api Version", cc.APIVersion,
+			"namespace", cc.Namespace,
+			"cluster metadata", cc.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
@@ -292,12 +311,12 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	status, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "cannot get Cassandra cluster status from the Instaclustr API",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
-			"Kind", cc.Kind,
-			"API Version", cc.APIVersion,
-			"Namespace", cc.Namespace,
+			err, "Cannot get Cassandra cluster status from the Instaclustr API",
+			"cluster name", cc.Spec.Name,
+			"cluster ID", cc.Status.ID,
+			"kind", cc.Kind,
+			"api Version", cc.APIVersion,
+			"namespace", cc.Namespace,
 		)
 		return models.ReconcileRequeue
 	}
@@ -306,12 +325,12 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		r.Scheduler.RemoveJob(cc.GetJobID(scheduler.StatusChecker))
 		err = r.API.DeleteCluster(cc.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
-			l.Error(err, "cannot delete Cassandra cluster",
-				"Cluster name", cc.Spec.Name,
-				"Status", cc.Status.Status,
-				"Kind", cc.Kind,
-				"API Version", cc.APIVersion,
-				"Namespace", cc.Namespace,
+			l.Error(err, "Cannot delete Cassandra cluster",
+				"cluster name", cc.Spec.Name,
+				"status", cc.Status.Status,
+				"kind", cc.Kind,
+				"api Version", cc.APIVersion,
+				"namespace", cc.Namespace,
 			)
 			return models.ReconcileRequeue
 		}
@@ -346,23 +365,23 @@ func (r *CassandraReconciler) handleDeleteCluster(
 
 	err = r.Patch(ctx, cc, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Cassandra cluster",
-			"Cluster name", cc.Spec.Name,
-			"Cluster ID", cc.Status.ID,
-			"Kind", cc.Kind,
-			"API Version", cc.APIVersion,
-			"Namespace", cc.Namespace,
-			"Cluster metadata", cc.ObjectMeta,
+		l.Error(err, "Cannot patch Cassandra cluster",
+			"cluster name", cc.Spec.Name,
+			"cluster ID", cc.Status.ID,
+			"kind", cc.Kind,
+			"api Version", cc.APIVersion,
+			"namespace", cc.Namespace,
+			"cluster metadata", cc.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Cassandra cluster has been deleted",
-		"Cluster name", cc.Spec.Name,
-		"Cluster ID", cc.Status.ID,
-		"Kind", cc.Kind,
-		"API Version", cc.APIVersion,
-		"Namespace", cc.Namespace,
+		"cluster name", cc.Spec.Name,
+		"cluster ID", cc.Status.ID,
+		"kind", cc.Kind,
+		"api Version", cc.APIVersion,
+		"namespace", cc.Namespace,
 	)
 
 	return reconcile.Result{}
@@ -412,20 +431,48 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 
 		instaclusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
-			l.Error(err, "cannot get cassandraCluster instaclusterStatus", "ClusterID", cassandraCluster.Status.ID)
+			l.Error(err, "Cannot get cassandraCluster instaclusterStatus",
+				"clusterID", cassandraCluster.Status.ID)
 			return err
 		}
 
+		patch := cassandraCluster.NewPatch()
 		if !isStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
 			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclusterStatus", instaclusterStatus,
 				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
 
-			patch := cassandraCluster.NewPatch()
 			cassandraCluster.Status.ClusterStatus = *instaclusterStatus
 			err := r.Status().Patch(context.Background(), cassandraCluster, patch)
 			if err != nil {
 				return err
+			}
+		}
+
+		if instaclusterStatus.CurrentClusterOperationStatus == models.NoOperation {
+			instSpec, err := r.API.GetCassandra(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+			if err != nil {
+				l.Error(err, "Cannot get Cassandra cluster spec from Instaclustr API",
+					"cluster ID", cassandraCluster.Status.ID)
+
+				return err
+			}
+
+			if !cassandraCluster.Spec.IsSpecEqual(instSpec) {
+				cassandraCluster.Spec.SetSpecFromInst(instSpec)
+				err = r.Patch(context.Background(), cassandraCluster, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch Cassandra cluster spec",
+						"cluster ID", cassandraCluster.Status.ID,
+						"spec from Instaclustr API", instSpec,
+					)
+
+					return err
+				}
+
+				l.Info("Cassandra cluster spec has been updated",
+					"cluster ID", cassandraCluster.Status.ID,
+				)
 			}
 		}
 
@@ -481,9 +528,9 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
 				continue
 			}
-			if k8sBackup.Annotations[models.StartAnnotation] != "" {
+			if k8sBackup.Annotations[models.StartTimestampAnnotation] != "" {
 				patch := k8sBackup.NewPatch()
-				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartAnnotation])
+				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartTimestampAnnotation])
 				if err != nil {
 					return err
 				}
