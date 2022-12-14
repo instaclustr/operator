@@ -21,6 +21,7 @@ func NewInstAPI() *mockClient {
 
 const (
 	CreatedID = "created"
+	StatusID  = "statusID"
 )
 
 func (c *mockClient) CreateCluster(url string, clusterSpec any) (string, error) {
@@ -71,7 +72,13 @@ func (c *mockClient) DeletePeering(peerID, peeringEndpoint string) error {
 	panic("DeletePeering: is not implemented")
 }
 func (c *mockClient) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1alpha1.PeeringStatus, error) {
-	panic("CreatePeering: is not implemented")
+	ps := &clusterresourcesv1alpha1.PeeringStatus{
+		ID:            StatusID,
+		Name:          "name",
+		StatusCode:    "statusCode",
+		FailureReason: "failureReason",
+	}
+	return ps, nil
 }
 func (c *mockClient) GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
 	panic("GetFirewallRuleStatus: is not implemented")

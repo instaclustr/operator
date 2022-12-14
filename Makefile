@@ -55,9 +55,20 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: test-clusters
+test-clusters:
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusters -coverprofile cover.out
+
+.PHONY: test-clusterresources
+test-clusterresources:
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusterresources -coverprofile cover.out
+
+.PHONY: test-kafkamanagement
+test-kafkamanagment:
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/kafkamanagement -coverprofile cover.out
+
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+test: manifests generate fmt vet envtest test-clusters test-clusterresources test-kafkamanagement
 
 ##@ Build
 
