@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clusterresourcesv2alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
@@ -54,7 +53,6 @@ func init() {
 
 	utilruntime.Must(clustersv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(clusterresourcesv2alpha1.AddToScheme(scheme))
 	utilruntime.Must(kafkamanagementv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
