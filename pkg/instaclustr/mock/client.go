@@ -81,10 +81,20 @@ func (c *mockClient) CreatePeering(url string, peeringSpec any) (*clusterresourc
 	return ps, nil
 }
 func (c *mockClient) GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
-	panic("GetFirewallRuleStatus: is not implemented")
+	fwRule := &clusterresourcesv1alpha1.FirewallRuleStatus{
+		ID:             StatusID,
+		Status:         "OK",
+		DeferredReason: "NO",
+	}
+	return fwRule, nil
 }
 func (c *mockClient) CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
-	panic("CreateFirewallRule: is not implemented")
+	fwRule := &clusterresourcesv1alpha1.FirewallRuleStatus{
+		ID:             StatusID,
+		Status:         "OK",
+		DeferredReason: "NO",
+	}
+	return fwRule, nil
 }
 func (c *mockClient) DeleteFirewallRule(firewallRuleID string, firewallRuleEndpoint string) error {
 	panic("DeleteFirewallRule: is not implemented")
@@ -157,4 +167,20 @@ func (c *mockClient) UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaAC
 
 func (c *mockClient) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
 	panic("GetMirrorStatus: is not implemented")
+}
+
+func (c *mockClient) CreateExclusionWindow(url string, me *clusterresourcesv1alpha1.MaintenanceEventsSpec) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
+	panic("CreateExclusionWindow: is not implemented")
+}
+func (c *mockClient) GetExclusionWindowStatus(clusterId string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
+	panic("GetExclusionWindowStatus: is not implemented")
+}
+func (c *mockClient) GetMaintenanceEventStatus(eventID string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
+	panic("GetMaintenanceEventStatus: is not implemented")
+}
+func (c *mockClient) DeleteExclusionWindow(meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus, endpoint string) error {
+	panic("DeleteExclusionWindow: is not implemented")
+}
+func (c *mockClient) UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec, endpoint string) error {
+	panic("UpdateMaintenanceEvent: is not implemented")
 }
