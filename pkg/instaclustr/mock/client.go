@@ -127,11 +127,19 @@ func (c *mockClient) TriggerClusterBackup(url, clusterID string) error {
 }
 
 func (c *mockClient) CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error {
-	panic("CreateNodeReload: is not implemented")
+	return nil
 }
 
 func (c *mockClient) GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error) {
-	panic("GetNodeReloadStatus: is not implemented")
+	nrs := &modelsv1.NodeReloadStatusAPIv1{
+		Operations: []*modelsv1.Operation{{
+			TimeCreated:  1232132,
+			TimeModified: 143432,
+			Status:       StatusID,
+			Message:      "message",
+		}},
+	}
+	return nrs, nil
 }
 
 func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
