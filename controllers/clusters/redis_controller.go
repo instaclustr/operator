@@ -458,9 +458,9 @@ func (r *RedisReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Redis) sc
 				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
 				continue
 			}
-			if k8sBackup.Annotations[models.StartAnnotation] != "" {
+			if k8sBackup.Annotations[models.StartTimestampAnnotation] != "" {
 				patch := k8sBackup.NewPatch()
-				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartAnnotation])
+				k8sBackup.Status.Start, err = strconv.Atoi(k8sBackup.Annotations[models.StartTimestampAnnotation])
 				if err != nil {
 					return err
 				}

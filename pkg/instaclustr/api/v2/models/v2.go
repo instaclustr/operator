@@ -63,9 +63,10 @@ type Node struct {
 }
 
 type ClusterStatus struct {
-	ID          string              `json:"id,omitempty"`
-	Status      string              `json:"status,omitempty"`
-	DataCentres []*DataCentreStatus `json:"dataCentres,omitempty"`
+	ID                            string              `json:"id,omitempty"`
+	Status                        string              `json:"status,omitempty"`
+	DataCentres                   []*DataCentreStatus `json:"dataCentres,omitempty"`
+	CurrentClusterOperationStatus string              `json:"currentClusterOperationStatus,omitempty"`
 }
 
 type DataCentreStatus struct {

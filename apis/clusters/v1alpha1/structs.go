@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -89,12 +90,13 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
-	ID                     string              `json:"id,omitempty"`
-	Status                 string              `json:"status,omitempty"`
-	DataCentres            []*DataCentreStatus `json:"dataCentres,omitempty"`
-	CDCID                  string              `json:"cdcid,omitempty"`
-	TwoFactorDeleteEnabled bool                `json:"twoFactorDeleteEnabled,omitempty"`
-	Options                *Options            `json:"options,omitempty"`
+	ID                            string              `json:"id,omitempty"`
+	Status                        string              `json:"status,omitempty"`
+	DataCentres                   []*DataCentreStatus `json:"dataCentres,omitempty"`
+	CDCID                         string              `json:"cdcid,omitempty"`
+	TwoFactorDeleteEnabled        bool                `json:"twoFactorDeleteEnabled,omitempty"`
+	Options                       *Options            `json:"options,omitempty"`
+	CurrentClusterOperationStatus string              `json:"currentClusterOperationStatus,omitempty"`
 }
 
 type TwoFactorDelete struct {
@@ -161,4 +163,106 @@ func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (dc *DataCentre) AreCloudProviderSettingsEqual(
+	awsSettings []*modelsv2.AWSSetting,
+	gcpSettings []*modelsv2.GCPSetting,
+	azureSettings []*modelsv2.AzureSetting) bool {
+	switch dc.CloudProvider {
+	case modelsv2.AWSVPC:
+		if len(dc.CloudProviderSettings) != len(awsSettings) {
+			return false
+		}
+
+		for i, awsSetting := range awsSettings {
+			if dc.CloudProviderSettings[i].DiskEncryptionKey != awsSetting.EBSEncryptionKey ||
+				dc.CloudProviderSettings[i].CustomVirtualNetworkID != awsSetting.CustomVirtualNetworkID {
+				return false
+			}
+		}
+	case modelsv2.GCP:
+		if len(dc.CloudProviderSettings) != len(gcpSettings) {
+			return false
+		}
+
+		for i, gcpSetting := range gcpSettings {
+			if dc.CloudProviderSettings[i].CustomVirtualNetworkID != gcpSetting.CustomVirtualNetworkID {
+				return false
+			}
+		}
+	case modelsv2.AZUREAZ:
+		if len(dc.CloudProviderSettings) != len(azureSettings) {
+			return false
+		}
+
+		for i, azureSetting := range azureSettings {
+			if dc.CloudProviderSettings[i].ResourceGroup != azureSetting.ResourceGroup {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (dc *DataCentre) AreTagsEqual(instTags []*modelsv2.Tag) bool {
+	for _, instTag := range instTags {
+		if dc.Tags[instTag.Key] != instTag.Value {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFactorDelete) bool {
+	if len(c.TwoFactorDelete) != len(instTwoFactorDeletes) {
+		return false
+	}
+
+	for _, instTFD := range instTwoFactorDeletes {
+		tfdFound := false
+		for _, k8sTFD := range c.TwoFactorDelete {
+			if instTFD.ConfirmationEmail == k8sTFD.Email {
+				tfdFound = true
+
+				if instTFD.ConfirmationPhoneNumber != k8sTFD.Phone {
+					return false
+				}
+			}
+		}
+
+		if !tfdFound {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (dc *DataCentre) SetCloudProviderSettings(instDC *modelsv2.DataCentre) {
+	cloudProviderSettings := []*CloudProviderSettings{}
+	switch dc.CloudProvider {
+	case modelsv2.AWSVPC:
+		for _, awsSetting := range instDC.AWSSettings {
+			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
+				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
+				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
+			})
+		}
+	case modelsv2.GCP:
+		for _, gcpSetting := range instDC.GCPSettings {
+			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
+				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
+			})
+		}
+	case modelsv2.AZUREAZ:
+		for _, azureSetting := range instDC.AzureSettings {
+			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
+				ResourceGroup: azureSetting.ResourceGroup,
+			})
+		}
+	}
+	dc.CloudProviderSettings = cloudProviderSettings
 }

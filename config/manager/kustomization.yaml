@@ -14,4 +14,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: rostislavporohnya/instaclustr-operator
-  newTag: 3pgrestore2
+  newTag: 2cassrestore2

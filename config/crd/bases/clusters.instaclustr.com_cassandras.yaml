@@ -112,6 +112,33 @@ spec:
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
+              restoreFrom:
+                properties:
+                  cdcInfos:
+                    items:
+                      properties:
+                        cdcId:
+                          type: string
+                        customVpcId:
+                          type: string
+                        customVpcNetwork:
+                          type: string
+                        restoreToSameVpc:
+                          type: boolean
+                      type: object
+                    type: array
+                  clusterID:
+                    type: string
+                  clusterNameOverride:
+                    type: string
+                  keyspaceTables:
+                    type: string
+                  pointInTime:
+                    format: int64
+                    type: integer
+                required:
+                - clusterID
+                type: object
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
                   and reduced SLAs. Production tier is not available when using Developer
@@ -147,15 +174,13 @@ spec:
                 type: array
               version:
                 type: string
-            required:
-            - dataCentres
-            - luceneEnabled
-            - passwordAndUserAuth
             type: object
           status:
             description: CassandraStatus defines the observed state of Cassandra
             properties:
               cdcid:
+                type: string
+              currentClusterOperationStatus:
                 type: string
               dataCentres:
                 items:

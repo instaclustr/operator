@@ -156,6 +156,8 @@ spec:
             properties:
               cdcid:
                 type: string
+              currentClusterOperationStatus:
+                type: string
               dataCentres:
                 items:
                   properties:

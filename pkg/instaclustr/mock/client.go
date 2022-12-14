@@ -7,7 +7,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
-	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -102,10 +102,10 @@ func (c *mockClient) DeleteFirewallRule(firewallRuleID string, firewallRuleEndpo
 func (c *mockClient) GetKafkaUserStatus(kafkaUserID, kafkaUserEndpoint string) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
 	panic("GetKafkaUserStatus: is not implemented")
 }
-func (c *mockClient) CreateKafkaUser(url string, kafkaUser *models2.KafkaUserAPIv2) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+func (c *mockClient) CreateKafkaUser(url string, kafkaUser *modelsv2.KafkaUserAPIv2) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
 	panic("CreateKafkaUser: is not implemented")
 }
-func (c *mockClient) UpdateKafkaUser(kafkaUserID, kafkaUserEndpoint string, kafkaUserSpec *models2.KafkaUserAPIv2) error {
+func (c *mockClient) UpdateKafkaUser(kafkaUserID, kafkaUserEndpoint string, kafkaUserSpec *modelsv2.KafkaUserAPIv2) error {
 	panic("UpdateKafkaUser: is not implemented")
 }
 func (c *mockClient) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
@@ -194,4 +194,12 @@ func (c *mockClient) GetClusterSpec(id, clusterEndpoint string) (*models.Cluster
 
 func (c *mockClient) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error) {
 	panic("RestorePgCluster: is not implemented")
+}
+
+func (c *mockClient) RestoreCassandra(url string, restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
+	panic("RestoreCassandra: is not implemented")
+}
+
+func (c *mockClient) GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error) {
+	panic("GetCassandra: is not implemented")
 }

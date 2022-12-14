@@ -132,9 +132,9 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		)
 	}
 
-	if backup.Annotations[models.StartAnnotation] != "" &&
+	if backup.Annotations[models.StartTimestampAnnotation] != "" &&
 		backup.Status.Start == 0 {
-		backup.Status.Start, err = strconv.Atoi(backup.Annotations[models.StartAnnotation])
+		backup.Status.Start, err = strconv.Atoi(backup.Annotations[models.StartTimestampAnnotation])
 		if err != nil {
 			logger.Error(err, "cannot convert backup start timestamp to string",
 				"Backup name", backup.Name,

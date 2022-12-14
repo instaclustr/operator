@@ -89,7 +89,7 @@ func (r *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        models.SnapshotUploadPrefix + r.Status.ID + "-" + strconv.Itoa(startTimestamp),
 			Namespace:   r.Namespace,
-			Annotations: map[string]string{models.StartAnnotation: strconv.Itoa(startTimestamp)},
+			Annotations: map[string]string{models.StartTimestampAnnotation: strconv.Itoa(startTimestamp)},
 			Labels:      map[string]string{models.ClusterIDLabel: r.Status.ID},
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
