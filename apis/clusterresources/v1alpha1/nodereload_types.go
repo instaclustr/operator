@@ -19,8 +19,6 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/instaclustr/operator/pkg/models"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -72,7 +70,6 @@ type NodeReloadList struct {
 
 func (nr *NodeReload) NewPatch() client.Patch {
 	old := nr.DeepCopy()
-	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 
