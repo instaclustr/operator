@@ -10,10 +10,12 @@ metadata:
   name: redis-sample
 spec:
   name: "testRedis"
-  version: "redis:7.0.5"
+  version: "7.0.5"
   slaTier: "NON_PRODUCTION"
   concurrentResizes: 1
   notifySupportContacts: false
+  clientEncryption: false
+  passwordAndUserAuth: false
 #  twoFactorDelete:
 #    - email: "rostyslp@netapp.com"
   dataCentres:
@@ -22,10 +24,10 @@ spec:
       network: "10.1.0.0/16"
 #      nodeSize: "t3.medium-80-r"
       nodeSize: "t3.small-20-r"
-      nodesNumber: 3
-      racksNumber: 3
       masterNodes: 3
       replicaNodes: 3
+      nodesNumber: 3
+      racksNumber: 3
 #    - region: "US_WEST_2"
 #      name: "test"
 #      cloudProvider: "AWS_VPC"
