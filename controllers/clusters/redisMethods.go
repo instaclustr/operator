@@ -17,7 +17,7 @@ import (
 )
 
 func (r *RedisReconciler) ToInstAPIv1(redisSpec *clustersv1alpha1.RedisSpec) *modelsv1.RedisCluster {
-	redisBundles := r.bundlesToInstAPIv1(redisSpec.DataCentres[0], redisSpec.Version)
+	redisBundles := r.bundlesToInstAPIv1(redisSpec.DataCentres[0], redisSpec.Version, redisSpec.ClientEncryption)
 
 	redisInstProvider := r.providerToInstAPIv1(redisSpec.DataCentres[0])
 
@@ -45,7 +45,11 @@ func (r *RedisReconciler) ToInstAPIv1(redisSpec *clustersv1alpha1.RedisSpec) *mo
 	}
 }
 
-func (r *RedisReconciler) bundlesToInstAPIv1(dataCentre *clustersv1alpha1.RedisDataCentre, version string) []*modelsv1.RedisBundle {
+func (r *RedisReconciler) bundlesToInstAPIv1(
+	dataCentre *clustersv1alpha1.RedisDataCentre,
+	version string,
+	clientEncryption bool,
+) []*modelsv1.RedisBundle {
 	var redisBundles []*modelsv1.RedisBundle
 
 	redisBundle := &modelsv1.RedisBundle{
@@ -54,7 +58,7 @@ func (r *RedisReconciler) bundlesToInstAPIv1(dataCentre *clustersv1alpha1.RedisD
 			Version: version,
 		},
 		Options: &modelsv1.RedisOptions{
-			ClientEncryption: dataCentre.ClientEncryption,
+			ClientEncryption: clientEncryption,
 			MasterNodes:      dataCentre.MasterNodes,
 			ReplicaNodes:     dataCentre.ReplicaNodes,
 			PasswordAuth:     dataCentre.PasswordAuth,
@@ -156,7 +160,7 @@ func (r *RedisReconciler) reconcileDataCentresNumber(
 	dataCentresToAdd := r.checkDataCentresToAdd(clusterStatusFromInst, cluster)
 	if len(dataCentresToAdd) > 0 {
 		for _, dataCentreToAdd := range dataCentresToAdd {
-			instDataCentreToAdd := r.dataCentreToInstAPIv1(dataCentreToAdd, cluster.Spec.Version)
+			instDataCentreToAdd := r.dataCentreToInstAPIv1(dataCentreToAdd, cluster.Spec.Version, cluster.Spec.ClientEncryption)
 			err := r.API.AddDataCentre(cluster.Status.ID, instaclustr.ClustersEndpointV1, instDataCentreToAdd)
 			if err != nil {
 				return err
@@ -185,8 +189,12 @@ func (r *RedisReconciler) checkDataCentresToAdd(
 	return dataCentresToAdd
 }
 
-func (r *RedisReconciler) dataCentreToInstAPIv1(dataCentre *clustersv1alpha1.RedisDataCentre, version string) *modelsv1.RedisDataCentre {
-	redisBundles := r.bundlesToInstAPIv1(dataCentre, version)
+func (r *RedisReconciler) dataCentreToInstAPIv1(
+	dataCentre *clustersv1alpha1.RedisDataCentre,
+	version string,
+	clientEncryption bool,
+) *modelsv1.RedisDataCentre {
+	redisBundles := r.bundlesToInstAPIv1(dataCentre, version, clientEncryption)
 	redisProvider := r.providerToInstAPIv1(dataCentre)
 	redisRackAllocation := r.rackAllocationToInstAPIv1(dataCentre)
 

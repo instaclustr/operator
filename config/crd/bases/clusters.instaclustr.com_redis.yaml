@@ -35,6 +35,9 @@ spec:
           spec:
             description: RedisSpec defines the desired state of Redis
             properties:
+              clientEncryption:
+                description: Enables client to node encryption
+                type: boolean
               concurrentResizes:
                 type: integer
               dataCentres:
@@ -42,8 +45,6 @@ spec:
                   properties:
                     accountName:
                       type: string
-                    clientEncryption:
-                      type: boolean
                     cloudProvider:
                       type: string
                     cloudProviderSettings:
@@ -107,6 +108,8 @@ spec:
                 type: string
               notifySupportContacts:
                 type: boolean
+              passwordAndUserAuth:
+                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied
@@ -144,9 +147,11 @@ spec:
               version:
                 type: string
             required:
+            - clientEncryption
             - concurrentResizes
             - dataCentres
             - notifySupportContacts
+            - passwordAndUserAuth
             type: object
           status:
             description: RedisStatus defines the observed state of Redis

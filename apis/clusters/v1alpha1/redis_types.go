@@ -24,20 +24,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 type RedisDataCentre struct {
-	DataCentre       `json:",inline"`
-	ClientEncryption bool  `json:"clientEncryption,omitempty"`
-	MasterNodes      int32 `json:"masterNodes"`
-	ReplicaNodes     int32 `json:"replicaNodes"`
-	PasswordAuth     bool  `json:"passwordAuth,omitempty"`
+	DataCentre   `json:",inline"`
+	MasterNodes  int32 `json:"masterNodes"`
+	ReplicaNodes int32 `json:"replicaNodes"`
+	PasswordAuth bool  `json:"passwordAuth,omitempty"`
 }
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	Cluster               `json:",inline"`
+	Cluster `json:",inline"`
+
+	// Enables client to node encryption
+	ClientEncryption      bool               `json:"clientEncryption"`
+	PasswordAndUserAuth   bool               `json:"passwordAndUserAuth"`
 	DataCentres           []*RedisDataCentre `json:"dataCentres"`
 	ConcurrentResizes     int                `json:"concurrentResizes"`
 	NotifySupportContacts bool               `json:"notifySupportContacts"`
@@ -97,6 +101,50 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.Clus
 			ClusterKind: models.RedisClusterKind,
 		},
 	}
+}
+
+func (rs *RedisSpec) ToInstAPIv2() *models.RedisCluster {
+	instDCs := []*models.RedisDataCentre{}
+	for _, redisDC := range rs.DataCentres {
+		instDC := &models.RedisDataCentre{
+			DataCentre: modelsv2.DataCentre{
+				Name:                redisDC.Name,
+				Network:             redisDC.Network,
+				NodeSize:            redisDC.NodeSize,
+				CloudProvider:       redisDC.CloudProvider,
+				Region:              redisDC.Region,
+				ProviderAccountName: redisDC.ProviderAccountName,
+			},
+			MasterNodes:  int(redisDC.MasterNodes),
+			ReplicaNodes: int(redisDC.ReplicaNodes),
+		}
+
+		redisDC.SetCloudProviderSettings(&instDC.DataCentre)
+
+		instTags := []*modelsv2.Tag{}
+		for key, value := range redisDC.Tags {
+			instTags = append(instTags, &modelsv2.Tag{
+				Key:   key,
+				Value: value,
+			})
+		}
+		instDC.Tags = instTags
+
+		instDCs = append(instDCs, instDC)
+	}
+
+	instSpec := &models.RedisCluster{
+		ClientToNodeEncryption: rs.ClientEncryption,
+		RedisVersion:           rs.Version,
+		PCIComplianceMode:      rs.PCICompliance,
+		PrivateNetworkCluster:  rs.PrivateNetworkCluster,
+		PasswordAndUserAuth:    rs.PasswordAndUserAuth,
+		Name:                   rs.Name,
+		SLATier:                rs.SLATier,
+		DataCentres:            instDCs,
+	}
+
+	return instSpec
 }
 
 func init() {
