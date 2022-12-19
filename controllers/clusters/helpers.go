@@ -9,13 +9,15 @@ import (
 )
 
 // confirmDeletion confirms if resource is deleting and set appropriate annotation.
-func confirmDeletion(obj client.Object) {
-	if obj.GetDeletionTimestamp() != nil {
-		obj.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
-		return
+func confirmDeletion(obj client.Object) bool {
+	annots := obj.GetAnnotations()
+
+	if obj.GetDeletionTimestamp() != nil && annots[models.DeletionConfirmed] != models.Canceled {
+		annots[models.ResourceStateAnnotation] = models.DeletingEvent
+		return true
 	}
 
-	return
+	return false
 }
 
 func isStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
