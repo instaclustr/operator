@@ -170,7 +170,20 @@ func (c *mockClient) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagemen
 }
 
 func (c *mockClient) CreateExclusionWindow(url string, me *clusterresourcesv1alpha1.MaintenanceEventsSpec) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
-	panic("CreateExclusionWindow: is not implemented")
+	mes := &clusterresourcesv1alpha1.MaintenanceEventsStatus{
+		ID: StatusID,
+		MaintenanceEvents: []*clusterresourcesv1alpha1.MaintenanceEvent{{
+			EventID:                   CreatedID,
+			ClusterID:                 "dasdas123123asd123",
+			Description:               "OK",
+			ExpectedServiceDisruption: true,
+			ScheduledStartTime:        "12-12-12",
+			ScheduledEndTime:          "13-12-12",
+			ActualStartTime:           "12-12-12",
+		},
+		},
+	}
+	return mes, nil
 }
 func (c *mockClient) GetExclusionWindowStatus(clusterId string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error) {
 	panic("GetExclusionWindowStatus: is not implemented")
