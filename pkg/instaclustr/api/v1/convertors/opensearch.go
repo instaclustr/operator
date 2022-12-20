@@ -50,6 +50,10 @@ func openSearchBundlesToInstAPI(
 			MasterNodeSize:               dataCentre.MasterNodeSize,
 			OpenSearchDashboardsNodeSize: dataCentre.OpenSearchDashboardsNodeSize,
 			IndexManagementPlugin:        dataCentre.IndexManagementPlugin,
+			ICUPlugin:                    dataCentre.ICUPlugin,
+			KNNPlugin:                    dataCentre.KNNPlugin,
+			NotificationsPlugin:          dataCentre.NotificationsPlugin,
+			ReportsPlugin:                dataCentre.ReportsPlugin,
 		},
 	}
 	openSearchBundles = append(openSearchBundles, openSearchBundle)
@@ -71,7 +75,7 @@ func openSearchProviderToInstAPI(dataCentre *v1alpha1.OpenSearchDataCentre) *mod
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
 		Tags:                   dataCentre.Tags,
-		CustomVirtualNetworkId: instCustomVirtualNetworkId,
+		CustomVirtualNetworkID: instCustomVirtualNetworkId,
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}

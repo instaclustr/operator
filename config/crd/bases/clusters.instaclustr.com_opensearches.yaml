@@ -42,6 +42,8 @@ spec:
                   properties:
                     accountName:
                       type: string
+                    alertingPlugin:
+                      type: boolean
                     cloudProvider:
                       type: string
                     cloudProviderSettings:
@@ -57,7 +59,11 @@ spec:
                       type: array
                     dedicatedMasterNodes:
                       type: boolean
+                    icuPlugin:
+                      type: boolean
                     indexManagementPlugin:
+                      type: boolean
+                    knnPlugin:
                       type: boolean
                     masterNodeSize:
                       type: string
@@ -73,6 +79,8 @@ spec:
                       description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
+                    notificationsPlugin:
+                      type: boolean
                     openSearchDashboardsNodeSize:
                       type: string
                     racksNumber:
@@ -82,6 +90,8 @@ spec:
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
+                    reportsPlugin:
+                      type: boolean
                     tags:
                       additionalProperties:
                         type: string
@@ -122,6 +132,33 @@ spec:
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
+              restoreFrom:
+                properties:
+                  cdcInfos:
+                    items:
+                      properties:
+                        cdcId:
+                          type: string
+                        customVpcId:
+                          type: string
+                        customVpcNetwork:
+                          type: string
+                        restoreToSameVpc:
+                          type: boolean
+                      type: object
+                    type: array
+                  clusterId:
+                    type: string
+                  clusterNameOverride:
+                    type: string
+                  indexNames:
+                    type: string
+                  pointInTime:
+                    format: int64
+                    type: integer
+                required:
+                - clusterId
+                type: object
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
                   and reduced SLAs. Production tier is not available when using Developer
@@ -148,8 +185,6 @@ spec:
                 type: array
               version:
                 type: string
-            required:
-            - dataCentres
             type: object
           status:
             description: OpenSearchStatus defines the observed state of OpenSearch

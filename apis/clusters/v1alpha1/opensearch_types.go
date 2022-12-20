@@ -27,22 +27,43 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// OpenSearchSpec defines the desired state of OpenSearch
-type OpenSearchSpec struct {
-	Cluster               `json:",inline"`
-	DataCentres           []*OpenSearchDataCentre `json:"dataCentres"`
-	ConcurrentResizes     int                     `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
-	Description           string                  `json:"description,omitempty"`
-	PrivateLink           *PrivateLink            `json:"privateLink,omitempty"`
-}
-
 type OpenSearchDataCentre struct {
 	DataCentre                   `json:",inline"`
 	DedicatedMasterNodes         bool   `json:"dedicatedMasterNodes,omitempty"`
 	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
 	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
 	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
+	AlertingPlugin               bool   `json:"alertingPlugin,omitempty"`
+	ICUPlugin                    bool   `json:"icuPlugin,omitempty"`
+	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
+	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
+	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
+}
+
+type OpenSearchRestoreFrom struct {
+	ClusterID           string                      `json:"clusterId"`
+	ClusterNameOverride string                      `json:"clusterNameOverride,omitempty"`
+	CDCInfos            []*OpenSearchRestoreCDCInfo `json:"cdcInfos,omitempty"`
+	PointInTime         int64                       `json:"pointInTime,omitempty"`
+	IndexNames          string                      `json:"indexNames,omitempty"`
+}
+
+type OpenSearchRestoreCDCInfo struct {
+	CDCID            string `json:"cdcId,omitempty"`
+	RestoreToSameVPC bool   `json:"restoreToSameVpc,omitempty"`
+	CustomVPCID      string `json:"customVpcId,omitempty"`
+	CustomVPCNetwork string `json:"customVpcNetwork,omitempty"`
+}
+
+// OpenSearchSpec defines the desired state of OpenSearch
+type OpenSearchSpec struct {
+	RestoreFrom           *OpenSearchRestoreFrom `json:"restoreFrom,omitempty"`
+	Cluster               `json:",inline"`
+	DataCentres           []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
+	ConcurrentResizes     int                     `json:"concurrentResizes,omitempty"`
+	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
+	Description           string                  `json:"description,omitempty"`
+	PrivateLink           *PrivateLink            `json:"privateLink,omitempty"`
 }
 
 // OpenSearchStatus defines the observed state of OpenSearch
@@ -98,6 +119,158 @@ func (r *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1
 			ClusterKind: models.OsClusterKind,
 		},
 	}
+}
+
+func (oss *OpenSearchSpec) HasRestore() bool {
+	if oss.RestoreFrom != nil && oss.RestoreFrom.ClusterID != "" {
+		return true
+	}
+
+	return false
+}
+
+func (oss *OpenSearchSpec) IsSpecEqual(instSpec *models.ClusterSpec) bool {
+	if len(oss.DataCentres) == 0 ||
+		len(instSpec.DataCentres) != len(oss.DataCentres) ||
+		oss.Version != instSpec.BundleVersion ||
+		oss.SLATier != instSpec.SLATier ||
+		oss.Name != instSpec.ClusterName ||
+		(len(oss.TwoFactorDelete) == 0 && instSpec.TwoFactorDeleteEnabled) {
+		return false
+	}
+
+	for _, instDataCentre := range instSpec.DataCentres {
+		for _, dataCentre := range oss.DataCentres {
+			if dataCentre.Name == instDataCentre.CDCName {
+				if !dataCentre.AreOptionsEqual(instSpec.BundleOptions) ||
+					!dataCentre.IsDataCentreEqual(instDataCentre, oss.PrivateLink) ||
+					!dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) ||
+					oss.PrivateNetworkCluster != instDataCentre.PrivateIPOnly {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
+func (odc *OpenSearchDataCentre) AreOptionsEqual(instOptions models.BundleOptions) bool {
+	if odc.ReportsPlugin != instOptions.ReportsPlugin ||
+		odc.KNNPlugin != instOptions.KNNPlugin ||
+		odc.NotificationsPlugin != instOptions.NotificationsPlugin ||
+		odc.ICUPlugin != instOptions.ICUPlugin ||
+		odc.AlertingPlugin != instOptions.AlertingPlugin ||
+		odc.IndexManagementPlugin != instOptions.IndexManagementPlugin ||
+		(instOptions.DedicatedMasterNodes && odc.NodeSize != instOptions.DataNodeSize) ||
+		(!instOptions.DedicatedMasterNodes && odc.NodeSize != instOptions.MasterNodeSize) ||
+		(odc.MasterNodeSize != "" && odc.MasterNodeSize != instOptions.MasterNodeSize) ||
+		odc.OpenSearchDashboardsNodeSize != instOptions.OpenSearchDashboardsNodeSize {
+		return false
+
+	}
+
+	return true
+}
+
+func (odc *OpenSearchDataCentre) IsDataCentreEqual(instDC *models.DataCentreSpec, privateLink *PrivateLink) bool {
+	if odc.Name != instDC.CDCName ||
+		odc.Region != instDC.Name ||
+		odc.CloudProvider != instDC.Provider ||
+		odc.Network != instDC.CDCNetwork {
+		return false
+	}
+
+	if instDC.PrivateLink != nil {
+		for _, instLink := range instDC.PrivateLink.IAMPrincipalARNs {
+			foundLink := false
+			for _, k8sLink := range privateLink.IAMPrincipalARNs {
+				if instLink == k8sLink {
+					foundLink = true
+					break
+				}
+			}
+
+			if !foundLink {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (odc *OpenSearchDataCentre) IsClusterProviderEqual(instClusterProvider []*models.ClusterProvider) bool {
+	for _, instProvider := range instClusterProvider {
+		if odc.CloudProvider != instProvider.Name ||
+			odc.ProviderAccountName != instProvider.AccountName {
+			return false
+		}
+
+		for _, providerSettings := range odc.CloudProviderSettings {
+			if instProvider.DiskEncryptionKey != providerSettings.DiskEncryptionKey ||
+				instProvider.ResourceGroup != providerSettings.ResourceGroup ||
+				instProvider.CustomVirtualNetworkID != providerSettings.CustomVirtualNetworkID {
+				return false
+			}
+
+			for key, value := range instProvider.Tags {
+				if odc.Tags[key] != value {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+func (oss *OpenSearchSpec) SetSpecFromInst(instSpec *models.ClusterSpec) bool {
+	oss.Name = instSpec.ClusterName
+	oss.Version = instSpec.BundleVersion
+	oss.SLATier = instSpec.SLATier
+	oss.PCICompliance = instSpec.PCICompliance != models.Disabled
+
+	k8sDataCentres := []*OpenSearchDataCentre{}
+	for _, instDC := range instSpec.DataCentres {
+		oss.PrivateNetworkCluster = instDC.PrivateIPOnly
+		if instDC.PrivateLink != nil {
+			oss.PrivateLink = &PrivateLink{IAMPrincipalARNs: instDC.PrivateLink.IAMPrincipalARNs}
+		}
+
+		dcToAppend := &OpenSearchDataCentre{
+			DataCentre: DataCentre{
+				Name:          instDC.CDCName,
+				Region:        instDC.Name,
+				CloudProvider: instDC.Provider,
+				Network:       instDC.CDCNetwork,
+			},
+			DedicatedMasterNodes:         instSpec.BundleOptions.DedicatedMasterNodes,
+			OpenSearchDashboardsNodeSize: instSpec.BundleOptions.OpenSearchDashboardsNodeSize,
+			IndexManagementPlugin:        instSpec.BundleOptions.IndexManagementPlugin,
+			AlertingPlugin:               instSpec.BundleOptions.AlertingPlugin,
+			ICUPlugin:                    instSpec.BundleOptions.ICUPlugin,
+			KNNPlugin:                    instSpec.BundleOptions.KNNPlugin,
+			NotificationsPlugin:          instSpec.BundleOptions.NotificationsPlugin,
+			ReportsPlugin:                instSpec.BundleOptions.ReportsPlugin,
+		}
+
+		if instSpec.BundleOptions.DedicatedMasterNodes {
+			dcToAppend.MasterNodeSize = instSpec.BundleOptions.MasterNodeSize
+			dcToAppend.NodeSize = instSpec.BundleOptions.DataNodeSize
+		} else {
+			dcToAppend.NodeSize = instSpec.BundleOptions.MasterNodeSize
+		}
+
+		dcToAppend.SetCloudProviderSettingsAPIv1(instSpec.ClusterProvider)
+
+		k8sDataCentres = append(k8sDataCentres, dcToAppend)
+	}
+	oss.DataCentres = k8sDataCentres
+
+	return true
 }
 
 func init() {

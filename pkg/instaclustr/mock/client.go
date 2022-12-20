@@ -203,3 +203,7 @@ func (c *mockClient) RestoreCassandra(url string, restoreData v1alpha1.Cassandra
 func (c *mockClient) GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error) {
 	panic("GetCassandra: is not implemented")
 }
+
+func (c *mockClient) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
+	panic("RestoreOpenSearchCluster: is not implemented")
+}

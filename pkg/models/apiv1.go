@@ -27,7 +27,7 @@ type Cluster struct {
 type ClusterProvider struct {
 	Name                   string            `json:"name"`
 	AccountName            string            `json:"accountName,omitempty"`
-	CustomVirtualNetworkId string            `json:"customVirtualNetworkId,omitempty"`
+	CustomVirtualNetworkID string            `json:"customVirtualNetworkId,omitempty"`
 	Tags                   map[string]string `json:"tags,omitempty"`
 	ResourceGroup          string            `json:"resourceGroup,omitempty"`
 	DiskEncryptionKey      string            `json:"diskEncryptionKey,omitempty"`
@@ -52,6 +52,10 @@ type RuleType struct {
 type TwoFactorDelete struct {
 	DeleteVerifyEmail string `json:"deleteVerifyEmail,omitempty"`
 	DeleteVerifyPhone string `json:"deleteVerifyPhone,omitempty"`
+}
+
+type PrivateLink struct {
+	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
 
 type Bundle struct {
@@ -80,6 +84,7 @@ type DataCentreSpec struct {
 	UsePrivateBroadcastRPCAddress bool          `json:"usePrivateBroadcastRPCAddress"`
 	PrivateIPOnly                 bool          `json:"privateIPOnly"`
 	Nodes                         []*NodeStatus `json:"nodes"`
+	PrivateLink                   *PrivateLink  `json:"privateLink,omitempty"`
 }
 
 type DataCentreStatus struct {
@@ -142,6 +147,13 @@ type BundleOptions struct {
 	SynchronousModeStrict        bool   `json:"synchronousModeStrict,omitempty"`
 	PostgresqlNodeCount          int32  `json:"postgresqlNodeCount,omitempty"`
 	PoolMode                     string `json:"poolMode,omitempty"`
+	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
+	AlertingPlugin               bool   `json:"alertingPlugin,omitempty"`
+	ICUPlugin                    bool   `json:"icuPlugin,omitempty"`
+	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
+	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
+	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
+	DedicatedMasterNodes         bool   `json:"dedicatedMasterNodes,omitempty"`
 }
 
 type ClusterBackup struct {
@@ -189,14 +201,15 @@ func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEven
 }
 
 type ClusterSpec struct {
-	ClusterName     string             `json:"clusterName"`
-	BundleVersion   string             `json:"bundleVersion"`
-	BundleOptions   BundleOptions      `json:"bundleOptions"`
-	SLATier         string             `json:"slaTier"`
-	PCICompliance   string             `json:"pciCompliance"`
-	DataCentres     []*DataCentreSpec  `json:"dataCentres"`
-	AddonBundles    []*AddonBundle     `json:"addonBundles"`
-	ClusterProvider []*ClusterProvider `json:"clusterProvider"`
+	ClusterName            string             `json:"clusterName"`
+	BundleVersion          string             `json:"bundleVersion"`
+	BundleOptions          BundleOptions      `json:"bundleOptions"`
+	SLATier                string             `json:"slaTier"`
+	PCICompliance          string             `json:"pciCompliance"`
+	DataCentres            []*DataCentreSpec  `json:"dataCentres"`
+	AddonBundles           []*AddonBundle     `json:"addonBundles"`
+	ClusterProvider        []*ClusterProvider `json:"clusterProvider"`
+	TwoFactorDeleteEnabled bool               `json:"twoFactorDelete"`
 }
 
 type AddonBundle struct {

@@ -19,6 +19,11 @@ type OpenSearchBundleOptions struct {
 	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
 	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
 	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
+	AlertingPlugin               bool   `json:"alertingPlugin,omitempty"`
+	ICUPlugin                    bool   `json:"icuPlugin,omitempty"`
+	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
+	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
+	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
 }
 
 type OpenSearchDataCentre struct {

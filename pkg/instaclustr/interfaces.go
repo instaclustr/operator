@@ -50,6 +50,7 @@ type API interface {
 	DeleteExclusionWindow(meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus, endpoint string) error
 	UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec, endpoint string) error
 	RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error)
+	RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error)
 	CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error
 	GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error)
 	GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error)

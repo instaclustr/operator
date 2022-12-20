@@ -83,7 +83,7 @@ func (r *RedisReconciler) providerToInstAPIv1(dataCentre *clustersv1alpha1.Redis
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
 		Tags:                   dataCentre.Tags,
-		CustomVirtualNetworkId: instCustomVirtualNetworkId,
+		CustomVirtualNetworkID: instCustomVirtualNetworkId,
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}

@@ -119,7 +119,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	patch := pgCluster.NewPatch()
 
 	if pgCluster.Status.ID == "" {
-		if pgCluster.Spec.HasRestoreFilled() {
+		if pgCluster.Spec.HasRestore() {
 			logger.Info(
 				"Creating PostgreSQL cluster from backup",
 				"original cluster ID", pgCluster.Spec.PgRestoreFrom.ClusterID,

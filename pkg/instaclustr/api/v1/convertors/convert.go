@@ -114,7 +114,7 @@ func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *models.ClusterProvi
 		Name:                   dataCentre.CloudProvider,
 		AccountName:            dataCentre.ProviderAccountName,
 		Tags:                   dataCentre.Tags,
-		CustomVirtualNetworkId: instCustomVirtualNetworkId,
+		CustomVirtualNetworkID: instCustomVirtualNetworkId,
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}
