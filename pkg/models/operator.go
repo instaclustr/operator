@@ -7,11 +7,12 @@ import (
 )
 
 const (
-	ResourceStateAnnotation  = "instaclustr.com/resourceState"
-	DeletionConfirmed        = "instaclustr.com/deletionConfirmed"
-	DeletionFinalizer        = "instaclustr.com/deletionFinalizer"
-	UpdatedFieldsAnnotation  = "instaclustr.com/updatedFields"
-	StartTimestampAnnotation = "instaclustr.com/startTimestamp"
+	ResourceStateAnnotation   = "instaclustr.com/resourceState"
+	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
+	DeletionConfirmed         = "instaclustr.com/deletionConfirmed"
+	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
+	UpdatedFieldsAnnotation   = "instaclustr.com/updatedFields"
+	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
 	ControlledByLabel                  = "instaclustr.com/controlledBy"
 	ClusterIDLabel                     = "instaclustr.com/clusterID"
@@ -36,10 +37,10 @@ const (
 	V1_3_7     = "1.3.7"
 	VPC_PEERED = "VPC_PEERED"
 
-	True     = "true"
-	False    = "false"
-	Pending  = "pending"
-	Canceled = "canceled"
+	True  = "true"
+	False = "false"
+
+	Triggered = "triggered"
 
 	ClusterBackupKind       = "ClusterBackup"
 	PgClusterKind           = "PostgreSQL"
@@ -72,28 +73,9 @@ const (
 	FinalizersPath   = "/metadata/finalizers"
 )
 
-const (
-	Requeue60        = time.Second * 60
-	Requeue10Minutes = time.Minute * 10
-)
+const Requeue60 = time.Second * 60
 
 var (
-	ReconcileRequeue         = reconcile.Result{RequeueAfter: Requeue60}
-	ReconcileRequeue10Minute = reconcile.Result{RequeueAfter: Requeue10Minutes}
-	ReconcileResult          = reconcile.Result{}
-)
-
-const (
-	MessagePendingDeletion = `Please confirm cluster deletion via email (or phone), and then ` +
-		`set Instaclustr.com/deletionConfirmed annotation to "true". ` +
-		`To cancel cluster deletion, set the annotation to "false".`
-
-	MessageDeleteCluster = "Cluster deletion has been confirmed. Deleting a resource."
-
-	MessageCancelClusterDeletion = `Cluster deletion has been canceled. To put the cluster on deletion again, ` +
-		`remove "canceled" from Instaclustr.com/deletionConfirmed annotation.`
-
-	MessageUnknownDeleteAnnotation = `Unhandled delete annotation. Cluster deletion is need to be confirmed. ` +
-		`If you want to delete cluster, set Instaclustr.com/deletionConfirmed annotation to "true", or` +
-		`"false" to cancel cluster deletion.`
+	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
+	ReconcileResult  = reconcile.Result{}
 )

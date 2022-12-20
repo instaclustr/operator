@@ -12,7 +12,7 @@ import (
 func confirmDeletion(obj client.Object) bool {
 	annots := obj.GetAnnotations()
 
-	if obj.GetDeletionTimestamp() != nil && annots[models.DeletionConfirmed] != models.Canceled {
+	if obj.GetDeletionTimestamp() != nil && annots[models.ClusterDeletionAnnotation] != models.Triggered {
 		annots[models.ResourceStateAnnotation] = models.DeletingEvent
 		return true
 	}
