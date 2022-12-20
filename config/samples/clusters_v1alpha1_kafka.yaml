@@ -3,7 +3,7 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  name: "kofke"
+  name: "kafka"
   version: "2.7.1"
   pciCompliance: false
   replicationFactorNumber: 3

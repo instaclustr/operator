@@ -19,7 +19,6 @@ package clusters
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -174,42 +173,6 @@ func (r *KafkaReconciler) handleUpdateCluster(
 func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
 	l = l.WithName("Deletion Event")
 
-	annots := kafka.Annotations
-	patch := kafka.NewPatch()
-
-	if kafka.Spec.TwoFactorDelete != nil && annots[models.DeletionConfirmed] != "" {
-		switch annots[models.DeletionConfirmed] {
-		case models.False:
-			l.Info(models.MessageCancelClusterDeletion, "cluster ID", kafka.Status.ID)
-
-			annots[models.DeletionConfirmed] = models.Canceled
-			annots[models.ResourceStateAnnotation] = models.UpdatedEvent
-
-			err := r.Patch(ctx, kafka, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Kafka cluster",
-					"cluster name", kafka.Spec.Name, "status", kafka.Status.Status)
-				return models.ReconcileRequeue
-			}
-
-			return models.ReconcileResult
-
-		case models.Pending:
-			l.Info(models.MessagePendingDeletion, `cluster ID`, kafka.Status.ID)
-
-			return models.ReconcileRequeue10Minute
-
-		case models.True:
-			l.Info(models.MessageDeleteCluster, "cluster ID", kafka.Status.ID)
-
-		default:
-			l.Info(models.MessageUnknownDeleteAnnotation, "cluster ID", kafka.Status.ID,
-				"Instaclustr.com/deletionConfirmed annotation", annots[models.DeletionConfirmed])
-
-			return models.ReconcileRequeue
-		}
-	}
-
 	instaCluster, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get Kafka cluster",
@@ -218,7 +181,12 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 		return models.ReconcileRequeue
 	}
 
+	patch := kafka.NewPatch()
+
 	if &instaCluster != nil {
+		l.Info("Sending cluster deletion to Instaclustr API",
+			"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
+
 		err = r.API.DeleteCluster(kafka.Status.ID, instaclustr.KafkaEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot delete Kafka cluster",
@@ -227,7 +195,8 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 		}
 
 		if kafka.Spec.TwoFactorDelete != nil {
-			annots[models.DeletionConfirmed] = models.Pending
+			kafka.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			kafka.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
 			err := r.Patch(ctx, kafka, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka cluster",
@@ -235,13 +204,18 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 				return models.ReconcileRequeue
 			}
 
+			l.Info("Please confirm cluster deletion via email or phone. "+
+				"If you have canceled a cluster deletion and want to put the cluster on deletion again, "+
+				"remove \"triggered\" from Instaclustr.com/ClusterDeletionAnnotation annotation.",
+				"cluster ID", kafka.Status.ID)
+
 			return reconcile.Result{}
 		}
 	}
 
 	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
-	annots[models.ResourceStateAnnotation] = models.DeletedEvent
+	kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, kafka, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch kafka remove recourse",
@@ -275,7 +249,6 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 		if k8serrors.IsNotFound(err) {
 			l.Info("Kafka resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-
 			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
@@ -285,14 +258,30 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			return err
 		}
 
-		if deleting := confirmDeletion(kafka); deleting {
-			l.Info("Cluster is being deleted. Instaclustr statuses sync skipped",
-				"cluster ID", kafka.Status.ID, "recourse name", kafka.ObjectMeta.Name)
-			time.Sleep(models.Requeue10Minutes)
+		instaclusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		if errors.Is(err, instaclustr.NotFound) {
+			patch := kafka.NewPatch()
+			l.Info("Kafka cluster is not found in Instaclustr. Deleting resource.",
+				"cluster ID", kafka.Status.ClusterStatus.ID,
+				"cluster name", kafka.Spec.Name,
+				"namespaced name", namespacedName)
+
+			controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
+			kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+			err = r.Patch(context.Background(), kafka, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch kafka remove recourse",
+					"cluster name", kafka.Spec.Name)
+				return err
+			}
+
+			l.Info("Kafka was deleted",
+				"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
+
+			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
+
 			return nil
 		}
-
-		instaclusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot get kafka instaclusterStatus", "cluster ID", kafka.Status.ID)
 			return err
