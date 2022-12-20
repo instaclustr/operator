@@ -1259,6 +1259,52 @@ func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, 
 	return response.RestoredCluster, nil
 }
 
+func (c *Client) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
+	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
+
+	var restoreRequest struct {
+		ClusterNameOverride string                               `json:"clusterNameOverride,omitempty"`
+		CDCInfos            []*v1alpha1.OpenSearchRestoreCDCInfo `json:"cdcInfos,omitempty"`
+		PointInTime         int64                                `json:"pointInTime,omitempty"`
+		IndexNames          string                               `json:"indexNames,omitempty"`
+	}
+	restoreRequest.CDCInfos = restoreData.CDCInfos
+	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
+	restoreRequest.PointInTime = restoreData.PointInTime
+	restoreRequest.IndexNames = restoreData.IndexNames
+
+	jsonData, err := json.Marshal(restoreRequest)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, jsonData)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var response struct {
+		RestoredCluster string `json:"restoredCluster"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return response.RestoredCluster, nil
+}
+
 func (c *Client) CreateKafkaACL(
 	url string,
 	kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec,

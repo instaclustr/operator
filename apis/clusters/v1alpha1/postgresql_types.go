@@ -131,7 +131,7 @@ func (pgs *PgSpec) IsSpecEqual(instSpec *models.ClusterSpec, instClusterConfig m
 		pgs.SLATier != instSpec.SLATier ||
 		!pgs.AreAddonBundlesEqual(instSpec.AddonBundles) ||
 		!pgs.IsClusterConfigEqual(instClusterConfig) ||
-		pgs.PrivateNetworkCluster != instSpec.DataCentres[0].PrivateIPOnly ||
+		(len(pgs.TwoFactorDelete) == 0 && instSpec.TwoFactorDeleteEnabled) ||
 		pgs.Name != instSpec.ClusterName {
 		return false
 	}
@@ -140,11 +140,9 @@ func (pgs *PgSpec) IsSpecEqual(instSpec *models.ClusterSpec, instClusterConfig m
 		for _, dataCentre := range pgs.DataCentres {
 			if dataCentre.Name == instDataCentre.CDCName {
 				if !dataCentre.AreOptionsEqual(instSpec.BundleOptions) ||
-					!dataCentre.IsDataCentreEqual(instDataCentre) {
-					return false
-				}
-
-				if !dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) {
+					!dataCentre.IsDataCentreEqual(instDataCentre) ||
+					!dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) ||
+					pgs.PrivateNetworkCluster != instDataCentre.PrivateIPOnly {
 					return false
 				}
 
@@ -228,7 +226,7 @@ func (pdc *PgDataCentre) IsClusterProviderEqual(instProviders []*models.ClusterP
 		}
 
 		if len(pdc.CloudProviderSettings) != len(instProviders) ||
-			pdc.CloudProviderSettings[i].CustomVirtualNetworkID != instProvider.CustomVirtualNetworkId ||
+			pdc.CloudProviderSettings[i].CustomVirtualNetworkID != instProvider.CustomVirtualNetworkID ||
 			pdc.CloudProviderSettings[i].DiskEncryptionKey != instProvider.DiskEncryptionKey ||
 			pdc.CloudProviderSettings[i].ResourceGroup != instProvider.ResourceGroup {
 		}
@@ -269,7 +267,7 @@ func (pgs *PgSpec) SetSpecFromInst(instSpec *models.ClusterSpec, clusterConfig m
 			dataCentre.Tags = instProvider.Tags
 			dataCentre.CloudProviderSettings = append(dataCentre.CloudProviderSettings, &CloudProviderSettings{
 				ResourceGroup:          instProvider.ResourceGroup,
-				CustomVirtualNetworkID: instProvider.CustomVirtualNetworkId,
+				CustomVirtualNetworkID: instProvider.CustomVirtualNetworkID,
 				DiskEncryptionKey:      instProvider.DiskEncryptionKey,
 			})
 		}
@@ -301,7 +299,7 @@ func (pgs *PgSpec) Update(instSpec *models.ClusterSpec, clusterConfigurations ma
 				providerSettings := []*CloudProviderSettings{}
 				for _, instProvider := range instSpec.ClusterProvider {
 					providerSettings = append(providerSettings, &CloudProviderSettings{
-						CustomVirtualNetworkID: instProvider.CustomVirtualNetworkId,
+						CustomVirtualNetworkID: instProvider.CustomVirtualNetworkID,
 						ResourceGroup:          instProvider.ResourceGroup,
 						DiskEncryptionKey:      instProvider.DiskEncryptionKey,
 					})
@@ -313,7 +311,7 @@ func (pgs *PgSpec) Update(instSpec *models.ClusterSpec, clusterConfigurations ma
 	}
 }
 
-func (pgs *PgSpec) HasRestoreFilled() bool {
+func (pgs *PgSpec) HasRestore() bool {
 	if pgs.PgRestoreFrom != nil && pgs.PgRestoreFrom.ClusterID != "" {
 		return true
 	}

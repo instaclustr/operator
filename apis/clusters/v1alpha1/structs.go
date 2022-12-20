@@ -141,7 +141,7 @@ func (dc *DataCentre) providerToInstAPIv1() *models.ClusterProvider {
 		Name:                   dc.CloudProvider,
 		AccountName:            dc.ProviderAccountName,
 		Tags:                   dc.Tags,
-		CustomVirtualNetworkId: instCustomVirtualNetworkId,
+		CustomVirtualNetworkID: instCustomVirtualNetworkId,
 		ResourceGroup:          instResourceGroup,
 		DiskEncryptionKey:      insDiskEncryptionKey,
 	}
@@ -302,6 +302,23 @@ func (dc *DataCentre) SetCloudProviderSettings(instDC *modelsv2.DataCentre) {
 				ResourceGroup: azureSetting.ResourceGroup,
 			})
 		}
+	}
+	dc.CloudProviderSettings = cloudProviderSettings
+}
+
+func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*models.ClusterProvider) {
+	if len(instProviderSettings) != 0 {
+		dc.ProviderAccountName = instProviderSettings[0].AccountName
+		dc.CloudProvider = instProviderSettings[0].Name
+	}
+
+	cloudProviderSettings := []*CloudProviderSettings{}
+	for _, instProviderSetting := range instProviderSettings {
+		cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
+			CustomVirtualNetworkID: instProviderSetting.CustomVirtualNetworkID,
+			ResourceGroup:          instProviderSetting.ResourceGroup,
+			DiskEncryptionKey:      instProviderSetting.DiskEncryptionKey,
+		})
 	}
 	dc.CloudProviderSettings = cloudProviderSettings
 }

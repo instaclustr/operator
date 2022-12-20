@@ -1,0 +1,17 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: OpenSearch
+metadata:
+  labels:
+    app.kubernetes.io/name: opensearch
+    app.kubernetes.io/instance: opensearch-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: opensearch-sample
+  annotations:
+    test.annotation/first: testAnnotation
+spec:
+  restoreFrom:
+    clusterId: "7704ec02-d69f-43ad-87ab-f3f67d50da3f"
+    pointInTime: 1673533403075
+    clusterNameOverride: "opensearchRESTORED"
