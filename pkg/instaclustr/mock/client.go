@@ -153,7 +153,10 @@ func (c *mockClient) GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeR
 }
 
 func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
-	panic("CreateKafkaACL: is not implemented")
+	kafkaACLStatus := &kafkamanagementv1alpha1.KafkaACLStatus{
+		ID: StatusID,
+	}
+	return kafkaACLStatus, nil
 }
 func (c *mockClient) GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
 	panic("GetKafkaACLStatus: is not implemented")

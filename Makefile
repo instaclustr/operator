@@ -64,7 +64,7 @@ test-clusterresources:
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusterresources -coverprofile cover.out
 
 .PHONY: test-kafkamanagement
-test-kafkamanagment:
+test-kafkamanagement:
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/kafkamanagement -coverprofile cover.out
 
 .PHONY: test
