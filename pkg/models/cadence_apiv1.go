@@ -9,6 +9,7 @@ const (
 
 	SharedProvisioningType   = "SHARED"
 	PackagedProvisioningType = "PACKAGED"
+	StandardProvisioningType = "STANDARD"
 )
 
 type CadenceClusterAPIv1 struct {

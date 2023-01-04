@@ -61,7 +61,6 @@ func (c *Client) DoRequest(url string, method string, data []byte) (*http.Respon
 }
 
 func (c *Client) CreateCluster(url string, cluster any) (string, error) {
-
 	jsonDataCreate, err := json.Marshal(cluster)
 	if err != nil {
 		return "", err

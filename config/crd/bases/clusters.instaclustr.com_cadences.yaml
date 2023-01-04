@@ -84,8 +84,6 @@ spec:
                   replicationFactor:
                     type: integer
                 type: object
-              clientEncryption:
-                type: boolean
               concurrentResizes:
                 type: integer
               dataCentres:
@@ -95,6 +93,8 @@ spec:
                       type: string
                     cadenceNodeCount:
                       type: integer
+                    clientEncryption:
+                      type: boolean
                     cloudProvider:
                       type: string
                     cloudProviderSettings:

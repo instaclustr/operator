@@ -19,18 +19,21 @@ package v1alpha1
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 type CadenceDataCentre struct {
 	DataCentre       `json:",inline"`
-	CadenceNodeCount int `json:"cadenceNodeCount"`
+	CadenceNodeCount int  `json:"cadenceNodeCount"`
+	ClientEncryption bool `json:"clientEncryption,omitempty"`
 }
 
 type BundledCassandraSpec struct {
@@ -74,7 +77,6 @@ type CadenceSpec struct {
 	ArchivalS3Region            string                `json:"archivalS3Region,omitempty"`
 	AWSAccessKeySecretNamespace string                `json:"awsAccessKeySecretNamespace,omitempty"`
 	AWSAccessKeySecretName      string                `json:"awsAccessKeySecretName,omitempty"`
-	ClientEncryption            bool                  `json:"clientEncryption,omitempty"`
 	EnableArchival              bool                  `json:"enableArchival,omitempty"`
 	TargetCassandraCDCID        string                `json:"targetCassandraCdcId,omitempty"`
 	TargetCassandraVPCType      string                `json:"targetCassandraVpcType,omitempty"`
@@ -177,7 +179,7 @@ func (cs *CadenceSpec) bundlesToInstAPIv1(ctx context.Context, k8sClient client.
 		Options: &models.CadenceBundleOptionsAPIv1{
 			UseAdvancedVisibility:   cs.UseAdvancedVisibility,
 			UseCadenceWebAuth:       cs.UseCadenceWebAuth,
-			ClientEncryption:        cs.ClientEncryption,
+			ClientEncryption:        dataCentre.ClientEncryption,
 			TargetCassandraCDCID:    cs.TargetCassandraCDCID,
 			TargetCassandraVPCType:  cs.TargetCassandraVPCType,
 			TargetKafkaCDCID:        cs.TargetKafkaCDCID,
@@ -276,4 +278,162 @@ func (c *Cadence) GetJobID(jobName string) string {
 func (c *Cadence) NewPatch() client.Patch {
 	old := c.DeepCopy()
 	return client.MergeFrom(old)
+}
+
+func (cs *CadenceSpec) ToInstAPIv2(ctx context.Context, k8sClient client.Client) (*models.CadenceClusterAPIv2, error) {
+	var AWSArchival *models.AWSArchival
+	var err error
+	if cs.EnableArchival {
+		AWSArchival, err = cs.ArchivalToAPIv2(ctx, k8sClient)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert archival data to APIv2 format: %v", err)
+		}
+	}
+
+	instDataCentres := []*models.CadenceDataCentre{}
+	for _, dataCentre := range cs.DataCentres {
+		instDataCentres = append(instDataCentres, dataCentre.ToAPIv2())
+	}
+
+	var sharedProvisioning []*models.CadenceSharedProvisioning
+	var standardProvisioning []*models.CadenceStandardProvisioning
+	switch cs.ProvisioningType {
+	case models.SharedProvisioningType:
+		sharedProvisioning = cs.SharedProvisioningToAPIv2()
+	case models.StandardProvisioningType, models.PackagedProvisioningType:
+		standardProvisioning, err = cs.StandardProvisioningToAPIv2()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &models.CadenceClusterAPIv2{
+		CadenceVersion:        cs.Version,
+		CadenceDataCentres:    instDataCentres,
+		Name:                  cs.Name,
+		PCIComplianceMode:     cs.PCICompliance,
+		TwoFactorDelete:       cs.TwoFactorDeleteToAPIv2(),
+		UseCadenceWebAuth:     cs.UseCadenceWebAuth,
+		PrivateNetworkCluster: cs.PrivateNetworkCluster,
+		SLATier:               cs.SLATier,
+		AWSArchival:           AWSArchival,
+		SharedProvisioning:    sharedProvisioning,
+		StandardProvisioning:  standardProvisioning,
+	}, nil
+}
+
+func (cs *CadenceSpec) StandardProvisioningToAPIv2() ([]*models.CadenceStandardProvisioning, error) {
+	stdProvisioning := &models.CadenceStandardProvisioning{
+		TargetCassandra: &models.TargetCassandra{
+			DependencyCDCID:   cs.TargetCassandraCDCID,
+			DependencyVPCType: cs.TargetCassandraVPCType,
+		},
+	}
+
+	if cs.UseAdvancedVisibility {
+		if cs.TargetKafkaVPCType == "" ||
+			cs.TargetKafkaCDCID == "" ||
+			cs.TargetOpenSearchVPCType == "" ||
+			cs.TargetOpenSearchCDCID == "" {
+			return nil, models.ErrEmptyAdvancedVisibility
+		}
+
+		stdProvisioning.AdvancedVisibility = []*models.AdvancedVisibility{
+			{
+				TargetKafka: &models.TargetKafka{
+					DependencyCDCID:   cs.TargetKafkaCDCID,
+					DependencyVPCType: cs.TargetKafkaVPCType,
+				},
+				TargetOpenSearch: &models.TargetOpenSearch{
+					DependencyCDCID:   cs.TargetOpenSearchCDCID,
+					DependencyVPCType: cs.TargetOpenSearchVPCType,
+				},
+			},
+		}
+	}
+
+	return []*models.CadenceStandardProvisioning{stdProvisioning}, nil
+}
+
+func (cs *CadenceSpec) SharedProvisioningToAPIv2() []*models.CadenceSharedProvisioning {
+	return []*models.CadenceSharedProvisioning{
+		{
+			UseAdvancedVisibility: cs.UseAdvancedVisibility,
+		},
+	}
+}
+
+func (cs *CadenceSpec) TwoFactorDeleteToAPIv2() []*modelsv2.TwoFactorDelete {
+	var twoFactorDeleteAPIv2 []*modelsv2.TwoFactorDelete
+
+	for _, twoFactorDelete := range cs.TwoFactorDelete {
+		twoFactorDeleteAPIv2 = append(twoFactorDeleteAPIv2, twoFactorDelete.ToInstAPIv2())
+	}
+
+	return twoFactorDeleteAPIv2
+}
+
+func (cs *CadenceSpec) ArchivalToAPIv2(ctx context.Context, k8sClient client.Client) (*models.AWSArchival, error) {
+	AWSAccessKeyID, AWSSecretAccessKey, err := cs.GetSecret(ctx, k8sClient)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get aws creds secret: %v", err)
+	}
+
+	return &models.AWSArchival{
+		ArchivalS3Region:   cs.ArchivalS3Region,
+		ArchivalS3URI:      cs.ArchivalS3URI,
+		AWSAccessKeyID:     AWSAccessKeyID,
+		AWSSecretAccessKey: AWSSecretAccessKey,
+	}, nil
+}
+
+func (cs *CadenceSpec) GetSecret(ctx context.Context, k8sClient client.Client) (string, string, error) {
+	var err error
+	awsCredsSecret := &v1.Secret{}
+	awsSecretNamespacedName := types.NamespacedName{Name: cs.AWSAccessKeySecretName, Namespace: cs.AWSAccessKeySecretNamespace}
+	err = k8sClient.Get(ctx, awsSecretNamespacedName, awsCredsSecret)
+	if err != nil {
+		return "", "", err
+	}
+
+	var AWSAccessKeyID string
+	var AWSSecretAccessKey string
+	keyID := awsCredsSecret.Data[models.AWSAccessKeyID]
+	secretAccessKey := awsCredsSecret.Data[models.AWSSecretAccessKey]
+	AWSAccessKeyID = string(keyID[:len(keyID)-1])
+	AWSSecretAccessKey = string(secretAccessKey[:len(secretAccessKey)-1])
+
+	return AWSAccessKeyID, AWSSecretAccessKey, err
+}
+
+func (cdc *CadenceDataCentre) ToAPIv2() *models.CadenceDataCentre {
+	awsSettings := []*modelsv2.AWSSetting{}
+	azureSettings := []*modelsv2.AzureSetting{}
+	gcpSettings := []*modelsv2.GCPSetting{}
+
+	for _, providerSetting := range cdc.CloudProviderSettings {
+		switch cdc.CloudProvider {
+		case modelsv2.AWSVPC:
+			awsSettings = append(awsSettings, providerSetting.AWSToInstAPIv2())
+		case modelsv2.AZURE:
+			azureSettings = append(azureSettings, providerSetting.AzureToInstAPIv2())
+		case modelsv2.GCP:
+			gcpSettings = append(gcpSettings, providerSetting.GCPToInstAPIv2())
+		}
+	}
+
+	return &models.CadenceDataCentre{
+		ClientToClusterEncryption: cdc.ClientEncryption,
+		CloudProvider:             cdc.CloudProvider,
+		Name:                      cdc.Name,
+		Network:                   cdc.Network,
+		NodeSize:                  cdc.NodeSize,
+		NumberOfNodes:             cdc.CadenceNodeCount,
+		Region:                    cdc.Region,
+		AWSSettings:               awsSettings,
+		AzureSettings:             azureSettings,
+		GCPSetting:                gcpSettings,
+		ProviderAccountName:       cdc.ProviderAccountName,
+		Tags:                      cdc.TagsToAPIv2(),
+	}
 }
