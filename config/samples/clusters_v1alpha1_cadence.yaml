@@ -21,46 +21,50 @@ metadata:
 #    test.annotation/second: testAnnotation
 spec:
   name: "operatorCadence"
-  version: "cadence:0.24.0"
+  version: "0.24.0"
   concurrentResizes: 1
   notifySupportContacts: false
   targetCassandraVpcType: "TARGET_VPC"
   targetCassandraCdcId: "fc9a9074-dd5b-4407-96cf-afe2e6030ab6"
-  twoFactorDelete:
-  - email: "rostyslp@netapp.com"
+#  twoFactorDelete:
+#  - email: "rostyslp@netapp.com"
   dataCentres:
   - region: "US_EAST_1"
     network: "10.3.0.0/16"
     cloudProvider: "AWS_VPC"
-#    nodeSize: "CAD-SI-DEV-t3.small-5"
+    nodeSize: "CAD-SI-DEV-t3.small-5"
+    name: "testdc"
 #    nodeSize: "CAD-DEV-t3.medium-30"
-    nodeSize: "CAD-DEV-t3.small-5"
+#    nodeSize: "CAD-DEV-t3.small-5"
     racksNumber: 3
     nodesNumber: 1
-    cadenceNodeCount: 2
+    cadenceNodeCount: 1
   description: "test 222"
   slaTier: "NON_PRODUCTION"
 #  provisioningType: "PACKAGED"
-#  provisioningType: "SHARED"
-  provisioningType: "STANDARD"
+  provisioningType: "SHARED"
+#  provisioningType: "STANDARD"
 #  enableArchival: true
 #  archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
 #  archivalS3Region: "us-east-1"
 #  awsAccessKeySecretName: "inst-test-aws-cred-secret"
 #  awsAccessKeySecretNamespace: "default"
-#  cassandraNodeSize: "CAS-DEV-t4g.small-5"
-#  cassandraNetwork: "10.1.0.0/16"
-#  cassandraReplicationFactor: 3
-#  cassandraNodesNumber: 3
-#  cassandraPrivateIPBroadcastForDiscovery: false
-#  cassandraPasswordAndUserAuth: true
-  useAdvancedVisibility: false
-#  kafkaNodeSize: "KFK-DEV-t4g.small-5"
-#  kafkaNodesNumber: 3
-#  kafkaNetwork: "10.2.0.0/16"
-#  kafkaReplicationFactor: 3
-#  kafkaPartitionsNumber: 3
-#  opensearchNodeSize: "SRH-DEV-t4g.small-5"
-#  opensearchReplicationFactor: 3
-#  openSearchNodesPerReplicationFactor: 1
-#  openSearchNetwork: "10.4.0.0/16"
+  bundledCassandraSpec:
+    nodeSize: "CAS-DEV-t4g.small-5"
+    network: "10.1.0.0/16"
+    replicationFactor: 3
+    nodesNumber: 3
+    privateIPBroadcastForDiscovery: false
+    passwordAndUserAuth: true
+  useAdvancedVisibility: true
+  bundledKafkaSpec:
+    nodeSize: "KFK-DEV-t4g.small-5"
+    nodesNumber: 3
+    network: "10.2.0.0/16"
+    replicationFactor: 3
+    partitionsNumber: 3
+  bundledOpenSearchSpec:
+    nodeSize: "SRH-DEV-t4g.small-5"
+    replicationFactor: 3
+    nodesPerReplicationFactor: 1
+    network: "10.4.0.0/16"

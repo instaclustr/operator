@@ -48,7 +48,7 @@ type Tag struct {
 }
 
 type TwoFactorDelete struct {
-	ConfirmationPhoneNumber string `json:"confirmationPhoneNumber"`
+	ConfirmationPhoneNumber string `json:"confirmationPhoneNumber,omitempty"`
 	ConfirmationEmail       string `json:"confirmationEmail"`
 }
 

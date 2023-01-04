@@ -165,6 +165,45 @@ func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
 	return false, nil
 }
 
+func (cps *CloudProviderSettings) AWSToInstAPIv2() *modelsv2.AWSSetting {
+	return &modelsv2.AWSSetting{
+		EBSEncryptionKey:       cps.DiskEncryptionKey,
+		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
+	}
+}
+
+func (cps *CloudProviderSettings) AzureToInstAPIv2() *modelsv2.AzureSetting {
+	return &modelsv2.AzureSetting{
+		ResourceGroup: cps.ResourceGroup,
+	}
+}
+
+func (cps *CloudProviderSettings) GCPToInstAPIv2() *modelsv2.GCPSetting {
+	return &modelsv2.GCPSetting{
+		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
+	}
+}
+
+func (dc DataCentre) TagsToAPIv2() []*modelsv2.Tag {
+	var tags []*modelsv2.Tag
+
+	for key, value := range dc.Tags {
+		tags = append(tags, &modelsv2.Tag{
+			Key:   key,
+			Value: value,
+		})
+	}
+
+	return tags
+}
+
+func (tfd *TwoFactorDelete) ToInstAPIv2() *modelsv2.TwoFactorDelete {
+	return &modelsv2.TwoFactorDelete{
+		ConfirmationPhoneNumber: tfd.Phone,
+		ConfirmationEmail:       tfd.Email,
+	}
+}
+
 func (dc *DataCentre) AreCloudProviderSettingsEqual(
 	awsSettings []*modelsv2.AWSSetting,
 	gcpSettings []*modelsv2.GCPSetting,

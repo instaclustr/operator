@@ -33,6 +33,7 @@ const (
 	V3_11_13   = "3.11.13"
 	V2_7_1     = "2.7.1"
 	V1_3_5     = "1.3.5"
+	V1_3_7     = "1.3.7"
 	VPC_PEERED = "VPC_PEERED"
 
 	True  = "true"

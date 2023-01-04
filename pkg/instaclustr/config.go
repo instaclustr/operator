@@ -23,6 +23,7 @@ const (
 	GCPPeeringEndpoint                   = "/cluster-management/v2/resources/providers/gcp/vpc-peers/v2/"
 	KafkaUserEndpoint                    = "/cluster-management/v2/resources/applications/kafka/users/v2/"
 	KafkaACLEndpoint                     = "/cluster-management/v2/resources/applications/kafka/acls/v2/"
+	CadenceEndpoint                      = "/cluster-management/v2/resources/applications/cadence/clusters/v2/"
 	RedisEndpoint                        = "/cluster-management/v2/resources/applications/redis/clusters/v2/"
 )
 
