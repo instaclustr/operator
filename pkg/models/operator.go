@@ -75,3 +75,4 @@ const (
 
 var ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
 var ReconcileResult = reconcile.Result{}
+var ReconcileRequeueNow = reconcile.Result{Requeue: true}

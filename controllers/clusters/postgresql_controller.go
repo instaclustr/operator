@@ -115,11 +115,10 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 ) reconcile.Result {
 	var id string
 	var err error
-
 	patch := pgCluster.NewPatch()
 
 	if pgCluster.Status.ID == "" {
-		if pgCluster.Spec.HasRestoreFilled() {
+		if pgCluster.Spec.HasRestore() {
 			logger.Info(
 				"Creating PostgreSQL cluster from backup",
 				"original cluster ID", pgCluster.Spec.PgRestoreFrom.ClusterID,
@@ -145,7 +144,6 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				return models.ReconcileRequeue
 			}
 
-			pgCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		} else {
 			logger.Info(
 				"Creating PostgreSQL cluster",
@@ -180,8 +178,6 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 				return models.ReconcileRequeue
 			}
-
-			pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 		}
 
 		logger.Info(
@@ -194,19 +190,16 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 	}
 
-	err = r.Patch(ctx, pgCluster, patch)
-	if err != nil {
-		logger.Error(err, "Cannot patch PostgreSQL resource status",
-			"cluster name", pgCluster.Spec.Name,
-			"status", pgCluster.Status,
-		)
-
-		return models.ReconcileRequeue
+	if len(pgCluster.Spec.TwoFactorDelete) != 0 ||
+		len(pgCluster.Spec.ClusterConfigurations) != 0 ||
+		pgCluster.Spec.Description != "" {
+		pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+	} else {
+		pgCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 	}
 
 	pgCluster.Annotations[models.DeletionConfirmed] = models.False
 	controllerutil.AddFinalizer(pgCluster, models.DeletionFinalizer)
-
 	err = r.patchClusterMetadata(ctx, pgCluster, logger)
 	if err != nil {
 		logger.Error(err, "Cannot patch PostgreSQL resource metadata",
@@ -268,7 +261,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	}
 
 	if pgCluster.Annotations[models.ResourceStateAnnotation] == models.UpdatingEvent {
-		return reconcile.Result{Requeue: true}
+		return models.ReconcileRequeueNow
 	}
 
 	return models.ReconcileResult

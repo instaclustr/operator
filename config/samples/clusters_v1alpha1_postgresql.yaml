@@ -7,8 +7,6 @@ metadata:
 spec:
   name: "testPostgre"
   version: "postgresql:14.5"
-  concurrentResizes: 1
-  notifySupportContacts: false
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"

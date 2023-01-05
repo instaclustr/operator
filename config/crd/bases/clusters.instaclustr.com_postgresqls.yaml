@@ -39,8 +39,6 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
-              concurrentResizes:
-                type: integer
               dataCentres:
                 items:
                   properties:
@@ -111,8 +109,6 @@ spec:
                 description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
                   "clusterName".'
                 type: string
-              notifySupportContacts:
-                type: boolean
               pciCompliance:
                 description: "The PCI compliance standards relate to the security
                   of user data and transactional information. Can only be applied

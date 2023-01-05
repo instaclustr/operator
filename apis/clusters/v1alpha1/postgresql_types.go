@@ -59,8 +59,6 @@ type PgSpec struct {
 	Cluster               `json:",inline"`
 	PGBouncerVersion      string            `json:"pgBouncerVersion,omitempty"`
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
-	ConcurrentResizes     int               `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts bool              `json:"notifySupportContacts,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	Description           string            `json:"description,omitempty"`
 }
@@ -313,7 +311,7 @@ func (pgs *PgSpec) Update(instSpec *models.ClusterSpec, clusterConfigurations ma
 	}
 }
 
-func (pgs *PgSpec) HasRestoreFilled() bool {
+func (pgs *PgSpec) HasRestore() bool {
 	if pgs.PgRestoreFrom != nil && pgs.PgRestoreFrom.ClusterID != "" {
 		return true
 	}

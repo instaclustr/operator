@@ -139,12 +139,10 @@ func (r *PostgreSQLReconciler) resizeDataCentres(
 		}
 
 		resizeRequest := &models.ResizeRequest{
-			NewNodeSize:           pgCluster.Spec.DataCentres[0].NodeSize,
-			ConcurrentResizes:     pgCluster.Spec.ConcurrentResizes,
-			NotifySupportContacts: pgCluster.Spec.NotifySupportContacts,
-			ClusterID:             pgCluster.Status.ID,
-			DataCentreID:          pgCluster.Status.CDCID,
-			NodePurpose:           modelsv1.PgNodePurpose,
+			NewNodeSize:  pgCluster.Spec.DataCentres[0].NodeSize,
+			ClusterID:    pgCluster.Status.ID,
+			DataCentreID: pgCluster.Status.CDCID,
+			NodePurpose:  modelsv1.PgNodePurpose,
 		}
 		err = r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
 		if err != nil {
