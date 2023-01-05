@@ -21,7 +21,15 @@ func NewInstAPI() *mockClient {
 
 const (
 	CreatedID = "created"
+	UpdatedID = "updated"
 	StatusID  = "statusID"
+)
+
+var (
+	KafkaInstaStatus v1alpha1.ClusterStatus
+	NewKafkaNodeSize = "KFK-DEV-t4g.medium-80"
+
+	updateSent bool
 )
 
 func (c *mockClient) CreateCluster(url string, clusterSpec any) (string, error) {
@@ -33,8 +41,25 @@ func (c *mockClient) DoRequest(url string, method string, data []byte) (*http.Re
 }
 
 func (c *mockClient) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error) {
-	panic("GetClusterStatus: is not implemented")
+	KafkaInstaStatus.Status = models.RunningStatus
+	KafkaInstaStatus.ID = id
+
+	if updateSent {
+		newNode := []*v1alpha1.Node{{
+			Size:  NewKafkaNodeSize,
+			Roles: []string{"KAFKA_BROKER", "KAFKA_ZOOKEEPER"},
+			Rack:  "us-east-1a",
+		}}
+
+		KafkaInstaStatus.ID = UpdatedID
+		KafkaInstaStatus.DataCentres = []*v1alpha1.DataCentreStatus{{
+			Nodes: newNode,
+		}}
+	}
+
+	return &KafkaInstaStatus, nil
 }
+
 func (c *mockClient) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
 	panic("UpdateNodeSize: is not implemented")
 }
@@ -54,7 +79,9 @@ func (c *mockClient) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, cluste
 	panic("UpdateDescriptionAndTwoFactorDelete: is not implemented")
 }
 func (c *mockClient) UpdateCluster(id, clusterEndpoint string, InstaDCs any) error {
-	panic("UpdateCluster: is not implemented")
+	updateSent = true
+
+	return nil
 }
 func (c *mockClient) DeleteCluster(id, clusterEndpoint string) error {
 	panic("DeleteCluster: is not implemented")
