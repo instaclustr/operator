@@ -153,12 +153,23 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				"data centres", pgCluster.Spec.DataCentres,
 			)
 
+			if !pgCluster.Spec.HasRequiredFieldsFilled() {
+				logger.Error(
+					err, "PostgreSQL cluster resource required fields are not filled",
+					"spec", pgCluster.Spec,
+				)
+
+				return models.ReconcileRequeue
+			}
+
 			pgSpec, err := apiv1convertors.PgToInstAPI(&pgCluster.Spec)
 			if err != nil {
 				logger.Error(err, "Cannot convert PostgreSQL spec to Instaclustr API format",
 					"cluster ID", pgCluster.Status.ID,
 					"spec", pgCluster.Spec,
 				)
+
+				return models.ReconcileRequeue
 			}
 
 			id, err = r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpec)
@@ -167,6 +178,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 					err, "Cannot create PostgreSQL cluster",
 					"spec", pgCluster.Spec,
 				)
+
 				return models.ReconcileRequeue
 			}
 

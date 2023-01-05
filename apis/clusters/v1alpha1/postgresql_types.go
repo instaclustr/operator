@@ -320,3 +320,25 @@ func (pgs *PgSpec) HasRestoreFilled() bool {
 
 	return false
 }
+
+func (pgs *PgSpec) HasRequiredFieldsFilled() bool {
+	if pgs.Name == "" ||
+		pgs.Version == "" ||
+		len(pgs.DataCentres) == 0 {
+		return false
+	}
+
+	for _, dataCentre := range pgs.DataCentres {
+		if dataCentre.Region == "" ||
+			dataCentre.CloudProvider == "" ||
+			dataCentre.Network == "" ||
+			dataCentre.NodeSize == "" ||
+			dataCentre.RacksNumber == 0 ||
+			dataCentre.NodesNumber == 0 ||
+			dataCentre.PostgresqlNodeCount == 0 {
+			return false
+		}
+	}
+
+	return true
+}
