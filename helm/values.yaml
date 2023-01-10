@@ -1,0 +1,652 @@
+fullnameOverride: "operator-controller-manager"
+replicaCount: 1
+
+image:
+  repository: doodgematvey/dm5
+  pullPolicy: IfNotPresent
+  tag: test31
+
+port: 8080
+
+imagePullSecrets: []
+
+operatorCreds:
+  USERNAME: ""
+  APIKEY: ""
+  HOSTNAME: ""
+
+deployment:
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+
+service:
+  type: ClusterIP
+
+rbac:
+  type: ClusterRole
+  rules:
+    - apiGroups:
+        - ""
+      resources:
+        - secrets
+      verbs:
+        - get
+        - list
+        - patch
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - awssecuritygroupfirewallrules
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - awssecuritygroupfirewallrules/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - awssecuritygroupfirewallrules/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - awsvpcpeerings
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - awsvpcpeerings/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - awsvpcpeerings/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - azurevnetpeerings
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - azurevnetpeerings/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - azurevnetpeerings/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - clusterbackups
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - clusterbackups/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - clusterbackups/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - clusternetworkfirewallrules
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - clusternetworkfirewallrules/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - clusternetworkfirewallrules/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - gcpvpcpeerings
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - gcpvpcpeerings/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - gcpvpcpeerings/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - maintenanceevents
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - maintenanceevents/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - maintenanceevents/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - nodereloads
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - nodereloads/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - nodereloads/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - cadences
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - cadences/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - cadences/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - cassandras
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - cassandras/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - cassandras/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - kafkaconnects
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - kafkaconnects/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - kafkaconnects/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - kafkas
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - kafkas/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - kafkas/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - opensearches
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - opensearches/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - opensearches/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - postgresqls
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - postgresqls/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - postgresqls/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - redis
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - redis/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - redis/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - zookeepers
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - zookeepers/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusters.instaclustr.com
+      resources:
+        - zookeepers/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - kafkaacls
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - kafkaacls/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - kafkaacls/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - kafkausers
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - kafkausers/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - kafkausers/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - mirrors
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - mirrors/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - mirrors/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - secrets
+      verbs:
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - topics
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - topics/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - kafkamanagement.instaclustr.com
+      resources:
+        - topics/status
+      verbs:
+        - get
+        - patch
+        - update
+    # leader-election-role
+    - apiGroups:
+        - ""
+      resources:
+        - configmaps
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - apiGroups:
+        - coordination.k8s.io
+      resources:
+        - leases
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+    - apiGroups:
+        - ""
+      resources:
+        - events
+      verbs:
+        - create
+        - patch
+
+initContainers: {}
+
+livenessProbe:
+  enabled: false
+  port: 8081
+  path: /healthz
+  failureThreshold: 5
+  successThreshold: 1
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+  scheme: HTTP
+
+readinessProbe:
+  enabled: true
+  port: 8081
+  path: /readyz
+  failureThreshold: 5
+  successThreshold: 1
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 1
+  scheme: HTTP
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
