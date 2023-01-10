@@ -204,6 +204,14 @@ func (c *mockClient) GetCassandra(id, clusterEndpoint string) (*modelsv2.Cassand
 	panic("GetCassandra: is not implemented")
 }
 
+func (c *mockClient) GetRedisSpec(id, clusterEndpoint string) (*models.RedisCluster, error) {
+	panic("GetRedisSpec: is not implemented")
+}
+
+func (c *mockClient) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error) {
+	panic("RestoreRedisCluster: is not implemented")
+}
+
 func (c *mockClient) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
 	panic("RestoreOpenSearchCluster: is not implemented")
 }

@@ -35,16 +35,32 @@ type RedisDataCentre struct {
 	PasswordAuth bool  `json:"passwordAuth,omitempty"`
 }
 
+type RedisRestoreFrom struct {
+	ClusterID           string                 `json:"clusterId"`
+	ClusterNameOverride string                 `json:"clusterNameOverride,omitempty"`
+	CDCInfos            []*RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
+	PointInTime         int64                  `json:"pointInTime,omitempty"`
+	IndexNames          string                 `json:"indexNames,omitempty"`
+}
+
+type RedisRestoreCDCInfo struct {
+	CDCID            string `json:"cdcId,omitempty"`
+	RestoreToSameVPC bool   `json:"restoreToSameVpc,omitempty"`
+	CustomVPCID      string `json:"customVpcId,omitempty"`
+	CustomVPCNetwork string `json:"customVpcNetwork,omitempty"`
+}
+
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	Cluster `json:",inline"`
+	RestoreFrom *RedisRestoreFrom `json:"restoreFrom,omitempty"`
+	Cluster     `json:",inline"`
 
 	// Enables client to node encryption
-	ClientEncryption      bool               `json:"clientEncryption"`
-	PasswordAndUserAuth   bool               `json:"passwordAndUserAuth"`
-	DataCentres           []*RedisDataCentre `json:"dataCentres"`
-	ConcurrentResizes     int                `json:"concurrentResizes"`
-	NotifySupportContacts bool               `json:"notifySupportContacts"`
+	ClientEncryption      bool               `json:"clientEncryption,omitempty"`
+	PasswordAndUserAuth   bool               `json:"passwordAndUserAuth,omitempty"`
+	DataCentres           []*RedisDataCentre `json:"dataCentres,omitempty"`
+	ConcurrentResizes     int                `json:"concurrentResizes,omitempty"`
+	NotifySupportContacts bool               `json:"notifySupportContacts,omitempty"`
 	Description           string             `json:"description,omitempty"`
 }
 
@@ -104,6 +120,25 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.Clus
 }
 
 func (rs *RedisSpec) ToInstAPIv2() *models.RedisCluster {
+	instDCs := rs.DataCentresToInstAPIv2()
+	instTwoFactorDelete := rs.TwoFactorDeletesToInstAPIv2()
+
+	instSpec := &models.RedisCluster{
+		Name:                   rs.Name,
+		RedisVersion:           rs.Version,
+		ClientToNodeEncryption: rs.ClientEncryption,
+		PCIComplianceMode:      rs.PCICompliance,
+		PrivateNetworkCluster:  rs.PrivateNetworkCluster,
+		PasswordAndUserAuth:    rs.PasswordAndUserAuth,
+		SLATier:                rs.SLATier,
+		DataCentres:            instDCs,
+		TwoFactorDelete:        instTwoFactorDelete,
+	}
+
+	return instSpec
+}
+
+func (rs *RedisSpec) DataCentresToInstAPIv2() []*models.RedisDataCentre {
 	instDCs := []*models.RedisDataCentre{}
 	for _, redisDC := range rs.DataCentres {
 		instDC := &models.RedisDataCentre{
@@ -119,32 +154,102 @@ func (rs *RedisSpec) ToInstAPIv2() *models.RedisCluster {
 			ReplicaNodes: int(redisDC.ReplicaNodes),
 		}
 
-		redisDC.SetCloudProviderSettings(&instDC.DataCentre)
+		redisDC.CloudProviderSettingsToInstAPIv2(&instDC.DataCentre)
 
-		instTags := []*modelsv2.Tag{}
-		for key, value := range redisDC.Tags {
-			instTags = append(instTags, &modelsv2.Tag{
-				Key:   key,
-				Value: value,
-			})
-		}
-		instDC.Tags = instTags
+		instDC.Tags = redisDC.TagsToInstAPIv2()
 
 		instDCs = append(instDCs, instDC)
 	}
+	return instDCs
+}
 
-	instSpec := &models.RedisCluster{
-		ClientToNodeEncryption: rs.ClientEncryption,
-		RedisVersion:           rs.Version,
-		PCIComplianceMode:      rs.PCICompliance,
-		PrivateNetworkCluster:  rs.PrivateNetworkCluster,
-		PasswordAndUserAuth:    rs.PasswordAndUserAuth,
-		Name:                   rs.Name,
-		SLATier:                rs.SLATier,
-		DataCentres:            instDCs,
+func (rs *RedisSpec) HasRestore() bool {
+	if rs.RestoreFrom != nil && rs.RestoreFrom.ClusterID != "" {
+		return true
 	}
 
-	return instSpec
+	return false
+}
+
+func (rs *RedisSpec) IsSpecEqual(instSpec *models.RedisCluster) bool {
+	if instSpec.ClientToNodeEncryption != rs.ClientEncryption ||
+		instSpec.RedisVersion != rs.Version ||
+		instSpec.PCIComplianceMode != rs.PCICompliance ||
+		instSpec.PrivateNetworkCluster != rs.PrivateNetworkCluster ||
+		instSpec.PasswordAndUserAuth != rs.PasswordAndUserAuth ||
+		instSpec.Name != rs.Name ||
+		instSpec.SLATier != rs.SLATier ||
+		!rs.AreDataCentresEqual(instSpec.DataCentres) ||
+		!rs.IsTwoFactorDeleteEqual(instSpec.TwoFactorDelete) {
+		return false
+	}
+
+	return true
+}
+
+func (rs *RedisSpec) AreDataCentresEqual(instDCs []*models.RedisDataCentre) bool {
+	if len(instDCs) != len(rs.DataCentres) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, dataCentre := range rs.DataCentres {
+			if dataCentre.Name == instDC.Name {
+				if instDC.Network != dataCentre.Network ||
+					instDC.NodeSize != dataCentre.NodeSize ||
+					instDC.MasterNodes != int(dataCentre.MasterNodes) ||
+					instDC.ReplicaNodes != int(dataCentre.ReplicaNodes) ||
+					instDC.Region != dataCentre.Region ||
+					instDC.ProviderAccountName != dataCentre.ProviderAccountName ||
+					!dataCentre.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) ||
+					!dataCentre.AreTagsEqual(instDC.Tags) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
+func (rs *RedisSpec) SetSpecFromInst(instSpec *models.RedisCluster) {
+	rs.ClientEncryption = instSpec.ClientToNodeEncryption
+	rs.Version = instSpec.RedisVersion
+	rs.PCICompliance = instSpec.PCIComplianceMode
+	rs.PrivateNetworkCluster = instSpec.PrivateNetworkCluster
+	rs.PasswordAndUserAuth = instSpec.PasswordAndUserAuth
+	rs.Name = instSpec.Name
+	rs.SLATier = instSpec.SLATier
+
+	rs.SetTwoFactorDeletesFromInst(instSpec.TwoFactorDelete)
+
+	rs.SetDCsFromInst(instSpec.DataCentres)
+}
+
+func (rs *RedisSpec) SetDCsFromInst(instDCs []*models.RedisDataCentre) {
+	dataCentres := []*RedisDataCentre{}
+	for _, instDC := range instDCs {
+		redisDC := &RedisDataCentre{
+			DataCentre: DataCentre{
+				Name:                instDC.Name,
+				Region:              instDC.Region,
+				CloudProvider:       instDC.CloudProvider,
+				ProviderAccountName: instDC.ProviderAccountName,
+				Network:             instDC.Network,
+				NodeSize:            instDC.NodeSize,
+			},
+			MasterNodes:  int32(instDC.MasterNodes),
+			ReplicaNodes: int32(instDC.ReplicaNodes),
+		}
+
+		redisDC.SetCloudProviderSettingsFromInst(&instDC.DataCentre)
+
+		redisDC.SetTagsFromInst(instDC.Tags)
+		dataCentres = append(dataCentres, redisDC)
+	}
+	rs.DataCentres = dataCentres
 }
 
 func init() {

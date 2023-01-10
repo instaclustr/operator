@@ -308,6 +308,10 @@ func (r *RedisReconciler) getDataCentreOperations(clusterID, dataCentreID string
 }
 
 func (r *RedisReconciler) checkDataCentresToResize(dataCentresFromInst []*clustersv1alpha1.DataCentreStatus, dataCentres []*clustersv1alpha1.RedisDataCentre) []*clustersv1alpha1.ResizedDataCentre {
+	if len(dataCentres) != len(dataCentresFromInst) {
+		return nil
+	}
+
 	var resizedDataCentres []*clustersv1alpha1.ResizedDataCentre
 	for i, instDataCentre := range dataCentresFromInst {
 		if instDataCentre.Nodes[0].Size != dataCentres[i].NodeSize {

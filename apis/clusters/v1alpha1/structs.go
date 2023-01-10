@@ -184,7 +184,7 @@ func (cps *CloudProviderSettings) GCPToInstAPIv2() *modelsv2.GCPSetting {
 	}
 }
 
-func (dc DataCentre) TagsToAPIv2() []*modelsv2.Tag {
+func (dc DataCentre) TagsToInstAPIv2() []*modelsv2.Tag {
 	var tags []*modelsv2.Tag
 
 	for key, value := range dc.Tags {
@@ -201,6 +201,44 @@ func (tfd *TwoFactorDelete) ToInstAPIv2() *modelsv2.TwoFactorDelete {
 	return &modelsv2.TwoFactorDelete{
 		ConfirmationPhoneNumber: tfd.Phone,
 		ConfirmationEmail:       tfd.Email,
+	}
+}
+
+func (c *Cluster) TwoFactorDeletesToInstAPIv2() []*modelsv2.TwoFactorDelete {
+	var TFDs []*modelsv2.TwoFactorDelete
+	for _, k8sTFD := range c.TwoFactorDelete {
+		TFDs = append(TFDs, k8sTFD.ToInstAPIv2())
+	}
+	return TFDs
+}
+
+func (dc *DataCentre) CloudProviderSettingsToInstAPIv2(instDC *modelsv2.DataCentre) {
+	switch dc.CloudProvider {
+	case modelsv2.AWSVPC:
+		instAWSSetting := []*modelsv2.AWSSetting{}
+		for _, awsSetting := range dc.CloudProviderSettings {
+			instAWSSetting = append(instAWSSetting, &modelsv2.AWSSetting{
+				EBSEncryptionKey:       awsSetting.DiskEncryptionKey,
+				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
+			})
+		}
+		instDC.AWSSettings = instAWSSetting
+	case modelsv2.GCP:
+		instGCPSetting := []*modelsv2.GCPSetting{}
+		for _, gcpSetting := range dc.CloudProviderSettings {
+			instGCPSetting = append(instGCPSetting, &modelsv2.GCPSetting{
+				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
+			})
+		}
+		instDC.GCPSettings = instGCPSetting
+	case modelsv2.AZUREAZ:
+		instAzureSetting := []*modelsv2.AzureSetting{}
+		for _, azureSetting := range dc.CloudProviderSettings {
+			instAzureSetting = append(instAzureSetting, &modelsv2.AzureSetting{
+				ResourceGroup: azureSetting.ResourceGroup,
+			})
+		}
+		instDC.AzureSettings = instAzureSetting
 	}
 }
 
@@ -280,7 +318,7 @@ func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFac
 	return true
 }
 
-func (dc *DataCentre) SetCloudProviderSettings(instDC *modelsv2.DataCentre) {
+func (dc *DataCentre) SetCloudProviderSettingsFromInst(instDC *modelsv2.DataCentre) {
 	cloudProviderSettings := []*CloudProviderSettings{}
 	switch dc.CloudProvider {
 	case modelsv2.AWSVPC:
@@ -304,6 +342,25 @@ func (dc *DataCentre) SetCloudProviderSettings(instDC *modelsv2.DataCentre) {
 		}
 	}
 	dc.CloudProviderSettings = cloudProviderSettings
+}
+
+func (c *Cluster) SetTwoFactorDeletesFromInst(instTFDs []*modelsv2.TwoFactorDelete) {
+	var k8sTFD []*TwoFactorDelete
+	for _, instTFD := range instTFDs {
+		k8sTFD = append(k8sTFD, &TwoFactorDelete{
+			Email: instTFD.ConfirmationEmail,
+			Phone: instTFD.ConfirmationPhoneNumber,
+		})
+	}
+	c.TwoFactorDelete = k8sTFD
+}
+
+func (dc *DataCentre) SetTagsFromInst(instTags []*modelsv2.Tag) {
+	var k8sTags map[string]string
+	for _, instTag := range instTags {
+		k8sTags[instTag.Key] = instTag.Value
+	}
+	dc.Tags = k8sTags
 }
 
 func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*models.ClusterProvider) {

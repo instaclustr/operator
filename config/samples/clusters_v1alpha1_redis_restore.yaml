@@ -1,0 +1,15 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: Redis
+metadata:
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: redis-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: redis-sample
+spec:
+  restoreFrom:
+    clusterId: "a525de16-310c-45c5-97e0-41920dc519cf"
+    clusterNameOverride: "redisRESTORED"
+    pointInTime: 1673328692404

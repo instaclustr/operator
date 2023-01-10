@@ -106,31 +106,57 @@ func (r *RedisReconciler) HandleCreateCluster(
 	logger logr.Logger,
 ) reconcile.Result {
 	if redisCluster.Status.ID == "" {
-		logger.Info(
-			"Creating Redis cluster",
-			"cluster name", redisCluster.Spec.Name,
-			"data centres", redisCluster.Spec.DataCentres,
-		)
-
-		redisSpec := redisCluster.Spec.ToInstAPIv2()
-
-		id, err := r.API.CreateCluster(instaclustr.RedisEndpoint, redisSpec)
-		if err != nil {
-			logger.Error(
-				err, "Cannot create Redis cluster",
-				"cluster manifest", redisCluster.Spec,
+		if redisCluster.Spec.HasRestore() {
+			logger.Info(
+				"Creating Redis cluster from backup",
+				"original cluster ID", redisCluster.Spec.RestoreFrom.ClusterID,
 			)
-			return models.ReconcileRequeue
-		}
 
-		patch := redisCluster.NewPatch()
-		redisCluster.Status.ID = id
-		err = r.Status().Patch(ctx, redisCluster, patch)
-		if err != nil {
-			logger.Error(err, "Cannot update Redis cluster status",
+			id, err := r.API.RestoreRedisCluster(redisCluster.Spec.RestoreFrom)
+			if err != nil {
+				logger.Error(
+					err, "Cannot create Redis cluster from backup",
+					"original cluster ID", redisCluster.Spec.RestoreFrom.ClusterID,
+				)
+				return models.ReconcileRequeue
+			}
+
+			patch := redisCluster.NewPatch()
+			redisCluster.Status.ID = id
+			err = r.Status().Patch(ctx, redisCluster, patch)
+			if err != nil {
+				logger.Error(err, "Cannot update Redis cluster status",
+					"cluster name", redisCluster.Spec.Name,
+				)
+				return models.ReconcileRequeue
+			}
+		} else {
+			logger.Info(
+				"Creating Redis cluster",
 				"cluster name", redisCluster.Spec.Name,
+				"data centres", redisCluster.Spec.DataCentres,
 			)
-			return models.ReconcileRequeue
+
+			redisSpec := redisCluster.Spec.ToInstAPIv2()
+
+			id, err := r.API.CreateCluster(instaclustr.RedisEndpoint, redisSpec)
+			if err != nil {
+				logger.Error(
+					err, "Cannot create Redis cluster",
+					"cluster manifest", redisCluster.Spec,
+				)
+				return models.ReconcileRequeue
+			}
+
+			patch := redisCluster.NewPatch()
+			redisCluster.Status.ID = id
+			err = r.Status().Patch(ctx, redisCluster, patch)
+			if err != nil {
+				logger.Error(err, "Cannot update Redis cluster status",
+					"cluster name", redisCluster.Spec.Name,
+				)
+				return models.ReconcileRequeue
+			}
 		}
 	}
 
@@ -385,21 +411,22 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 			return nil
 		}
 
-		instStatus, err := r.API.GetClusterStatus(cluster.Status.ID, instaclustr.ClustersEndpointV1)
+		instStatus, err := r.API.GetClusterStatus(cluster.Status.ID, instaclustr.RedisEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot get Redis cluster status",
-				"clusterID", cluster.Status.ID,
+				"cluster ID", cluster.Status.ID,
 			)
+
 			return err
 		}
 
+		patch := cluster.NewPatch()
 		if !isStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
 			l.Info("Updating Redis cluster status",
 				"new status", instStatus,
 				"old status", cluster.Status.ClusterStatus,
 			)
 
-			patch := cluster.NewPatch()
 			cluster.Status.ClusterStatus = *instStatus
 			err = r.Status().Patch(context.Background(), cluster, patch)
 			if err != nil {
@@ -407,7 +434,35 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 					"cluster name", cluster.Spec.Name,
 					"status", cluster.Status.Status,
 				)
+
 				return err
+			}
+		}
+
+		if instStatus.CurrentClusterOperationStatus == models.NoOperation {
+			instSpec, err := r.API.GetRedisSpec(cluster.Status.ID, instaclustr.RedisEndpoint)
+			if err != nil {
+				l.Error(err, "Cannot get Redis cluster spec from Instaclustr API",
+					"cluster ID", cluster.Status.ID,
+				)
+
+				return err
+			}
+
+			if !cluster.Spec.IsSpecEqual(instSpec) {
+				cluster.Spec.SetSpecFromInst(instSpec)
+				err = r.Patch(context.Background(), cluster, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch Redis cluster spec",
+						"cluster ID", cluster.Status.ID,
+					)
+
+					return err
+				}
+
+				l.Info("Redis cluster spec has been updated",
+					"cluster ID", cluster.Status.ID,
+				)
 			}
 		}
 
