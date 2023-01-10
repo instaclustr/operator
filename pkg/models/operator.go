@@ -51,9 +51,8 @@ const (
 	SnapshotUploadEventType = "snapshot-upload"
 	PgBackupPrefix          = "postgresql-backup-"
 	SnapshotUploadPrefix    = "snapshot-upload-"
-
-	Phone = "Phone"
-	Email = "Email"
+	Phone                   = "Phone"
+	Email                   = "Email"
 )
 
 const (

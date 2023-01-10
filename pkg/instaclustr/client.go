@@ -168,6 +168,38 @@ func (c *Client) GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec
 	return clusterSpec, nil
 }
 
+func (c *Client) GetRedisSpec(id, clusterEndpoint string) (*models.RedisCluster, error) {
+	url := c.serverHostname + clusterEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	redisSpec := &models.RedisCluster{}
+
+	err = json.Unmarshal(body, redisSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	return redisSpec, nil
+}
+
 func (c *Client) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
 	var url string
 	if clusterEndpoint == ClustersEndpointV1 {
@@ -1226,6 +1258,52 @@ func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, 
 	restoreRequest.CDCInfos = restoreData.CDCInfos
 	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
 	restoreRequest.PointInTime = restoreData.PointInTime
+
+	jsonData, err := json.Marshal(restoreRequest)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, jsonData)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var response struct {
+		RestoredCluster string `json:"restoredCluster"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return response.RestoredCluster, nil
+}
+
+func (c *Client) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error) {
+	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
+
+	var restoreRequest struct {
+		ClusterNameOverride string                          `json:"clusterNameOverride,omitempty"`
+		CDCInfos            []*v1alpha1.RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
+		PointInTime         int64                           `json:"pointInTime,omitempty"`
+		IndexNames          string                          `json:"indexNames,omitempty"`
+	}
+	restoreRequest.CDCInfos = restoreData.CDCInfos
+	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
+	restoreRequest.PointInTime = restoreData.PointInTime
+	restoreRequest.IndexNames = restoreData.IndexNames
 
 	jsonData, err := json.Marshal(restoreRequest)
 	if err != nil {

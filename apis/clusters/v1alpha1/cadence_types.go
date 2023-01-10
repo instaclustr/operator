@@ -434,6 +434,6 @@ func (cdc *CadenceDataCentre) ToAPIv2() *models.CadenceDataCentre {
 		AzureSettings:             azureSettings,
 		GCPSetting:                gcpSettings,
 		ProviderAccountName:       cdc.ProviderAccountName,
-		Tags:                      cdc.TagsToAPIv2(),
+		Tags:                      cdc.TagsToInstAPIv2(),
 	}
 }

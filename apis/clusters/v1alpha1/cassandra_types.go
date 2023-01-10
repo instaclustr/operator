@@ -223,7 +223,7 @@ func (cs *CassandraSpec) SetSpecFromInst(instSpec *modelsv2.CassandraCluster) {
 			ClientToClusterEncryption:      instDC.ClientToClusterEncryption,
 		}
 
-		cassDC.SetCloudProviderSettings(&instDC.DataCentre)
+		cassDC.SetCloudProviderSettingsFromInst(&instDC.DataCentre)
 
 		tags := map[string]string{}
 		for _, tag := range instDC.Tags {

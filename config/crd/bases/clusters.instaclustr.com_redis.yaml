@@ -120,6 +120,33 @@ spec:
               privateNetworkCluster:
                 description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
+              restoreFrom:
+                properties:
+                  cdcInfos:
+                    items:
+                      properties:
+                        cdcId:
+                          type: string
+                        customVpcId:
+                          type: string
+                        customVpcNetwork:
+                          type: string
+                        restoreToSameVpc:
+                          type: boolean
+                      type: object
+                    type: array
+                  clusterId:
+                    type: string
+                  clusterNameOverride:
+                    type: string
+                  indexNames:
+                    type: string
+                  pointInTime:
+                    format: int64
+                    type: integer
+                required:
+                - clusterId
+                type: object
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
                   and reduced SLAs. Production tier is not available when using Developer
@@ -146,12 +173,6 @@ spec:
                 type: array
               version:
                 type: string
-            required:
-            - clientEncryption
-            - concurrentResizes
-            - dataCentres
-            - notifySupportContacts
-            - passwordAndUserAuth
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
