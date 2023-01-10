@@ -1,6 +1,9 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+
+IMG_TAG ?= latest
+OPERATOR_NAMESPACE ?= instaclustr-operator
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.2
 
@@ -107,6 +110,14 @@ dev-deploy: manifests kustomize ## Deploy controller to the K8s cluster specifie
 	cd scripts && ./make_creds_secret.sh
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+.PHONY: helm-deploy
+helm-deploy:
+	helm repo add operator-chart https://instaclustr.github.io/operator-helm/
+	helm repo up
+	helm upgrade --install operator operator-chart/operator \
+	--set image.tag=${IMG_TAG} --set USERNAME=${USER_NAME} --set APIKEY=${API_KEY} \
+	--set HOSTNAME=${HOST_NAME} -n ${OPERATOR_NAMESPACE} --create-namespace --debug
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
