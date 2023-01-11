@@ -407,33 +407,22 @@ func (cs *CadenceSpec) GetSecret(ctx context.Context, k8sClient client.Client) (
 }
 
 func (cdc *CadenceDataCentre) ToAPIv2() *models.CadenceDataCentre {
-	awsSettings := []*modelsv2.AWSSetting{}
-	azureSettings := []*modelsv2.AzureSetting{}
-	gcpSettings := []*modelsv2.GCPSetting{}
-
-	for _, providerSetting := range cdc.CloudProviderSettings {
-		switch cdc.CloudProvider {
-		case modelsv2.AWSVPC:
-			awsSettings = append(awsSettings, providerSetting.AWSToInstAPIv2())
-		case modelsv2.AZURE:
-			azureSettings = append(azureSettings, providerSetting.AzureToInstAPIv2())
-		case modelsv2.GCP:
-			gcpSettings = append(gcpSettings, providerSetting.GCPToInstAPIv2())
-		}
-	}
-
-	return &models.CadenceDataCentre{
+	cadenceDC := &models.CadenceDataCentre{
 		ClientToClusterEncryption: cdc.ClientEncryption,
-		CloudProvider:             cdc.CloudProvider,
-		Name:                      cdc.Name,
-		Network:                   cdc.Network,
-		NodeSize:                  cdc.NodeSize,
-		NumberOfNodes:             cdc.CadenceNodeCount,
-		Region:                    cdc.Region,
-		AWSSettings:               awsSettings,
-		AzureSettings:             azureSettings,
-		GCPSetting:                gcpSettings,
-		ProviderAccountName:       cdc.ProviderAccountName,
-		Tags:                      cdc.TagsToInstAPIv2(),
+		DataCentre: modelsv2.DataCentre{
+			CloudProvider:       cdc.CloudProvider,
+			Name:                cdc.Name,
+			Network:             cdc.Network,
+			NodeSize:            cdc.NodeSize,
+			NumberOfNodes:       int32(cdc.CadenceNodeCount),
+			Region:              cdc.Region,
+			ProviderAccountName: cdc.ProviderAccountName,
+		},
 	}
+
+	cdc.TagsToInstAPIv2(&cadenceDC.DataCentre)
+
+	cdc.CloudProviderSettingsToInstAPIv2(&cadenceDC.DataCentre)
+
+	return cadenceDC
 }

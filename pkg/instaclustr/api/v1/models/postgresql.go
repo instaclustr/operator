@@ -1,7 +1,5 @@
 package models
 
-import "github.com/instaclustr/operator/pkg/models"
-
 const (
 	PgSQL         = "POSTGRESQL"
 	PgBouncer     = "PGBOUNCER"
@@ -89,35 +87,4 @@ var PgGCPNodeTypes = map[string]int{
 	pgPRD_n2_std_4_1000: 5,
 	pgPRD_n2_std_8_2000: 6,
 	pgPRD_n2_std_8_4000: 7,
-}
-
-type PgBundle struct {
-	models.Bundle `json:",inline"`
-	Options       *PgBundleOptions `json:"options"`
-}
-
-type PgBundleOptions struct {
-	// PostgreSQL
-	ClientEncryption      bool   `json:"clientEncryption,omitempty"`
-	PostgresqlNodeCount   int32  `json:"postgresqlNodeCount"`
-	ReplicationMode       string `json:"replicationMode,omitempty"`
-	SynchronousModeStrict bool   `json:"synchronousModeStrict,omitempty"`
-	// PGBouncer
-	PoolMode string `json:"poolMode,omitempty"`
-}
-
-type PgDataCentre struct {
-	models.DataCentre `json:",inline"`
-	Bundles           []*PgBundle `json:"bundles"`
-}
-
-type PgCluster struct {
-	models.Cluster `json:",inline"`
-	Bundles        []*PgBundle     `json:"bundles"`
-	DataCentres    []*PgDataCentre `json:"dataCentres,omitempty"`
-}
-
-type PgStatus struct {
-	models.ClusterStatus `json:",inline"`
-	DataCentres          []*models.DataCentreStatus `json:"dataCentres,omitempty"`
 }
