@@ -37,7 +37,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	apiv1convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -153,15 +152,9 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				"data centres", pgCluster.Spec.DataCentres,
 			)
 
-			pgSpec, err := apiv1convertors.PgToInstAPI(&pgCluster.Spec)
-			if err != nil {
-				logger.Error(err, "Cannot convert PostgreSQL spec to Instaclustr API format",
-					"cluster ID", pgCluster.Status.ID,
-					"spec", pgCluster.Spec,
-				)
-			}
+			pgSpec := pgCluster.Spec.ToInstAPIv2()
 
-			id, err = r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, pgSpec)
+			id, err = r.API.CreateCluster(instaclustr.PostgreSQLEndpoint, pgSpec)
 			if err != nil {
 				logger.Error(
 					err, "Cannot create PostgreSQL cluster",

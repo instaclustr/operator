@@ -156,7 +156,7 @@ func (rs *RedisSpec) DataCentresToInstAPIv2() []*models.RedisDataCentre {
 
 		redisDC.CloudProviderSettingsToInstAPIv2(&instDC.DataCentre)
 
-		instDC.Tags = redisDC.TagsToInstAPIv2()
+		redisDC.TagsToInstAPIv2(&instDC.DataCentre)
 
 		instDCs = append(instDCs, instDC)
 	}
@@ -223,7 +223,7 @@ func (rs *RedisSpec) SetSpecFromInst(instSpec *models.RedisCluster) {
 	rs.Name = instSpec.Name
 	rs.SLATier = instSpec.SLATier
 
-	rs.SetTwoFactorDeletesFromInst(instSpec.TwoFactorDelete)
+	rs.SetTwoFactorDeletesAPIv2(instSpec.TwoFactorDelete)
 
 	rs.SetDCsFromInst(instSpec.DataCentres)
 }
@@ -244,9 +244,9 @@ func (rs *RedisSpec) SetDCsFromInst(instDCs []*models.RedisDataCentre) {
 			ReplicaNodes: int32(instDC.ReplicaNodes),
 		}
 
-		redisDC.SetCloudProviderSettingsFromInst(&instDC.DataCentre)
+		redisDC.SetCloudProviderSettingsAPIv2(&instDC.DataCentre)
 
-		redisDC.SetTagsFromInst(instDC.Tags)
+		redisDC.SetTagsAPIv2(instDC.Tags)
 		dataCentres = append(dataCentres, redisDC)
 	}
 	rs.DataCentres = dataCentres

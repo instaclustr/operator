@@ -25,18 +25,28 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 type PgDataCentre struct {
 	DataCentre `json:",inline"`
 	// PostgreSQL options
-	ClientEncryption      bool   `json:"clientEncryption,omitempty"`
-	PostgresqlNodeCount   int32  `json:"postgresqlNodeCount"`
-	ReplicationMode       string `json:"replicationMode,omitempty"`
-	SynchronousModeStrict bool   `json:"synchronousModeStrict,omitempty"`
+	ClientEncryption           bool                          `json:"clientEncryption"`
+	PostgresqlNodeCount        int32                         `json:"postgresqlNodeCount"`
+	InterDataCentreReplication []*InterDataCentreReplication `json:"interDataCentreReplication,omitempty"`
+	IntraDataCentreReplication []*IntraDataCentreReplication `json:"intraDataCentreReplication"`
 	// PGBouncer options
-	PoolMode string `json:"poolMode,omitempty"`
+	PGBouncerVersion string `json:"pgBouncerVersion,omitempty"`
+	PoolMode         string `json:"poolMode,omitempty"`
+}
+
+type InterDataCentreReplication struct {
+	IsPrimaryDataCentre bool `json:"isPrimaryDataCentre"`
+}
+
+type IntraDataCentreReplication struct {
+	ReplicationMode string `json:"replicationMode"`
 }
 
 type PgRestoreFrom struct {
@@ -57,12 +67,10 @@ type PgRestoreCDCInfo struct {
 type PgSpec struct {
 	PgRestoreFrom         *PgRestoreFrom `json:"pgRestoreFrom,omitempty"`
 	Cluster               `json:",inline"`
-	PGBouncerVersion      string            `json:"pgBouncerVersion,omitempty"`
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
-	ConcurrentResizes     int               `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts bool              `json:"notifySupportContacts,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	Description           string            `json:"description,omitempty"`
+	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
 }
 
 // PgStatus defines the observed state of PostgreSQL
@@ -131,7 +139,8 @@ func (pgs *PgSpec) IsSpecEqual(instSpec *models.ClusterSpec, instClusterConfig m
 		pgs.SLATier != instSpec.SLATier ||
 		!pgs.AreAddonBundlesEqual(instSpec.AddonBundles) ||
 		!pgs.IsClusterConfigEqual(instClusterConfig) ||
-		(len(pgs.TwoFactorDelete) == 0 && instSpec.TwoFactorDeleteEnabled) ||
+		!pgs.AreOptionsEqual(instSpec.BundleOptions) ||
+		pgs.PrivateNetworkCluster != instSpec.DataCentres[0].PrivateIPOnly ||
 		pgs.Name != instSpec.ClusterName {
 		return false
 	}
@@ -139,10 +148,11 @@ func (pgs *PgSpec) IsSpecEqual(instSpec *models.ClusterSpec, instClusterConfig m
 	for _, instDataCentre := range instSpec.DataCentres {
 		for _, dataCentre := range pgs.DataCentres {
 			if dataCentre.Name == instDataCentre.CDCName {
-				if !dataCentre.AreOptionsEqual(instSpec.BundleOptions) ||
-					!dataCentre.IsDataCentreEqual(instDataCentre) ||
-					!dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) ||
-					pgs.PrivateNetworkCluster != instDataCentre.PrivateIPOnly {
+				if !dataCentre.IsDataCentreEqual(instDataCentre) {
+					return false
+				}
+
+				if !dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) {
 					return false
 				}
 
@@ -154,12 +164,22 @@ func (pgs *PgSpec) IsSpecEqual(instSpec *models.ClusterSpec, instClusterConfig m
 	return true
 }
 
-func (pdc *PgDataCentre) AreOptionsEqual(instBundleOptions models.BundleOptions) bool {
-	if pdc.ClientEncryption != instBundleOptions.ClientEncryption ||
-		pdc.ReplicationMode != instBundleOptions.ReplicationMode ||
-		pdc.SynchronousModeStrict != instBundleOptions.SynchronousModeStrict ||
-		pdc.PostgresqlNodeCount != instBundleOptions.PostgresqlNodeCount {
+func (pgs *PgSpec) AreOptionsEqual(instBundleOptions models.BundleOptions) bool {
+	if pgs.SynchronousModeStrict != instBundleOptions.SynchronousModeStrict {
 		return false
+	}
+
+	for _, dataCentre := range pgs.DataCentres {
+		if dataCentre.ClientEncryption != instBundleOptions.ClientEncryption ||
+			dataCentre.PostgresqlNodeCount != instBundleOptions.PostgresqlNodeCount {
+			return false
+		}
+
+		for _, intraDCReplication := range dataCentre.IntraDataCentreReplication {
+			if intraDCReplication.ReplicationMode != instBundleOptions.ReplicationMode {
+				return false
+			}
+		}
 	}
 
 	return true
@@ -188,11 +208,9 @@ func (pdc *PgDataCentre) IsDataCentreEqual(instDC *models.DataCentreSpec) bool {
 func (pgs *PgSpec) AreAddonBundlesEqual(instAddons []*models.AddonBundle) bool {
 	for _, instAddon := range instAddons {
 		if instAddon.Bundle == modelsv1.PgBouncer {
-			if instAddon.Version != pgs.PGBouncerVersion {
-				return false
-			}
 			for _, dataCentre := range pgs.DataCentres {
-				if instAddon.Options.PoolMode != dataCentre.PoolMode {
+				if instAddon.Options.PoolMode != dataCentre.PoolMode ||
+					instAddon.Version != dataCentre.PGBouncerVersion {
 					return false
 				}
 			}
@@ -241,6 +259,7 @@ func (pgs *PgSpec) SetSpecFromInst(instSpec *models.ClusterSpec, clusterConfig m
 	pgs.SLATier = instSpec.SLATier
 	pgs.PCICompliance = instSpec.PCICompliance != models.Disabled
 	pgs.ClusterConfigurations = clusterConfig
+	pgs.SynchronousModeStrict = instSpec.BundleOptions.SynchronousModeStrict
 
 	for _, instDC := range instSpec.DataCentres {
 		pgs.PrivateNetworkCluster = instDC.PrivateIPOnly
@@ -252,9 +271,12 @@ func (pgs *PgSpec) SetSpecFromInst(instSpec *models.ClusterSpec, clusterConfig m
 				Network: instDC.CDCNetwork,
 				Region:  instDC.Name,
 			},
-			PostgresqlNodeCount:   instSpec.BundleOptions.PostgresqlNodeCount,
-			ReplicationMode:       instSpec.BundleOptions.ReplicationMode,
-			SynchronousModeStrict: instSpec.BundleOptions.SynchronousModeStrict,
+			PostgresqlNodeCount: instSpec.BundleOptions.PostgresqlNodeCount,
+			IntraDataCentreReplication: []*IntraDataCentreReplication{
+				{
+					ReplicationMode: instSpec.BundleOptions.ReplicationMode,
+				},
+			},
 		}
 
 		if len(instDC.Nodes) != 0 {
@@ -277,8 +299,8 @@ func (pgs *PgSpec) SetSpecFromInst(instSpec *models.ClusterSpec, clusterConfig m
 
 	for _, addonBundle := range instSpec.AddonBundles {
 		if addonBundle.Bundle == modelsv1.PgBouncer {
-			pgs.PGBouncerVersion = addonBundle.Version
 			for _, dataCentre := range pgs.DataCentres {
+				dataCentre.PGBouncerVersion = addonBundle.Version
 				dataCentre.PoolMode = addonBundle.Options.PoolMode
 			}
 		}
@@ -317,4 +339,88 @@ func (pgs *PgSpec) HasRestore() bool {
 	}
 
 	return false
+}
+
+func (pgs *PgSpec) ToInstAPIv2() *models.PGCluster {
+	instTFD := pgs.TwoFactorDeletesToInstAPIv2()
+
+	instDCs := pgs.DataCentresToInstAPIv2()
+	return &models.PGCluster{
+		Name:                  pgs.Name,
+		PostgreSQLVersion:     pgs.Version,
+		DataCentres:           instDCs,
+		SynchronousModeStrict: pgs.SynchronousModeStrict,
+		PrivateNetworkCluster: pgs.PrivateNetworkCluster,
+		SLATier:               pgs.SLATier,
+		TwoFactorDelete:       instTFD,
+	}
+}
+
+func (pdc *PgDataCentre) ToInstAPIv2() *models.PGDataCentre {
+	instDC := &models.PGDataCentre{
+		DataCentre: modelsv2.DataCentre{
+			Name:                pdc.Name,
+			Network:             pdc.Network,
+			NodeSize:            pdc.NodeSize,
+			NumberOfNodes:       pdc.PostgresqlNodeCount,
+			CloudProvider:       pdc.CloudProvider,
+			Region:              pdc.Region,
+			ProviderAccountName: pdc.ProviderAccountName,
+		},
+		PGBouncer:                 []*models.PGBouncer{},
+		ClientToClusterEncryption: pdc.ClientEncryption,
+	}
+
+	pdc.CloudProviderSettingsToInstAPIv2(&instDC.DataCentre)
+
+	pdc.TagsToInstAPIv2(&instDC.DataCentre)
+
+	pdc.InterDCReplicationToInstAPIv2(instDC)
+
+	pdc.IntraDCReplicationToInstAPIv2(instDC)
+
+	if pdc.PGBouncerVersion != "" {
+		pdc.PGBouncerToInstAPIv2(instDC)
+	}
+
+	return instDC
+}
+
+func (pdc *PgDataCentre) InterDCReplicationToInstAPIv2(instDC *models.PGDataCentre) {
+	var instReplication []*models.PGInterDCReplication
+	for _, interDCReplication := range pdc.InterDataCentreReplication {
+		instReplication = append(instReplication, &models.PGInterDCReplication{
+			IsPrimaryDataCentre: interDCReplication.IsPrimaryDataCentre,
+		})
+	}
+
+	instDC.InterDataCentreReplication = instReplication
+}
+
+func (pdc *PgDataCentre) IntraDCReplicationToInstAPIv2(instDC *models.PGDataCentre) {
+	var instReplication []*models.PGIntraDCReplication
+	for _, interDCReplication := range pdc.IntraDataCentreReplication {
+		instReplication = append(instReplication, &models.PGIntraDCReplication{
+			ReplicationMode: interDCReplication.ReplicationMode,
+		})
+	}
+
+	instDC.IntraDataCentreReplication = instReplication
+}
+
+func (pdc *PgDataCentre) PGBouncerToInstAPIv2(instDC *models.PGDataCentre) {
+	instDC.PGBouncer = []*models.PGBouncer{
+		{
+			PGBouncerVersion: pdc.PGBouncerVersion,
+			PoolMode:         pdc.PoolMode,
+		},
+	}
+}
+
+func (pgs *PgSpec) DataCentresToInstAPIv2() []*models.PGDataCentre {
+	var instDCs []*models.PGDataCentre
+	for _, k8sDC := range pgs.DataCentres {
+		instDCs = append(instDCs, k8sDC.ToInstAPIv2())
+	}
+	return instDCs
 }

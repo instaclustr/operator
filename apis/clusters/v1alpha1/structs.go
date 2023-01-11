@@ -165,6 +165,30 @@ func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
 	return false, nil
 }
 
+func (dc *DataCentre) CloudProviderSettingsToInstAPIv2(instDC *modelsv2.DataCentre) {
+	var awsSettings []*modelsv2.AWSSetting
+	var azureSettings []*modelsv2.AzureSetting
+	var gcpSettings []*modelsv2.GCPSetting
+	switch dc.CloudProvider {
+	case modelsv2.AWSVPC:
+		for _, providerSettings := range dc.CloudProviderSettings {
+			awsSettings = append(awsSettings, providerSettings.AWSToInstAPIv2())
+		}
+	case modelsv2.AZURE:
+		for _, providerSettings := range dc.CloudProviderSettings {
+			azureSettings = append(azureSettings, providerSettings.AzureToInstAPIv2())
+		}
+	case modelsv2.GCP:
+		for _, providerSettings := range dc.CloudProviderSettings {
+			gcpSettings = append(gcpSettings, providerSettings.GCPToInstAPIv2())
+		}
+	}
+
+	instDC.AWSSettings = awsSettings
+	instDC.AzureSettings = azureSettings
+	instDC.GCPSettings = gcpSettings
+}
+
 func (cps *CloudProviderSettings) AWSToInstAPIv2() *modelsv2.AWSSetting {
 	return &modelsv2.AWSSetting{
 		EBSEncryptionKey:       cps.DiskEncryptionKey,
@@ -184,7 +208,7 @@ func (cps *CloudProviderSettings) GCPToInstAPIv2() *modelsv2.GCPSetting {
 	}
 }
 
-func (dc DataCentre) TagsToInstAPIv2() []*modelsv2.Tag {
+func (dc DataCentre) TagsToInstAPIv2(instDC *modelsv2.DataCentre) {
 	var tags []*modelsv2.Tag
 
 	for key, value := range dc.Tags {
@@ -194,7 +218,7 @@ func (dc DataCentre) TagsToInstAPIv2() []*modelsv2.Tag {
 		})
 	}
 
-	return tags
+	instDC.Tags = tags
 }
 
 func (tfd *TwoFactorDelete) ToInstAPIv2() *modelsv2.TwoFactorDelete {
@@ -210,36 +234,6 @@ func (c *Cluster) TwoFactorDeletesToInstAPIv2() []*modelsv2.TwoFactorDelete {
 		TFDs = append(TFDs, k8sTFD.ToInstAPIv2())
 	}
 	return TFDs
-}
-
-func (dc *DataCentre) CloudProviderSettingsToInstAPIv2(instDC *modelsv2.DataCentre) {
-	switch dc.CloudProvider {
-	case modelsv2.AWSVPC:
-		instAWSSetting := []*modelsv2.AWSSetting{}
-		for _, awsSetting := range dc.CloudProviderSettings {
-			instAWSSetting = append(instAWSSetting, &modelsv2.AWSSetting{
-				EBSEncryptionKey:       awsSetting.DiskEncryptionKey,
-				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
-			})
-		}
-		instDC.AWSSettings = instAWSSetting
-	case modelsv2.GCP:
-		instGCPSetting := []*modelsv2.GCPSetting{}
-		for _, gcpSetting := range dc.CloudProviderSettings {
-			instGCPSetting = append(instGCPSetting, &modelsv2.GCPSetting{
-				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
-			})
-		}
-		instDC.GCPSettings = instGCPSetting
-	case modelsv2.AZUREAZ:
-		instAzureSetting := []*modelsv2.AzureSetting{}
-		for _, azureSetting := range dc.CloudProviderSettings {
-			instAzureSetting = append(instAzureSetting, &modelsv2.AzureSetting{
-				ResourceGroup: azureSetting.ResourceGroup,
-			})
-		}
-		instDC.AzureSettings = instAzureSetting
-	}
 }
 
 func (dc *DataCentre) AreCloudProviderSettingsEqual(
@@ -318,7 +312,7 @@ func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFac
 	return true
 }
 
-func (dc *DataCentre) SetCloudProviderSettingsFromInst(instDC *modelsv2.DataCentre) {
+func (dc *DataCentre) SetCloudProviderSettingsAPIv2(instDC *modelsv2.DataCentre) {
 	cloudProviderSettings := []*CloudProviderSettings{}
 	switch dc.CloudProvider {
 	case modelsv2.AWSVPC:
@@ -344,7 +338,7 @@ func (dc *DataCentre) SetCloudProviderSettingsFromInst(instDC *modelsv2.DataCent
 	dc.CloudProviderSettings = cloudProviderSettings
 }
 
-func (c *Cluster) SetTwoFactorDeletesFromInst(instTFDs []*modelsv2.TwoFactorDelete) {
+func (c *Cluster) SetTwoFactorDeletesAPIv2(instTFDs []*modelsv2.TwoFactorDelete) {
 	var k8sTFD []*TwoFactorDelete
 	for _, instTFD := range instTFDs {
 		k8sTFD = append(k8sTFD, &TwoFactorDelete{
@@ -355,7 +349,7 @@ func (c *Cluster) SetTwoFactorDeletesFromInst(instTFDs []*modelsv2.TwoFactorDele
 	c.TwoFactorDelete = k8sTFD
 }
 
-func (dc *DataCentre) SetTagsFromInst(instTags []*modelsv2.Tag) {
+func (dc *DataCentre) SetTagsAPIv2(instTags []*modelsv2.Tag) {
 	var k8sTags map[string]string
 	for _, instTag := range instTags {
 		k8sTags[instTag.Key] = instTag.Value

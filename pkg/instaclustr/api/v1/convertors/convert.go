@@ -33,93 +33,6 @@ func ClusterStatusFromInstAPI(body []byte) (*v1alpha1.ClusterStatus, error) {
 	return clusterStatus, nil
 }
 
-func PgToInstAPI(pgClusterSpec *v1alpha1.PgSpec) (*modelsv1.PgCluster, error) {
-	if len(pgClusterSpec.DataCentres) == 0 {
-		return nil, models.ZeroDataCentres
-	}
-
-	pgBundles := pgBundlesToInstAPI(pgClusterSpec.DataCentres[0], pgClusterSpec.Version, pgClusterSpec.PGBouncerVersion)
-
-	pgInstProvider := pgProviderToInstAPI(pgClusterSpec.DataCentres[0])
-
-	pgInstTwoFactorDelete := twoFactorDeleteToInstAPI(pgClusterSpec.TwoFactorDelete)
-
-	pg := &modelsv1.PgCluster{
-		Cluster: models.Cluster{
-			ClusterName:           pgClusterSpec.Name,
-			NodeSize:              pgClusterSpec.DataCentres[0].NodeSize,
-			PrivateNetworkCluster: pgClusterSpec.PrivateNetworkCluster,
-			SLATier:               pgClusterSpec.SLATier,
-			Provider:              pgInstProvider,
-			TwoFactorDelete:       pgInstTwoFactorDelete,
-		},
-		Bundles: pgBundles,
-	}
-
-	pgRackAllocation := &models.RackAllocation{
-		NodesPerRack:  pgClusterSpec.DataCentres[0].NodesNumber,
-		NumberOfRacks: pgClusterSpec.DataCentres[0].RacksNumber,
-	}
-
-	pg.DataCentre = pgClusterSpec.DataCentres[0].Region
-	pg.DataCentreCustomName = pgClusterSpec.DataCentres[0].Name
-	pg.NodeSize = pgClusterSpec.DataCentres[0].NodeSize
-	pg.ClusterNetwork = pgClusterSpec.DataCentres[0].Network
-	pg.RackAllocation = pgRackAllocation
-
-	return pg, nil
-}
-
-func pgBundlesToInstAPI(dataCentre *v1alpha1.PgDataCentre, version, pgBouncerVersion string) []*modelsv1.PgBundle {
-	var pgBundles []*modelsv1.PgBundle
-	pgBundle := &modelsv1.PgBundle{
-		Bundle: models.Bundle{
-			Bundle:  modelsv1.PgSQL,
-			Version: version,
-		},
-		Options: &modelsv1.PgBundleOptions{
-			ClientEncryption:      dataCentre.ClientEncryption,
-			PostgresqlNodeCount:   dataCentre.PostgresqlNodeCount,
-			ReplicationMode:       dataCentre.ReplicationMode,
-			SynchronousModeStrict: dataCentre.SynchronousModeStrict,
-		},
-	}
-	pgBundles = append(pgBundles, pgBundle)
-
-	if pgBouncerVersion != "" {
-		pgBouncerBundle := &modelsv1.PgBundle{
-			Bundle: models.Bundle{
-				Bundle:  modelsv1.PgBouncer,
-				Version: pgBouncerVersion,
-			},
-			Options: &modelsv1.PgBundleOptions{
-				PoolMode: dataCentre.PoolMode,
-			},
-		}
-		pgBundles = append(pgBundles, pgBouncerBundle)
-	}
-	return pgBundles
-}
-
-func pgProviderToInstAPI(dataCentre *v1alpha1.PgDataCentre) *models.ClusterProvider {
-	var instCustomVirtualNetworkId string
-	var instResourceGroup string
-	var insDiskEncryptionKey string
-	if len(dataCentre.CloudProviderSettings) > 0 {
-		instCustomVirtualNetworkId = dataCentre.CloudProviderSettings[0].CustomVirtualNetworkID
-		instResourceGroup = dataCentre.CloudProviderSettings[0].ResourceGroup
-		insDiskEncryptionKey = dataCentre.CloudProviderSettings[0].DiskEncryptionKey
-	}
-	return &models.ClusterProvider{
-		Name:                   dataCentre.CloudProvider,
-		AccountName:            dataCentre.ProviderAccountName,
-		Tags:                   dataCentre.Tags,
-		CustomVirtualNetworkID: instCustomVirtualNetworkId,
-		ResourceGroup:          instResourceGroup,
-		DiskEncryptionKey:      insDiskEncryptionKey,
-	}
-}
-
 func dataCentresFromInstAPI(instaDataCentres []*models.DataCentreStatus) []*v1alpha1.DataCentreStatus {
 	var dataCentres []*v1alpha1.DataCentreStatus
 
@@ -161,14 +74,6 @@ func twoFactorDeleteToInstAPI(twoFactorDelete []*v1alpha1.TwoFactorDelete) *mode
 		DeleteVerifyEmail: twoFactorDelete[0].Email,
 		DeleteVerifyPhone: twoFactorDelete[0].Phone,
 	}
-}
-
-func CheckSingleDCCluster(dataCentresNumber int) bool {
-	if dataCentresNumber > 1 {
-		return false
-	}
-
-	return true
 }
 
 func NodeReloadStatusFromInstAPI(nodeInProgress clusterresourcesv1alpha1.Node, nrStatus *modelsv1.NodeReloadStatusAPIv1) clusterresourcesv1alpha1.NodeReloadStatus {

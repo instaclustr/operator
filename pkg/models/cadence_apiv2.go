@@ -17,18 +17,8 @@ type CadenceClusterAPIv2 struct {
 }
 
 type CadenceDataCentre struct {
-	ClientToClusterEncryption bool                     `json:"clientToClusterEncryption"`
-	CloudProvider             string                   `json:"cloudProvider"`
-	Name                      string                   `json:"name"`
-	Network                   string                   `json:"network"`
-	NodeSize                  string                   `json:"nodeSize"`
-	NumberOfNodes             int                      `json:"numberOfNodes"`
-	Region                    string                   `json:"region"`
-	AWSSettings               []*modelsv2.AWSSetting   `json:"awsSettings,omitempty"`
-	GCPSetting                []*modelsv2.GCPSetting   `json:"gcpSettings,omitempty"`
-	AzureSettings             []*modelsv2.AzureSetting `json:"azureSettings,omitempty"`
-	ProviderAccountName       string                   `json:"providerAccountName,omitempty"`
-	Tags                      []*modelsv2.Tag          `json:"tags,omitempty"`
+	modelsv2.DataCentre       `json:",inline"`
+	ClientToClusterEncryption bool `json:"clientToClusterEncryption"`
 }
 
 type CadenceSharedProvisioning struct {

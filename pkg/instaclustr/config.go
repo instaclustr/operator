@@ -25,6 +25,7 @@ const (
 	KafkaACLEndpoint                     = "/cluster-management/v2/resources/applications/kafka/acls/v2/"
 	CadenceEndpoint                      = "/cluster-management/v2/resources/applications/cadence/clusters/v2/"
 	RedisEndpoint                        = "/cluster-management/v2/resources/applications/redis/clusters/v2/"
+	PostgreSQLEndpoint                   = "/cluster-management/v2/resources/applications/postgresql/clusters/v2/"
 )
 
 // constants for API v1
