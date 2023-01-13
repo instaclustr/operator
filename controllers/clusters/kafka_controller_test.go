@@ -6,9 +6,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr/mock"
@@ -21,6 +21,8 @@ var _ = Describe("Kafka Controller", func() {
 		k             = "kafka"
 		ns            = "default"
 		kafkaNS       = types.NamespacedName{Name: k, Namespace: ns}
+		timeout       = time.Second * 30
+		interval      = time.Second * 2
 	)
 
 	kafkaSpec := v1alpha1.KafkaSpec{
@@ -55,16 +57,19 @@ var _ = Describe("Kafka Controller", func() {
 		KarapaceSchemaRegistry:            nil,
 	}
 
-	ctx := context.Background()
-	kafkaManifest := v1alpha1.Kafka{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      k,
-			Namespace: ns,
-			Annotations: map[string]string{
-				models.ResourceStateAnnotation: models.CreatingEvent,
-			},
+	kafkaObjMeta := metav1.ObjectMeta{
+		Name:      k,
+		Namespace: ns,
+		Annotations: map[string]string{
+			models.ResourceStateAnnotation: models.CreatingEvent,
 		},
-		Spec: kafkaSpec,
+	}
+
+	ctx := context.Background()
+
+	kafkaManifest := v1alpha1.Kafka{
+		ObjectMeta: kafkaObjMeta,
+		Spec:       kafkaSpec,
 	}
 
 	When("apply a Kafka manifest", func() {
@@ -103,9 +108,6 @@ var _ = Describe("Kafka Controller", func() {
 			Expect(k8sClient.Patch(ctx, &kafkaResource, patch)).Should(Succeed())
 
 			By("sending resize request to Inst API v2.")
-			timeout := time.Second * 30
-			interval := time.Second * 2
-			models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 3}
 
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, kafkaNS, &kafkaResource); err != nil {
@@ -117,6 +119,30 @@ var _ = Describe("Kafka Controller", func() {
 				}
 
 				return kafkaResource.Status.DataCentres[0].Nodes[0].Size == mock.NewKafkaNodeSize
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
+	When("delete the Kafka resource", func() {
+		It("should send deletion request", func() {
+			Expect(k8sClient.Get(ctx, kafkaNS, &kafkaResource)).Should(Succeed())
+
+			kafkaResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
+			kafkaResource.Status.ID = mock.DeleteID
+
+			Expect(k8sClient.Delete(ctx, &kafkaResource)).Should(Succeed())
+
+			By("sending delete request to Instaclustr API")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, kafkaNS, &kafkaResource)
+				if k8serrors.IsNotFound(err) {
+					return true
+				}
+				if err != nil {
+					return false
+				}
+
+				return false
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

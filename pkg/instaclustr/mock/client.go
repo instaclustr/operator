@@ -6,6 +6,7 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
@@ -22,6 +23,7 @@ func NewInstAPI() *mockClient {
 const (
 	CreatedID = "created"
 	UpdatedID = "updated"
+	DeleteID  = "delete"
 	StatusID  = "statusID"
 )
 
@@ -41,6 +43,10 @@ func (c *mockClient) DoRequest(url string, method string, data []byte) (*http.Re
 }
 
 func (c *mockClient) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error) {
+	if id == DeleteID {
+		return nil, instaclustr.NotFound
+	}
+
 	KafkaInstaStatus.Status = models.RunningStatus
 	KafkaInstaStatus.ID = id
 
@@ -84,7 +90,7 @@ func (c *mockClient) UpdateCluster(id, clusterEndpoint string, InstaDCs any) err
 	return nil
 }
 func (c *mockClient) DeleteCluster(id, clusterEndpoint string) error {
-	panic("DeleteCluster: is not implemented")
+	return nil
 }
 func (c *mockClient) AddDataCentre(id, clusterEndpoint string, dataCentre any) error {
 	panic("AddDataCentre: is not implemented")

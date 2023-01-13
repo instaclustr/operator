@@ -21,7 +21,12 @@ func confirmDeletion(obj client.Object) bool {
 }
 
 func isStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
-	if a.ID != b.ID ||
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil ||
+		a.ID != b.ID ||
 		a.Status != b.Status ||
 		a.CDCID != b.CDCID ||
 		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
