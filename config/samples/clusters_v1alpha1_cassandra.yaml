@@ -3,7 +3,7 @@ kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
-  name: "CassandraTEST"
+  name: "C"
   version: "3.11.13"               # 4.0.1 is deprecated | 4.0.4 and 3.11.13 are supported
   dataCentres:
     - name: "AWS_cassandra"

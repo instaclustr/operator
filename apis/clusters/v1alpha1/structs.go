@@ -8,12 +8,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// Bundle is deprecated: delete when not used.
-type Bundle struct {
-	Bundle  string `json:"bundle"`
-	Version string `json:"version"`
-}
-
 type CloudProviderSettings struct {
 	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
 	ResourceGroup          string `json:"resourceGroup,omitempty"`
