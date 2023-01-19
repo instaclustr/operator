@@ -1,0 +1,27 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-clusters-instaclustr-com-v1alpha1-cassandra
+  failurePolicy: Fail
+  name: vcassandra.kb.io
+  rules:
+  - apiGroups:
+    - clusters.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cassandras
+  sideEffects: None
