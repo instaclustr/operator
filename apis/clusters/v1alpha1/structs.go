@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net"
 
+	"k8s.io/utils/strings/slices"
+
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -159,50 +161,50 @@ func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
 	return false, nil
 }
 
-func (dc *DataCentre) CloudProviderSettingsToInstAPIv2(instDC *modelsv2.DataCentre) {
-	var awsSettings []*modelsv2.AWSSetting
-	var azureSettings []*modelsv2.AzureSetting
-	var gcpSettings []*modelsv2.GCPSetting
+func (dc *DataCentre) CloudProviderSettingsToInstAPI(instDC *modelsv2.DataCentre) {
 	switch dc.CloudProvider {
 	case modelsv2.AWSVPC:
+		awsSettings := []*modelsv2.AWSSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
-			awsSettings = append(awsSettings, providerSettings.AWSToInstAPIv2())
+			awsSettings = append(awsSettings, providerSettings.AWSToInstAPI())
 		}
+		instDC.AWSSettings = awsSettings
 	case modelsv2.AZURE:
+		azureSettings := []*modelsv2.AzureSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
-			azureSettings = append(azureSettings, providerSettings.AzureToInstAPIv2())
+			azureSettings = append(azureSettings, providerSettings.AzureToInstAPI())
+			instDC.AzureSettings = azureSettings
 		}
 	case modelsv2.GCP:
+		gcpSettings := []*modelsv2.GCPSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
-			gcpSettings = append(gcpSettings, providerSettings.GCPToInstAPIv2())
+			gcpSettings = append(gcpSettings, providerSettings.GCPToInstAPI())
 		}
+		instDC.GCPSettings = gcpSettings
 	}
 
-	instDC.AWSSettings = awsSettings
-	instDC.AzureSettings = azureSettings
-	instDC.GCPSettings = gcpSettings
 }
 
-func (cps *CloudProviderSettings) AWSToInstAPIv2() *modelsv2.AWSSetting {
+func (cps *CloudProviderSettings) AWSToInstAPI() *modelsv2.AWSSetting {
 	return &modelsv2.AWSSetting{
 		EBSEncryptionKey:       cps.DiskEncryptionKey,
 		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
 	}
 }
 
-func (cps *CloudProviderSettings) AzureToInstAPIv2() *modelsv2.AzureSetting {
+func (cps *CloudProviderSettings) AzureToInstAPI() *modelsv2.AzureSetting {
 	return &modelsv2.AzureSetting{
 		ResourceGroup: cps.ResourceGroup,
 	}
 }
 
-func (cps *CloudProviderSettings) GCPToInstAPIv2() *modelsv2.GCPSetting {
+func (cps *CloudProviderSettings) GCPToInstAPI() *modelsv2.GCPSetting {
 	return &modelsv2.GCPSetting{
 		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
 	}
 }
 
-func (dc DataCentre) TagsToInstAPIv2(instDC *modelsv2.DataCentre) {
+func (dc DataCentre) TagsToInstAPI(instDC *modelsv2.DataCentre) {
 	var tags []*modelsv2.Tag
 
 	for key, value := range dc.Tags {
@@ -215,17 +217,17 @@ func (dc DataCentre) TagsToInstAPIv2(instDC *modelsv2.DataCentre) {
 	instDC.Tags = tags
 }
 
-func (tfd *TwoFactorDelete) ToInstAPIv2() *modelsv2.TwoFactorDelete {
+func (tfd *TwoFactorDelete) ToInstAPI() *modelsv2.TwoFactorDelete {
 	return &modelsv2.TwoFactorDelete{
 		ConfirmationPhoneNumber: tfd.Phone,
 		ConfirmationEmail:       tfd.Email,
 	}
 }
 
-func (c *Cluster) TwoFactorDeletesToInstAPIv2() []*modelsv2.TwoFactorDelete {
+func (c *Cluster) TwoFactorDeletesToInstAPI() []*modelsv2.TwoFactorDelete {
 	var TFDs []*modelsv2.TwoFactorDelete
 	for _, k8sTFD := range c.TwoFactorDelete {
-		TFDs = append(TFDs, k8sTFD.ToInstAPIv2())
+		TFDs = append(TFDs, k8sTFD.ToInstAPI())
 	}
 	return TFDs
 }
@@ -306,7 +308,7 @@ func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFac
 	return true
 }
 
-func (dc *DataCentre) SetCloudProviderSettingsAPIv2(instDC *modelsv2.DataCentre) {
+func (dc *DataCentre) SetCloudProviderSettingsFromInstAPI(instDC *modelsv2.DataCentre) {
 	cloudProviderSettings := []*CloudProviderSettings{}
 	switch dc.CloudProvider {
 	case modelsv2.AWSVPC:
@@ -332,7 +334,7 @@ func (dc *DataCentre) SetCloudProviderSettingsAPIv2(instDC *modelsv2.DataCentre)
 	dc.CloudProviderSettings = cloudProviderSettings
 }
 
-func (c *Cluster) SetTwoFactorDeletesAPIv2(instTFDs []*modelsv2.TwoFactorDelete) {
+func (c *Cluster) SetTwoFactorDeletesFromInstAPI(instTFDs []*modelsv2.TwoFactorDelete) {
 	var k8sTFD []*TwoFactorDelete
 	for _, instTFD := range instTFDs {
 		k8sTFD = append(k8sTFD, &TwoFactorDelete{
@@ -343,7 +345,7 @@ func (c *Cluster) SetTwoFactorDeletesAPIv2(instTFDs []*modelsv2.TwoFactorDelete)
 	c.TwoFactorDelete = k8sTFD
 }
 
-func (dc *DataCentre) SetTagsAPIv2(instTags []*modelsv2.Tag) {
+func (dc *DataCentre) SetTagsFromInstAPI(instTags []*modelsv2.Tag) {
 	var k8sTags map[string]string
 	for _, instTag := range instTags {
 		k8sTags[instTag.Key] = instTag.Value
@@ -366,4 +368,62 @@ func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*mode
 		})
 	}
 	dc.CloudProviderSettings = cloudProviderSettings
+}
+
+func (dcs *DataCentreStatus) SetNodesStatusFromInstAPI(instNodes []*models.NodeStatusV2) {
+	k8sNodes := []*Node{}
+	for _, instNode := range instNodes {
+		k8sNodes = append(k8sNodes, &Node{
+			ID:             instNode.ID,
+			Size:           instNode.NodeSize,
+			Status:         instNode.Status,
+			PublicAddress:  instNode.PublicAddress,
+			PrivateAddress: instNode.PrivateAddress,
+			Rack:           instNode.Rack,
+			Roles:          instNode.NodeRoles,
+		})
+	}
+	dcs.Nodes = k8sNodes
+}
+
+func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*models.NodeStatusV2) bool {
+	if len(dcs.Nodes) != len(instNodes) {
+		return false
+	}
+
+	for _, instNode := range instNodes {
+		for _, k8sNode := range dcs.Nodes {
+			if instNode.ID == k8sNode.ID {
+				if !k8sNode.IsNodeEqual(instNode) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
+func (n *Node) IsNodeEqual(instNode *models.NodeStatusV2) bool {
+	if n == nil || instNode == nil {
+		if (n == nil) != (instNode == nil) {
+			return false
+		}
+
+		return true
+	}
+
+	if instNode.ID != n.ID ||
+		instNode.Status != n.Status ||
+		instNode.NodeSize != n.Size ||
+		instNode.Rack != n.Rack ||
+		instNode.PrivateAddress != n.PrivateAddress ||
+		instNode.PublicAddress != n.PublicAddress ||
+		!slices.Equal(instNode.NodeRoles, n.Roles) {
+		return false
+	}
+
+	return true
 }

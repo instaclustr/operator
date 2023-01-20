@@ -26,6 +26,8 @@ const (
 	CadenceEndpoint                      = "/cluster-management/v2/resources/applications/cadence/clusters/v2/"
 	RedisEndpoint                        = "/cluster-management/v2/resources/applications/redis/clusters/v2/"
 	PostgreSQLEndpoint                   = "/cluster-management/v2/resources/applications/postgresql/clusters/v2/"
+	PostgreSQLConfigEndpoint             = "%s/cluster-management/v2/data-sources/postgresql_cluster/%s/configurations"
+	PostgreSQLConfigManagementEndpoint   = "%s/cluster-management/v2/resources/applications/postgresql/configurations/v2/"
 )
 
 // constants for API v1

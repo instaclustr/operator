@@ -62,4 +62,10 @@ type API interface {
 	UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error
 	GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error)
 	RestoreCassandra(url string, restoreData v1alpha1.CassandraRestoreFrom) (string, error)
+	GetPostgreSQL(id string) (*models.PGStatus, error)
+	UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error
+	GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error)
+	CreatePostgreSQLConfiguration(id, name, value string) error
+	UpdatePostgreSQLConfiguration(id, name, value string) error
+	ResetPostgreSQLConfiguration(id, name string) error
 }

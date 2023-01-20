@@ -215,3 +215,27 @@ func (c *mockClient) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom)
 func (c *mockClient) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
 	panic("RestoreOpenSearchCluster: is not implemented")
 }
+
+func (c *mockClient) GetPostgreSQL(id string) (*models.PGStatus, error) {
+	panic("GetPostgreSQL: is not implemented")
+}
+
+func (c *mockClient) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error {
+	panic("UpdatePostgreSQLDataCentres: is not implemented")
+}
+
+func (c *mockClient) GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error) {
+	panic("GetPostgreSQLConfigs: is not implemented")
+}
+
+func (c *mockClient) UpdatePostgreSQLConfiguration(id, name, value string) error {
+	panic("UpdatePostgreSQLConfiguration: is not implemented")
+}
+
+func (c *mockClient) CreatePostgreSQLConfiguration(id, name, value string) error {
+	panic("CreatePostgreSQLConfiguration: is not implemented")
+}
+
+func (c *mockClient) ResetPostgreSQLConfiguration(id, name string) error {
+	panic("ResetPostgreSQLConfiguration: is not implemented")
+}
