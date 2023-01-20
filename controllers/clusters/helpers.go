@@ -93,3 +93,11 @@ func isDataCentreNodesEqual(a, b []*clustersv1alpha1.Node) bool {
 
 	return true
 }
+
+func convertAPIv2ConfigToMap(instConfigs []*models.ConfigurationProperties) map[string]string {
+	newConfigs := map[string]string{}
+	for _, instConfig := range instConfigs {
+		newConfigs[instConfig.Name] = instConfig.Value
+	}
+	return newConfigs
+}

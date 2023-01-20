@@ -121,7 +121,7 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.Clus
 
 func (rs *RedisSpec) ToInstAPIv2() *models.RedisCluster {
 	instDCs := rs.DataCentresToInstAPIv2()
-	instTwoFactorDelete := rs.TwoFactorDeletesToInstAPIv2()
+	instTwoFactorDelete := rs.TwoFactorDeletesToInstAPI()
 
 	instSpec := &models.RedisCluster{
 		Name:                   rs.Name,
@@ -154,9 +154,9 @@ func (rs *RedisSpec) DataCentresToInstAPIv2() []*models.RedisDataCentre {
 			ReplicaNodes: int(redisDC.ReplicaNodes),
 		}
 
-		redisDC.CloudProviderSettingsToInstAPIv2(&instDC.DataCentre)
+		redisDC.CloudProviderSettingsToInstAPI(&instDC.DataCentre)
 
-		redisDC.TagsToInstAPIv2(&instDC.DataCentre)
+		redisDC.TagsToInstAPI(&instDC.DataCentre)
 
 		instDCs = append(instDCs, instDC)
 	}
@@ -223,7 +223,7 @@ func (rs *RedisSpec) SetSpecFromInst(instSpec *models.RedisCluster) {
 	rs.Name = instSpec.Name
 	rs.SLATier = instSpec.SLATier
 
-	rs.SetTwoFactorDeletesAPIv2(instSpec.TwoFactorDelete)
+	rs.SetTwoFactorDeletesFromInstAPI(instSpec.TwoFactorDelete)
 
 	rs.SetDCsFromInst(instSpec.DataCentres)
 }
@@ -244,9 +244,9 @@ func (rs *RedisSpec) SetDCsFromInst(instDCs []*models.RedisDataCentre) {
 			ReplicaNodes: int32(instDC.ReplicaNodes),
 		}
 
-		redisDC.SetCloudProviderSettingsAPIv2(&instDC.DataCentre)
+		redisDC.SetCloudProviderSettingsFromInstAPI(&instDC.DataCentre)
 
-		redisDC.SetTagsAPIv2(instDC.Tags)
+		redisDC.SetTagsFromInstAPI(instDC.Tags)
 		dataCentres = append(dataCentres, redisDC)
 	}
 	rs.DataCentres = dataCentres

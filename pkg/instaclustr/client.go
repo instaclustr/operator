@@ -1581,3 +1581,184 @@ func (c *Client) RestoreCassandra(url string, restoreData v1alpha1.CassandraRest
 
 	return response.RestoredCluster, nil
 }
+
+func (c *Client) GetPostgreSQL(id string) (*models.PGStatus, error) {
+	url := c.serverHostname + PostgreSQLEndpoint + id
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	pgCluster := &models.PGStatus{}
+	err = json.Unmarshal(body, pgCluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return pgCluster, nil
+}
+
+func (c *Client) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error {
+	updateRequest := struct {
+		DataCentres []*models.PGDataCentre `json:"dataCentres"`
+	}{
+		DataCentres: dataCentres,
+	}
+
+	reqData, err := json.Marshal(updateRequest)
+	url := c.serverHostname + PostgreSQLEndpoint + id
+	resp, err := c.DoRequest(url, http.MethodPut, reqData)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error) {
+	url := fmt.Sprintf(PostgreSQLConfigEndpoint, c.serverHostname, id)
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	response := []*models.PGConfigs{}
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (c *Client) UpdatePostgreSQLConfiguration(id, name, value string) error {
+	request := struct {
+		Value string `json:"value"`
+	}{
+		Value: value,
+	}
+
+	reqData, err := json.Marshal(request)
+	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
+	resp, err := c.DoRequest(url, http.MethodPut, reqData)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) CreatePostgreSQLConfiguration(id, name, value string) error {
+	request := struct {
+		Name      string `json:"name"`
+		ClusterID string `json:"clusterId"`
+		Value     string `json:"value"`
+	}{
+		Name:      name,
+		ClusterID: id,
+		Value:     value,
+	}
+
+	reqData, err := json.Marshal(request)
+	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint, c.serverHostname)
+	resp, err := c.DoRequest(url, http.MethodPost, reqData)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
+	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}

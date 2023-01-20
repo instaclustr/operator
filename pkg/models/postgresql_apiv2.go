@@ -25,6 +25,9 @@ type PGDataCentre struct {
 	InterDataCentreReplication []*PGInterDCReplication `json:"interDataCentreReplication,omitempty"`
 	IntraDataCentreReplication []*PGIntraDCReplication `json:"intraDataCentreReplication"`
 	PGBouncer                  []*PGBouncer            `json:"pgBouncer,omitempty"`
+	Status                     string                  `json:"status,omitempty"`
+	ID                         string                  `json:"id,omitempty"`
+	Nodes                      []*NodeStatusV2         `json:"nodes,omitempty"`
 }
 
 type PGInterDCReplication struct {
@@ -33,4 +36,30 @@ type PGInterDCReplication struct {
 
 type PGIntraDCReplication struct {
 	ReplicationMode string `json:"replicationMode"`
+}
+
+type PGStatus struct {
+	ID                            string                      `json:"id,omitempty"`
+	Name                          string                      `json:"name"`
+	PostgreSQLVersion             string                      `json:"postgresqlVersion"`
+	PCIComplianceMode             bool                        `json:"PCIComplianceMode,omitempty"`
+	DataCentres                   []*PGDataCentre             `json:"dataCentres"`
+	CurrentClusterOperationStatus string                      `json:"currentClusterOperationStatus,omitempty"`
+	SynchronousModeStrict         bool                        `json:"synchronousModeStrict"`
+	PrivateNetworkCluster         bool                        `json:"privateNetworkCluster"`
+	TwoFactorDelete               []*modelsv2.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	SLATier                       string                      `json:"slaTier"`
+	Status                        string                      `json:"status,omitempty"`
+}
+
+type PGConfigs struct {
+	ClusterID               string                     `json:"clusterId,omitempty"`
+	ConfigurationProperties []*ConfigurationProperties `json:"configurationProperties"`
+}
+
+type ConfigurationProperties struct {
+	Name      string `json:"name"`
+	ClusterID string `json:"clusterId"`
+	ID        string `json:"id,omitempty"`
+	Value     string `json:"value"`
 }

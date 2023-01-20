@@ -367,7 +367,7 @@ func (cs *CadenceSpec) TwoFactorDeleteToAPIv2() []*modelsv2.TwoFactorDelete {
 	var twoFactorDeleteAPIv2 []*modelsv2.TwoFactorDelete
 
 	for _, twoFactorDelete := range cs.TwoFactorDelete {
-		twoFactorDeleteAPIv2 = append(twoFactorDeleteAPIv2, twoFactorDelete.ToInstAPIv2())
+		twoFactorDeleteAPIv2 = append(twoFactorDeleteAPIv2, twoFactorDelete.ToInstAPI())
 	}
 
 	return twoFactorDeleteAPIv2
@@ -420,9 +420,9 @@ func (cdc *CadenceDataCentre) ToAPIv2() *models.CadenceDataCentre {
 		},
 	}
 
-	cdc.TagsToInstAPIv2(&cadenceDC.DataCentre)
+	cdc.TagsToInstAPI(&cadenceDC.DataCentre)
 
-	cdc.CloudProviderSettingsToInstAPIv2(&cadenceDC.DataCentre)
+	cdc.CloudProviderSettingsToInstAPI(&cadenceDC.DataCentre)
 
 	return cadenceDC
 }
