@@ -122,6 +122,4 @@ func (s *scheduler) RemoveJob(jobID string) {
 	s.logger.Info("Job was removed", "job id", jobID)
 
 	v.done <- struct{}{}
-
-	return
 }

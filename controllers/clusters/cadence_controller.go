@@ -520,15 +520,6 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	return models.ReconcileResult
 }
 
-func (r *CadenceReconciler) getDataCentreOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
-	activeResizeOperations, err := r.API.GetActiveDataCentreResizeOperations(clusterID, dataCentreID)
-	if err != nil {
-		return nil, nil
-	}
-
-	return activeResizeOperations, nil
-}
-
 func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster *clustersv1alpha1.Cadence) (bool, error) {
 	if len(cluster.Spec.DataCentres) < 1 {
 		return false, models.ZeroDataCentres

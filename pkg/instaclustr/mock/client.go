@@ -196,7 +196,7 @@ func (c *mockClient) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (stri
 	panic("RestorePgCluster: is not implemented")
 }
 
-func (c *mockClient) RestoreCassandra(url string, restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
+func (c *mockClient) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
 	panic("RestoreCassandra: is not implemented")
 }
 

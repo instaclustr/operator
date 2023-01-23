@@ -183,7 +183,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 
 	patch := kafka.NewPatch()
 
-	if &instaCluster != nil {
+	if instaCluster.Status != "" {
 		l.Info("Sending cluster deletion to Instaclustr API",
 			"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
 

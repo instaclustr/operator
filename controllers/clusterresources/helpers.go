@@ -63,6 +63,4 @@ func confirmDeletion(obj client.Object) {
 		obj.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
 		return
 	}
-
-	return
 }

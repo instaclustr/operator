@@ -346,7 +346,7 @@ func (c *Cluster) SetTwoFactorDeletesFromInstAPI(instTFDs []*modelsv2.TwoFactorD
 }
 
 func (dc *DataCentre) SetTagsFromInstAPI(instTags []*modelsv2.Tag) {
-	var k8sTags map[string]string
+	k8sTags := make(map[string]string)
 	for _, instTag := range instTags {
 		k8sTags[instTag.Key] = instTag.Value
 	}
@@ -408,11 +408,7 @@ func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*models.NodeStatusV2) boo
 
 func (n *Node) IsNodeEqual(instNode *models.NodeStatusV2) bool {
 	if n == nil || instNode == nil {
-		if (n == nil) != (instNode == nil) {
-			return false
-		}
-
-		return true
+		return (n == nil) == (instNode == nil)
 	}
 
 	if instNode.ID != n.ID ||

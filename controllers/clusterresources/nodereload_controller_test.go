@@ -39,7 +39,7 @@ var _ = Describe("Successful creation of a NodeReload resource", func() {
 					return false
 				}
 
-				return &nodeReload.Status != nil
+				return nodeReload.Status.NodeInProgress.NodeID != ""
 			}).Should(BeTrue())
 		})
 	})

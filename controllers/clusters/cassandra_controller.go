@@ -120,7 +120,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"original cluster ID", cc.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreCassandra(instaclustr.ClustersEndpointV1, *cc.Spec.RestoreFrom)
+			id, err = r.API.RestoreCassandra(*cc.Spec.RestoreFrom)
 			if err != nil {
 				l.Error(err, "Cannot restore Cassandra cluster from backup",
 					"original cluster ID", cc.Spec.RestoreFrom.ClusterID,
