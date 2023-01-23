@@ -21,7 +21,7 @@ type API interface {
 	UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error
 	ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName string) error
 	UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error
-	UpdateCluster(id, clusterEndpoint string, InstaDCs any) error
+	UpdateCluster(id, clusterEndpoint string, instaDCs any) error
 	DeleteCluster(id, clusterEndpoint string) error
 	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 	GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.PeeringStatus, error)
@@ -61,7 +61,7 @@ type API interface {
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
 	UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error
 	GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error)
-	RestoreCassandra(url string, restoreData v1alpha1.CassandraRestoreFrom) (string, error)
+	RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error)
 	GetPostgreSQL(id string) (*models.PGStatus, error)
 	UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error
 	GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error)

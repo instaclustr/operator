@@ -423,6 +423,10 @@ func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
 	}
 
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -559,7 +563,13 @@ func (c *Client) DeletePeering(peerID, peeringEndpoint string) error {
 	if err != nil {
 		return err
 	}
+
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
 	}
@@ -649,6 +659,11 @@ func (c *Client) DeleteFirewallRule(
 		return err
 	}
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
 	}
@@ -699,6 +714,9 @@ func (c *Client) DeleteKafkaTopic(url, id string) error {
 	}
 
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
@@ -842,6 +860,11 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 		return err
 	}
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
 	}
@@ -920,6 +943,9 @@ func (c *Client) DeleteKafkaMirror(url, id string) error {
 	}
 
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
@@ -1143,6 +1169,11 @@ func (c *Client) DeleteExclusionWindow(
 		return err
 	}
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
 	}
@@ -1536,8 +1567,8 @@ func (c *Client) GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCl
 	return cassandraSpec, nil
 }
 
-func (c *Client) RestoreCassandra(url string, restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
-	url = fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
+func (c *Client) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
+	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
 	var restoreRequest struct {
 		ClusterNameOverride string                        `json:"clusterNameOverride,omitempty"`
@@ -1620,6 +1651,9 @@ func (c *Client) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PG
 	}
 
 	reqData, err := json.Marshal(updateRequest)
+	if err != nil {
+		return err
+	}
 	url := c.serverHostname + PostgreSQLEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodPut, reqData)
 	if err != nil {
@@ -1681,6 +1715,9 @@ func (c *Client) UpdatePostgreSQLConfiguration(id, name, value string) error {
 	}
 
 	reqData, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
 	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
 	resp, err := c.DoRequest(url, http.MethodPut, reqData)
 	if err != nil {
@@ -1716,6 +1753,9 @@ func (c *Client) CreatePostgreSQLConfiguration(id, name, value string) error {
 	}
 
 	reqData, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
 	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint, c.serverHostname)
 	resp, err := c.DoRequest(url, http.MethodPost, reqData)
 	if err != nil {

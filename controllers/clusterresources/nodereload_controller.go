@@ -178,10 +178,7 @@ func (r *NodeReloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clusterresourcesv1alpha1.NodeReload{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
-					return false
-				}
-				return true
+				return event.ObjectNew.GetGeneration() != event.ObjectOld.GetGeneration()
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
 				return false

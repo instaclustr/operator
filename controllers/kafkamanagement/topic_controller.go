@@ -213,8 +213,6 @@ func confirmDeletion(obj client.Object) {
 		obj.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 		return
 	}
-
-	return
 }
 
 // SetupWithManager sets up the controller with the Manager.

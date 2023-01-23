@@ -86,8 +86,7 @@ func (r *OpenSearchReconciler) newDataCentreResize(
 	dataCentre *clustersv1alpha1.OpenSearchDataCentre,
 	dataCentreID string,
 ) *clustersv1alpha1.ResizedDataCentre {
-	var resizedDataCentre *clustersv1alpha1.ResizedDataCentre
-	resizedDataCentre = &clustersv1alpha1.ResizedDataCentre{
+	resizedDataCentre := &clustersv1alpha1.ResizedDataCentre{
 		DataCentreID: dataCentreID,
 		Provider:     dataCentre.CloudProvider,
 	}

@@ -721,7 +721,7 @@ func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 		}
 	}
 
-	for instKey, _ := range instConfigMap {
+	for instKey := range instConfigMap {
 		if _, exists := clusterConfigs[instKey]; !exists {
 			err := r.API.ResetPostgreSQLConfiguration(clusterID, instKey)
 			if err != nil {
