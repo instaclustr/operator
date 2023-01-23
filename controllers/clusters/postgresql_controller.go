@@ -345,7 +345,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	pgCluster *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
-	status, err := r.API.GetClusterStatus(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
+	status, err := r.API.GetPostgreSQL(pgCluster.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get PostgreSQL cluster status",
 			"cluster name", pgCluster.Spec.Name,
@@ -378,7 +378,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.ClustersEndpointV1)
+		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.PostgreSQLEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete PostgreSQL cluster",
 				"cluster name", pgCluster.Spec.Name,
