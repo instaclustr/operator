@@ -116,108 +116,10 @@ func init() {
 	SchemeBuilder.Register(&Cadence{}, &CadenceList{})
 }
 
-func (cs *CadenceSpec) ToInstAPIv1(ctx context.Context, k8sClient client.Client) (*models.CadenceClusterAPIv1, error) {
-	cadenceBundles, err := cs.bundlesToInstAPIv1(ctx, k8sClient)
-	if err != nil {
-		return nil, err
-	}
-
-	var twoFactorDelete *models.TwoFactorDelete
-	if len(cs.TwoFactorDelete) > 0 {
-		twoFactorDelete = cs.TwoFactorDelete[0].ToInstAPIv1()
-	}
-
-	if len(cs.DataCentres) < 1 {
-		return nil, models.ZeroDataCentres
-	}
-
-	return &models.CadenceClusterAPIv1{
-		Cluster: models.Cluster{
-			ClusterName:           cs.Name,
-			NodeSize:              cs.DataCentres[0].NodeSize,
-			PrivateNetworkCluster: cs.PrivateNetworkCluster,
-			SLATier:               cs.SLATier,
-			Provider:              cs.DataCentres[0].providerToInstAPIv1(),
-			TwoFactorDelete:       twoFactorDelete,
-			RackAllocation:        cs.DataCentres[0].rackAllocationToInstAPIv1(),
-			DataCentre:            cs.DataCentres[0].Region,
-			DataCentreCustomName:  cs.DataCentres[0].Name,
-			ClusterNetwork:        cs.DataCentres[0].Network,
-		},
-		Bundles: cadenceBundles,
-	}, nil
-}
-
-func (cs *CadenceSpec) bundlesToInstAPIv1(ctx context.Context, k8sClient client.Client) ([]*models.CadenceBundleAPIv1, error) {
-	if len(cs.DataCentres) < 1 {
-		return nil, models.ZeroDataCentres
-	}
-	dataCentre := cs.DataCentres[0]
-
-	var AWSAccessKeyID string
-	var AWSSecretAccessKey string
-
-	if cs.EnableArchival {
-		awsCredsSecret := &v1.Secret{}
-		awsSecretNamespacedName := types.NamespacedName{Name: cs.AWSAccessKeySecretName, Namespace: cs.AWSAccessKeySecretNamespace}
-		err := k8sClient.Get(ctx, awsSecretNamespacedName, awsCredsSecret)
-		if err != nil {
-			return nil, err
-		}
-
-		keyID := awsCredsSecret.Data[models.AWSAccessKeyID]
-		secretAccessKey := awsCredsSecret.Data[models.AWSSecretAccessKey]
-		AWSAccessKeyID = string(keyID[:len(keyID)-1])
-		AWSSecretAccessKey = string(secretAccessKey[:len(secretAccessKey)-1])
-	}
-
-	cadenceBundle := &models.CadenceBundleAPIv1{
-		Bundle: models.Bundle{
-			Bundle:  models.Cadence,
-			Version: cs.Version,
-		},
-		Options: &models.CadenceBundleOptionsAPIv1{
-			UseAdvancedVisibility:   cs.UseAdvancedVisibility,
-			UseCadenceWebAuth:       cs.UseCadenceWebAuth,
-			ClientEncryption:        dataCentre.ClientEncryption,
-			TargetCassandraCDCID:    cs.TargetCassandraCDCID,
-			TargetCassandraVPCType:  cs.TargetCassandraVPCType,
-			TargetKafkaCDCID:        cs.TargetKafkaCDCID,
-			TargetKafkaVPCType:      cs.TargetKafkaVPCType,
-			TargetOpenSearchCDCID:   cs.TargetOpenSearchCDCID,
-			TargetOpenSearchVPCType: cs.TargetOpenSearchVPCType,
-			EnableArchival:          cs.EnableArchival,
-			ArchivalS3URI:           cs.ArchivalS3URI,
-			ArchivalS3Region:        cs.ArchivalS3Region,
-			AWSAccessKeyID:          AWSAccessKeyID,
-			AWSSecretAccessKey:      AWSSecretAccessKey,
-			CadenceNodeCount:        dataCentre.CadenceNodeCount,
-			ProvisioningType:        cs.ProvisioningType,
-		},
-	}
-	cadenceBundles := []*models.CadenceBundleAPIv1{cadenceBundle}
-
-	return cadenceBundles, nil
-}
-
-func (dataCentre *CadenceDataCentre) rackAllocationToInstAPIv1() *models.RackAllocation {
-	return &models.RackAllocation{
-		NodesPerRack:  dataCentre.NodesNumber,
-		NumberOfRacks: dataCentre.RacksNumber,
-	}
-}
-
-func (twoFactorDelete *TwoFactorDelete) ToInstAPIv1() *models.TwoFactorDelete {
-	return &models.TwoFactorDelete{
-		DeleteVerifyEmail: twoFactorDelete.Email,
-		DeleteVerifyPhone: twoFactorDelete.Phone,
-	}
-}
-
-func (cadence *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
+func (c *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
 	patchRequest := []*PatchRequest{}
 
-	annotationsPayload, err := json.Marshal(cadence.Annotations)
+	annotationsPayload, err := json.Marshal(c.Annotations)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +131,7 @@ func (cadence *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
 	}
 	patchRequest = append(patchRequest, annotationsPatch)
 
-	finalizersPayload, err := json.Marshal(cadence.Finalizers)
+	finalizersPayload, err := json.Marshal(c.Finalizers)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +153,15 @@ func (cadence *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
 	return patch, nil
 }
 
+func (c *Cadence) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(c).String() + "/" + jobName
+}
+
+func (c *Cadence) NewPatch() client.Patch {
+	old := c.DeepCopy()
+	return client.MergeFrom(old)
+}
+
 func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) models.CadenceUpdatedFields {
 	updatedFields := models.CadenceUpdatedFields{}
 
@@ -269,15 +180,6 @@ func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) models.CadenceUpda
 	}
 
 	return updatedFields
-}
-
-func (c *Cadence) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(c).String() + "/" + jobName
-}
-
-func (c *Cadence) NewPatch() client.Patch {
-	old := c.DeepCopy()
-	return client.MergeFrom(old)
 }
 
 func (cs *CadenceSpec) ToInstAPIv2(ctx context.Context, k8sClient client.Client) (*models.CadenceClusterAPIv2, error) {

@@ -123,24 +123,63 @@ type PrivateLink struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
 
-func (dc *DataCentre) providerToInstAPIv1() *models.ClusterProvider {
-	var instCustomVirtualNetworkId string
-	var instResourceGroup string
-	var insDiskEncryptionKey string
-	if len(dc.CloudProviderSettings) > 0 {
-		instCustomVirtualNetworkId = dc.CloudProviderSettings[0].CustomVirtualNetworkID
-		instResourceGroup = dc.CloudProviderSettings[0].ResourceGroup
-		insDiskEncryptionKey = dc.CloudProviderSettings[0].DiskEncryptionKey
+type immutableClusterFields struct {
+	Name                  string
+	Version               string
+	PCICompliance         bool
+	PrivateNetworkCluster bool
+	SLATier               string
+}
+
+func (tfd *TwoFactorDelete) ToInstAPI() *modelsv2.TwoFactorDelete {
+	return &modelsv2.TwoFactorDelete{
+		ConfirmationPhoneNumber: tfd.Phone,
+		ConfirmationEmail:       tfd.Email,
+	}
+}
+
+func (c *Cluster) TwoFactorDeletesToInstAPI() []*modelsv2.TwoFactorDelete {
+	var TFDs []*modelsv2.TwoFactorDelete
+	for _, k8sTFD := range c.TwoFactorDelete {
+		TFDs = append(TFDs, k8sTFD.ToInstAPI())
+	}
+	return TFDs
+}
+
+func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFactorDelete) bool {
+	if len(c.TwoFactorDelete) != len(instTwoFactorDeletes) {
+		return false
 	}
 
-	return &models.ClusterProvider{
-		Name:                   dc.CloudProvider,
-		AccountName:            dc.ProviderAccountName,
-		Tags:                   dc.Tags,
-		CustomVirtualNetworkID: instCustomVirtualNetworkId,
-		ResourceGroup:          instResourceGroup,
-		DiskEncryptionKey:      insDiskEncryptionKey,
+	for _, instTFD := range instTwoFactorDeletes {
+		tfdFound := false
+		for _, k8sTFD := range c.TwoFactorDelete {
+			if instTFD.ConfirmationEmail == k8sTFD.Email {
+				tfdFound = true
+
+				if instTFD.ConfirmationPhoneNumber != k8sTFD.Phone {
+					return false
+				}
+			}
+		}
+
+		if !tfdFound {
+			return false
+		}
 	}
+
+	return true
+}
+
+func (c *Cluster) SetTwoFactorDeletesFromInstAPI(instTFDs []*modelsv2.TwoFactorDelete) {
+	var k8sTFD []*TwoFactorDelete
+	for _, instTFD := range instTFDs {
+		k8sTFD = append(k8sTFD, &TwoFactorDelete{
+			Email: instTFD.ConfirmationEmail,
+			Phone: instTFD.ConfirmationPhoneNumber,
+		})
+	}
+	c.TwoFactorDelete = k8sTFD
 }
 
 func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
@@ -217,21 +256,6 @@ func (dc DataCentre) TagsToInstAPI(instDC *modelsv2.DataCentre) {
 	instDC.Tags = tags
 }
 
-func (tfd *TwoFactorDelete) ToInstAPI() *modelsv2.TwoFactorDelete {
-	return &modelsv2.TwoFactorDelete{
-		ConfirmationPhoneNumber: tfd.Phone,
-		ConfirmationEmail:       tfd.Email,
-	}
-}
-
-func (c *Cluster) TwoFactorDeletesToInstAPI() []*modelsv2.TwoFactorDelete {
-	var TFDs []*modelsv2.TwoFactorDelete
-	for _, k8sTFD := range c.TwoFactorDelete {
-		TFDs = append(TFDs, k8sTFD.ToInstAPI())
-	}
-	return TFDs
-}
-
 func (dc *DataCentre) AreCloudProviderSettingsEqual(
 	awsSettings []*modelsv2.AWSSetting,
 	gcpSettings []*modelsv2.GCPSetting,
@@ -283,31 +307,6 @@ func (dc *DataCentre) AreTagsEqual(instTags []*modelsv2.Tag) bool {
 	return true
 }
 
-func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFactorDelete) bool {
-	if len(c.TwoFactorDelete) != len(instTwoFactorDeletes) {
-		return false
-	}
-
-	for _, instTFD := range instTwoFactorDeletes {
-		tfdFound := false
-		for _, k8sTFD := range c.TwoFactorDelete {
-			if instTFD.ConfirmationEmail == k8sTFD.Email {
-				tfdFound = true
-
-				if instTFD.ConfirmationPhoneNumber != k8sTFD.Phone {
-					return false
-				}
-			}
-		}
-
-		if !tfdFound {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (dc *DataCentre) SetCloudProviderSettingsFromInstAPI(instDC *modelsv2.DataCentre) {
 	cloudProviderSettings := []*CloudProviderSettings{}
 	switch dc.CloudProvider {
@@ -332,17 +331,6 @@ func (dc *DataCentre) SetCloudProviderSettingsFromInstAPI(instDC *modelsv2.DataC
 		}
 	}
 	dc.CloudProviderSettings = cloudProviderSettings
-}
-
-func (c *Cluster) SetTwoFactorDeletesFromInstAPI(instTFDs []*modelsv2.TwoFactorDelete) {
-	var k8sTFD []*TwoFactorDelete
-	for _, instTFD := range instTFDs {
-		k8sTFD = append(k8sTFD, &TwoFactorDelete{
-			Email: instTFD.ConfirmationEmail,
-			Phone: instTFD.ConfirmationPhoneNumber,
-		})
-	}
-	c.TwoFactorDelete = k8sTFD
 }
 
 func (dc *DataCentre) SetTagsFromInstAPI(instTags []*modelsv2.Tag) {
