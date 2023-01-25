@@ -179,4 +179,16 @@ resources:
   kind: KafkaACL
   path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusters
+  kind: PostgreSQL
+  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
+  version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

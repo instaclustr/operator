@@ -25,3 +25,23 @@ webhooks:
     resources:
     - cassandras
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-clusters-instaclustr-com-v1alpha1-postgresql
+  failurePolicy: Fail
+  name: vpostgresql.kb.io
+  rules:
+  - apiGroups:
+    - clusters.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - postgresqls
+  sideEffects: None

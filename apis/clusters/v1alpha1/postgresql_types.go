@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -460,4 +461,26 @@ func (pgs *PgSpec) SetDefaultValues() {
 			})
 		}
 	}
+}
+
+func (pdc *PgDataCentre) ValidatePGBouncer() error {
+	if pdc.PGBouncerVersion == "" {
+		if pdc.PoolMode != "" {
+			return fmt.Errorf("poolMode field is filled. Fill PGBouncerVersion field to enable PGBouncer")
+		}
+	} else {
+		if !Contains(pdc.PGBouncerVersion, models.PGBouncerVersions) {
+			return fmt.Errorf("pgBouncerVersion '%s' is unavailable, available versions: %v",
+				pdc.PGBouncerVersion,
+				models.PGBouncerVersions)
+		}
+		if pdc.PoolMode != "" &&
+			!Contains(pdc.PoolMode, models.PoolModes) {
+			return fmt.Errorf("poolMode '%s' is unavailable, available poolModes: %v",
+				pdc.PoolMode,
+				models.PoolModes)
+		}
+	}
+
+	return nil
 }
