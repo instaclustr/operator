@@ -223,6 +223,70 @@ func (pdc *PgDataCentre) PGBouncerToInstAPI(instDC *models.PGDataCentre) {
 	}
 }
 
+func (pgs *PgSpec) AreSpecsEqual(instCluster *models.PGStatus) bool {
+	if pgs.Name != instCluster.Name ||
+		pgs.Version != instCluster.PostgreSQLVersion ||
+		pgs.PCICompliance != instCluster.PCIComplianceMode ||
+		pgs.PrivateNetworkCluster != instCluster.PrivateNetworkCluster ||
+		pgs.SLATier != instCluster.SLATier ||
+		!pgs.IsTwoFactorDeleteEqual(instCluster.TwoFactorDelete) ||
+		pgs.SynchronousModeStrict != instCluster.SynchronousModeStrict ||
+		!pgs.AreDCsEqual(instCluster.DataCentres) {
+		return false
+	}
+
+	return true
+}
+
+func (pgs *PgSpec) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
+	if len(pgs.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range pgs.DataCentres {
+			if instDC.Name == k8sDC.Name {
+				if k8sDC.PostgresqlNodeCount != instDC.NumberOfNodes ||
+					k8sDC.Region != instDC.Region ||
+					k8sDC.CloudProvider != instDC.CloudProvider ||
+					k8sDC.ProviderAccountName != instDC.ProviderAccountName ||
+					!k8sDC.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) ||
+					k8sDC.Network != instDC.Network ||
+					k8sDC.NodeSize != instDC.NodeSize ||
+					!k8sDC.AreTagsEqual(instDC.Tags) ||
+					k8sDC.ClientEncryption != instDC.ClientToClusterEncryption ||
+					!k8sDC.AreInterDCReplicationsEqual(instDC.InterDataCentreReplication) ||
+					!k8sDC.AreIntraDCReplicationsEqual(instDC.IntraDataCentreReplication) ||
+					!k8sDC.ArePGBouncersEqual(instDC.PGBouncer) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
+// SetDefaultValues should be implemented using validation webhook
+// TODO https://github.com/instaclustr/operator/issues/219
+func (pgs *PgSpec) SetDefaultValues() {
+	for _, dataCentre := range pgs.DataCentres {
+		if dataCentre.ProviderAccountName == "" {
+			dataCentre.ProviderAccountName = models.DefaultAccountName
+		}
+
+		if len(dataCentre.CloudProviderSettings) == 0 {
+			dataCentre.CloudProviderSettings = append(dataCentre.CloudProviderSettings, &CloudProviderSettings{
+				DiskEncryptionKey:      "",
+				ResourceGroup:          "",
+				CustomVirtualNetworkID: "",
+			})
+		}
+	}
+}
+
 func (pgs *PgSpec) DataCentresToInstAPI() []*models.PGDataCentre {
 	var instDCs []*models.PGDataCentre
 	for _, k8sDC := range pgs.DataCentres {
@@ -361,52 +425,6 @@ func (ps *PgStatus) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
 	return true
 }
 
-func (pgs *PgSpec) AreSpecsEqual(instCluster *models.PGStatus) bool {
-	if pgs.Name != instCluster.Name ||
-		pgs.Version != instCluster.PostgreSQLVersion ||
-		pgs.PCICompliance != instCluster.PCIComplianceMode ||
-		pgs.PrivateNetworkCluster != instCluster.PrivateNetworkCluster ||
-		pgs.SLATier != instCluster.SLATier ||
-		!pgs.IsTwoFactorDeleteEqual(instCluster.TwoFactorDelete) ||
-		pgs.SynchronousModeStrict != instCluster.SynchronousModeStrict ||
-		!pgs.AreDCsEqual(instCluster.DataCentres) {
-		return false
-	}
-
-	return true
-}
-
-func (pgs *PgSpec) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
-	if len(pgs.DataCentres) != len(instDCs) {
-		return false
-	}
-
-	for _, instDC := range instDCs {
-		for _, k8sDC := range pgs.DataCentres {
-			if instDC.Name == k8sDC.Name {
-				if k8sDC.PostgresqlNodeCount != instDC.NumberOfNodes ||
-					k8sDC.Region != instDC.Region ||
-					k8sDC.CloudProvider != instDC.CloudProvider ||
-					k8sDC.ProviderAccountName != instDC.ProviderAccountName ||
-					!k8sDC.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) ||
-					k8sDC.Network != instDC.Network ||
-					k8sDC.NodeSize != instDC.NodeSize ||
-					!k8sDC.AreTagsEqual(instDC.Tags) ||
-					k8sDC.ClientEncryption != instDC.ClientToClusterEncryption ||
-					!k8sDC.AreInterDCReplicationsEqual(instDC.InterDataCentreReplication) ||
-					!k8sDC.AreIntraDCReplicationsEqual(instDC.IntraDataCentreReplication) ||
-					!k8sDC.ArePGBouncersEqual(instDC.PGBouncer) {
-					return false
-				}
-
-				break
-			}
-		}
-	}
-
-	return true
-}
-
 func (pdc *PgDataCentre) AreInterDCReplicationsEqual(instIRs []*models.PGInterDCReplication) bool {
 	if len(pdc.InterDataCentreReplication) != len(instIRs) {
 		return false
@@ -450,24 +468,6 @@ func (pdc *PgDataCentre) ArePGBouncersEqual(instPGBs []*models.PGBouncer) bool {
 	}
 
 	return true
-}
-
-// SetDefaultValues should be implemented using validation webhook
-// TODO https://github.com/instaclustr/operator/issues/219
-func (pgs *PgSpec) SetDefaultValues() {
-	for _, dataCentre := range pgs.DataCentres {
-		if dataCentre.ProviderAccountName == "" {
-			dataCentre.ProviderAccountName = models.DefaultAccountName
-		}
-
-		if len(dataCentre.CloudProviderSettings) == 0 {
-			dataCentre.CloudProviderSettings = append(dataCentre.CloudProviderSettings, &CloudProviderSettings{
-				DiskEncryptionKey:      "",
-				ResourceGroup:          "",
-				CustomVirtualNetworkID: "",
-			})
-		}
-	}
 }
 
 func (pg *PostgreSQL) GetUserPassword(secret *k8sCore.Secret) string {

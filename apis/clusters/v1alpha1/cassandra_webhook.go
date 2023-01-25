@@ -52,7 +52,7 @@ func (c *Cassandra) ValidateCreate() error {
 		}
 	}
 
-	err := c.Spec.Cluster.Validate(models.CassandraVersions)
+	err := c.Spec.Cluster.ValidateCreation(models.CassandraVersions)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (c *Cassandra) ValidateCreate() error {
 	}
 
 	for _, dc := range c.Spec.DataCentres {
-		err := dc.DataCentre.Validate()
+		err := dc.DataCentre.ValidateCreation()
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,11 @@ func (c *Cassandra) ValidateCreate() error {
 func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 	cassandralog.Info("validate update", "name", c.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	err := c.Spec.ValidateUpdate(old.(*Cassandra).Spec)
+	if err != nil {
+		return fmt.Errorf("cannot update immutable fields: %v", err)
+	}
+
 	return nil
 }
 

@@ -55,7 +55,7 @@ func (pg *PostgreSQL) ValidateCreate() error {
 		}
 	}
 
-	err := pg.Spec.Cluster.Validate(models.PostgreSQLVersions)
+	err := pg.Spec.Cluster.ValidateCreation(models.PostgreSQLVersions)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (pg *PostgreSQL) ValidateCreate() error {
 	}
 
 	for _, dc := range pg.Spec.DataCentres {
-		err = dc.DataCentre.Validate()
+		err = dc.DataCentre.ValidateCreation()
 		if err != nil {
 			return err
 		}

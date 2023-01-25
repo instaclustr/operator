@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,6 +94,16 @@ type CassandraList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Cassandra `json:"items"`
+}
+
+type immutableCassandraFields struct {
+	SpecificFields specificCassandraFields
+	Cluster        immutableClusterFields
+}
+
+type specificCassandraFields struct {
+	LuceneEnabled       bool
+	PasswordAndUserAuth bool
 }
 
 func (c *Cassandra) GetJobID(jobName string) string {
@@ -249,6 +260,42 @@ func (cs *CassandraSpec) HasRestore() bool {
 	}
 
 	return false
+}
+
+func (cs *CassandraSpec) NewImmutableFieldsToValidate() *immutableCassandraFields {
+	return &immutableCassandraFields{
+		specificCassandraFields{
+			LuceneEnabled:       cs.LuceneEnabled,
+			PasswordAndUserAuth: cs.PasswordAndUserAuth,
+		},
+		immutableClusterFields{
+			Name:                  cs.Name,
+			Version:               cs.Version,
+			PCICompliance:         cs.PCICompliance,
+			PrivateNetworkCluster: cs.PrivateNetworkCluster,
+			SLATier:               cs.SLATier,
+		},
+	}
+}
+
+func (cs *CassandraSpec) ValidateUpdate(oldCassandraSpec CassandraSpec) error {
+	newImmutableFields := cs.NewImmutableFieldsToValidate()
+	oldImmutableFields := oldCassandraSpec.NewImmutableFieldsToValidate()
+
+	if newImmutableFields.Cluster != oldImmutableFields.Cluster ||
+		newImmutableFields.SpecificFields != oldImmutableFields.SpecificFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldCassandraSpec, cs)
+	}
+	err := validateTwoFactorDelete(cs.TwoFactorDelete, oldCassandraSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+	err = validateSpark(cs.Spark, oldCassandraSpec.Spark)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func init() {

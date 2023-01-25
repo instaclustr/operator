@@ -17,7 +17,7 @@ func Contains(str string, s []string) bool {
 	return false
 }
 
-func (c *Cluster) Validate(availableVersions []string) error {
+func (c *Cluster) ValidateCreation(availableVersions []string) error {
 	clusterNameMatched, err := regexp.Match(models.ClusterNameRegExp, []byte(c.Name))
 	if !clusterNameMatched || err != nil {
 		return fmt.Errorf("cluster name should have lenght from 3 to 32 symbols and fit pattern: %s",
@@ -39,7 +39,7 @@ func (c *Cluster) Validate(availableVersions []string) error {
 	return nil
 }
 
-func (dc *DataCentre) Validate() error {
+func (dc *DataCentre) ValidateCreation() error {
 	if !Contains(dc.CloudProvider, models.CloudProviders) {
 		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
 			dc.CloudProvider, dc.Name, models.CloudProviders)
@@ -48,7 +48,7 @@ func (dc *DataCentre) Validate() error {
 		return fmt.Errorf("cloud provider settings should not have more than 1 item")
 	}
 	if len(dc.CloudProviderSettings) == 1 {
-		err := dc.CloudProviderSettings[0].Validate()
+		err := dc.CloudProviderSettings[0].ValidateCreation()
 		if err != nil {
 			return err
 		}
@@ -57,10 +57,34 @@ func (dc *DataCentre) Validate() error {
 	return nil
 }
 
-func (cps *CloudProviderSettings) Validate() error {
+func (cps *CloudProviderSettings) ValidateCreation() error {
 	if (cps.ResourceGroup != "" && cps.DiskEncryptionKey != "") ||
 		(cps.ResourceGroup != "" && cps.CustomVirtualNetworkID != "") {
 		return fmt.Errorf("cluster should have cloud provider settings only for 1 cloud provider")
+	}
+
+	return nil
+}
+
+func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
+	if len(old) != len(new) {
+		return models.TwoFactorDeleteIsImmutable
+	}
+	if len(old) != 0 &&
+		*old[0] != *new[0] {
+		return models.TwoFactorDeleteIsImmutable
+	}
+
+	return nil
+}
+
+func validateSpark(new, old []*Spark) error {
+	if len(old) != len(new) {
+		return models.SparkIsImmutable
+	}
+	if len(old) != 0 &&
+		*old[0] != *new[0] {
+		return models.SparkIsImmutable
 	}
 
 	return nil

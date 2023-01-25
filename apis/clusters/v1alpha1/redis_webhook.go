@@ -52,7 +52,7 @@ func (r *Redis) ValidateCreate() error {
 		}
 	}
 
-	err := r.Spec.Cluster.Validate(models.RedisVersions)
+	err := r.Spec.Cluster.ValidateCreation(models.RedisVersions)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (r *Redis) ValidateCreate() error {
 	}
 
 	for _, dc := range r.Spec.DataCentres {
-		err := dc.DataCentre.Validate()
+		err := dc.DataCentre.ValidateCreation()
 		if err != nil {
 			return err
 		}

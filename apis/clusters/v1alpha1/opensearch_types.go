@@ -101,21 +101,21 @@ func (os *OpenSearch) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
-func (r *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.ClusterBackup {
+func (os *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.ClusterBackup {
 	return &clusterresourcesv1alpha1.ClusterBackup{
 		TypeMeta: ctrl.TypeMeta{
 			Kind:       models.ClusterBackupKind,
 			APIVersion: models.ClusterresourcesV1alpha1APIVersion,
 		},
 		ObjectMeta: ctrl.ObjectMeta{
-			Name:        models.SnapshotUploadPrefix + r.Status.ID + "-" + strconv.Itoa(startTimestamp),
-			Namespace:   r.Namespace,
+			Name:        models.SnapshotUploadPrefix + os.Status.ID + "-" + strconv.Itoa(startTimestamp),
+			Namespace:   os.Namespace,
 			Annotations: map[string]string{models.StartTimestampAnnotation: strconv.Itoa(startTimestamp)},
-			Labels:      map[string]string{models.ClusterIDLabel: r.Status.ID},
+			Labels:      map[string]string{models.ClusterIDLabel: os.Status.ID},
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1alpha1.ClusterBackupSpec{
-			ClusterID:   r.Status.ID,
+			ClusterID:   os.Status.ID,
 			ClusterKind: models.OsClusterKind,
 		},
 	}
