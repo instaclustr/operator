@@ -253,7 +253,7 @@ func (r *RedisReconciler) resizeDataCentres(
 		case modelsv2.AWSVPC:
 			currentNodeSizeIndex = modelsv1.RedisAWSNodeTypes[dataCentre.CurrentNodeSize]
 			newNodeSizeIndex = modelsv1.RedisAWSNodeTypes[dataCentre.NewNodeSize]
-		case modelsv2.AZUREAZ:
+		case modelsv2.AZURE, modelsv2.AZUREAZ:
 			currentNodeSizeIndex = modelsv1.RedisAzureNodeTypes[dataCentre.CurrentNodeSize]
 			newNodeSizeIndex = modelsv1.RedisAzureNodeTypes[dataCentre.NewNodeSize]
 		case modelsv2.GCP:

@@ -169,7 +169,7 @@ func (dc *DataCentre) CloudProviderSettingsToInstAPI(instDC *modelsv2.DataCentre
 			awsSettings = append(awsSettings, providerSettings.AWSToInstAPI())
 		}
 		instDC.AWSSettings = awsSettings
-	case modelsv2.AZURE:
+	case modelsv2.AZURE, modelsv2.AZUREAZ:
 		azureSettings := []*modelsv2.AzureSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
 			azureSettings = append(azureSettings, providerSettings.AzureToInstAPI())
@@ -258,7 +258,7 @@ func (dc *DataCentre) AreCloudProviderSettingsEqual(
 				return false
 			}
 		}
-	case modelsv2.AZUREAZ:
+	case modelsv2.AZURE, modelsv2.AZUREAZ:
 		if len(dc.CloudProviderSettings) != len(azureSettings) {
 			return false
 		}
@@ -324,7 +324,7 @@ func (dc *DataCentre) SetCloudProviderSettingsFromInstAPI(instDC *modelsv2.DataC
 				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
 			})
 		}
-	case modelsv2.AZUREAZ:
+	case modelsv2.AZURE, modelsv2.AZUREAZ:
 		for _, azureSetting := range instDC.AzureSettings {
 			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
 				ResourceGroup: azureSetting.ResourceGroup,
