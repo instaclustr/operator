@@ -17,10 +17,15 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"unicode"
 
+	k8sCore "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -75,7 +80,8 @@ type PgSpec struct {
 
 // PgStatus defines the observed state of PostgreSQL
 type PgStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus         `json:",inline"`
+	DefaultUserSecretName string `json:"defaultUserSecretName,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -109,6 +115,7 @@ func (pg *PostgreSQL) GetJobID(jobName string) string {
 
 func (pg *PostgreSQL) NewPatch() client.Patch {
 	old := pg.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 
@@ -461,6 +468,85 @@ func (pgs *PgSpec) SetDefaultValues() {
 			})
 		}
 	}
+}
+
+func (pg *PostgreSQL) GetUserPassword(secret *k8sCore.Secret) string {
+	password := secret.Data[models.DefaultUserPassword]
+	if len(password) == 0 {
+		return ""
+	}
+
+	return string(password[:len(password)-1])
+}
+
+func (pg *PostgreSQL) GetUserSecret(ctx context.Context, k8sClient client.Client) (*k8sCore.Secret, error) {
+	userSecret := &k8sCore.Secret{}
+	userSecretNamespacedName := types.NamespacedName{
+		Name:      pg.Status.DefaultUserSecretName,
+		Namespace: pg.Namespace,
+	}
+	err := k8sClient.Get(ctx, userSecretNamespacedName, userSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return userSecret, nil
+}
+
+func (pg *PostgreSQL) GetUserSecretName(ctx context.Context, k8sClient client.Client) (string, error) {
+	var err error
+
+	labelsToQuery := fmt.Sprintf("%s=%s", models.ClusterIDLabel, pg.Status.ID)
+	selector, err := labels.Parse(labelsToQuery)
+	if err != nil {
+		return "", err
+	}
+
+	userSecretList := &k8sCore.SecretList{}
+	err = k8sClient.List(ctx, userSecretList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return "", err
+	}
+
+	if len(userSecretList.Items) == 0 {
+		return "", nil
+	}
+
+	return userSecretList.Items[0].Name, nil
+}
+
+func (pg *PostgreSQL) NewUserSecret() *k8sCore.Secret {
+	return &k8sCore.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       models.SecretKind,
+			APIVersion: models.K8sAPIVersionV1,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       models.DefaultUserSecretPrefix + pg.Name,
+			Namespace:  pg.Namespace,
+			Labels:     map[string]string{models.ControlledByLabel: pg.Name},
+			Finalizers: []string{models.DeletionFinalizer},
+		},
+		StringData: map[string]string{models.DefaultUserPassword: ""},
+	}
+}
+
+func (pg *PostgreSQL) ValidateDefaultUserPassword(password string) bool {
+	categories := map[string]bool{}
+	for _, symbol := range password {
+		switch {
+		case unicode.IsNumber(symbol):
+			categories["number"] = true
+		case unicode.IsUpper(symbol):
+			categories["upper"] = true
+		case unicode.IsLower(symbol):
+			categories["lower"] = true
+		case unicode.IsPunct(symbol) || unicode.IsSymbol(symbol):
+			categories["special"] = true
+		}
+	}
+
+	return len(categories) > 2
 }
 
 func (pdc *PgDataCentre) ValidatePGBouncer() error {

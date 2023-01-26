@@ -31,11 +31,11 @@ const (
 	OpenSearchChildPrefix = "opensearch-"
 	OpenSearchChildDCName = "opensearch-cadence-dc"
 
-	V3_11_13   = "3.11.13"
-	V2_7_1     = "2.7.1"
-	V1_3_5     = "1.3.5"
-	V1_3_7     = "1.3.7"
-	VPC_PEERED = "VPC_PEERED"
+	CassandraV3_11_13 = "3.11.13"
+	KafkaV2_7_1       = "2.7.1"
+	OpensearchV1_3_7  = "1.3.7"
+	K8sAPIVersionV1   = "v1"
+	VPCPeered         = "VPC_PEERED"
 
 	True  = "true"
 	False = "false"
@@ -47,10 +47,12 @@ const (
 	RedisClusterKind        = "Redis"
 	OsClusterKind           = "OpenSearch"
 	CassandraClusterKind    = "Cassandra"
+	SecretKind              = "Secret"
 	PgBackupEventType       = "postgresql-backup"
 	SnapshotUploadEventType = "snapshot-upload"
 	PgBackupPrefix          = "postgresql-backup-"
 	SnapshotUploadPrefix    = "snapshot-upload-"
+	DefaultUserSecretPrefix = "default-user-password-"
 )
 
 const (
@@ -65,9 +67,10 @@ const (
 )
 
 const (
-	ReplaceOperation = "replace"
-	AnnotationsPath  = "/metadata/annotations"
-	FinalizersPath   = "/metadata/finalizers"
+	ReplaceOperation    = "replace"
+	AnnotationsPath     = "/metadata/annotations"
+	FinalizersPath      = "/metadata/finalizers"
+	DefaultUserPassword = "defaultUserPassword"
 )
 
 const Requeue60 = time.Second * 60

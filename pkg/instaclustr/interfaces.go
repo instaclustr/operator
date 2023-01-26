@@ -68,4 +68,5 @@ type API interface {
 	CreatePostgreSQLConfiguration(id, name, value string) error
 	UpdatePostgreSQLConfiguration(id, name, value string) error
 	ResetPostgreSQLConfiguration(id, name string) error
+	UpdatePostgreSQLDefaultUserPassword(id, password string) error
 }
