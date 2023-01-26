@@ -239,3 +239,7 @@ func (c *mockClient) CreatePostgreSQLConfiguration(id, name, value string) error
 func (c *mockClient) ResetPostgreSQLConfiguration(id, name string) error {
 	panic("ResetPostgreSQLConfiguration: is not implemented")
 }
+
+func (c *mockClient) UpdatePostgreSQLDefaultUserPassword(id, password string) error {
+	panic("UpdatePostgreSQLDefaultUserPassword: is not implemented")
+}

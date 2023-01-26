@@ -576,7 +576,7 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster
 		}
 
 		cluster.Spec.TargetKafkaCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
-		cluster.Spec.TargetKafkaVPCType = models.VPC_PEERED
+		cluster.Spec.TargetKafkaVPCType = models.VPCPeered
 
 		err = r.Client.List(ctx, osList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
@@ -601,7 +601,7 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster
 		}
 
 		cluster.Spec.TargetOpenSearchCDCID = osList.Items[0].Status.DataCentres[0].ID
-		cluster.Spec.TargetOpenSearchVPCType = models.VPC_PEERED
+		cluster.Spec.TargetOpenSearchVPCType = models.VPCPeered
 	}
 
 	if len(cassandraList.Items[0].Status.DataCentres) == 0 {
@@ -609,7 +609,7 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster
 	}
 
 	cluster.Spec.TargetCassandraCDCID = cassandraList.Items[0].Status.DataCentres[0].ID
-	cluster.Spec.TargetCassandraVPCType = models.VPC_PEERED
+	cluster.Spec.TargetCassandraVPCType = models.VPCPeered
 
 	return false, nil
 }
@@ -682,7 +682,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	spec := clustersv1alpha1.CassandraSpec{
 		Cluster: clustersv1alpha1.Cluster{
 			Name:                  models.CassandraChildPrefix + cadence.Name,
-			Version:               models.V3_11_13,
+			Version:               models.CassandraV3_11_13,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       twoFactorDelete,
@@ -827,7 +827,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	spec := clustersv1alpha1.KafkaSpec{
 		Cluster: clustersv1alpha1.Cluster{
 			Name:                  models.KafkaChildPrefix + cadence.Name,
-			Version:               models.V2_7_1,
+			Version:               models.KafkaV2_7_1,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       kafkaTFD,
@@ -914,7 +914,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 	spec := clustersv1alpha1.OpenSearchSpec{
 		Cluster: clustersv1alpha1.Cluster{
 			Name:                  models.OpenSearchChildPrefix + cadence.Name,
-			Version:               models.V1_3_7,
+			Version:               models.OpensearchV1_3_7,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       twoFactorDelete,

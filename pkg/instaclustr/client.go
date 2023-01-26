@@ -1614,7 +1614,7 @@ func (c *Client) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (st
 }
 
 func (c *Client) GetPostgreSQL(id string) (*models.PGStatus, error) {
-	url := c.serverHostname + PostgreSQLEndpoint + id
+	url := c.serverHostname + PGSQLEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
 		return nil, err
@@ -1654,7 +1654,7 @@ func (c *Client) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PG
 	if err != nil {
 		return err
 	}
-	url := c.serverHostname + PostgreSQLEndpoint + id
+	url := c.serverHostname + PGSQLEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodPut, reqData)
 	if err != nil {
 		return err
@@ -1678,7 +1678,7 @@ func (c *Client) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PG
 }
 
 func (c *Client) GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error) {
-	url := fmt.Sprintf(PostgreSQLConfigEndpoint, c.serverHostname, id)
+	url := fmt.Sprintf(PGSQLConfigEndpoint, c.serverHostname, id)
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
 		return nil, err
@@ -1718,7 +1718,7 @@ func (c *Client) UpdatePostgreSQLConfiguration(id, name, value string) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
+	url := fmt.Sprintf(PGSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
 	resp, err := c.DoRequest(url, http.MethodPut, reqData)
 	if err != nil {
 		return err
@@ -1756,7 +1756,7 @@ func (c *Client) CreatePostgreSQLConfiguration(id, name, value string) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint, c.serverHostname)
+	url := fmt.Sprintf(PGSQLConfigManagementEndpoint, c.serverHostname)
 	resp, err := c.DoRequest(url, http.MethodPost, reqData)
 	if err != nil {
 		return err
@@ -1780,7 +1780,7 @@ func (c *Client) CreatePostgreSQLConfiguration(id, name, value string) error {
 }
 
 func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
-	url := fmt.Sprintf(PostgreSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
+	url := fmt.Sprintf(PGSQLConfigManagementEndpoint+"%s", c.serverHostname, id+"|"+name)
 	resp, err := c.DoRequest(url, http.MethodDelete, nil)
 	if err != nil {
 		return err
@@ -1797,6 +1797,41 @@ func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdatePostgreSQLDefaultUserPassword(id, password string) error {
+	request := struct {
+		Password string `json:"password"`
+	}{
+		Password: password,
+	}
+
+	reqData, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf(PGSQLUpdateDefaultUserPasswordEndpoint, c.serverHostname, id)
+	resp, err := c.DoRequest(url, http.MethodPut, reqData)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 

@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+	k8sCore "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,9 +32,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
@@ -54,6 +57,7 @@ type PostgreSQLReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls/finalizers,verbs=update
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups,verbs=get;list;create;update;patch;deletecollection;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;watch;create;delete;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -116,6 +120,38 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	var err error
 
 	patch := pgCluster.NewPatch()
+	if pgCluster.Status.DefaultUserSecretName == "" {
+		secretName, err := pgCluster.GetUserSecretName(ctx, r.Client)
+		if err != nil {
+			logger.Error(err, "Cannot get PostgreSQL secret name",
+				"cluster name", pgCluster.Spec.Name,
+				"cluster ID", pgCluster.Status.ID,
+			)
+
+			return models.ReconcileRequeue
+		}
+
+		pgCluster.Status.DefaultUserSecretName = secretName
+
+		if secretName == "" {
+			secret := pgCluster.NewUserSecret()
+			err = r.Client.Create(ctx, secret)
+			if err != nil {
+				logger.Error(err, "Cannot create PostgreSQL default user secret",
+					"cluster ID", pgCluster.Status.ID,
+				)
+
+				return models.ReconcileRequeue
+			}
+
+			pgCluster.Status.DefaultUserSecretName = secret.Name
+
+			logger.Info("PostgreSQL default user secret was created",
+				"secret name", secret.Name,
+				"cluster ID", pgCluster.Status.ID,
+			)
+		}
+	}
 
 	if pgCluster.Status.ID == "" {
 		if pgCluster.Spec.HasRestore() {
@@ -154,7 +190,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 			pgSpec := pgCluster.Spec.ToInstAPI()
 
-			id, err = r.API.CreateCluster(instaclustr.PostgreSQLEndpoint, pgSpec)
+			id, err = r.API.CreateCluster(instaclustr.PGSQLEndpoint, pgSpec)
 			if err != nil {
 				logger.Error(
 					err, "Cannot create PostgreSQL cluster",
@@ -164,16 +200,6 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			}
 
 			pgCluster.Status.ID = id
-			err = r.Status().Patch(ctx, pgCluster, patch)
-			if err != nil {
-				logger.Error(err, "cannot patch PostgreSQL resource status",
-					"cluster name", pgCluster.Spec.Name,
-					"status", pgCluster.Status,
-				)
-
-				return models.ReconcileRequeue
-			}
-
 			pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 		}
 
@@ -187,9 +213,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 	}
 
-	pgCluster.Spec.SetDefaultValues()
-
-	err = r.Patch(ctx, pgCluster, patch)
+	err = r.Status().Patch(ctx, pgCluster, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch PostgreSQL resource status",
 			"cluster name", pgCluster.Spec.Name,
@@ -199,15 +223,17 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
+	pgCluster.Spec.SetDefaultValues()
 	pgCluster.Annotations[models.DeletionConfirmed] = models.False
 	controllerutil.AddFinalizer(pgCluster, models.DeletionFinalizer)
 
-	err = r.patchClusterMetadata(ctx, pgCluster, logger)
+	err = r.Patch(ctx, pgCluster, patch)
 	if err != nil {
-		logger.Error(err, "Cannot patch PostgreSQL resource metadata",
+		logger.Error(err, "Cannot patch PostgreSQL resource status",
 			"cluster name", pgCluster.Spec.Name,
-			"cluster metadata", pgCluster.ObjectMeta,
+			"status", pgCluster.Status,
 		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -321,6 +347,16 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = r.updateDefaultUserPassword(ctx, pgCluster)
+	if err != nil {
+		logger.Error(err, "Cannot update PostgreSQL default user password",
+			"cluster ID", pgCluster.Status.ID,
+			"secret name", pgCluster.Status.DefaultUserSecretName,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.patchClusterMetadata(ctx, pgCluster, logger)
 	if err != nil {
@@ -378,7 +414,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.PostgreSQLEndpoint)
+		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.PGSQLEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete PostgreSQL cluster",
 				"cluster name", pgCluster.Spec.Name,
@@ -397,7 +433,22 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
-	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.BackupsChecker))
+	logger.Info("Deleting PostgreSQL default user secret",
+		"cluster ID", pgCluster.Status.ID,
+		"secret name", pgCluster.Status.DefaultUserSecretName,
+	)
+
+	err = r.deleteSecret(ctx, pgCluster)
+	if client.IgnoreNotFound(err) != nil {
+		logger.Error(err, "Cannot delete PostgreSQL default user secret",
+			"cluster ID", pgCluster.Status.ID,
+		)
+		return models.ReconcileRequeue
+	}
+
+	logger.Info("Cluster PostgreSQL default user secret was deleted",
+		"cluster ID", pgCluster.Status.ID,
+	)
 
 	logger.Info("Deleting cluster backup resources",
 		"cluster ID", pgCluster.Status.ID,
@@ -405,7 +456,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 
 	err = r.deleteBackups(ctx, pgCluster.Status.ID, pgCluster.Namespace)
 	if err != nil {
-		logger.Error(err, "Cannot delete cluster backup resources",
+		logger.Error(err, "Cannot delete PostgreSQL backup resources",
 			"cluster ID", pgCluster.Status.ID,
 		)
 		return models.ReconcileRequeue
@@ -415,6 +466,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		"cluster ID", pgCluster.Status.ID,
 	)
 
+	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(pgCluster, models.DeletionFinalizer)
 	pgCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -435,6 +487,34 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	)
 
 	return models.ReconcileResult
+}
+
+func (r *PostgreSQLReconciler) updateDefaultUserPassword(
+	ctx context.Context,
+	pgCluster *clustersv1alpha1.PostgreSQL,
+) error {
+	secret, err := pgCluster.GetUserSecret(ctx, r.Client)
+	if err != nil {
+		return err
+	}
+
+	if secret.Generation == 1 {
+		return nil
+	}
+
+	password := pgCluster.GetUserPassword(secret)
+
+	isValid := pgCluster.ValidateDefaultUserPassword(password)
+	if !isValid {
+		return models.NotValidPassword
+	}
+
+	err = r.API.UpdatePostgreSQLDefaultUserPassword(pgCluster.Status.ID, password)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *PostgreSQLReconciler) startClusterStatusJob(cluster *clustersv1alpha1.PostgreSQL) error {
@@ -692,6 +772,28 @@ func (r *PostgreSQLReconciler) deleteBackups(ctx context.Context, clusterID, nam
 	return nil
 }
 
+func (r *PostgreSQLReconciler) deleteSecret(ctx context.Context, pgCluster *clustersv1alpha1.PostgreSQL) error {
+	secret, err := pgCluster.GetUserSecret(ctx, r.Client)
+	if err != nil {
+		return err
+	}
+
+	err = r.Client.Delete(ctx, secret)
+	if err != nil {
+		return err
+	}
+
+	secretCopy := secret.DeepCopy()
+	patch := client.MergeFrom(secretCopy)
+	controllerutil.RemoveFinalizer(secret, models.DeletionFinalizer)
+	err = r.Patch(ctx, secret, patch)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *PostgreSQLReconciler) updateDataCentres(cluster *clustersv1alpha1.PostgreSQL) error {
 	instDCs := cluster.Spec.DataCentresToInstAPI()
 	err := r.API.UpdatePostgreSQLDataCentres(cluster.Status.ID, instDCs)
@@ -796,6 +898,31 @@ func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *cl
 	return nil
 }
 
+func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcile.Request {
+	pg := &clustersv1alpha1.PostgreSQL{}
+	pgNamespacedName := types.NamespacedName{
+		Namespace: secret.GetNamespace(),
+		Name:      secret.GetLabels()[models.ControlledByLabel],
+	}
+	err := r.Get(context.TODO(), pgNamespacedName, pg)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	if pg.Annotations[models.ResourceStateAnnotation] == models.DeletingEvent {
+		return []reconcile.Request{}
+	}
+
+	patch := pg.NewPatch()
+	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+	err = r.Patch(context.TODO(), pg, patch)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	return []reconcile.Request{{NamespacedName: pgNamespacedName}}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -832,5 +959,15 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 		})).
 		Owns(&clusterresourcesv1alpha1.ClusterBackup{}).
+		Owns(&k8sCore.Secret{}).
+		Watches(
+			&source.Kind{Type: &k8sCore.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findSecretObject),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(createEvent event.CreateEvent) bool {
+					return createEvent.Object.GetGeneration() == 1
+				},
+			}),
+		).
 		Complete(r)
 }
