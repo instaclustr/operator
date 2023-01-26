@@ -298,6 +298,10 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "PostgreSQL")
 		os.Exit(1)
 	}
+	if err = (&clustersv1alpha1.Redis{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

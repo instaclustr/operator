@@ -1,6 +1,7 @@
 package models
 
 var (
+	RedisVersions      = []string{"6.2.7", "7.0.5"}
 	CassandraVersions  = []string{"4.0.4", "3.11.13"}
 	SparkVersions      = []string{"2.3.2", "3.0.1"}
 	PostgreSQLVersions = []string{"15.1.0", "14.6.0", "14.5.0", "13.9.0", "13.8.0"}
