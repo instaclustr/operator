@@ -39,9 +39,18 @@ func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+//+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-postgresql,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=postgresqls,verbs=create;update,versions=v1alpha1,name=mpostgresql.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-postgresql,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=postgresqls,verbs=create;update,versions=v1alpha1,name=vpostgresql.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &PostgreSQL{}
+var _ webhook.Defaulter = &PostgreSQL{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (pg *PostgreSQL) Default() {
+	for _, dataCentre := range pg.Spec.DataCentres {
+		dataCentre.SetDefaultValues()
+	}
+}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (pg *PostgreSQL) ValidateCreate() error {
@@ -97,7 +106,12 @@ func (pg *PostgreSQL) ValidateCreate() error {
 func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 	postgresqllog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	oldCluster := old.(*PostgreSQL)
+	err := r.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
+	if err != nil {
+		return fmt.Errorf("immutable fields validation error: %v", err)
+	}
+
 	return nil
 }
 

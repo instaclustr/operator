@@ -115,7 +115,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 	logger logr.Logger,
 ) reconcile.Result {
 	if len(cadenceCluster.Spec.DataCentres) < 1 {
-		logger.Error(models.ZeroDataCentres, "Cadence cluster spec doesn't have data centres",
+		logger.Error(models.ErrZeroDataCentres, "Cadence cluster spec doesn't have data centres",
 			"resource name", cadenceCluster.Name,
 		)
 
@@ -245,7 +245,7 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 	}
 
 	if len(cadenceInstClusterStatus.DataCentres) < 1 {
-		logger.Error(models.ZeroDataCentres, "Cadence cluster data centres in Instaclustr are empty",
+		logger.Error(models.ErrZeroDataCentres, "Cadence cluster data centres in Instaclustr are empty",
 			"cluster name", cadenceCluster.Spec.Name,
 			"cluster status", cadenceInstClusterStatus,
 		)
@@ -325,7 +325,7 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		}
 
 		if len(cadenceCluster.Spec.DataCentres) < 1 {
-			logger.Error(models.ZeroDataCentres, "Cadence resource data centres field is empty",
+			logger.Error(models.ErrZeroDataCentres, "Cadence resource data centres field is empty",
 				"cluster name", cadenceCluster.Spec.Name,
 			)
 			return models.ReconcileRequeue
@@ -522,7 +522,7 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 
 func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster *clustersv1alpha1.Cadence) (bool, error) {
 	if len(cluster.Spec.DataCentres) < 1 {
-		return false, models.ZeroDataCentres
+		return false, models.ErrZeroDataCentres
 	}
 
 	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, cluster.Name)
@@ -629,7 +629,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	}
 
 	if len(cadence.Spec.DataCentres) < 1 {
-		return nil, models.ZeroDataCentres
+		return nil, models.ErrZeroDataCentres
 	}
 	cassNodeSize := cadence.Spec.BundledCassandraSpec.NodeSize
 	cassNodesNumber := cadence.Spec.BundledCassandraSpec.NodesNumber
@@ -653,7 +653,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		return nil, err
 	}
 	if isCassNetworkOverlaps {
-		return nil, models.NetworkOverlaps
+		return nil, models.ErrNetworkOverlaps
 	}
 
 	dcName := models.CassandraChildDCName
@@ -779,7 +779,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	}
 
 	if len(cadence.Spec.DataCentres) < 1 {
-		return nil, models.ZeroDataCentres
+		return nil, models.ErrZeroDataCentres
 	}
 
 	var kafkaTFD []*clustersv1alpha1.TwoFactorDelete
@@ -798,7 +798,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 			return nil, err
 		}
 		if isKafkaNetworkOverlaps {
-			return nil, models.NetworkOverlaps
+			return nil, models.ErrNetworkOverlaps
 		}
 	}
 
@@ -863,7 +863,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 	}
 
 	if len(cadence.Spec.DataCentres) < 1 {
-		return nil, models.ZeroDataCentres
+		return nil, models.ErrZeroDataCentres
 	}
 
 	osNodeSize := cadence.Spec.BundledOpenSearchSpec.NodeSize
@@ -889,7 +889,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 		return nil, err
 	}
 	if isOsNetworkOverlaps {
-		return nil, models.NetworkOverlaps
+		return nil, models.ErrNetworkOverlaps
 	}
 
 	dcName := models.OpenSearchChildDCName

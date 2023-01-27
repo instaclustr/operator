@@ -223,7 +223,6 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	pgCluster.Spec.SetDefaultValues()
 	pgCluster.Annotations[models.DeletionConfirmed] = models.False
 	controllerutil.AddFinalizer(pgCluster, models.DeletionFinalizer)
 
@@ -287,8 +286,6 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 
 		return models.ReconcileRequeue
 	}
-
-	pgCluster.Spec.SetDefaultValues()
 
 	if !pgCluster.Spec.AreDCsEqual(pgInstCluster.DataCentres) {
 		err = r.updateDataCentres(pgCluster)
@@ -506,7 +503,7 @@ func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 
 	isValid := pgCluster.ValidateDefaultUserPassword(password)
 	if !isValid {
-		return models.NotValidPassword
+		return models.ErrNotValidPassword
 	}
 
 	err = r.API.UpdatePostgreSQLDefaultUserPassword(pgCluster.Status.ID, password)
