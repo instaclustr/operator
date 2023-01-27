@@ -11,6 +11,9 @@ jobs:
   release:
     name: Release the Instaclustr Operator
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v3
 
@@ -20,3 +23,4 @@ jobs:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.tag }}
           token: ${{ secrets.PERSONAL_TOKEN }}
+          generate_release_notes: true
