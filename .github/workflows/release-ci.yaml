@@ -22,5 +22,6 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.tag }}
-          token: ${{ secrets.PERSONAL_TOKEN }}
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
