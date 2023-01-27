@@ -131,6 +131,14 @@ type immutableClusterFields struct {
 	SLATier               string
 }
 
+type immutableDataCentreFields struct {
+	Name                string
+	Region              string
+	CloudProvider       string
+	ProviderAccountName string
+	Network             string
+}
+
 func (tfd *TwoFactorDelete) ToInstAPI() *modelsv2.TwoFactorDelete {
 	return &modelsv2.TwoFactorDelete{
 		ConfirmationPhoneNumber: tfd.Phone,
@@ -410,4 +418,32 @@ func (n *Node) IsNodeEqual(instNode *models.NodeStatusV2) bool {
 	}
 
 	return true
+}
+
+func (dc *DataCentre) ValidateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
+	if len(oldSettings) != len(dc.CloudProviderSettings) {
+		return models.ErrImmutableCloudProviderSettings
+	}
+
+	for i, newProviderSettings := range dc.CloudProviderSettings {
+		if newProviderSettings != oldSettings[i] {
+			return models.ErrImmutableCloudProviderSettings
+		}
+	}
+
+	return nil
+}
+
+func (dc *DataCentre) SetDefaultValues() {
+	if dc.ProviderAccountName == "" {
+		dc.ProviderAccountName = models.DefaultAccountName
+	}
+
+	if len(dc.CloudProviderSettings) == 0 {
+		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
+			DiskEncryptionKey:      "",
+			ResourceGroup:          "",
+			CustomVirtualNetworkID: "",
+		})
+	}
 }

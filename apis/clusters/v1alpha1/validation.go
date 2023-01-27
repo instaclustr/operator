@@ -68,11 +68,11 @@ func (cps *CloudProviderSettings) ValidateCreation() error {
 
 func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
 	if len(old) != len(new) {
-		return models.TwoFactorDeleteIsImmutable
+		return models.ErrImmutableTwoFactorDelete
 	}
 	if len(old) != 0 &&
 		*old[0] != *new[0] {
-		return models.TwoFactorDeleteIsImmutable
+		return models.ErrImmutableTwoFactorDelete
 	}
 
 	return nil
@@ -80,11 +80,11 @@ func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
 
 func validateSpark(new, old []*Spark) error {
 	if len(old) != len(new) {
-		return models.SparkIsImmutable
+		return models.ErrImmutableSpark
 	}
 	if len(old) != 0 &&
 		*old[0] != *new[0] {
-		return models.SparkIsImmutable
+		return models.ErrImmutableSpark
 	}
 
 	return nil

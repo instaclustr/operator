@@ -105,6 +105,27 @@ type PostgreSQLList struct {
 	Items           []PostgreSQL `json:"items"`
 }
 
+type ImmutablePostgreSQLFields struct {
+	SpecificFields specificPostgreSQLFields
+	Cluster        immutableClusterFields
+}
+
+type specificPostgreSQLFields struct {
+	SynchronousModeStrict bool
+}
+
+type ImmutablePostgreSQLDataCentreFields struct {
+	immutableDataCentreFields
+	specificPostgreSQLDataCentreFields
+}
+
+type specificPostgreSQLDataCentreFields struct {
+	ClientEncryption    bool
+	PostgresqlNodeCount int32
+	PGBouncerVersion    string
+	PoolMode            string
+}
+
 func init() {
 	SchemeBuilder.Register(&PostgreSQL{}, &PostgreSQLList{})
 }
@@ -569,4 +590,120 @@ func (pdc *PgDataCentre) ValidatePGBouncer() error {
 	}
 
 	return nil
+}
+
+func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
+	newImmutableFields := pgs.NewImmutableFields()
+	oldImmutableFields := oldSpec.NewImmutableFields()
+
+	if newImmutableFields.Cluster != oldImmutableFields.Cluster ||
+		newImmutableFields.SpecificFields != oldImmutableFields.SpecificFields {
+		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v", oldSpec, pgs)
+	}
+
+	err := pgs.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	err = validateTwoFactorDelete(pgs.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (pgs *PgSpec) validateImmutableDataCentresFieldsUpdate(oldSpec PgSpec) error {
+	if len(pgs.DataCentres) != len(oldSpec.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for i, newDC := range pgs.DataCentres {
+		oldDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.NewImmutableFields()
+		oldDCImmutableFields := oldDC.NewImmutableFields()
+
+		if newDCImmutableFields != oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.ValidateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+
+		err = newDC.validateIntraDCImmutableFields(oldDC.IntraDataCentreReplication)
+		if err != nil {
+			return nil
+		}
+
+		err = newDC.validateInterDCImmutableFields(oldDC.InterDataCentreReplication)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func (pdc *PgDataCentre) validateInterDCImmutableFields(oldInterDC []*InterDataCentreReplication) error {
+	if len(pdc.InterDataCentreReplication) != len(oldInterDC) {
+		return models.ErrImmutableInterDataCentreReplication
+	}
+
+	for i, newInterDC := range pdc.InterDataCentreReplication {
+		if *newInterDC != *oldInterDC[i] {
+			return models.ErrImmutableInterDataCentreReplication
+		}
+	}
+
+	return nil
+}
+
+func (pdc *PgDataCentre) validateIntraDCImmutableFields(oldIntraDC []*IntraDataCentreReplication) error {
+	if len(pdc.IntraDataCentreReplication) != len(oldIntraDC) {
+		return models.ErrImmutableIntraDataCentreReplication
+	}
+
+	for i, newIntraDC := range pdc.IntraDataCentreReplication {
+		if *newIntraDC != *oldIntraDC[i] {
+			return models.ErrImmutableIntraDataCentreReplication
+		}
+	}
+
+	return nil
+}
+
+func (pgs *PgSpec) NewImmutableFields() *ImmutablePostgreSQLFields {
+	return &ImmutablePostgreSQLFields{
+		SpecificFields: specificPostgreSQLFields{
+			SynchronousModeStrict: pgs.SynchronousModeStrict,
+		},
+		Cluster: immutableClusterFields{
+			Name:                  pgs.Name,
+			Version:               pgs.Version,
+			PCICompliance:         pgs.PCICompliance,
+			PrivateNetworkCluster: pgs.PrivateNetworkCluster,
+			SLATier:               pgs.SLATier,
+		},
+	}
+}
+
+func (pdc *PgDataCentre) NewImmutableFields() *ImmutablePostgreSQLDataCentreFields {
+	return &ImmutablePostgreSQLDataCentreFields{
+		immutableDataCentreFields: immutableDataCentreFields{
+			Name:                pdc.Name,
+			Region:              pdc.Region,
+			CloudProvider:       pdc.CloudProvider,
+			ProviderAccountName: pdc.ProviderAccountName,
+			Network:             pdc.Network,
+		},
+		specificPostgreSQLDataCentreFields: specificPostgreSQLDataCentreFields{
+			ClientEncryption:    pdc.ClientEncryption,
+			PostgresqlNodeCount: pdc.PostgresqlNodeCount,
+			PGBouncerVersion:    pdc.PGBouncerVersion,
+			PoolMode:            pdc.PoolMode,
+		},
+	}
 }

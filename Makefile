@@ -105,7 +105,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: dev-deploy
-dev-deploy: cert-deploy manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+dev-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd scripts && ./make_creds_secret.sh
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
@@ -119,7 +119,7 @@ helm-deploy:
 	--set HOSTNAME=${HOST_NAME} -n ${OPERATOR_NAMESPACE} --create-namespace --debug
 
 .PHONY: undeploy
-undeploy: cert-undeploy ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: goimports
