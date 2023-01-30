@@ -1803,6 +1803,36 @@ func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
 	return nil
 }
 
+func (c *Client) GetCadence(id string) (*models.CadenceAPIv2, error) {
+	url := c.serverHostname + CadenceEndpoint + id
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	cadence := &models.CadenceAPIv2{}
+	err = json.Unmarshal(body, cadence)
+	if err != nil {
+		return nil, err
+	}
+
+	return cadence, nil
+}
+
 func (c *Client) UpdatePostgreSQLDefaultUserPassword(id, password string) error {
 	request := struct {
 		Password string `json:"password"`

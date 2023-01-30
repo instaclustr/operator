@@ -25,25 +25,25 @@ spec:
   concurrentResizes: 1
   notifySupportContacts: false
   targetCassandraVpcType: "TARGET_VPC"
-  targetCassandraCdcId: "fc9a9074-dd5b-4407-96cf-afe2e6030ab6"
+  targetCassandraCdcId: "90de0285-b383-423e-b414-51e028ad2842"
 #  twoFactorDelete:
 #  - email: "rostyslp@netapp.com"
   dataCentres:
   - region: "US_EAST_1"
     network: "10.3.0.0/16"
     cloudProvider: "AWS_VPC"
-    nodeSize: "CAD-SI-DEV-t3.small-5"
+#    nodeSize: "CAD-SI-DEV-t3.small-5"
     name: "testdc"
 #    nodeSize: "CAD-DEV-t3.medium-30"
-#    nodeSize: "CAD-DEV-t3.small-5"
+    nodeSize: "CAD-DEV-t3.small-5"
     racksNumber: 3
     nodesNumber: 1
-    cadenceNodeCount: 1
+    cadenceNodeCount: 3
   description: "test 222"
   slaTier: "NON_PRODUCTION"
 #  provisioningType: "PACKAGED"
-  provisioningType: "SHARED"
-#  provisioningType: "STANDARD"
+#  provisioningType: "SHARED"
+  provisioningType: "STANDARD"
 #  enableArchival: true
 #  archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
 #  archivalS3Region: "us-east-1"
@@ -56,7 +56,8 @@ spec:
     nodesNumber: 3
     privateIPBroadcastForDiscovery: false
     passwordAndUserAuth: true
-  useAdvancedVisibility: true
+  useAdvancedVisibility: false
+#  useAdvancedVisibility: true
   bundledKafkaSpec:
     nodeSize: "KFK-DEV-t4g.small-5"
     nodesNumber: 3

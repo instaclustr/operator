@@ -1,24 +1,33 @@
 package models
 
-import modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+import (
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+)
 
-type CadenceClusterAPIv2 struct {
-	Name                  string                         `json:"name"`
-	CadenceVersion        string                         `json:"cadenceVersion"`
-	CadenceDataCentres    []*CadenceDataCentre           `json:"dataCentres"`
-	SharedProvisioning    []*CadenceSharedProvisioning   `json:"sharedProvisioning,omitempty"`
-	StandardProvisioning  []*CadenceStandardProvisioning `json:"standardProvisioning,omitempty"`
-	PCIComplianceMode     bool                           `json:"pciComplianceMode"`
-	TwoFactorDelete       []*modelsv2.TwoFactorDelete    `json:"twoFactorDelete,omitempty"`
-	UseCadenceWebAuth     bool                           `json:"useCadenceWebAuth"`
-	PrivateNetworkCluster bool                           `json:"privateNetworkCluster"`
-	SLATier               string                         `json:"slaTier"`
-	AWSArchival           *AWSArchival                   `json:"awsArchival,omitempty"`
+type CadenceAPIv2 struct {
+	ID                            string                         `json:"id,omitempty"`
+	Name                          string                         `json:"name"`
+	CadenceVersion                string                         `json:"cadenceVersion"`
+	DataCentres                   []*CadenceDataCentre           `json:"dataCentres"`
+	SharedProvisioning            []*CadenceSharedProvisioning   `json:"sharedProvisioning,omitempty"`
+	StandardProvisioning          []*CadenceStandardProvisioning `json:"standardProvisioning,omitempty"`
+	PCIComplianceMode             bool                           `json:"pciComplianceMode"`
+	TwoFactorDelete               []*modelsv2.TwoFactorDelete    `json:"twoFactorDelete,omitempty"`
+	UseCadenceWebAuth             bool                           `json:"useCadenceWebAuth"`
+	PrivateNetworkCluster         bool                           `json:"privateNetworkCluster"`
+	SLATier                       string                         `json:"slaTier"`
+	AWSArchival                   []*AWSArchival                 `json:"awsArchival,omitempty"`
+	CurrentClusterOperationStatus string                         `json:"currentClusterOperationStatus,omitempty"`
+	Status                        string                         `json:"status,omitempty"`
 }
 
 type CadenceDataCentre struct {
 	modelsv2.DataCentre       `json:",inline"`
-	ClientToClusterEncryption bool `json:"clientToClusterEncryption"`
+	ClientToClusterEncryption bool             `json:"clientToClusterEncryption"`
+	ID                        string           `json:"id,omitempty"`
+	Nodes                     []*modelsv2.Node `json:"nodes,omitempty"`
+	Status                    string           `json:"status,omitempty"`
+	PrivateLink               []*PrivateLink   `json:"privateLink,omitempty"`
 }
 
 type CadenceSharedProvisioning struct {

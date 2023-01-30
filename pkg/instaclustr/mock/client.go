@@ -239,6 +239,10 @@ func (c *mockClient) ResetPostgreSQLConfiguration(id, name string) error {
 	panic("ResetPostgreSQLConfiguration: is not implemented")
 }
 
+func (c *mockClient) GetCadence(id string) (*models.CadenceAPIv2, error) {
+	panic("GetCadence: is not implemented")
+}
+
 func (c *mockClient) UpdatePostgreSQLDefaultUserPassword(id, password string) error {
 	panic("UpdatePostgreSQLDefaultUserPassword: is not implemented")
 }

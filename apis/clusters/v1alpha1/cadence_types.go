@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -182,39 +181,34 @@ func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) models.CadenceUpda
 	return updatedFields
 }
 
-func (cs *CadenceSpec) ToInstAPIv2(ctx context.Context, k8sClient client.Client) (*models.CadenceClusterAPIv2, error) {
-	var AWSArchival *models.AWSArchival
+func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceAPIv2, error) {
+	var AWSArchival []*models.AWSArchival
 	var err error
 	if cs.EnableArchival {
-		AWSArchival, err = cs.ArchivalToAPIv2(ctx, k8sClient)
+		AWSArchival, err = cs.ArchivalToInstAPI(ctx, k8sClient)
 		if err != nil {
 			return nil, fmt.Errorf("cannot convert archival data to APIv2 format: %v", err)
 		}
-	}
-
-	instDataCentres := []*models.CadenceDataCentre{}
-	for _, dataCentre := range cs.DataCentres {
-		instDataCentres = append(instDataCentres, dataCentre.ToAPIv2())
 	}
 
 	var sharedProvisioning []*models.CadenceSharedProvisioning
 	var standardProvisioning []*models.CadenceStandardProvisioning
 	switch cs.ProvisioningType {
 	case models.SharedProvisioningType:
-		sharedProvisioning = cs.SharedProvisioningToAPIv2()
+		sharedProvisioning = cs.SharedProvisioningToInstAPI()
 	case models.StandardProvisioningType, models.PackagedProvisioningType:
-		standardProvisioning, err = cs.StandardProvisioningToAPIv2()
+		standardProvisioning, err = cs.StandardProvisioningToInstAPI()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return &models.CadenceClusterAPIv2{
+	return &models.CadenceAPIv2{
 		CadenceVersion:        cs.Version,
-		CadenceDataCentres:    instDataCentres,
+		DataCentres:           cs.DataCentresToInstAPI(),
 		Name:                  cs.Name,
 		PCIComplianceMode:     cs.PCICompliance,
-		TwoFactorDelete:       cs.TwoFactorDeleteToAPIv2(),
+		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
 		UseCadenceWebAuth:     cs.UseCadenceWebAuth,
 		PrivateNetworkCluster: cs.PrivateNetworkCluster,
 		SLATier:               cs.SLATier,
@@ -224,7 +218,7 @@ func (cs *CadenceSpec) ToInstAPIv2(ctx context.Context, k8sClient client.Client)
 	}, nil
 }
 
-func (cs *CadenceSpec) StandardProvisioningToAPIv2() ([]*models.CadenceStandardProvisioning, error) {
+func (cs *CadenceSpec) StandardProvisioningToInstAPI() ([]*models.CadenceStandardProvisioning, error) {
 	stdProvisioning := &models.CadenceStandardProvisioning{
 		TargetCassandra: &models.TargetCassandra{
 			DependencyCDCID:   cs.TargetCassandraCDCID,
@@ -257,7 +251,7 @@ func (cs *CadenceSpec) StandardProvisioningToAPIv2() ([]*models.CadenceStandardP
 	return []*models.CadenceStandardProvisioning{stdProvisioning}, nil
 }
 
-func (cs *CadenceSpec) SharedProvisioningToAPIv2() []*models.CadenceSharedProvisioning {
+func (cs *CadenceSpec) SharedProvisioningToInstAPI() []*models.CadenceSharedProvisioning {
 	return []*models.CadenceSharedProvisioning{
 		{
 			UseAdvancedVisibility: cs.UseAdvancedVisibility,
@@ -265,27 +259,19 @@ func (cs *CadenceSpec) SharedProvisioningToAPIv2() []*models.CadenceSharedProvis
 	}
 }
 
-func (cs *CadenceSpec) TwoFactorDeleteToAPIv2() []*modelsv2.TwoFactorDelete {
-	var twoFactorDeleteAPIv2 []*modelsv2.TwoFactorDelete
-
-	for _, twoFactorDelete := range cs.TwoFactorDelete {
-		twoFactorDeleteAPIv2 = append(twoFactorDeleteAPIv2, twoFactorDelete.ToInstAPI())
-	}
-
-	return twoFactorDeleteAPIv2
-}
-
-func (cs *CadenceSpec) ArchivalToAPIv2(ctx context.Context, k8sClient client.Client) (*models.AWSArchival, error) {
+func (cs *CadenceSpec) ArchivalToInstAPI(ctx context.Context, k8sClient client.Client) ([]*models.AWSArchival, error) {
 	AWSAccessKeyID, AWSSecretAccessKey, err := cs.GetSecret(ctx, k8sClient)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get aws creds secret: %v", err)
 	}
 
-	return &models.AWSArchival{
-		ArchivalS3Region:   cs.ArchivalS3Region,
-		ArchivalS3URI:      cs.ArchivalS3URI,
-		AWSAccessKeyID:     AWSAccessKeyID,
-		AWSSecretAccessKey: AWSSecretAccessKey,
+	return []*models.AWSArchival{
+		{
+			ArchivalS3Region:   cs.ArchivalS3Region,
+			ArchivalS3URI:      cs.ArchivalS3URI,
+			AWSAccessKeyID:     AWSAccessKeyID,
+			AWSSecretAccessKey: AWSSecretAccessKey,
+		},
 	}, nil
 }
 
@@ -308,7 +294,7 @@ func (cs *CadenceSpec) GetSecret(ctx context.Context, k8sClient client.Client) (
 	return AWSAccessKeyID, AWSSecretAccessKey, err
 }
 
-func (cdc *CadenceDataCentre) ToAPIv2() *models.CadenceDataCentre {
+func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
 	cadenceDC := &models.CadenceDataCentre{
 		ClientToClusterEncryption: cdc.ClientEncryption,
 		DataCentre: modelsv2.DataCentre{
@@ -327,4 +313,65 @@ func (cdc *CadenceDataCentre) ToAPIv2() *models.CadenceDataCentre {
 	cdc.CloudProviderSettingsToInstAPI(&cadenceDC.DataCentre)
 
 	return cadenceDC
+}
+
+func (cs *CadenceSpec) DataCentresToInstAPI() []*models.CadenceDataCentre {
+	var instDCs []*models.CadenceDataCentre
+	for _, k8sDC := range cs.DataCentres {
+		instDCs = append(instDCs, k8sDC.ToInstAPI())
+	}
+	return instDCs
+}
+
+func (cst *CadenceStatus) SetStatusFromInst(instStatus *models.CadenceAPIv2) {
+	cst.ID = instStatus.ID
+	cst.Status = instStatus.Status
+	cst.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
+	cst.SetDCsStatusFromInst(instStatus.DataCentres)
+}
+
+func (cst *CadenceStatus) SetDCsStatusFromInst(instDCs []*models.CadenceDataCentre) {
+	dcs := []*DataCentreStatus{}
+	for _, instDC := range instDCs {
+		dcToAppend := &DataCentreStatus{
+			ID:         instDC.ID,
+			Status:     instDC.Status,
+			NodeNumber: instDC.NumberOfNodes,
+		}
+		dcToAppend.SetNodesStatusFromInstAPI(instDC.Nodes)
+		dcs = append(dcs, dcToAppend)
+	}
+	cst.DataCentres = dcs
+}
+
+func (cst *CadenceStatus) AreStatusesEqual(instCadence *models.CadenceAPIv2) bool {
+	if cst.Status != instCadence.Status ||
+		cst.CurrentClusterOperationStatus != instCadence.CurrentClusterOperationStatus ||
+		!cst.AreDCsEqual(instCadence.DataCentres) {
+		return false
+	}
+
+	return true
+}
+
+func (cst *CadenceStatus) AreDCsEqual(instDCs []*models.CadenceDataCentre) bool {
+	if len(cst.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range cst.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if instDC.Status != k8sDC.Status ||
+					instDC.NumberOfNodes != k8sDC.NodeNumber ||
+					!k8sDC.AreNodesEqual(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
 }
