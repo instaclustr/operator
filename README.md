@@ -15,13 +15,13 @@ Instaclustr Console and Instaclustr terraform provider.
 
 ## C4 model diagrams
 
-Context diagram                                                         |  Container diagram                                       |  Component diagram
-:---------------------------------------------------------------------:|:--------------------------------------------------------:|:-------------------------:
-![Context diagram](doc/diagrams/context_diagram.png "Context diagram") |  ![Container diagram](doc/diagrams/container_diagram.png) |  ![Component diagram](doc/diagrams/component_diagram.png)
+|                             Context diagram                             |  Container diagram                                       |  Component diagram|
+|:-----------------------------------------------------------------------:|:--------------------------------------------------------:|:-------------------------:|
+| ![Context diagram](doc/diagrams/context_diagram.png "Context diagram")  |  ![Container diagram](doc/diagrams/container_diagram.png) |  ![Component diagram](doc/diagrams/component_diagram.png)|
 
-CRDs Relations|
-:---------------------------------------------------------------------:|
-![CRD Relations](doc/diagrams/crd_relations.png "CRD Relations")|
+|                             CRDs Relations                              |
+| :---------------------------------------------------------------------: |
+|       ![CRD Relations](doc/diagrams/crd_relations.png "CRD Relations")  |
 
 
 ## Getting Started
@@ -29,22 +29,26 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
 ### Running on the cluster
-1. Install Instances of Custom Resources:
-
+1. Deploy the cert manager:
+	
 ```sh
-kubectl apply -f config/samples/
+make cert-deploy
 ```
-
+	
 2. Build and push your image to the location specified by `IMG`:
 	
 ```sh
 make docker-build docker-push IMG=<some-registry>/operator:tag
 ```
-	
 3. Deploy the controller to the cluster with the image specified by `IMG`:
 
 ```sh
 make deploy IMG=<some-registry>/operator:tag
+```
+4. Install Instances of Custom Resources:
+
+```sh
+kubectl apply -f config/samples/
 ```
 
 ### Uninstall CRDs
@@ -60,7 +64,12 @@ UnDeploy the controller to the cluster:
 ```sh
 make undeploy
 ```
+### Undeploy controller
+UnDeploy the cert manager:
 
+```sh
+make cert-undeploy
+```
 ## Contributing
 
 We welcome all contributors. Please see our public [contributing guidelines](CONTRIBUTING.md).

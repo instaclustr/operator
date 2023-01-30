@@ -14,4 +14,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: rostislavporohnya/instaclustr-operator
-  newTag: icop238
+  newTag: icop250

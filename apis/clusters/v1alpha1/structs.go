@@ -366,23 +366,23 @@ func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*mode
 	dc.CloudProviderSettings = cloudProviderSettings
 }
 
-func (dcs *DataCentreStatus) SetNodesStatusFromInstAPI(instNodes []*models.NodeStatusV2) {
+func (dcs *DataCentreStatus) SetNodesStatusFromInstAPI(instNodes []*modelsv2.Node) {
 	k8sNodes := []*Node{}
 	for _, instNode := range instNodes {
 		k8sNodes = append(k8sNodes, &Node{
 			ID:             instNode.ID,
-			Size:           instNode.NodeSize,
+			Size:           instNode.Size,
 			Status:         instNode.Status,
 			PublicAddress:  instNode.PublicAddress,
 			PrivateAddress: instNode.PrivateAddress,
 			Rack:           instNode.Rack,
-			Roles:          instNode.NodeRoles,
+			Roles:          instNode.Roles,
 		})
 	}
 	dcs.Nodes = k8sNodes
 }
 
-func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*models.NodeStatusV2) bool {
+func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*modelsv2.Node) bool {
 	if len(dcs.Nodes) != len(instNodes) {
 		return false
 	}
@@ -402,18 +402,18 @@ func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*models.NodeStatusV2) boo
 	return true
 }
 
-func (n *Node) IsNodeEqual(instNode *models.NodeStatusV2) bool {
+func (n *Node) IsNodeEqual(instNode *modelsv2.Node) bool {
 	if n == nil || instNode == nil {
 		return (n == nil) == (instNode == nil)
 	}
 
 	if instNode.ID != n.ID ||
 		instNode.Status != n.Status ||
-		instNode.NodeSize != n.Size ||
+		instNode.Size != n.Size ||
 		instNode.Rack != n.Rack ||
 		instNode.PrivateAddress != n.PrivateAddress ||
 		instNode.PublicAddress != n.PublicAddress ||
-		!slices.Equal(instNode.NodeRoles, n.Roles) {
+		!slices.Equal(instNode.Roles, n.Roles) {
 		return false
 	}
 

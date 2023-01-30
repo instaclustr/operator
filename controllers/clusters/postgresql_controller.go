@@ -278,7 +278,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	}
 
 	if pgInstCluster.CurrentClusterOperationStatus != models.NoOperation {
-		logger.Info("Cluster is not ready to update",
+		logger.Info("PostgreSQL cluster is not ready to update",
 			"cluster name", pgCluster.Spec.Name,
 			"cluster status", pgInstCluster.Status,
 			"current operation status", pgInstCluster.CurrentClusterOperationStatus,
@@ -883,7 +883,7 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 
 func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *clustersv1alpha1.PostgreSQL) error {
 	var twoFactorDelete *clustersv1alpha1.TwoFactorDelete
-	if len(pgCluster.Spec.TwoFactorDelete) > 0 {
+	if len(pgCluster.Spec.TwoFactorDelete) != 0 {
 		twoFactorDelete = pgCluster.Spec.TwoFactorDelete[0]
 	}
 

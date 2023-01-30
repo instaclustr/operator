@@ -27,7 +27,7 @@ type PGDataCentre struct {
 	PGBouncer                  []*PGBouncer            `json:"pgBouncer,omitempty"`
 	Status                     string                  `json:"status,omitempty"`
 	ID                         string                  `json:"id,omitempty"`
-	Nodes                      []*NodeStatusV2         `json:"nodes,omitempty"`
+	Nodes                      []*modelsv2.Node        `json:"nodes,omitempty"`
 }
 
 type PGInterDCReplication struct {
