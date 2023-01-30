@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr/mock"
+	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -69,7 +69,7 @@ var _ = Describe("Successful creation of a Kafka resource", func() {
 					return false
 				}
 
-				return kafkaCluster.Status.ID == mock.CreatedID
+				return kafkaCluster.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
 		})
 	})

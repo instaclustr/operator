@@ -20,6 +20,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	"github.com/instaclustr/operator/pkg/instaclustr/mock"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
@@ -41,12 +42,11 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	cfg         *rest.Config
-	k8sClient   client.Client
-	testEnv     *envtest.Environment
-	ctx         context.Context
-	cancel      context.CancelFunc
-	MockInstAPI = mock.NewInstAPI()
+	cfg       *rest.Config
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+	ctx       context.Context
+	cancel    context.CancelFunc
 )
 
 func TestAPIs(t *testing.T) {
@@ -71,6 +71,10 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
+	instaClient := instaclustr.NewClient("test", "test", "http://localhost:8090", time.Second*10)
+
+	Expect(err).NotTo(HaveOccurred())
+
 	err = clustersv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -85,10 +89,13 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	scheduler.ClusterStatusInterval = 2 * time.Second
+	scheduler.ClusterBackupsInterval = 2 * time.Second
+
 	err = (&KafkaReconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
-		API:       MockInstAPI,
+		API:       instaClient,
 		Scheduler: scheduler.NewScheduler(logf.Log),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -96,7 +103,7 @@ var _ = BeforeSuite(func() {
 	err = (&CassandraReconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
-		API:       MockInstAPI,
+		API:       instaClient,
 		Scheduler: scheduler.NewScheduler(logf.Log),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

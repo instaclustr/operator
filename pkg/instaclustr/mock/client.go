@@ -20,12 +20,11 @@ func NewInstAPI() *mockClient {
 }
 
 const (
-	CreatedID = "created"
-	StatusID  = "statusID"
+	StatusID = "statusID"
 )
 
 func (c *mockClient) CreateCluster(url string, clusterSpec any) (string, error) {
-	return CreatedID, nil
+	return "", nil
 }
 
 func (c *mockClient) DoRequest(url string, method string, data []byte) (*http.Response, error) {
