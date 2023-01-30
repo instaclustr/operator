@@ -70,7 +70,7 @@ test-kafkamanagement:
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/kafkamanagement -coverprofile cover.out
 
 .PHONY: test
-test: manifests generate fmt vet envtest test-clusters test-clusterresources test-kafkamanagement
+test: manifests generate fmt vet docker-build-server-stub run-server-stub envtest test-clusters test-clusterresources test-kafkamanagement stop-server-stub
 
 ##@ Build
 
@@ -89,6 +89,18 @@ docker-build: test ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
+
+.PHONY: docker-build-server-stub
+docker-build-server-stub: ## Build an Instaclustr server-stub image.
+	docker build -f pkg/instaclustr/mock/server/Dockerfile --network=host -t instaclustr-server-stub .
+
+.PHONY: run-server-stub
+run-server-stub: ## Run an Instaclustr server-stub from your host.
+	docker run --rm -d --name instaclustr-server-stub -p 8090:8090 instaclustr-server-stub
+
+PHONY: stop-server-stub
+stop-server-stub: ## Stop an Instaclustr server-stub from your host.
+	docker stop instaclustr-server-stub
 
 ##@ Deployment
 
