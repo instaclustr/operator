@@ -230,7 +230,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 			return err
 		}
 
-		if !isStatusesEqual(instaclusterStatus, &kc.Status.ClusterStatus) {
+		if !areStatusesEqual(instaclusterStatus, &kc.Status.ClusterStatus) {
 			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclustrStatus", instaclusterStatus,
 				"kc.Status.ClusterStatus", kc.Status.ClusterStatus)

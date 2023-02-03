@@ -20,20 +20,20 @@ func confirmDeletion(obj client.Object) bool {
 	return false
 }
 
-func isStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
+func areStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
 	if a.ID != b.ID ||
 		a.Status != b.Status ||
 		a.CDCID != b.CDCID ||
 		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
-		!isDataCentreEqual(a.DataCentres, b.DataCentres) ||
-		!isDataCentreOptionsEqual(a.Options, b.Options) {
+		!areDataCentresEqual(a.DataCentres, b.DataCentres) ||
+		!areDataCentreOptionsEqual(a.Options, b.Options) {
 		return false
 	}
 
 	return true
 }
 
-func isDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
+func areDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -45,7 +45,7 @@ func isDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
 	return *a == *b
 }
 
-func isDataCentreEqual(a, b []*clustersv1alpha1.DataCentreStatus) bool {
+func areDataCentresEqual(a, b []*clustersv1alpha1.DataCentreStatus) bool {
 	if a == nil && b == nil {
 		return true
 	}

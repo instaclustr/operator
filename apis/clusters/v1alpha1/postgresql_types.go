@@ -107,19 +107,19 @@ type PostgreSQLList struct {
 
 type immutablePostgreSQLFields struct {
 	specificPostgreSQLFields
-	immutableClusterFields
+	immutableCluster
 }
 
 type specificPostgreSQLFields struct {
 	SynchronousModeStrict bool
 }
 
-type immutablePostgreSQLDataCentreFields struct {
-	immutableDataCentreFields
-	specificPostgreSQLDataCentreFields
+type immutablePostgreSQLDCFields struct {
+	immutableDC
+	specificPostgreSQLDC
 }
 
-type specificPostgreSQLDataCentreFields struct {
+type specificPostgreSQLDC struct {
 	ClientEncryption    bool
 	PostgresqlNodeCount int32
 	PGBouncerVersion    string
@@ -626,7 +626,7 @@ func (pgs *PgSpec) validateImmutableDataCentresFieldsUpdate(oldSpec PgSpec) erro
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		err := newDC.ValidateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
 		if err != nil {
 			return err
 		}
@@ -678,20 +678,20 @@ func (pgs *PgSpec) newImmutableFields() *immutablePostgreSQLFields {
 		specificPostgreSQLFields: specificPostgreSQLFields{
 			SynchronousModeStrict: pgs.SynchronousModeStrict,
 		},
-		immutableClusterFields: pgs.Cluster.newImmutableFields(),
+		immutableCluster: pgs.Cluster.newImmutableFields(),
 	}
 }
 
-func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDataCentreFields {
-	return &immutablePostgreSQLDataCentreFields{
-		immutableDataCentreFields: immutableDataCentreFields{
+func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
+	return &immutablePostgreSQLDCFields{
+		immutableDC: immutableDC{
 			Name:                pdc.Name,
 			Region:              pdc.Region,
 			CloudProvider:       pdc.CloudProvider,
 			ProviderAccountName: pdc.ProviderAccountName,
 			Network:             pdc.Network,
 		},
-		specificPostgreSQLDataCentreFields: specificPostgreSQLDataCentreFields{
+		specificPostgreSQLDC: specificPostgreSQLDC{
 			ClientEncryption:    pdc.ClientEncryption,
 			PostgresqlNodeCount: pdc.PostgresqlNodeCount,
 			PGBouncerVersion:    pdc.PGBouncerVersion,

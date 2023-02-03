@@ -222,7 +222,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 			return err
 		}
 
-		if !isStatusesEqual(instaclusterStatus, &zook.Status.ClusterStatus) {
+		if !areStatusesEqual(instaclusterStatus, &zook.Status.ClusterStatus) {
 			l.Info("zookeeper status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclusterStatus", instaclusterStatus,
 				"zookeeper.Status.ClusterStatus", zook.Status.ClusterStatus)

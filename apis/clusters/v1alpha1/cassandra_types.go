@@ -97,13 +97,25 @@ type CassandraList struct {
 }
 
 type immutableCassandraFields struct {
-	specificCassandraFields
-	immutableClusterFields
+	specificCassandra
+	immutableCluster
 }
 
-type specificCassandraFields struct {
+type specificCassandra struct {
 	LuceneEnabled       bool
 	PasswordAndUserAuth bool
+}
+
+type immutableCassandraDCFields struct {
+	immutableDC
+	specificCassandraDC
+}
+
+type specificCassandraDC struct {
+	racksNumber                    int32
+	continuousBackup               bool
+	privateIpBroadcastForDiscovery bool
+	clientToClusterEncryption      bool
 }
 
 func (c *Cassandra) GetJobID(jobName string) string {
@@ -136,7 +148,7 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.
 	}
 }
 
-func (cs *CassandraSpec) IsSpecEqual(instSpec *modelsv2.CassandraCluster) bool {
+func (cs *CassandraSpec) AreSpecsEqual(instSpec *modelsv2.CassandraCluster) bool {
 	if cs.Name != instSpec.Name ||
 		cs.Version != instSpec.CassandraVersion ||
 		cs.PCICompliance != instSpec.PCIComplianceMode ||
@@ -264,28 +276,79 @@ func (cs *CassandraSpec) HasRestore() bool {
 
 func (cs *CassandraSpec) newImmutableFields() *immutableCassandraFields {
 	return &immutableCassandraFields{
-		specificCassandraFields: specificCassandraFields{
+		specificCassandra: specificCassandra{
 			LuceneEnabled:       cs.LuceneEnabled,
 			PasswordAndUserAuth: cs.PasswordAndUserAuth,
 		},
-		immutableClusterFields: cs.Cluster.newImmutableFields(),
+		immutableCluster: cs.Cluster.newImmutableFields(),
 	}
 }
 
-func (cs *CassandraSpec) ValidateUpdate(oldCassandraSpec CassandraSpec) error {
+func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 	newImmutableFields := cs.newImmutableFields()
-	oldImmutableFields := oldCassandraSpec.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
 
 	if newImmutableFields != oldImmutableFields {
-		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldCassandraSpec, cs)
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, cs)
 	}
-	err := validateTwoFactorDelete(cs.TwoFactorDelete, oldCassandraSpec.TwoFactorDelete)
+
+	err := cs.validateImmutableDataCentresFieldsUpdate(oldSpec)
 	if err != nil {
 		return err
 	}
-	err = validateSpark(cs.Spark, oldCassandraSpec.Spark)
+	err = validateTwoFactorDelete(cs.TwoFactorDelete, oldSpec.TwoFactorDelete)
 	if err != nil {
 		return err
+	}
+	err = validateSpark(cs.Spark, oldSpec.Spark)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields {
+	return &immutableCassandraDCFields{
+		immutableDC{
+			Name:                cdc.Name,
+			Region:              cdc.Region,
+			CloudProvider:       cdc.CloudProvider,
+			ProviderAccountName: cdc.ProviderAccountName,
+			Network:             cdc.Network,
+		},
+		specificCassandraDC{
+			racksNumber:                    cdc.RacksNumber,
+			continuousBackup:               cdc.ContinuousBackup,
+			privateIpBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
+			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
+		},
+	}
+}
+
+func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CassandraSpec) error {
+	if len(cs.DataCentres) != len(oldSpec.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for i, newDC := range cs.DataCentres {
+		oldDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+
+		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

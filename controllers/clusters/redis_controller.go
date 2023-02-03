@@ -421,7 +421,7 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 		}
 
 		patch := cluster.NewPatch()
-		if !isStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
+		if !areStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
 			l.Info("Updating Redis cluster status",
 				"new status", instStatus,
 				"old status", cluster.Status.ClusterStatus,

@@ -36,9 +36,18 @@ func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+//+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-cassandra,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1alpha1,name=vcassandra.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-cassandra,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1alpha1,name=vcassandra.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Cassandra{}
+var _ webhook.Defaulter = &Cassandra{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (c *Cassandra) Default() {
+	for _, dataCentre := range c.Spec.DataCentres {
+		dataCentre.SetDefaultValues()
+	}
+}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (c *Cassandra) ValidateCreate() error {
@@ -89,7 +98,12 @@ func (c *Cassandra) ValidateCreate() error {
 func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 	cassandralog.Info("validate update", "name", c.Name)
 
-	err := c.Spec.ValidateUpdate(old.(*Cassandra).Spec)
+	oldCluster, ok := old.(*Cassandra)
+	if !ok {
+		return models.ErrTypeAssertion
+	}
+
+	err := c.Spec.validateUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)
 	}

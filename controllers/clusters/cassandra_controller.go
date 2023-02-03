@@ -437,7 +437,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 		}
 
 		patch := cassandraCluster.NewPatch()
-		if !isStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
+		if !areStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
 			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclusterStatus", instaclusterStatus,
 				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
@@ -458,7 +458,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 				return err
 			}
 
-			if !cassandraCluster.Spec.IsSpecEqual(instSpec) {
+			if !cassandraCluster.Spec.AreSpecsEqual(instSpec) {
 				cassandraCluster.Spec.SetSpecFromInst(instSpec)
 				err = r.Patch(context.Background(), cassandraCluster, patch)
 				if err != nil {
