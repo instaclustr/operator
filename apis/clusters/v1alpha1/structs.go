@@ -123,7 +123,7 @@ type PrivateLink struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
 
-type immutableClusterFields struct {
+type immutableCluster struct {
 	Name                  string
 	Version               string
 	PCICompliance         bool
@@ -131,7 +131,7 @@ type immutableClusterFields struct {
 	SLATier               string
 }
 
-type immutableDataCentreFields struct {
+type immutableDC struct {
 	Name                string
 	Region              string
 	CloudProvider       string
@@ -251,7 +251,7 @@ func (cps *CloudProviderSettings) GCPToInstAPI() *modelsv2.GCPSetting {
 	}
 }
 
-func (dc DataCentre) TagsToInstAPI(instDC *modelsv2.DataCentre) {
+func (dc *DataCentre) TagsToInstAPI(instDC *modelsv2.DataCentre) {
 	var tags []*modelsv2.Tag
 
 	for key, value := range dc.Tags {
@@ -420,20 +420,6 @@ func (n *Node) IsNodeEqual(instNode *modelsv2.Node) bool {
 	return true
 }
 
-func (dc *DataCentre) ValidateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
-	if len(oldSettings) != len(dc.CloudProviderSettings) {
-		return models.ErrImmutableCloudProviderSettings
-	}
-
-	for i, newProviderSettings := range dc.CloudProviderSettings {
-		if *newProviderSettings != *oldSettings[i] {
-			return models.ErrImmutableCloudProviderSettings
-		}
-	}
-
-	return nil
-}
-
 func (dc *DataCentre) SetDefaultValues() {
 	if dc.ProviderAccountName == "" {
 		dc.ProviderAccountName = models.DefaultAccountName
@@ -448,8 +434,8 @@ func (dc *DataCentre) SetDefaultValues() {
 	}
 }
 
-func (c *Cluster) newImmutableFields() immutableClusterFields {
-	return immutableClusterFields{
+func (c *Cluster) newImmutableFields() immutableCluster {
+	return immutableCluster{
 		Name:                  c.Name,
 		Version:               c.Version,
 		PCICompliance:         c.PCICompliance,

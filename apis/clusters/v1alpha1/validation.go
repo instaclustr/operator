@@ -57,6 +57,20 @@ func (dc *DataCentre) ValidateCreation() error {
 	return nil
 }
 
+func (dc *DataCentre) validateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
+	if len(oldSettings) != len(dc.CloudProviderSettings) {
+		return models.ErrImmutableCloudProviderSettings
+	}
+
+	for i, newProviderSettings := range dc.CloudProviderSettings {
+		if *newProviderSettings != *oldSettings[i] {
+			return models.ErrImmutableCloudProviderSettings
+		}
+	}
+
+	return nil
+}
+
 func (cps *CloudProviderSettings) ValidateCreation() error {
 	if (cps.ResourceGroup != "" && cps.DiskEncryptionKey != "") ||
 		(cps.ResourceGroup != "" && cps.CustomVirtualNetworkID != "") {
@@ -88,6 +102,20 @@ func validateSpark(new, old []*Spark) error {
 	if len(old) != 0 &&
 		*old[0] != *new[0] {
 		return models.ErrImmutableSpark
+	}
+
+	return nil
+}
+
+func validateTagsUpdate(new, old map[string]string) error {
+	if len(old) != len(new) {
+		return models.ErrImmutableTags
+	}
+
+	for newKey, newValue := range new {
+		if oldValue, ok := old[newKey]; !ok || newValue != oldValue {
+			return models.ErrImmutableTags
+		}
 	}
 
 	return nil

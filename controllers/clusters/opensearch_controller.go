@@ -483,7 +483,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 		}
 
 		patch := cluster.NewPatch()
-		if !isStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
+		if !areStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
 			l.Info("Updating Opensearh cluster status",
 				"new status", instStatus,
 				"old status", cluster.Status.ClusterStatus,

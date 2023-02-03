@@ -101,12 +101,12 @@ type immutableOpenSearchFields struct {
 	SLATier               string
 }
 
-type immutableOpenSearchDataCentreFields struct {
-	immutableDataCentreFields
-	specificOpenSearchDataCentreFields
+type immutableOpenSearchDCFields struct {
+	immutableDC
+	specificOpenSearchDCFields
 }
 
-type specificOpenSearchDataCentreFields struct {
+type specificOpenSearchDCFields struct {
 	DedicatedMasterNodes  bool
 	IndexManagementPlugin bool
 	AlertingPlugin        bool
@@ -326,16 +326,16 @@ func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
 	}
 }
 
-func (odc *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDataCentreFields {
-	return &immutableOpenSearchDataCentreFields{
-		immutableDataCentreFields: immutableDataCentreFields{
+func (odc *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFields {
+	return &immutableOpenSearchDCFields{
+		immutableDC: immutableDC{
 			Name:                odc.Name,
 			Region:              odc.Region,
 			CloudProvider:       odc.CloudProvider,
 			ProviderAccountName: odc.ProviderAccountName,
 			Network:             odc.Network,
 		},
-		specificOpenSearchDataCentreFields: specificOpenSearchDataCentreFields{
+		specificOpenSearchDCFields: specificOpenSearchDCFields{
 			DedicatedMasterNodes:  odc.DedicatedMasterNodes,
 			IndexManagementPlugin: odc.IndexManagementPlugin,
 			AlertingPlugin:        odc.AlertingPlugin,
