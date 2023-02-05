@@ -105,6 +105,10 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 	postgresqllog.Info("validate update", "name", r.Name)
 
 	oldCluster := old.(*PostgreSQL)
+	if oldCluster.Spec.PgRestoreFrom != nil {
+		return nil
+	}
+
 	err := r.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("immutable fields validation error: %v", err)
@@ -117,6 +121,5 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 func (r *PostgreSQL) ValidateDelete() error {
 	postgresqllog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

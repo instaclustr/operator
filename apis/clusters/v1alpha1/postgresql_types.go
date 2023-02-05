@@ -543,10 +543,9 @@ func (pg *PostgreSQL) NewUserSecret() *k8sCore.Secret {
 			APIVersion: models.K8sAPIVersionV1,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       models.DefaultUserSecretPrefix + pg.Name,
-			Namespace:  pg.Namespace,
-			Labels:     map[string]string{models.ControlledByLabel: pg.Name},
-			Finalizers: []string{models.DeletionFinalizer},
+			Name:      models.DefaultUserSecretPrefix + pg.Name,
+			Namespace: pg.Namespace,
+			Labels:    map[string]string{models.ControlledByLabel: pg.Name},
 		},
 		StringData: map[string]string{models.DefaultUserPassword: ""},
 	}

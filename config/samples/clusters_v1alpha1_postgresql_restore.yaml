@@ -6,6 +6,6 @@ metadata:
     testAnnotation: test
 spec:
   pgRestoreFrom:
-    clusterId: ef811dfc-245f-42ae-bbcd-2d4e36d03de8
+    clusterId: 855c0704-c17d-421f-977e-6be0d5f86b77
     clusterNameOverride: "pgRestoredTest"
-    pointInTime: 1671396096634
+    pointInTime: 1675501761821

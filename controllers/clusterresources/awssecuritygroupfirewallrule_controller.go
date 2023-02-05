@@ -182,6 +182,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -192,6 +193,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -203,6 +205,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 				"cluster ID", firewallRule.Spec.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
+
 			return models.ReconcileRequeue
 		}
 
@@ -220,6 +223,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"type", firewallRule.Spec.Type,
 			"status", firewallRule.Status,
 		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -229,7 +233,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 		"status", firewallRule.Status,
 	)
 
-	return reconcile.Result{}
+	return models.ReconcileResult
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule) error {

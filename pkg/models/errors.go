@@ -14,6 +14,4 @@ var (
 	ErrNotValidPassword                    = errors.New("password must include at least 3 out of 4 of the following: (Uppercase, Lowercase, Number, Special Characters)")
 	ErrImmutableDataCentresNumber          = errors.New("data centres number is immutable")
 	ErrImmutableSpark                      = errors.New("spark field is immutable")
-	ErrEmptyName                           = errors.New("name field is empty")
-	ErrEmptyVersion                        = errors.New("version field is empty")
 )

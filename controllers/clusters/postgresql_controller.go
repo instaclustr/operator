@@ -170,16 +170,6 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			}
 
 			pgCluster.Status.ID = id
-			err = r.Status().Patch(ctx, pgCluster, patch)
-			if err != nil {
-				logger.Error(err, "Cannot patch PostgreSQL cluster status",
-					"original cluster ID", pgCluster.Spec.PgRestoreFrom.ClusterID,
-					"cluster ID", id,
-				)
-
-				return models.ReconcileRequeue
-			}
-
 			pgCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		} else {
 			logger.Info(
@@ -495,7 +485,7 @@ func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 		return err
 	}
 
-	if secret.Generation == 1 {
+	if secret.Generation == 0 {
 		return nil
 	}
 
@@ -600,6 +590,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Postg
 			patch := cluster.NewPatch()
 
 			cluster.Spec.SetSpecFromInstAPI(instCluster)
+			cluster.Spec.PgRestoreFrom = nil
 			err = r.Patch(context.Background(), cluster, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch PostgreSQL cluster spec",
@@ -776,14 +767,6 @@ func (r *PostgreSQLReconciler) deleteSecret(ctx context.Context, pgCluster *clus
 	}
 
 	err = r.Client.Delete(ctx, secret)
-	if err != nil {
-		return err
-	}
-
-	secretCopy := secret.DeepCopy()
-	patch := client.MergeFrom(secretCopy)
-	controllerutil.RemoveFinalizer(secret, models.DeletionFinalizer)
-	err = r.Patch(ctx, secret, patch)
 	if err != nil {
 		return err
 	}
