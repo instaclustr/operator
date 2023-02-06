@@ -5,17 +5,8 @@ import (
 	"regexp"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
-
-func Contains(str string, s []string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
-}
 
 func (c *Cluster) ValidateCreation(availableVersions []string) error {
 	clusterNameMatched, err := regexp.Match(models.ClusterNameRegExp, []byte(c.Name))
@@ -27,11 +18,11 @@ func (c *Cluster) ValidateCreation(availableVersions []string) error {
 	if len(c.TwoFactorDelete) > 1 {
 		return fmt.Errorf("two factor delete should not have more than 1 item")
 	}
-	if !Contains(c.Version, availableVersions) {
+	if !validation.Contains(c.Version, availableVersions) {
 		return fmt.Errorf("cluster version %s is unavailable, available versions: %v",
 			c.Version, availableVersions)
 	}
-	if !Contains(c.SLATier, models.SLATiers) {
+	if !validation.Contains(c.SLATier, models.SLATiers) {
 		return fmt.Errorf("cluster SLATier %s is unavailable, available values: %v",
 			c.SLATier, models.SLATiers)
 	}
@@ -40,7 +31,7 @@ func (c *Cluster) ValidateCreation(availableVersions []string) error {
 }
 
 func (dc *DataCentre) ValidateCreation() error {
-	if !Contains(dc.CloudProvider, models.CloudProviders) {
+	if !validation.Contains(dc.CloudProvider, models.CloudProviders) {
 		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
 			dc.CloudProvider, dc.Name, models.CloudProviders)
 	}

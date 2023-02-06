@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 var cassandralog = logf.Log.WithName("cassandra-resource")
@@ -85,7 +86,7 @@ func (c *Cassandra) ValidateCreate() error {
 		return fmt.Errorf("spark should not have more than 1 item")
 	}
 	if len(c.Spec.Spark) == 1 {
-		if !Contains(c.Spec.Spark[0].Version, models.SparkVersions) {
+		if !validation.Contains(c.Spec.Spark[0].Version, models.SparkVersions) {
 			return fmt.Errorf("cluster spark version %s is unavailable, available versions: %v",
 				c.Spec.Spark[0].Version, models.SparkVersions)
 		}

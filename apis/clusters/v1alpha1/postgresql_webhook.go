@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 // log is for logging in this package.
@@ -90,7 +91,7 @@ func (pg *PostgreSQL) ValidateCreate() error {
 		if len(dc.IntraDataCentreReplication) != 1 {
 			return fmt.Errorf("intraDataCentreReplication required to have 1 item")
 		}
-		if !Contains(dc.IntraDataCentreReplication[0].ReplicationMode, models.ReplicationModes) {
+		if !validation.Contains(dc.IntraDataCentreReplication[0].ReplicationMode, models.ReplicationModes) {
 			return fmt.Errorf("replicationMode '%s' is unavailable, available values: %v",
 				dc.IntraDataCentreReplication[0].ReplicationMode,
 				models.ReplicationModes)

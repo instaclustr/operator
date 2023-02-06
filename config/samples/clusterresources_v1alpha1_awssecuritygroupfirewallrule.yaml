@@ -9,6 +9,6 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: awssecuritygroupfirewallrule-sample
 spec:
-  securityGroupId: sg-2b750b54
-  clusterId: 8421d8a3-2c3c-4a51-aa40-8a58a985c3dd
-  type: KAFKA
+  securityGroupId: sg-0c19175a3adbbae3a
+  clusterId: f33bda01-ff1c-4bb9-9e19-db449c7badf6
+  type: REDIS
