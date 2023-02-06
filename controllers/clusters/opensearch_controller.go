@@ -175,13 +175,12 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 
 		openSearch.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		openSearch.Annotations[models.DeletionConfirmed] = models.False
-		openSearch.Finalizers = append(openSearch.Finalizers, models.DeletionFinalizer)
-
-		err = r.patchClusterMetadata(ctx, openSearch, logger)
+		controllerutil.AddFinalizer(openSearch, models.DeletionFinalizer)
+		err = r.Patch(ctx, openSearch, patch)
 		if err != nil {
-			logger.Error(err, "Cannot patch OpenSearch cluster resource metadata",
-				"cluster name", openSearch.Spec.Name,
-				"cluster metadata", openSearch.ObjectMeta,
+			logger.Error(err, "Cannot patch OpenSearch cluster spec",
+				"cluster ID", openSearch.Status.ID,
+				"spec", openSearch.Spec,
 			)
 
 			return models.ReconcileRequeue
@@ -286,7 +285,18 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	patch := openSearch.NewPatch()
 	openSearch.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.Patch(ctx, openSearch, patch)
+	if err != nil {
+		logger.Error(err, "Cannot patch OpenSearch metadata",
+			"cluster name", openSearch.Spec.Name,
+			"cluster metadata", openSearch.ObjectMeta,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	openSearchInstClusterStatus, err = r.API.GetClusterStatus(openSearch.Status.ID, instaclustr.ClustersEndpointV1)
 	if err != nil {
 		logger.Error(
@@ -298,17 +308,6 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	err = r.patchClusterMetadata(ctx, openSearch, logger)
-	if err != nil {
-		logger.Error(err, "Cannot patch OpenSearch metadata",
-			"cluster name", openSearch.Spec.Name,
-			"cluster metadata", openSearch.ObjectMeta,
-		)
-
-		return models.ReconcileRequeue
-	}
-
-	patch := openSearch.NewPatch()
 	openSearch.Status.ClusterStatus = *openSearchInstClusterStatus
 	err = r.Status().Patch(ctx, openSearch, patch)
 	if err != nil {
@@ -333,9 +332,10 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	openSearch *clustersv1alpha1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
+	patch := openSearch.NewPatch()
 	if openSearch.DeletionTimestamp == nil {
 		openSearch.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err := r.patchClusterMetadata(ctx, openSearch, logger)
+		err := r.Patch(ctx, openSearch, patch)
 		if err != nil {
 			logger.Error(
 				err, "Cannot update OpenSearch resource metadata",
@@ -369,7 +369,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			)
 
 			openSearch.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-			err = r.patchClusterMetadata(ctx, openSearch, logger)
+			err = r.Patch(ctx, openSearch, patch)
 			if err != nil {
 				logger.Error(err, "Cannot patch OpenSearch cluster metadata",
 					"cluster name", openSearch.Spec.Name,
@@ -416,7 +416,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 
 	r.Scheduler.RemoveJob(openSearch.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(openSearch, models.DeletionFinalizer)
-	err = r.patchClusterMetadata(ctx, openSearch, logger)
+	err = r.Patch(ctx, openSearch, patch)
 	if err != nil {
 		logger.Error(
 			err, "Cannot update OpenSearch resource metadata after finalizer removal",
@@ -520,7 +520,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 
 			if !cluster.Spec.IsSpecEqual(instSpec) {
 				cluster.Spec.SetSpecFromInst(instSpec)
-
+				cluster.Spec.RestoreFrom = nil
 				err = r.Patch(context.TODO(), cluster, patch)
 				if err != nil {
 					l.Error(err, "Cannot patch PostgreSQL cluster spec",

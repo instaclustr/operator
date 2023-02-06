@@ -105,16 +105,16 @@ type PostgreSQLList struct {
 	Items           []PostgreSQL `json:"items"`
 }
 
-type ImmutablePostgreSQLFields struct {
-	SpecificFields specificPostgreSQLFields
-	Cluster        immutableClusterFields
+type immutablePostgreSQLFields struct {
+	specificPostgreSQLFields
+	immutableClusterFields
 }
 
 type specificPostgreSQLFields struct {
 	SynchronousModeStrict bool
 }
 
-type ImmutablePostgreSQLDataCentreFields struct {
+type immutablePostgreSQLDataCentreFields struct {
 	immutableDataCentreFields
 	specificPostgreSQLDataCentreFields
 }
@@ -593,20 +593,19 @@ func (pdc *PgDataCentre) ValidatePGBouncer() error {
 }
 
 func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
-	newImmutableFields := pgs.NewImmutableFields()
-	oldImmutableFields := oldSpec.NewImmutableFields()
+	newImmutableFields := pgs.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
 
-	if newImmutableFields.Cluster != oldImmutableFields.Cluster ||
-		newImmutableFields.SpecificFields != oldImmutableFields.SpecificFields {
+	if newImmutableFields != oldImmutableFields {
 		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v", oldSpec, pgs)
 	}
 
-	err := pgs.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	err := validateTwoFactorDelete(pgs.TwoFactorDelete, oldSpec.TwoFactorDelete)
 	if err != nil {
 		return err
 	}
 
-	err = validateTwoFactorDelete(pgs.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	err = pgs.validateImmutableDataCentresFieldsUpdate(oldSpec)
 	if err != nil {
 		return err
 	}
@@ -621,10 +620,10 @@ func (pgs *PgSpec) validateImmutableDataCentresFieldsUpdate(oldSpec PgSpec) erro
 
 	for i, newDC := range pgs.DataCentres {
 		oldDC := oldSpec.DataCentres[i]
-		newDCImmutableFields := newDC.NewImmutableFields()
-		oldDCImmutableFields := oldDC.NewImmutableFields()
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
 
-		if newDCImmutableFields != oldDCImmutableFields {
+		if *newDCImmutableFields != *oldDCImmutableFields {
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
@@ -675,23 +674,17 @@ func (pdc *PgDataCentre) validateIntraDCImmutableFields(oldIntraDC []*IntraDataC
 	return nil
 }
 
-func (pgs *PgSpec) NewImmutableFields() *ImmutablePostgreSQLFields {
-	return &ImmutablePostgreSQLFields{
-		SpecificFields: specificPostgreSQLFields{
+func (pgs *PgSpec) newImmutableFields() *immutablePostgreSQLFields {
+	return &immutablePostgreSQLFields{
+		specificPostgreSQLFields: specificPostgreSQLFields{
 			SynchronousModeStrict: pgs.SynchronousModeStrict,
 		},
-		Cluster: immutableClusterFields{
-			Name:                  pgs.Name,
-			Version:               pgs.Version,
-			PCICompliance:         pgs.PCICompliance,
-			PrivateNetworkCluster: pgs.PrivateNetworkCluster,
-			SLATier:               pgs.SLATier,
-		},
+		immutableClusterFields: pgs.Cluster.newImmutableFields(),
 	}
 }
 
-func (pdc *PgDataCentre) NewImmutableFields() *ImmutablePostgreSQLDataCentreFields {
-	return &ImmutablePostgreSQLDataCentreFields{
+func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDataCentreFields {
+	return &immutablePostgreSQLDataCentreFields{
 		immutableDataCentreFields: immutableDataCentreFields{
 			Name:                pdc.Name,
 			Region:              pdc.Region,

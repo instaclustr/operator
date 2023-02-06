@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,6 +91,29 @@ type OpenSearchList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []OpenSearch `json:"items"`
+}
+
+type immutableOpenSearchFields struct {
+	//TODO Add version validation when APIv2 lifecycle is implemented
+	Name                  string
+	PCICompliance         bool
+	PrivateNetworkCluster bool
+	SLATier               string
+}
+
+type immutableOpenSearchDataCentreFields struct {
+	immutableDataCentreFields
+	specificOpenSearchDataCentreFields
+}
+
+type specificOpenSearchDataCentreFields struct {
+	DedicatedMasterNodes  bool
+	IndexManagementPlugin bool
+	AlertingPlugin        bool
+	ICUPlugin             bool
+	KNNPlugin             bool
+	NotificationsPlugin   bool
+	ReportsPlugin         bool
 }
 
 func (os *OpenSearch) GetJobID(jobName string) string {
@@ -169,7 +193,6 @@ func (odc *OpenSearchDataCentre) AreOptionsEqual(instOptions models.BundleOption
 		(odc.MasterNodeSize != "" && odc.MasterNodeSize != instOptions.MasterNodeSize) ||
 		odc.OpenSearchDashboardsNodeSize != instOptions.OpenSearchDashboardsNodeSize {
 		return false
-
 	}
 
 	return true
@@ -271,6 +294,77 @@ func (oss *OpenSearchSpec) SetSpecFromInst(instSpec *models.ClusterSpec) bool {
 	oss.DataCentres = k8sDataCentres
 
 	return true
+}
+
+func (oss *OpenSearchSpec) ValidateImmutableFieldsUpdate(oldSpec OpenSearchSpec) error {
+	newImmutableFields := oss.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v", oldImmutableFields, newImmutableFields)
+	}
+
+	err := validateTwoFactorDelete(oss.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	err = oss.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
+	return &immutableOpenSearchFields{
+		Name:                  oss.Name,
+		PCICompliance:         oss.PCICompliance,
+		PrivateNetworkCluster: oss.PrivateNetworkCluster,
+		SLATier:               oss.SLATier,
+	}
+}
+
+func (odc *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDataCentreFields {
+	return &immutableOpenSearchDataCentreFields{
+		immutableDataCentreFields: immutableDataCentreFields{
+			Name:                odc.Name,
+			Region:              odc.Region,
+			CloudProvider:       odc.CloudProvider,
+			ProviderAccountName: odc.ProviderAccountName,
+			Network:             odc.Network,
+		},
+		specificOpenSearchDataCentreFields: specificOpenSearchDataCentreFields{
+			DedicatedMasterNodes:  odc.DedicatedMasterNodes,
+			IndexManagementPlugin: odc.IndexManagementPlugin,
+			AlertingPlugin:        odc.AlertingPlugin,
+			ICUPlugin:             odc.ICUPlugin,
+			KNNPlugin:             odc.KNNPlugin,
+			NotificationsPlugin:   odc.NotificationsPlugin,
+			ReportsPlugin:         odc.ReportsPlugin,
+		},
+	}
+}
+
+func (oss *OpenSearchSpec) validateImmutableDataCentresFieldsUpdate(oldSpec OpenSearchSpec) error {
+	if len(oss.DataCentres) != len(oldSpec.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for i, newDC := range oss.DataCentres {
+		oldDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		// TODO add CloudProviderSettings immutable fields validation when APIv2 is implemented
+	}
+
+	return nil
 }
 
 func init() {

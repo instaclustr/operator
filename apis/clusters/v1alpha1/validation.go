@@ -67,6 +67,9 @@ func (cps *CloudProviderSettings) ValidateCreation() error {
 }
 
 func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
+	if len(new) != 0 && len(old) == 0 {
+		return nil
+	}
 	if len(old) != len(new) {
 		return models.ErrImmutableTwoFactorDelete
 	}

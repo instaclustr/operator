@@ -426,7 +426,7 @@ func (dc *DataCentre) ValidateImmutableCloudProviderSettingsUpdate(oldSettings [
 	}
 
 	for i, newProviderSettings := range dc.CloudProviderSettings {
-		if newProviderSettings != oldSettings[i] {
+		if *newProviderSettings != *oldSettings[i] {
 			return models.ErrImmutableCloudProviderSettings
 		}
 	}
@@ -441,9 +441,19 @@ func (dc *DataCentre) SetDefaultValues() {
 
 	if len(dc.CloudProviderSettings) == 0 {
 		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
-			DiskEncryptionKey:      "",
-			ResourceGroup:          "",
 			CustomVirtualNetworkID: "",
+			ResourceGroup:          "",
+			DiskEncryptionKey:      "",
 		})
+	}
+}
+
+func (c *Cluster) newImmutableFields() immutableClusterFields {
+	return immutableClusterFields{
+		Name:                  c.Name,
+		Version:               c.Version,
+		PCICompliance:         c.PCICompliance,
+		PrivateNetworkCluster: c.PrivateNetworkCluster,
+		SLATier:               c.SLATier,
 	}
 }

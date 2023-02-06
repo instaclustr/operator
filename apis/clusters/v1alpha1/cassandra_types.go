@@ -97,8 +97,8 @@ type CassandraList struct {
 }
 
 type immutableCassandraFields struct {
-	SpecificFields specificCassandraFields
-	Cluster        immutableClusterFields
+	specificCassandraFields
+	immutableClusterFields
 }
 
 type specificCassandraFields struct {
@@ -262,28 +262,21 @@ func (cs *CassandraSpec) HasRestore() bool {
 	return false
 }
 
-func (cs *CassandraSpec) NewImmutableFieldsToValidate() *immutableCassandraFields {
+func (cs *CassandraSpec) newImmutableFields() *immutableCassandraFields {
 	return &immutableCassandraFields{
-		specificCassandraFields{
+		specificCassandraFields: specificCassandraFields{
 			LuceneEnabled:       cs.LuceneEnabled,
 			PasswordAndUserAuth: cs.PasswordAndUserAuth,
 		},
-		immutableClusterFields{
-			Name:                  cs.Name,
-			Version:               cs.Version,
-			PCICompliance:         cs.PCICompliance,
-			PrivateNetworkCluster: cs.PrivateNetworkCluster,
-			SLATier:               cs.SLATier,
-		},
+		immutableClusterFields: cs.Cluster.newImmutableFields(),
 	}
 }
 
 func (cs *CassandraSpec) ValidateUpdate(oldCassandraSpec CassandraSpec) error {
-	newImmutableFields := cs.NewImmutableFieldsToValidate()
-	oldImmutableFields := oldCassandraSpec.NewImmutableFieldsToValidate()
+	newImmutableFields := cs.newImmutableFields()
+	oldImmutableFields := oldCassandraSpec.newImmutableFields()
 
-	if newImmutableFields.Cluster != oldImmutableFields.Cluster ||
-		newImmutableFields.SpecificFields != oldImmutableFields.SpecificFields {
+	if newImmutableFields != oldImmutableFields {
 		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldCassandraSpec, cs)
 	}
 	err := validateTwoFactorDelete(cs.TwoFactorDelete, oldCassandraSpec.TwoFactorDelete)

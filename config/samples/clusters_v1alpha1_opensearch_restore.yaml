@@ -12,6 +12,6 @@ metadata:
     test.annotation/first: testAnnotation
 spec:
   restoreFrom:
-    clusterId: "7704ec02-d69f-43ad-87ab-f3f67d50da3f"
-    pointInTime: 1673533403075
+    clusterId: "8c20c38d-c557-4664-af53-549ce0e3914f"
+    pointInTime: 1675684224808
     clusterNameOverride: "opensearchRESTORED"
