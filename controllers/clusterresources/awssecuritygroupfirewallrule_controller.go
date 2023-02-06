@@ -208,8 +208,6 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 
 			return models.ReconcileRequeue
 		}
-
-		return models.ReconcileRequeue
 	}
 
 	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))

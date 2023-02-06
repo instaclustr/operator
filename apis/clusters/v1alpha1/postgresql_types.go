@@ -32,6 +32,7 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 type PgDataCentre struct {
@@ -575,13 +576,13 @@ func (pdc *PgDataCentre) ValidatePGBouncer() error {
 			return fmt.Errorf("poolMode field is filled. Fill PGBouncerVersion field to enable PGBouncer")
 		}
 	} else {
-		if !Contains(pdc.PGBouncerVersion, models.PGBouncerVersions) {
+		if !validation.Contains(pdc.PGBouncerVersion, models.PGBouncerVersions) {
 			return fmt.Errorf("pgBouncerVersion '%s' is unavailable, available versions: %v",
 				pdc.PGBouncerVersion,
 				models.PGBouncerVersions)
 		}
 		if pdc.PoolMode != "" &&
-			!Contains(pdc.PoolMode, models.PoolModes) {
+			!validation.Contains(pdc.PoolMode, models.PoolModes) {
 			return fmt.Errorf("poolMode '%s' is unavailable, available poolModes: %v",
 				pdc.PoolMode,
 				models.PoolModes)

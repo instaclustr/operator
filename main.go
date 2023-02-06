@@ -302,6 +302,10 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "AWSSecurityGroupFirewallRule")
+		os.Exit(1)
+	}
 	if err = (&clustersv1alpha1.OpenSearch{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "OpenSearch")
 		os.Exit(1)
