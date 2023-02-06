@@ -36,8 +36,6 @@ func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-postgresql,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=postgresqls,verbs=create;update,versions=v1alpha1,name=mpostgresql.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-postgresql,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=postgresqls,verbs=create;update,versions=v1alpha1,name=vpostgresql.kb.io,admissionReviewVersions=v1
@@ -70,7 +68,7 @@ func (pg *PostgreSQL) ValidateCreate() error {
 	}
 
 	if len(pg.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
+		return models.ErrZeroDataCentres
 	}
 
 	for _, dc := range pg.Spec.DataCentres {

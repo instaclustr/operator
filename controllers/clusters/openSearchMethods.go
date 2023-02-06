@@ -1,67 +1,12 @@
 package clusters
 
 import (
-	"context"
-	"encoding/json"
-
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
-
-func (r *OpenSearchReconciler) patchClusterMetadata(
-	ctx context.Context,
-	openSearchCluster *clustersv1alpha1.OpenSearch,
-	logger logr.Logger,
-) error {
-	patchRequest := []*clustersv1alpha1.PatchRequest{}
-
-	annotationsPayload, err := json.Marshal(openSearchCluster.Annotations)
-	if err != nil {
-		return err
-	}
-
-	annotationsPatch := &clustersv1alpha1.PatchRequest{
-		Operation: models.ReplaceOperation,
-		Path:      models.AnnotationsPath,
-		Value:     json.RawMessage(annotationsPayload),
-	}
-	patchRequest = append(patchRequest, annotationsPatch)
-
-	finalizersPayload, err := json.Marshal(openSearchCluster.Finalizers)
-	if err != nil {
-		return err
-	}
-
-	finzlizersPatch := &clustersv1alpha1.PatchRequest{
-		Operation: models.ReplaceOperation,
-		Path:      models.FinalizersPath,
-		Value:     json.RawMessage(finalizersPayload),
-	}
-	patchRequest = append(patchRequest, finzlizersPatch)
-
-	patchPayload, err := json.Marshal(patchRequest)
-	if err != nil {
-		return err
-	}
-
-	err = r.Patch(ctx, openSearchCluster, client.RawPatch(types.JSONPatchType, patchPayload))
-	if err != nil {
-		return err
-	}
-
-	logger.Info("OpenSearch cluster patched",
-		"Cluster name", openSearchCluster.Spec.Name,
-		"Finalizers", openSearchCluster.Finalizers,
-		"Annotations", openSearchCluster.Annotations,
-	)
-	return nil
-}
 
 func (r *OpenSearchReconciler) reconcileDataCentresNodeSize(
 	openSearchInstClusterStatus *clustersv1alpha1.ClusterStatus,
