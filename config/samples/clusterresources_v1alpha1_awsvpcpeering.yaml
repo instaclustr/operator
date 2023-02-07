@@ -12,6 +12,7 @@ spec:
   peerAwsAccountId: "152668027680"
   peerSubnets:
     - "172.31.0.0/16"
+    - "192.168.0.0/16"
   peerVpcId: "vpc-87241ae1"
   peerRegion: "US_EAST_1"
-  cdcId: "7aad4615-785f-40ee-acae-cae4f75dbcc2"
+  cdcId: "b8c01eca-a01e-4469-8d2b-705192b35eef"

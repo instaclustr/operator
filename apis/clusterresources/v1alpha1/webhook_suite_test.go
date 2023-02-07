@@ -99,6 +99,9 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&AWSVPCPeering{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	err = (&AWSSecurityGroupFirewallRule{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
