@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrZeroDataCentres                       = errors.New("cluster spec doesn't have data centres")
+	ErrMultipleDataCentres                   = errors.New("cluster spec cannot have more than one data centre")
 	ErrEmptyAdvancedVisibility               = errors.New("advanced visibility fields are empty")
 	ErrNetworkOverlaps                       = errors.New("cluster network overlaps")
 	ErrImmutableTwoFactorDelete              = errors.New("twoFactorDelete field is immutable")
@@ -14,6 +15,12 @@ var (
 	ErrImmutableDataCentresNumber            = errors.New("data centres number is immutable")
 	ErrImmutableSpark                        = errors.New("spark field is immutable")
 	ErrImmutableAWSSecurityGroupFirewallRule = errors.New("awsSecurityGroupFirewallRule is immutable")
-	ErrImmutableTags                       = errors.New("tags field is immutable")
-	ErrTypeAssertion                       = errors.New("unable to assert type")
+	ErrImmutableTags                         = errors.New("tags field is immutable")
+	ErrTypeAssertion                         = errors.New("unable to assert type")
+	ErrImmutableSchemaRegistry               = errors.New("schema registry is immutable")
+	ErrImmutableRestProxy                    = errors.New("rest proxy is immutable")
+	ErrImmutableKarapaceSchemaRegistry       = errors.New("karapace schema registry is immutable")
+	ErrImmutableKarapaceRestProxy            = errors.New("karapace rest proxy is immutable")
+	ErrImmutableZookeeperNodeNumber          = errors.New("zookeeper node number is immutable")
+	ErrImmutableDedicatedZookeeper           = errors.New("additional dedicated nodes cannot be added")
 )

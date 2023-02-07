@@ -31,6 +31,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-clusters-instaclustr-com-v1alpha1-kafka
+  failurePolicy: Fail
+  name: mkafka.kb.io
+  rules:
+  - apiGroups:
+    - clusters.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkas
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-clusters-instaclustr-com-v1alpha1-opensearch
   failurePolicy: Fail
   name: mopensearch.kb.io
@@ -111,6 +131,26 @@ webhooks:
     - UPDATE
     resources:
     - cassandras
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-clusters-instaclustr-com-v1alpha1-kafka
+  failurePolicy: Fail
+  name: vkafka.kb.io
+  rules:
+  - apiGroups:
+    - clusters.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkas
   sideEffects: None
 - admissionReviewVersions:
   - v1

@@ -6,6 +6,7 @@ var (
 	SparkVersions      = []string{"2.3.2", "3.0.1"}
 	PostgreSQLVersions = []string{"15.1.0", "14.6.0", "14.5.0", "13.9.0", "13.8.0"}
 	PGBouncerVersions  = []string{"1.17.0"}
+	KafkaVersions      = []string{"3.0.2", "3.1.2", "2.8.2"}
 	OpenSearchVersions = []string{"opensearch:1.3.7", "opensearch:2.2.1", "opensearch:1.3.7.ic1", "opensearch:2.2.1.ic1"}
 	PoolModes          = []string{"TRANSACTION", "SESSION", "STATEMENT"}
 	ReplicationModes   = []string{"ASYNCHRONOUS", "SYNCHRONOUS"}
