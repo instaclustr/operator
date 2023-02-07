@@ -23,11 +23,10 @@ jobs:
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
           golangci-lint run --timeout 5m --skip-dirs=pkg/instaclustr/mock
 
-      - name: Make goimports
-        run: |
-          go install golang.org/x/tools/cmd/goimports@v0.5.0
-          files_to_be_goimported=$(find . -type f -name '*.go' -not -path "./vendor/*")
-          goimports -v -w -local ./ -l $files_to_be_goimported
+      - name: Check goimports
+        uses: Jerome1337/goimports-action@v1.0.3
+        with:
+          goimports-path: './'
 
       - name: Test Go code
         run: |
