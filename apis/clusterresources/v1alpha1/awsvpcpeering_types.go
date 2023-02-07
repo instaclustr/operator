@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -69,4 +71,43 @@ func (aws *AWSVPCPeering) NewPatch() client.Patch {
 
 func init() {
 	SchemeBuilder.Register(&AWSVPCPeering{}, &AWSVPCPeeringList{})
+}
+
+type immutableAWSVPCPeeringFields struct {
+	specificFields specificAWSVPCPeeringFields
+	peering        immutablePeeringFields
+}
+
+type specificAWSVPCPeeringFields struct {
+	peerAWSAccountID string
+	peerRegion       string
+}
+
+func (aws *AWSVPCPeeringSpec) newImmutableFields() *immutableAWSVPCPeeringFields {
+	return &immutableAWSVPCPeeringFields{
+		specificAWSVPCPeeringFields{
+			peerAWSAccountID: aws.PeerAWSAccountID,
+			peerRegion:       aws.PeerRegion,
+		},
+		immutablePeeringFields{
+			DataCentreID: aws.DataCentreID,
+		},
+	}
+}
+
+func (aws *AWSVPCPeeringSpec) ValidateUpdate(oldSpec AWSVPCPeeringSpec) error {
+	newImmutableFields := aws.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	err := aws.Validate(models.AWSRegions)
+	if err != nil {
+		return err
+	}
+
+	if newImmutableFields.peering != oldImmutableFields.peering ||
+		newImmutableFields.specificFields != oldImmutableFields.specificFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, aws)
+	}
+
+	return nil
 }

@@ -78,10 +78,10 @@ func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return r.handleCreateCluster(ctx, &aws, l), nil
 
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &aws, &l), nil
+		return r.handleUpdateCluster(ctx, &aws, l), nil
 
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, &aws, &l), nil
+		return r.handleDeleteCluster(ctx, &aws, l), nil
 	default:
 		l.Info("event isn't handled",
 			"AWS Account ID", aws.Spec.PeerAWSAccountID,
@@ -165,7 +165,7 @@ func (r *AWSVPCPeeringReconciler) handleCreateCluster(
 func (r *AWSVPCPeeringReconciler) handleUpdateCluster(
 	ctx context.Context,
 	aws *clusterresourcesv1alpha1.AWSVPCPeering,
-	l *logr.Logger,
+	l logr.Logger,
 ) reconcile.Result {
 	err := r.API.UpdatePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
 	if err != nil {
@@ -206,7 +206,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdateCluster(
 func (r *AWSVPCPeeringReconciler) handleDeleteCluster(
 	ctx context.Context,
 	aws *clusterresourcesv1alpha1.AWSVPCPeering,
-	l *logr.Logger,
+	l logr.Logger,
 ) reconcile.Result {
 
 	patch := aws.NewPatch()
@@ -328,6 +328,7 @@ func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
+
 				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
 					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})

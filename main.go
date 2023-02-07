@@ -302,6 +302,10 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcesv1alpha1.AWSVPCPeering{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "AWSVPCPeering")
+		os.Exit(1)
+	}
 	if err = (&clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "AWSSecurityGroupFirewallRule")
 		os.Exit(1)
