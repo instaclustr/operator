@@ -277,6 +277,7 @@ func main() {
 	if err = (&kafkamanagementcontrollers.KafkaACLReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		API:    instaClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KafkaACL")
 		os.Exit(1)
@@ -312,6 +313,10 @@ func main() {
 	}
 	if err = (&clustersv1alpha1.OpenSearch{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "OpenSearch")
+		os.Exit(1)
+	}
+	if err = (&kafkamanagementv1alpha1.KafkaACL{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "KafkaACL")
 		os.Exit(1)
 	}
 	if err = (&clustersv1alpha1.Kafka{}).SetupWebhookWithManager(mgr); err != nil {
