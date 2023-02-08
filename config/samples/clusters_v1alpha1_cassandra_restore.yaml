@@ -4,7 +4,7 @@ metadata:
   name: cassandra-cluster-restored
 spec:
   restoreFrom:
-    clusterID: 16c07808-2a1f-4e42-83ae-1bd374f584eb
-    pointInTime: 1672703152784
+    clusterID: ffa580d8-f4c0-4267-b7f1-1d69b6d9cd89
+    pointInTime: 1675861798798
     clusterNameOverride: "restoredCASSANDRA"
 

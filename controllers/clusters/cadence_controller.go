@@ -566,9 +566,9 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 				ProviderAccountName: providerAccountName,
 				NodeSize:            cassNodeSize,
 				NodesNumber:         int32(cassNodesNumber),
-				RacksNumber:         int32(cassReplicationFactor),
 				Network:             network,
 			},
+			ReplicationFactor:              cassReplicationFactor,
 			PrivateIPBroadcastForDiscovery: cassPrivateIPBroadcastForDiscovery,
 		},
 	}
@@ -798,10 +798,10 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 				CloudProvider:       cloudProvider,
 				ProviderAccountName: providerAccountName,
 				NodeSize:            osNodeSize,
-				RacksNumber:         int32(osReplicationFactor),
 				NodesNumber:         int32(osNodesNumber),
 				Network:             osNetwork,
 			},
+			RacksNumber: int32(osReplicationFactor),
 		},
 	}
 	spec := clustersv1alpha1.OpenSearchSpec{

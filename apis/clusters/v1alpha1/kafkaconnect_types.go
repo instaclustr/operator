@@ -95,14 +95,19 @@ type GCPConnectorSettings struct {
 	PrivateKeyID      string `json:"privateKeyId"`
 }
 
+type KafkaConnectDataCentre struct {
+	DataCentre        `json:",inline"`
+	ReplicationFactor int32 `json:"replicationFactor"`
+}
+
 // KafkaConnectSpec defines the desired state of KafkaConnect
 type KafkaConnectSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	Cluster       `json:",inline"`
-	DataCentres   []*DataCentre    `json:"dataCentres"`
-	TargetCluster []*TargetCluster `json:"targetCluster"`
+	DataCentres   []*KafkaConnectDataCentre `json:"dataCentres"`
+	TargetCluster []*TargetCluster          `json:"targetCluster"`
 
 	// CustomConnectors defines the location for custom connector storage and access info.
 	CustomConnectors []*CustomConnectors `json:"customConnectors,omitempty"`

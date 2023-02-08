@@ -85,9 +85,9 @@ func nodesFromInstAPI(instaNodes []*modelsv2.Node) []*v1alpha1.Node {
 	return nodes
 }
 
-func allocateProviderSettingsToInstAPI(crdDC *v1alpha1.DataCentre, instaDC *modelsv2.DataCentre) {
-	for _, crdSetting := range crdDC.CloudProviderSettings {
-		switch crdDC.CloudProvider {
+func allocateProviderSettingsToInstAPI(cloudProvider string, crdSettings []*v1alpha1.CloudProviderSettings, instaDC *modelsv2.DataCentre) {
+	for _, crdSetting := range crdSettings {
+		switch cloudProvider {
 		case modelsv2.AWSVPC:
 			instaDC.AWSSettings = append(instaDC.AWSSettings, &modelsv2.AWSSetting{
 				EBSEncryptionKey:       crdSetting.DiskEncryptionKey,

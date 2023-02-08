@@ -98,10 +98,6 @@ spec:
                     postgresqlNodeCount:
                       format: int32
                       type: integer
-                    racksNumber:
-                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
-                      format: int32
-                      type: integer
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
@@ -117,7 +113,6 @@ spec:
                   - nodeSize
                   - nodesNumber
                   - postgresqlNodeCount
-                  - racksNumber
                   - region
                   type: object
                 type: array

@@ -104,6 +104,10 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 		return models.ErrTypeAssertion
 	}
 
+	if oldCluster.Spec.RestoreFrom != nil {
+		return nil
+	}
+
 	err := c.Spec.validateUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)

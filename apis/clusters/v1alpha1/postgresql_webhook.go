@@ -105,7 +105,11 @@ func (pg *PostgreSQL) ValidateCreate() error {
 func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 	postgresqllog.Info("validate update", "name", r.Name)
 
-	oldCluster := old.(*PostgreSQL)
+	oldCluster, ok := old.(*PostgreSQL)
+	if !ok {
+		return models.ErrTypeAssertion
+	}
+
 	if oldCluster.Spec.PgRestoreFrom != nil {
 		return nil
 	}
