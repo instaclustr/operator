@@ -39,6 +39,7 @@ type OpenSearchDataCentre struct {
 	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
 	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
 	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
+	RacksNumber                  int32  `json:"racksNumber"`
 }
 
 type OpenSearchRestoreFrom struct {

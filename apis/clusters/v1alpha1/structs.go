@@ -29,9 +29,6 @@ type DataCentre struct {
 	Network  string `json:"network"`
 	NodeSize string `json:"nodeSize"`
 
-	// APIv2: replicationFactor; APIv1: numberOfRacks
-	RacksNumber int32 `json:"racksNumber"`
-
 	// APIv2: numberOfNodes; APIv1: nodesPerRack.
 	NodesNumber int32 `json:"nodesNumber"`
 

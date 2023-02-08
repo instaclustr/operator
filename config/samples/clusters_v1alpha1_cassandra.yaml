@@ -11,13 +11,25 @@ spec:
       cloudProvider: "AWS_VPC"
       continuousBackup: false
       nodesNumber: 2
-      racksNumber: 2
+      replicationFactor: 2
       privateIpBroadcastForDiscovery: false
       network: "172.16.0.0/19"
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
       nodeSize: "CAS-DEV-t4g.small-30"
+#    - name: "AWS_cassandra2"
+#      region: "US_EAST_1"
+#      cloudProvider: "AWS_VPC"
+#      continuousBackup: false
+#      nodesNumber: 2
+#      replicationFactor: 2
+#      privateIpBroadcastForDiscovery: false
+#      network: "172.17.0.0/19"
+#      tags:
+#        "tag": "testTag"
+#      clientToClusterEncryption: false
+#      nodeSize: "CAS-DEV-t4g.small-30"
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: false

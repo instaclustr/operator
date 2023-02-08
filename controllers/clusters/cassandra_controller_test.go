@@ -32,7 +32,6 @@ var _ = Describe("Successful creation of a Cassandra resource", func() {
 			DataCentres: []*v1alpha1.CassandraDataCentre{{
 				DataCentre: v1alpha1.DataCentre{
 					NodesNumber:   3,
-					RacksNumber:   3,
 					Network:       "172.16.0.0/19",
 					NodeSize:      "CAS-DEV-t4g.small-30",
 					CloudProvider: "AWS_VPC",
@@ -42,6 +41,7 @@ var _ = Describe("Successful creation of a Cassandra resource", func() {
 				ContinuousBackup:               false,
 				PrivateIPBroadcastForDiscovery: false,
 				ClientToClusterEncryption:      false,
+				ReplicationFactor:              3,
 			}},
 		}
 

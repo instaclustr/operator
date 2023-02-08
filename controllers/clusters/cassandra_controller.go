@@ -459,6 +459,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 			}
 
 			if !cassandraCluster.Spec.AreSpecsEqual(instSpec) {
+				cassandraCluster.Spec.RestoreFrom = nil
 				cassandraCluster.Spec.SetSpecFromInst(instSpec)
 				err = r.Patch(context.Background(), cassandraCluster, patch)
 				if err != nil {

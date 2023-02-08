@@ -34,7 +34,7 @@ func KafkaConnectToInstAPI(crd v1alpha1.KafkaConnectSpec) CreateInstaKafkaConnec
 	}
 }
 
-func kafkaConnectDCsToInstAPI(crdDCs []*v1alpha1.DataCentre) []*KafkaConnectDataCentre {
+func kafkaConnectDCsToInstAPI(crdDCs []*v1alpha1.KafkaConnectDataCentre) []*KafkaConnectDataCentre {
 	var instaDCs []*KafkaConnectDataCentre
 
 	for _, crdDC := range crdDCs {
@@ -48,11 +48,11 @@ func kafkaConnectDCsToInstAPI(crdDCs []*v1alpha1.DataCentre) []*KafkaConnectData
 			Region:              crdDC.Region,
 			ProviderAccountName: crdDC.ProviderAccountName,
 		}
-		allocateProviderSettingsToInstAPI(crdDC, genericDC)
+		allocateProviderSettingsToInstAPI(crdDC.CloudProvider, crdDC.CloudProviderSettings, genericDC)
 
 		instaDC := &KafkaConnectDataCentre{
 			DataCentre:        *genericDC,
-			ReplicationFactor: crdDC.RacksNumber,
+			ReplicationFactor: crdDC.ReplicationFactor,
 		}
 		instaDCs = append(instaDCs, instaDC)
 	}
@@ -64,7 +64,7 @@ type updateKafkaConnectInstAPI struct {
 	DataCentre []*KafkaConnectDataCentre `json:"dataCentres"`
 }
 
-func KafkaConnectToInstAPIUpdate(k []*v1alpha1.DataCentre) *updateKafkaConnectInstAPI {
+func KafkaConnectToInstAPIUpdate(k []*v1alpha1.KafkaConnectDataCentre) *updateKafkaConnectInstAPI {
 	return &updateKafkaConnectInstAPI{
 		DataCentre: kafkaConnectDCsToInstAPI(k),
 	}

@@ -39,7 +39,7 @@ func CassandraToInstAPI(cassandraSpec *v1alpha1.CassandraSpec) *modelsv2.Cassand
 			ContinuousBackup:               dataCentre.ContinuousBackup,
 			PrivateIPBroadcastForDiscovery: dataCentre.PrivateIPBroadcastForDiscovery,
 			ClientToClusterEncryption:      dataCentre.ClientToClusterEncryption,
-			ReplicationFactor:              dataCentre.RacksNumber,
+			ReplicationFactor:              dataCentre.ReplicationFactor,
 		}
 
 		if len(dataCentre.CloudProviderSettings) > 0 {
@@ -115,7 +115,7 @@ func cassandraSpecDCsToInstaDCs(k8sDC []*v1alpha1.CassandraDataCentre) []*models
 				CloudProvider:       k8sCassandraDC.CloudProvider,
 				ProviderAccountName: k8sCassandraDC.ProviderAccountName,
 			},
-			ReplicationFactor:              k8sCassandraDC.RacksNumber,
+			ReplicationFactor:              k8sCassandraDC.ReplicationFactor,
 			ContinuousBackup:               k8sCassandraDC.ContinuousBackup,
 			PrivateIPBroadcastForDiscovery: k8sCassandraDC.PrivateIPBroadcastForDiscovery,
 			ClientToClusterEncryption:      k8sCassandraDC.ClientToClusterEncryption,

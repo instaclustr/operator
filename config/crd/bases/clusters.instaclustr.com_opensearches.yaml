@@ -84,7 +84,6 @@ spec:
                     openSearchDashboardsNodeSize:
                       type: string
                     racksNumber:
-                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
                       format: int32
                       type: integer
                     region:

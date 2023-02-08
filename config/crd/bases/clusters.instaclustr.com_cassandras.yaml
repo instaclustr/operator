@@ -71,13 +71,11 @@ spec:
                       type: integer
                     privateIpBroadcastForDiscovery:
                       type: boolean
-                    racksNumber:
-                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
-                      format: int32
-                      type: integer
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
+                    replicationFactor:
+                      type: integer
                     tags:
                       additionalProperties:
                         type: string
@@ -90,8 +88,8 @@ spec:
                   - nodeSize
                   - nodesNumber
                   - privateIpBroadcastForDiscovery
-                  - racksNumber
                   - region
+                  - replicationFactor
                   type: object
                 type: array
               luceneEnabled:

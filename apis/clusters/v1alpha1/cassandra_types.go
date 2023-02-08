@@ -73,6 +73,7 @@ type CassandraDataCentre struct {
 	ContinuousBackup               bool `json:"continuousBackup"`
 	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
 	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
+	ReplicationFactor              int  `json:"replicationFactor"`
 }
 
 //+kubebuilder:object:root=true
@@ -112,7 +113,7 @@ type immutableCassandraDCFields struct {
 }
 
 type specificCassandraDC struct {
-	racksNumber                    int32
+	replicationFactor              int
 	continuousBackup               bool
 	privateIpBroadcastForDiscovery bool
 	clientToClusterEncryption      bool
@@ -182,7 +183,7 @@ func (cs *CassandraSpec) AreDataCentresEqual(instDataCentres []*modelsv2.Cassand
 					instDC.Region != dataCentre.Region ||
 					instDC.Network != dataCentre.Network ||
 					instDC.NumberOfNodes != dataCentre.NodesNumber ||
-					instDC.ReplicationFactor != dataCentre.RacksNumber ||
+					instDC.ReplicationFactor != dataCentre.ReplicationFactor ||
 					!dataCentre.AreTagsEqual(instDC.Tags) ||
 					!dataCentre.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) {
 					return false
@@ -238,12 +239,12 @@ func (cs *CassandraSpec) SetSpecFromInst(instSpec *modelsv2.CassandraCluster) {
 				ProviderAccountName: instDC.ProviderAccountName,
 				Network:             instDC.Network,
 				NodeSize:            instDC.NodeSize,
-				RacksNumber:         instDC.ReplicationFactor,
 				NodesNumber:         instDC.NumberOfNodes,
 			},
 			ContinuousBackup:               instDC.ContinuousBackup,
 			PrivateIPBroadcastForDiscovery: instDC.PrivateIPBroadcastForDiscovery,
 			ClientToClusterEncryption:      instDC.ClientToClusterEncryption,
+			ReplicationFactor:              instDC.ReplicationFactor,
 		}
 
 		cassDC.SetCloudProviderSettingsFromInstAPI(&instDC.DataCentre)
@@ -288,8 +289,8 @@ func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 	newImmutableFields := cs.newImmutableFields()
 	oldImmutableFields := oldSpec.newImmutableFields()
 
-	if newImmutableFields != oldImmutableFields {
-		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, cs)
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldImmutableFields, newImmutableFields)
 	}
 
 	err := cs.validateImmutableDataCentresFieldsUpdate(oldSpec)
@@ -318,7 +319,7 @@ func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields
 			Network:             cdc.Network,
 		},
 		specificCassandraDC{
-			racksNumber:                    cdc.RacksNumber,
+			replicationFactor:              cdc.ReplicationFactor,
 			continuousBackup:               cdc.ContinuousBackup,
 			privateIpBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
 			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
@@ -327,27 +328,32 @@ func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields
 }
 
 func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CassandraSpec) error {
-	if len(cs.DataCentres) != len(oldSpec.DataCentres) {
-		return models.ErrImmutableDataCentresNumber
+	if len(cs.DataCentres) < len(oldSpec.DataCentres) {
+		return models.ErrDecreasedDataCentresNumber
 	}
 
-	for i, newDC := range cs.DataCentres {
-		oldDC := oldSpec.DataCentres[i]
-		newDCImmutableFields := newDC.newImmutableFields()
-		oldDCImmutableFields := oldDC.newImmutableFields()
+	for _, newDC := range cs.DataCentres {
+		for _, oldDC := range oldSpec.DataCentres {
+			if oldDC.Name == newDC.Name {
+				newDCImmutableFields := newDC.newImmutableFields()
+				oldDCImmutableFields := oldDC.newImmutableFields()
 
-		if *newDCImmutableFields != *oldDCImmutableFields {
-			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
-		}
+				if *newDCImmutableFields != *oldDCImmutableFields {
+					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
 
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
-		if err != nil {
-			return err
-		}
+				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				if err != nil {
+					return err
+				}
 
-		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
-		if err != nil {
-			return err
+				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+				if err != nil {
+					return err
+				}
+
+				break
+			}
 		}
 	}
 

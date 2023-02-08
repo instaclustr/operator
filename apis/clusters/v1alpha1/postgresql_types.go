@@ -596,7 +596,7 @@ func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
 	newImmutableFields := pgs.newImmutableFields()
 	oldImmutableFields := oldSpec.newImmutableFields()
 
-	if newImmutableFields != oldImmutableFields {
+	if *newImmutableFields != *oldImmutableFields {
 		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v", oldSpec, pgs)
 	}
 

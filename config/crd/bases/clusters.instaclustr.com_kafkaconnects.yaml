@@ -144,13 +144,12 @@ spec:
                       description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
-                    racksNumber:
-                      description: 'APIv2: replicationFactor; APIv1: numberOfRacks'
-                      format: int32
-                      type: integer
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
+                    replicationFactor:
+                      format: int32
+                      type: integer
                     tags:
                       additionalProperties:
                         type: string
@@ -160,8 +159,8 @@ spec:
                   - network
                   - nodeSize
                   - nodesNumber
-                  - racksNumber
                   - region
+                  - replicationFactor
                   type: object
                 type: array
               name:

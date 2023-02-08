@@ -33,6 +33,7 @@ type RedisDataCentre struct {
 	MasterNodes  int32 `json:"masterNodes"`
 	ReplicaNodes int32 `json:"replicaNodes"`
 	PasswordAuth bool  `json:"passwordAuth,omitempty"`
+	RacksNumber  int32 `json:"racksNumber"`
 }
 
 type RedisRestoreFrom struct {

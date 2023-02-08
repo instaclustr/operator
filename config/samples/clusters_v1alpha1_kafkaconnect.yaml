@@ -7,7 +7,7 @@ spec:
     - name: "US_EAST_1_DC_KAFKA"
       nodesNumber: 3
       cloudProvider: "AWS_VPC"
-      racksNumber: 3
+      replicationFactor: 3
       tags:
         tag: "oneTag"
         tag2: "twoTags"
@@ -20,5 +20,5 @@ spec:
   slaTier: "NON_PRODUCTION"
   targetCluster:
     - managedCluster:
-        - targetKafkaClusterId: "c6c9669d-f000-4daf-9b6f-77dd5f37c3d0"
+        - targetKafkaClusterId: "e75f371b-9041-430e-9d3a-fd45392d0d00"
           kafkaConnectVpcType: "KAFKA_VPC"
