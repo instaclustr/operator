@@ -50,6 +50,8 @@ const (
 	ClustersResizeEndpoint = "%s/provisioning/v1/%s/%s/resize"
 	APIv1RestoreEndpoint   = "%s/provisioning/v1/%s/backups/restore"
 
-	ExclusionWindowEndpoint  = "/v1/maintenance-events/exclusion-windows"
-	MaintenanceEventEndpoint = "/v1/maintenance-events/events/"
+	ExclusionWindowEndpoint        = "/v1/maintenance-events/exclusion-windows/"
+	ExclusionWindowStatusEndpoint  = "/v1/maintenance-events/exclusion-windows?clusterId="
+	MaintenanceEventEndpoint       = "/v1/maintenance-events/events/"
+	MaintenanceEventStatusEndpoint = "/v1/maintenance-events/events?clusterId="
 )

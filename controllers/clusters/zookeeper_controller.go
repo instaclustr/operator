@@ -228,7 +228,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 				"zookeeper.Status.ClusterStatus", zook.Status.ClusterStatus)
 
 			patch := zook.NewPatch()
-
+			instaclusterStatus.MaintenanceEvents = zook.Status.MaintenanceEvents
 			zook.Status.ClusterStatus = *instaclusterStatus
 			err := r.Status().Patch(context.Background(), zook, patch)
 			if err != nil {
@@ -236,6 +236,35 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 					"Cluster name", zook.Spec.Name, "Status", zook.Status.Status)
 				return err
 			}
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(zook.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Zookeeper cluster maintenance events",
+				"cluster name", zook.Spec.Name,
+				"cluster ID", zook.Status.ID,
+			)
+
+			return err
+		}
+
+		if !zook.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := zook.NewPatch()
+			zook.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), zook, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Zookeeper cluster maintenance events",
+					"cluster name", zook.Spec.Name,
+					"cluster ID", zook.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Zookeeper cluster maintenance events were updated",
+				"cluster ID", zook.Status.ID,
+				"events", zook.Status.MaintenanceEvents,
+			)
 		}
 
 		return nil

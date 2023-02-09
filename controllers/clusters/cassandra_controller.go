@@ -436,17 +436,47 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 			return err
 		}
 
-		patch := cassandraCluster.NewPatch()
 		if !areStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
 			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclusterStatus", instaclusterStatus,
 				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
 
+			patch := cassandraCluster.NewPatch()
+			instaclusterStatus.MaintenanceEvents = cassandraCluster.Status.ClusterStatus.MaintenanceEvents
 			cassandraCluster.Status.ClusterStatus = *instaclusterStatus
-			err := r.Status().Patch(context.Background(), cassandraCluster, patch)
+			err = r.Status().Patch(context.Background(), cassandraCluster, patch)
 			if err != nil {
 				return err
 			}
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(cassandraCluster.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Cassandra cluster maintenance events",
+				"cluster name", cassandraCluster.Spec.Name,
+				"cluster ID", cassandraCluster.Status.ID,
+			)
+
+			return err
+		}
+
+		if !cassandraCluster.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cassandraCluster.NewPatch()
+			cassandraCluster.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cassandraCluster, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Cassandra cluster maintenance events",
+					"cluster name", cassandraCluster.Spec.Name,
+					"cluster ID", cassandraCluster.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Cassandra cluster maintenance events were updated",
+				"cluster ID", cassandraCluster.Status.ID,
+				"events", cassandraCluster.Status.MaintenanceEvents,
+			)
 		}
 
 		if instaclusterStatus.CurrentClusterOperationStatus == models.NoOperation {
@@ -459,6 +489,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 			}
 
 			if !cassandraCluster.Spec.AreSpecsEqual(instSpec) {
+				patch := cassandraCluster.NewPatch()
 				cassandraCluster.Spec.RestoreFrom = nil
 				cassandraCluster.Spec.SetSpecFromInst(instSpec)
 				err = r.Patch(context.Background(), cassandraCluster, patch)

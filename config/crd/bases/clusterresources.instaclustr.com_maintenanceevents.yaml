@@ -36,54 +36,78 @@ spec:
             description: MaintenanceEventsSpec defines the desired state of MaintenanceEvents
             properties:
               clusterId:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file'
                 type: string
-              dayOfWeek:
-                type: string
-              durationInHours:
-                format: int32
-                type: integer
-              eventId:
-                type: string
-              scheduledStartTime:
-                type: string
-              startHour:
-                format: int32
-                type: integer
-            required:
-            - clusterId
-            - dayOfWeek
-            - durationInHours
-            - startHour
-            type: object
-          status:
-            description: MaintenanceEventsStatus defines the observed state of MaintenanceEvents
-            properties:
-              id:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
-                type: string
-              maintenanceEvents:
+              exclusionWindows:
                 items:
                   properties:
-                    actualStartTime:
+                    dayOfWeek:
                       type: string
-                    clusterId:
-                      type: string
-                    description:
-                      type: string
-                    expectedServiceDisruption:
-                      type: boolean
-                    id:
-                      type: string
-                    scheduledEndTime:
+                    durationInHours:
+                      format: int32
+                      type: integer
+                    startHour:
+                      format: int32
+                      type: integer
+                  required:
+                  - dayOfWeek
+                  - durationInHours
+                  - startHour
+                  type: object
+                type: array
+              maintenanceEventsReschedule:
+                items:
+                  properties:
+                    scheduleId:
                       type: string
                     scheduledStartTime:
                       type: string
                   required:
-                  - expectedServiceDisruption
+                  - scheduleId
+                  - scheduledStartTime
+                  type: object
+                type: array
+            required:
+            - clusterId
+            type: object
+          status:
+            description: MaintenanceEventsStatus defines the observed state of MaintenanceEvents
+            properties:
+              eventsStatuses:
+                items:
+                  properties:
+                    description:
+                      type: string
+                    id:
+                      type: string
+                    isFinalized:
+                      type: boolean
+                    scheduledEndTime:
+                      type: string
+                    scheduledStartTime:
+                      type: string
+                    scheduledStartTimeMax:
+                      type: string
+                    scheduledStartTimeMin:
+                      type: string
+                  type: object
+                type: array
+              exclusionWindowsStatuses:
+                items:
+                  properties:
+                    dayOfWeek:
+                      type: string
+                    durationInHours:
+                      format: int32
+                      type: integer
+                    id:
+                      type: string
+                    startHour:
+                      format: int32
+                      type: integer
+                  required:
+                  - dayOfWeek
+                  - durationInHours
+                  - startHour
                   type: object
                 type: array
             type: object

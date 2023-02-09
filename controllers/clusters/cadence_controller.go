@@ -653,6 +653,35 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 			}
 		}
 
+		maintEvents, err := r.API.GetMaintenanceEvents(cadence.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Cadence cluster maintenance events",
+				"cluster name", cadence.Spec.Name,
+				"cluster ID", cadence.Status.ID,
+			)
+
+			return err
+		}
+
+		if !cadence.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cadence.NewPatch()
+			cadence.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cadence, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Cadence cluster maintenance events",
+					"cluster name", cadence.Spec.Name,
+					"cluster ID", cadence.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Cadence cluster maintenance events were updated",
+				"cluster ID", cadence.Status.ID,
+				"events", cadence.Status.MaintenanceEvents,
+			)
+		}
+
 		return nil
 	}
 }

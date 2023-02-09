@@ -231,12 +231,12 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 		}
 
 		if !areStatusesEqual(instaclusterStatus, &kc.Status.ClusterStatus) {
-			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
+			l.Info("Kafka Connect status of k8s is different from Instaclustr. Reconcile statuses..",
 				"instaclustrStatus", instaclusterStatus,
 				"kc.Status.ClusterStatus", kc.Status.ClusterStatus)
 
 			patch := kc.NewPatch()
-
+			instaclusterStatus.MaintenanceEvents = kc.Status.MaintenanceEvents
 			kc.Status.ClusterStatus = *instaclusterStatus
 			err := r.Status().Patch(context.Background(), kc, patch)
 			if err != nil {
@@ -244,6 +244,35 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 					"Cluster name", kc.Spec.Name, "Status", kc.Status.Status)
 				return err
 			}
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(kc.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Kafka Connect cluster maintenance events",
+				"cluster name", kc.Spec.Name,
+				"cluster ID", kc.Status.ID,
+			)
+
+			return err
+		}
+
+		if !kc.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := kc.NewPatch()
+			kc.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), kc, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Kafka Connect cluster maintenance events",
+					"cluster name", kc.Spec.Name,
+					"cluster ID", kc.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Kafka Connect cluster maintenance events were updated",
+				"cluster ID", kc.Status.ID,
+				"events", kc.Status.MaintenanceEvents,
+			)
 		}
 
 		return nil

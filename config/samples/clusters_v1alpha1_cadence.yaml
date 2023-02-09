@@ -25,12 +25,12 @@ spec:
   concurrentResizes: 1
   notifySupportContacts: false
   targetCassandraVpcType: "TARGET_VPC"
-  targetCassandraCdcId: "90de0285-b383-423e-b414-51e028ad2842"
+  targetCassandraCdcId: "4d83d76d-fc41-4507-abd4-734ae2768b47"
 #  twoFactorDelete:
 #  - email: "rostyslp@netapp.com"
   dataCentres:
   - region: "US_EAST_1"
-    network: "10.3.0.0/16"
+    network: "172.20.0.0/19"
     cloudProvider: "AWS_VPC"
 #    nodeSize: "CAD-SI-DEV-t3.small-5"
     name: "testdc"

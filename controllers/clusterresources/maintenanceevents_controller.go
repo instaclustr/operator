@@ -18,11 +18,10 @@ package clusterresources
 
 import (
 	"context"
-	"errors"
 
-	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -62,215 +60,101 @@ type MaintenanceEventsReconciler struct {
 func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var me clusterresourcesv1alpha1.MaintenanceEvents
-	err := r.Client.Get(ctx, req.NamespacedName, &me)
+	me := &clusterresourcesv1alpha1.MaintenanceEvents{}
+	err := r.Client.Get(ctx, req.NamespacedName, me)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Maintenance Event resource is not found", "request", req)
+			l.Info("Maintenance Event resource is not found",
+				"request", req,
+			)
+
 			return models.ReconcileResult, nil
 		}
-		l.Error(err, "unable to fetch Maintenance Event", "request", req)
+
+		l.Error(err, "Cannot get Maintenance Event resource",
+			"request", req,
+		)
+
+		return models.ReconcileRequeue, nil
+	}
+
+	patch := me.NewPatch()
+	if me.DeletionTimestamp != nil {
+		err = r.deleteExclusionWindows(me)
+		if err != nil {
+			l.Error(err, "Cannot delete Exclusion Windows",
+				"resource", me,
+			)
+
+			return models.ReconcileRequeue, nil
+		}
+
+		r.Scheduler.RemoveJob(me.GetJobID(scheduler.StatusChecker))
+		controllerutil.RemoveFinalizer(me, models.DeletionFinalizer)
+		err = r.Patch(ctx, me, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch Maintenance Event resource",
+				"resource", me,
+			)
+
+			return models.ReconcileRequeue, nil
+		}
+
 		return models.ReconcileResult, nil
 	}
 
-	switch me.Annotations[models.ResourceStateAnnotation] {
-	case models.CreatingEvent:
-		return r.handleCreateMaintenanceEvent(ctx, &me, l), nil
-
-	case models.UpdatingEvent:
-		return r.handleUpdateMaintenanceEvent(ctx, &me, l), nil
-
-	case models.DeletingEvent:
-		return r.handleDeleteMaintenanceEvent(ctx, &me, l), nil
-	default:
-		l.Info("Event isn't handled",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
-			"request", req,
-			"event", me.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
-	}
-}
-
-func (r *MaintenanceEventsReconciler) handleCreateMaintenanceEvent(
-	ctx context.Context,
-	me *clusterresourcesv1alpha1.MaintenanceEvents,
-	l logr.Logger,
-) reconcile.Result {
-
-	if me.Status.ID == "" {
-		l.Info(
-			"Creating Exclusion Window",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
-		)
-
-		meStatus, err := r.API.CreateExclusionWindow(instaclustr.ExclusionWindowEndpoint, &me.Spec)
-		if err != nil {
-			l.Error(
-				err, "Cannot create Exclusion Window",
-				"exclusion window resource spec", me.Spec,
-			)
-			return models.ReconcileRequeue
-		}
-
-		patch := me.NewPatch()
-		me.Status = *meStatus
-		err = r.Status().Patch(ctx, me, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Exclusion Window status",
-				"cluster ID", me.Spec.ClusterID,
-				"day of week", me.Spec.DayOfWeek,
-				"start hour", me.Spec.StartHour,
-				"duration in hours", me.Spec.DurationInHours,
-				"maintenance Event metadata", me.ObjectMeta,
-			)
-			return models.ReconcileRequeue
-		}
-
-		controllerutil.AddFinalizer(me, models.DeletionFinalizer)
-		me.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		err = r.Patch(ctx, me, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Exclusion Window resource metadata",
-				"cluster ID", me.Spec.ClusterID,
-				"day of week", me.Spec.DayOfWeek,
-				"start hour", me.Spec.StartHour,
-				"duration in hours", me.Spec.DurationInHours,
-				"maintenance Event metadata", me.ObjectMeta,
-			)
-			return models.ReconcileRequeue
-		}
-
-		l.Info(
-			"Exclusion Window was created",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
-		)
-	}
-	err := r.startMaintenanceEventStatusJob(me)
+	err = r.reconcileMaintenanceEventsReschedules(me)
 	if err != nil {
-		l.Error(err, "Cannot start Maintenance Event checker status job",
-			"exclusion window ID", me.Status.ID)
-		return models.ReconcileRequeue
-	}
-
-	return reconcile.Result{}
-}
-
-func (r *MaintenanceEventsReconciler) handleUpdateMaintenanceEvent(
-	ctx context.Context,
-	me *clusterresourcesv1alpha1.MaintenanceEvents,
-	l logr.Logger,
-) reconcile.Result {
-	err := r.API.UpdateMaintenanceEvent(&me.Spec, instaclustr.MaintenanceEventEndpoint)
-	if err != nil {
-		l.Error(err, "Cannot update Maintenance Event",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
+		l.Error(err, "Cannot reconcile Maintenance Events Reschedules",
+			"spec", me.Spec,
 		)
-		return models.ReconcileRequeue
+
+		return models.ReconcileRequeue, nil
 	}
 
-	patch := me.NewPatch()
-	me.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.reconcileExclusionWindows(me)
+	if err != nil {
+		l.Error(err, "Cannot reconcile Exclusion Windows",
+			"spec", me.Spec,
+		)
+
+		return models.ReconcileRequeue, nil
+	}
+
+	err = r.Status().Patch(ctx, me, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch Maintenance Event status",
+			"status", me.Status,
+		)
+
+		return models.ReconcileRequeue, nil
+	}
+
+	controllerutil.AddFinalizer(me, models.DeletionFinalizer)
 	err = r.Patch(ctx, me, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Maintenance Event resource metadata",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
-			"maintenance Event metadata", me.ObjectMeta,
+		l.Error(err, "Cannot patch Maintenance Event status",
+			"status", me.Status,
 		)
-		return models.ReconcileRequeue
+
+		return models.ReconcileRequeue, nil
 	}
 
-	l.Info("Maintenance Event resource has been updated",
-		"cluster ID", me.Spec.ClusterID,
-		"day of week", me.Spec.DayOfWeek,
-		"start hour", me.Spec.StartHour,
-		"duration in hours", me.Spec.DurationInHours,
+	err = r.startMaintenanceEventStatusJob(me)
+	if err != nil {
+		l.Error(err, "Cannot start Maintenance Event status job",
+			"spec", me.Spec,
+		)
+
+		return models.ReconcileRequeue, nil
+	}
+
+	l.Info("Maintenance Event resource was reconciled",
+		"spec", me.Spec,
+		"status", me.Status,
 	)
 
-	return reconcile.Result{}
-}
-
-func (r *MaintenanceEventsReconciler) handleDeleteMaintenanceEvent(
-	ctx context.Context,
-	me *clusterresourcesv1alpha1.MaintenanceEvents,
-	l logr.Logger,
-) reconcile.Result {
-	patch := me.NewPatch()
-	err := r.Patch(ctx, me, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch Exclusion Window resource metadata",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
-			"maintenance Event metadata", me.ObjectMeta,
-		)
-		return models.ReconcileRequeue
-	}
-
-	status, err := r.API.GetExclusionWindowStatus(me.Spec.ClusterID, instaclustr.ExclusionWindowEndpoint)
-	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(
-			err, "cannot get Exclusion Window status from the Instaclustr API",
-			"Cluster EventID", me.Spec.ClusterID,
-			"Day of week", me.Spec.DayOfWeek,
-			"Start hour", me.Spec.StartHour,
-			"Duration in hours", me.Spec.DurationInHours,
-		)
-		return models.ReconcileRequeue
-	}
-
-	if status != nil {
-		err = r.API.DeleteExclusionWindow(&me.Status, instaclustr.ExclusionWindowEndpoint)
-		if err != nil {
-			l.Error(err, "Cannot delete Exclusion Window status",
-				"cluster ID", me.Spec.ClusterID,
-				"day of week", me.Spec.DayOfWeek,
-				"start hour", me.Spec.StartHour,
-				"duration in hours", me.Spec.DurationInHours,
-				"maintenance Event metadata", me.ObjectMeta,
-			)
-			return models.ReconcileRequeue
-		}
-	}
-
-	r.Scheduler.RemoveJob(me.GetJobID(scheduler.StatusChecker))
-	controllerutil.RemoveFinalizer(me, models.DeletionFinalizer)
-	me.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.Patch(ctx, me, patch)
-	if err != nil {
-		l.Error(err, "Cannot patchExclusion Window resource metadata",
-			"cluster ID", me.Spec.ClusterID,
-			"day of week", me.Spec.DayOfWeek,
-			"start hour", me.Spec.StartHour,
-			"duration in hours", me.Spec.DurationInHours,
-			"maintenance Event metadata", me.ObjectMeta,
-		)
-		return models.ReconcileRequeue
-	}
-
-	l.Info("Exclusion Window has been deleted",
-		"cluster ID", me.Spec.ClusterID,
-		"day of week", me.Spec.DayOfWeek,
-		"start hour", me.Spec.StartHour,
-		"duration in hours", me.Spec.DurationInHours,
-	)
-
-	return reconcile.Result{}
+	return models.ReconcileResult, nil
 }
 
 func (r *MaintenanceEventsReconciler) startMaintenanceEventStatusJob(me *clusterresourcesv1alpha1.MaintenanceEvents) error {
@@ -287,50 +171,162 @@ func (r *MaintenanceEventsReconciler) startMaintenanceEventStatusJob(me *cluster
 func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1alpha1.MaintenanceEvents) scheduler.Job {
 	l := log.Log.WithValues("component", "MaintenanceEventStatusJob")
 	return func() error {
-
-		instaMEStatus, err := r.API.GetMaintenanceEventStatus(me.Spec.ClusterID, instaclustr.MaintenanceEventEndpoint)
+		err := r.Get(context.TODO(), types.NamespacedName{
+			Name:      me.Name,
+			Namespace: me.Namespace,
+		}, me)
 		if err != nil {
-			l.Error(err, "Cannot get Maintenance Event Status from Inst API", "maintenance event ID", me.Status.ID)
+			l.Error(err, "Cannot get Maintenance Events resource",
+				"resource", me,
+			)
+
 			return err
 		}
 
-		if !isMaintenanceEventStatusesEqual(instaMEStatus.MaintenanceEvents, me.Status.MaintenanceEvents) {
-			l.Info("Maintenance Event status of k8s is different from Instaclustr. Reconcile statuses..",
-				"maintenance event Status from Inst API", instaMEStatus,
-				"maintenance event Status", me.Status)
+		var updated bool
+		patch := me.NewPatch()
+		instMEventsStatuses, err := r.API.GetMaintenanceEventsStatuses(me.Spec.ClusterID)
+		if err != nil {
+			l.Error(err, "Cannot get Maintenance Events statuses",
+				"resource", me,
+			)
 
-			patch := me.NewPatch()
-			me.Status.MaintenanceEvents = instaMEStatus.MaintenanceEvents
-			err := r.Status().Patch(context.Background(), me, patch)
+			return err
+		}
+
+		if !me.AreMEventsStatusesEqual(instMEventsStatuses) {
+			me.Status.EventsStatuses = instMEventsStatuses
+			updated = true
+		}
+
+		instWindowsStatuses, err := r.API.GetExclusionWindowsStatuses(me.Spec.ClusterID)
+		if err != nil {
+			l.Error(err, "Cannot get Exclusion Windows statuses",
+				"resource", me,
+			)
+
+			return err
+		}
+
+		if !me.AreExclusionWindowsStatusesEqual(instWindowsStatuses) {
+			me.Status.ExclusionWindowsStatuses = instWindowsStatuses
+			updated = true
+		}
+
+		if updated {
+			err = r.Status().Patch(context.TODO(), me, patch)
 			if err != nil {
+				l.Error(err, "Cannot get Maintenance Events resource status",
+					"resource", me,
+				)
+
 				return err
 			}
+
+			l.Info("Maintenance Events resource status was updated",
+				"resource", me,
+			)
 		}
 
 		return nil
 	}
 }
 
+func (r *MaintenanceEventsReconciler) reconcileMaintenanceEventsReschedules(mEvents *clusterresourcesv1alpha1.MaintenanceEvents) error {
+	var updatedMEventsStatuses []*clusterresourcesv1alpha1.MaintenanceEventStatus
+	instMEvents, err := r.API.GetMaintenanceEventsStatuses(mEvents.Spec.ClusterID)
+	if err != nil {
+		return err
+	}
+
+	for _, k8sMEvent := range mEvents.Spec.MaintenanceEventsReschedules {
+		for _, instMEvent := range instMEvents {
+			if instMEvent.IsFinalized {
+				updatedMEventsStatuses = append(updatedMEventsStatuses, instMEvent)
+
+				break
+			}
+
+			if k8sMEvent.ScheduleID == instMEvent.ID &&
+				(k8sMEvent.ScheduledStartTime != instMEvent.ScheduledStartTime) {
+				updatedMEventStatus, err := r.API.UpdateMaintenanceEvent(*k8sMEvent)
+				if err != nil {
+					return err
+				}
+
+				updatedMEventsStatuses = append(updatedMEventsStatuses, updatedMEventStatus)
+			}
+		}
+	}
+
+	mEvents.Status.EventsStatuses = updatedMEventsStatuses
+
+	return nil
+}
+
+func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *clusterresourcesv1alpha1.MaintenanceEvents) error {
+	instWindowsStatuses, err := r.API.GetExclusionWindowsStatuses(mEvents.Spec.ClusterID)
+	if err != nil {
+		return err
+	}
+
+	instWindowsMap := map[clusterresourcesv1alpha1.ExclusionWindowSpec]string{}
+	for _, instWindow := range instWindowsStatuses {
+		instWindowsMap[instWindow.ExclusionWindowSpec] = instWindow.ID
+	}
+
+	k8sWindowsMap := mEvents.Spec.NewExclusionWindowMap()
+
+	for instWindow, id := range instWindowsMap {
+		if _, exists := k8sWindowsMap[instWindow]; !exists {
+			err = r.API.DeleteExclusionWindow(id)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		k8sWindowsMap[instWindow] = id
+	}
+
+	var windowsStatus []*clusterresourcesv1alpha1.ExclusionWindowStatus
+	for k8sWindow := range k8sWindowsMap {
+		if _, exists := instWindowsMap[k8sWindow]; !exists {
+			k8sWindowsMap[k8sWindow], err = r.API.CreateExclusionWindow(mEvents.Spec.ClusterID, k8sWindow)
+			if err != nil {
+				return err
+			}
+		}
+
+		windowsStatus = append(windowsStatus, &clusterresourcesv1alpha1.ExclusionWindowStatus{
+			ID:                  k8sWindowsMap[k8sWindow],
+			ExclusionWindowSpec: k8sWindow,
+		})
+	}
+
+	mEvents.Status.ExclusionWindowsStatuses = windowsStatus
+
+	return nil
+}
+
+func (r *MaintenanceEventsReconciler) deleteExclusionWindows(mEvents *clusterresourcesv1alpha1.MaintenanceEvents) error {
+	for _, window := range mEvents.Status.ExclusionWindowsStatuses {
+		err := r.API.DeleteExclusionWindow(window.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *MaintenanceEventsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clusterresourcesv1alpha1.MaintenanceEvents{}, builder.WithPredicates(predicate.Funcs{
-			CreateFunc: func(event event.CreateEvent) bool {
-				// for operator reboots
-				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
-				confirmDeletion(event.Object)
-				return true
-			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
-					return false
-				}
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
-				confirmDeletion(event.ObjectNew)
-				return true
-			},
-			DeleteFunc: func(event event.DeleteEvent) bool {
-				return false
+				return !(event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration())
 			},
 		})).Complete(r)
 }

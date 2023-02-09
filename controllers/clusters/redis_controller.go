@@ -420,13 +420,14 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 			return err
 		}
 
-		patch := cluster.NewPatch()
 		if !areStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
 			l.Info("Updating Redis cluster status",
 				"new status", instStatus,
 				"old status", cluster.Status.ClusterStatus,
 			)
 
+			patch := cluster.NewPatch()
+			instStatus.MaintenanceEvents = cluster.Status.MaintenanceEvents
 			cluster.Status.ClusterStatus = *instStatus
 			err = r.Status().Patch(context.Background(), cluster, patch)
 			if err != nil {
@@ -437,6 +438,35 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 
 				return err
 			}
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Redis cluster maintenance events",
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		if !cluster.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cluster.NewPatch()
+			cluster.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cluster, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Redis cluster maintenance events",
+					"cluster name", cluster.Spec.Name,
+					"cluster ID", cluster.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Redis cluster maintenance events were updated",
+				"cluster ID", cluster.Status.ID,
+				"events", cluster.Status.MaintenanceEvents,
+			)
 		}
 
 		if instStatus.CurrentClusterOperationStatus == models.NoOperation {
@@ -450,6 +480,7 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 			}
 
 			if !cluster.Spec.IsSpecEqual(instSpec) {
+				patch := cluster.NewPatch()
 				cluster.Spec.SetSpecFromInst(instSpec)
 				err = r.Patch(context.Background(), cluster, patch)
 				if err != nil {

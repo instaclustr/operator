@@ -44,11 +44,12 @@ type API interface {
 	UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
 	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
 	TriggerClusterBackup(url, clusterID string) error
-	CreateExclusionWindow(url string, me *clusterresourcesv1alpha1.MaintenanceEventsSpec) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
-	GetExclusionWindowStatus(clusterId string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
-	GetMaintenanceEventStatus(eventID string, endpoint string) (*clusterresourcesv1alpha1.MaintenanceEventsStatus, error)
-	DeleteExclusionWindow(meStatus *clusterresourcesv1alpha1.MaintenanceEventsStatus, endpoint string) error
-	UpdateMaintenanceEvent(me *clusterresourcesv1alpha1.MaintenanceEventsSpec, endpoint string) error
+	CreateExclusionWindow(clusterID string, window clusterresourcesv1alpha1.ExclusionWindowSpec) (string, error)
+	GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1alpha1.ExclusionWindowStatus, error)
+	GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1alpha1.MaintenanceEventStatus, error)
+	GetMaintenanceEvents(clusterID string) ([]*v1alpha1.MaintenanceEvent, error)
+	DeleteExclusionWindow(id string) error
+	UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1alpha1.MaintenanceEventStatus, error)
 	RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error)
 	RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error)
 	RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error)
