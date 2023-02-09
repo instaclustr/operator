@@ -165,7 +165,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 
 	l.Info("Cluster update has been launched",
 		"cluster ID", k.Status.ID,
-		"data centres", k.Status.DataCentres)
+		"data centres", k.Spec.DataCentres)
 
 	return reconcile.Result{}
 }

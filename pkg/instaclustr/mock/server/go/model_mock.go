@@ -2,5 +2,6 @@ package openapi
 
 const (
 	CreatedID = "created"
-	StatusID  = "statusID"
+
+	RUNNING = "RUNNING"
 )
