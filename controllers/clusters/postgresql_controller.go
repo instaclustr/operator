@@ -580,6 +580,35 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Postg
 			}
 		}
 
+		maintEvents, err := r.API.GetMaintenanceEvents(cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get PostgreSQL cluster maintenance events",
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		if !cluster.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cluster.NewPatch()
+			cluster.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cluster, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch PostgreSQL cluster maintenance events",
+					"cluster name", cluster.Spec.Name,
+					"cluster ID", cluster.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("PostgreSQL cluster maintenance events were updated",
+				"cluster ID", cluster.Status.ID,
+				"events", cluster.Status.MaintenanceEvents,
+			)
+		}
+
 		if cluster.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			!cluster.Spec.AreSpecsEqual(instCluster) {
 			l.Info("Updating PostgreSQL cluster spec",

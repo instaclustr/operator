@@ -90,6 +90,17 @@ type ClusterStatus struct {
 	TwoFactorDeleteEnabled        bool                `json:"twoFactorDeleteEnabled,omitempty"`
 	Options                       *Options            `json:"options,omitempty"`
 	CurrentClusterOperationStatus string              `json:"currentClusterOperationStatus,omitempty"`
+	MaintenanceEvents             []*MaintenanceEvent `json:"maintenanceEvents,omitempty"`
+}
+
+type MaintenanceEvent struct {
+	ID                    string `json:"id,omitempty"`
+	Description           string `json:"description,omitempty"`
+	ScheduledStartTime    string `json:"scheduledStartTime,omitempty"`
+	ScheduledEndTime      string `json:"scheduledEndTime,omitempty"`
+	ScheduledStartTimeMin string `json:"scheduledStartTimeMin,omitempty"`
+	ScheduledStartTimeMax string `json:"scheduledStartTimeMax,omitempty"`
+	IsFinalized           bool   `json:"isFinalized,omitempty"`
 }
 
 type TwoFactorDelete struct {
@@ -453,4 +464,24 @@ func (c *Cluster) newImmutableFields() immutableCluster {
 		PrivateNetworkCluster: c.PrivateNetworkCluster,
 		SLATier:               c.SLATier,
 	}
+}
+
+func (c *ClusterStatus) AreMaintenanceEventsEqual(instEvents []*MaintenanceEvent) bool {
+	if len(c.MaintenanceEvents) != len(instEvents) {
+		return false
+	}
+
+	for _, instEvent := range instEvents {
+		for _, k8sEvent := range c.MaintenanceEvents {
+			if instEvent.ID == k8sEvent.ID {
+				if *instEvent != *k8sEvent {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
 }

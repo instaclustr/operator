@@ -64,7 +64,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_kafkausers.yaml
 #- patches/cainjection_in_awssecuritygroupfirewallrules.yaml
 #- patches/cainjection_in_topics.yaml
-#- patches/cainjection_in_maintenanceevents.yaml
+- patches/cainjection_in_clusterresources_maintenanceevents.yaml
 #- patches/cainjection_in_zookeepers.yaml
 #- patches/cainjection_in_nodereloads.yaml
 #- patches/cainjection_in_mirrors.yaml

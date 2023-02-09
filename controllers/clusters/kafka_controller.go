@@ -293,7 +293,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 				"k8s status", kafka.Status.ClusterStatus)
 
 			patch := kafka.NewPatch()
-
+			instaclusterStatus.MaintenanceEvents = kafka.Status.MaintenanceEvents
 			kafka.Status.ClusterStatus = *instaclusterStatus
 			err := r.Status().Patch(context.Background(), kafka, patch)
 			if err != nil {
@@ -301,6 +301,35 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 					"cluster name", kafka.Spec.Name, "status", kafka.Status.Status)
 				return err
 			}
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get Kafka cluster maintenance events",
+				"cluster name", kafka.Spec.Name,
+				"cluster ID", kafka.Status.ID,
+			)
+
+			return err
+		}
+
+		if !kafka.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := kafka.NewPatch()
+			kafka.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), kafka, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Kafka cluster maintenance events",
+					"cluster name", kafka.Spec.Name,
+					"cluster ID", kafka.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Kafka cluster maintenance events were updated",
+				"cluster ID", kafka.Status.ID,
+				"events", kafka.Status.MaintenanceEvents,
+			)
 		}
 
 		return nil

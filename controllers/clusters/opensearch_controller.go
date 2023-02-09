@@ -482,13 +482,14 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 			return err
 		}
 
-		patch := cluster.NewPatch()
 		if !areStatusesEqual(instStatus, &cluster.Status.ClusterStatus) {
 			l.Info("Updating Opensearh cluster status",
 				"new status", instStatus,
 				"old status", cluster.Status.ClusterStatus,
 			)
 
+			patch := cluster.NewPatch()
+			instStatus.MaintenanceEvents = cluster.Status.MaintenanceEvents
 			cluster.Status.ClusterStatus = *instStatus
 			err = r.Status().Patch(context.Background(), cluster, patch)
 			if err != nil {
@@ -499,6 +500,35 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 
 				return err
 			}
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(cluster.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get OpenSearch cluster maintenance events",
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
+			)
+
+			return err
+		}
+
+		if !cluster.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cluster.NewPatch()
+			cluster.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cluster, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch OpenSearch cluster maintenance events",
+					"cluster name", cluster.Spec.Name,
+					"cluster ID", cluster.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("OpenSearch cluster maintenance events were updated",
+				"cluster ID", cluster.Status.ID,
+				"events", cluster.Status.MaintenanceEvents,
+			)
 		}
 
 		activeOperations, err := r.API.GetActiveDataCentreResizeOperations(cluster.Status.ID, cluster.Status.CDCID)
@@ -519,6 +549,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 			}
 
 			if !cluster.Spec.IsSpecEqual(instSpec) {
+				patch := cluster.NewPatch()
 				cluster.Spec.SetSpecFromInst(instSpec)
 				cluster.Spec.RestoreFrom = nil
 				err = r.Patch(context.TODO(), cluster, patch)

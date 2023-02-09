@@ -2,6 +2,7 @@ package clusters
 
 import (
 	"github.com/go-logr/logr"
+
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"

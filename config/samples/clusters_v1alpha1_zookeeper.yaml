@@ -8,7 +8,7 @@ spec:
       cloudProvider: "AWS_VPC"
       name: "MyTestDataCentre1"
       network: "10.0.0.0/16"
-      nodeSize: "ZKR-PRD-m5d.large-75"
+      nodeSize: "zookeeper-developer-t3.small-20"
       nodesNumber: 3
       region: "US_EAST_1"
   name: "OperatorZookeeper"
