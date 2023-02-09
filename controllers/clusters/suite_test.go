@@ -31,9 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
@@ -89,8 +91,9 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	scheduler.ClusterStatusInterval = 2 * time.Second
-	scheduler.ClusterBackupsInterval = 2 * time.Second
+	scheduler.ClusterStatusInterval = 1 * time.Second
+	scheduler.ClusterBackupsInterval = 1 * time.Second
+	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 3}
 
 	err = (&KafkaReconciler{
 		Client:    k8sManager.GetClient(),

@@ -11,14 +11,13 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // KafkaClusterV2ApiService is a service that implements the logic for the KafkaClusterV2ApiServicer
 // This service should implement the business logic for every endpoint for the KafkaClusterV2Api API.
 // Include any external packages or services that will be required by this service.
 type KafkaClusterV2ApiService struct {
+	MockKafkaCluster *KafkaClusterV2
 }
 
 // NewKafkaClusterV2ApiService creates a default api service
@@ -31,10 +30,8 @@ func (s *KafkaClusterV2ApiService) ClusterManagementV2ResourcesApplicationsKafka
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_kafka_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdDelete method not implemented")
+	s.MockKafkaCluster = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdGet - Get Kafka cluster details.
@@ -42,8 +39,13 @@ func (s *KafkaClusterV2ApiService) ClusterManagementV2ResourcesApplicationsKafka
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_kafka_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaClusterV2{}) or use other options such as http.Ok ...
-	return Response(200, KafkaClusterV2{}), nil
+	if s.MockKafkaCluster != nil {
+		s.MockKafkaCluster.Status = RUNNING
+	} else {
+		return Response(404, nil), nil
+	}
+
+	return Response(200, s.MockKafkaCluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut - Update Kafka Cluster Details
@@ -51,13 +53,19 @@ func (s *KafkaClusterV2ApiService) ClusterManagementV2ResourcesApplicationsKafka
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_kafka_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, KafkaClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, KafkaClusterV2{}), nil
+	newNode := []NodeDetailsV2{{
+		NodeRoles:     []NodeRolesV2{"KAFKA_BROKER", "KAFKA_ZOOKEEPER"},
+		Rack:          "us-east-1a",
+		NodeSize:      body.DataCentres[0].NodeSize,
+		PublicAddress: "54.146.160.89",
+	}}
+
+	s.MockKafkaCluster.DataCentres[0].Nodes = newNode
+
+	return Response(202, nil), nil
 
 	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	//return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut method not implemented")
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaClustersV2Post - Create a Kafka cluster.
@@ -65,7 +73,7 @@ func (s *KafkaClusterV2ApiService) ClusterManagementV2ResourcesApplicationsKafka
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2Post with the required logic for this service method.
 	// Add api_kafka_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	return Response(202, KafkaClusterV2{
-		Id: CreatedID,
-	}), nil
+	s.MockKafkaCluster = &body
+	s.MockKafkaCluster.Id = CreatedID
+	return Response(202, s.MockKafkaCluster), nil
 }
