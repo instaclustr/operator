@@ -52,7 +52,11 @@ func (kacl *KafkaACL) ValidateCreate() error {
 func (kacl *KafkaACL) ValidateUpdate(old runtime.Object) error {
 	kafkaacllog.Info("validate update", "name", kacl.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	err := kacl.validate()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

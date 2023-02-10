@@ -174,6 +174,5 @@ func (mes *MaintenanceEventsSpec) ValidateMaintenanceEventsReschedules() error {
 }
 
 func init() {
-
 	SchemeBuilder.Register(&MaintenanceEvents{}, &MaintenanceEventsList{})
 }
