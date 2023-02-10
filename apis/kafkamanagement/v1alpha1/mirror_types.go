@@ -24,9 +24,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type SourceCluster struct {
 	// Alias to use for the source kafka cluster. This will be used to rename topics if renameMirroredTopics is turned on
 	Alias string `json:"alias"`
