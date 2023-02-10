@@ -20,13 +20,13 @@ func (aws *AWSVPCPeeringSpec) Validate(availableRegions []string) error {
 		return fmt.Errorf("VPC ID must begin with 'vpc-' and fit pattern: %s", models.PeerVPCIDRegExp)
 	}
 
-	dataCentreIDMatched, err := regexp.Match(models.DataCentreIDRegExp, []byte(aws.DataCentreID))
+	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(aws.DataCentreID))
 	if !dataCentreIDMatched || err != nil {
-		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s", models.DataCentreIDRegExp)
+		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s", models.UUIDStringRegExp)
 	}
 
 	if !validation.Contains(aws.PeerRegion, availableRegions) {
-		return fmt.Errorf("AWS Region to peer: %s is unavailable, available versions: %v",
+		return fmt.Errorf("AWS Region to peer: %s is unavailable, available regions: %v",
 			aws.PeerRegion, availableRegions)
 	}
 

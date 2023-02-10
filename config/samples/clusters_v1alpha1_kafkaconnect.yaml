@@ -5,7 +5,7 @@ metadata:
 spec:
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"
-      nodesNumber: 3
+      nodesNumber: 6
       cloudProvider: "AWS_VPC"
       replicationFactor: 3
       tags:
@@ -20,5 +20,5 @@ spec:
   slaTier: "NON_PRODUCTION"
   targetCluster:
     - managedCluster:
-        - targetKafkaClusterId: "e75f371b-9041-430e-9d3a-fd45392d0d00"
+        - targetKafkaClusterId: "c38ce872-ebf3-49f5-ae9b-f20fccac527e"
           kafkaConnectVpcType: "KAFKA_VPC"

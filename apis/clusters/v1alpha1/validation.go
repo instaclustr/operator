@@ -35,9 +35,34 @@ func (dc *DataCentre) ValidateCreation() error {
 		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
 			dc.CloudProvider, dc.Name, models.CloudProviders)
 	}
+
+	switch dc.CloudProvider {
+	case "AWS_VPC":
+		if !validation.Contains(dc.Region, models.AWSRegions) {
+			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
+				dc.Region, models.AWSRegions)
+		}
+	case "AZURE", "AZURE_AZ":
+		if !validation.Contains(dc.Region, models.AzureRegions) {
+			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
+				dc.Region, models.AzureRegions)
+		}
+	case "GCP":
+		if !validation.Contains(dc.Region, models.GCPRegions) {
+			return fmt.Errorf("GCP Region: %s is unavailable, available regions: %v",
+				dc.Region, models.GCPRegions)
+		}
+	}
+
+	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
+	if !networkMatched || err != nil {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %s", dc.Network, err.Error())
+	}
+
 	if len(dc.CloudProviderSettings) > 1 {
 		return fmt.Errorf("cloud provider settings should not have more than 1 item")
 	}
+
 	if len(dc.CloudProviderSettings) == 1 {
 		err := dc.CloudProviderSettings[0].ValidateCreation()
 		if err != nil {
