@@ -111,7 +111,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *cl
 		l.Info("Kafka Connect cluster has been created", "cluster ID", kc.Status.ID)
 		err = r.Status().Patch(ctx, kc, patch)
 		if err != nil {
-			l.Error(err, "cannot patch kafka connect status ", "KC ID", kc.Status.ID)
+			l.Error(err, "cannot patch Kafka Connect status ", "KC ID", kc.Status.ID)
 			return models.ReconcileRequeue
 		}
 
@@ -120,7 +120,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *cl
 
 		err = r.Patch(ctx, kc, patch)
 		if err != nil {
-			l.Error(err, "cannot patch kafka connect", "KC name", kc.Spec.Name)
+			l.Error(err, "cannot patch Kafka Connect", "KC name", kc.Spec.Name)
 			return models.ReconcileRequeue
 		}
 	}

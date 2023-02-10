@@ -52,6 +52,11 @@ spec:
                           s3BucketName:
                             description: S3 bucket name for Kafka Connect custom connector.
                             type: string
+                          s3RoleArn:
+                            description: AWS Identity Access Management role that
+                              is used for accessing your specified S3 bucket for Kafka
+                              Connect custom connector.
+                            type: string
                           secretKey:
                             description: AWS Secret Key associated with the Access
                               Key id that can access your specified S3 bucket for
@@ -60,6 +65,7 @@ spec:
                         required:
                         - accessKey
                         - s3BucketName
+                        - s3RoleArn
                         - secretKey
                         type: object
                       type: array

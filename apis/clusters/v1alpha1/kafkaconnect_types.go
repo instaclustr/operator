@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -76,6 +78,9 @@ type AzureConnectorSettings struct {
 }
 
 type AWSConnectorSettings struct {
+	// AWS Identity Access Management role that is used for accessing your specified S3 bucket for Kafka Connect custom connector.
+	S3RoleArn string `json:"s3RoleArn"`
+
 	// AWS Secret Key associated with the Access Key id that can access your specified S3 bucket for Kafka Connect custom connector.
 	SecretKey string `json:"secretKey"`
 
@@ -154,4 +159,137 @@ func (k *KafkaConnect) NewPatch() client.Patch {
 
 func init() {
 	SchemeBuilder.Register(&KafkaConnect{}, &KafkaConnectList{})
+}
+
+type immutableKafkaConnectFields struct {
+	immutableCluster
+}
+
+type immutableKafkaConnectDCFields struct {
+	immutableDC       immutableDC
+	ReplicationFactor int32
+}
+
+func (kc *KafkaConnectSpec) newImmutableFields() *immutableKafkaConnectFields {
+	return &immutableKafkaConnectFields{
+		immutableCluster: kc.Cluster.newImmutableFields(),
+	}
+}
+
+func (kc *KafkaConnectSpec) validateUpdate(oldSpec KafkaConnectSpec) error {
+	newImmutableFields := kc.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, kc)
+	}
+
+	err := kc.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	err = kc.validateImmutableTargetClusterFieldsUpdate(kc.TargetCluster, oldSpec.TargetCluster)
+	if err != nil {
+		return err
+	}
+
+	err = validateTwoFactorDelete(kc.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (kc *KafkaConnectSpec) validateImmutableDataCentresFieldsUpdate(oldSpec KafkaConnectSpec) error {
+	if len(kc.DataCentres) != len(oldSpec.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for i, newDC := range kc.DataCentres {
+		oldDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+
+		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
+		}
+
+		if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+		}
+	}
+
+	return nil
+}
+
+func (kcdc *KafkaConnectDataCentre) newImmutableFields() *immutableKafkaConnectDCFields {
+	return &immutableKafkaConnectDCFields{
+		immutableDC: immutableDC{
+			Name:                kcdc.Name,
+			Region:              kcdc.Region,
+			CloudProvider:       kcdc.CloudProvider,
+			ProviderAccountName: kcdc.ProviderAccountName,
+			Network:             kcdc.Network,
+		},
+		ReplicationFactor: kcdc.ReplicationFactor,
+	}
+}
+
+func (kc *KafkaConnectSpec) validateImmutableTargetClusterFieldsUpdate(new, old []*TargetCluster) error {
+	if len(new) == 0 && len(old) == 0 {
+		return models.ErrImmutableTargetCluster
+	}
+
+	if len(old) != len(new) {
+		return models.ErrImmutableTargetCluster
+	}
+
+	for _, index := range new {
+		for _, elem := range old {
+			err := validateImmutableExternalClusterFields(index, elem)
+			if err != nil {
+				return err
+			}
+
+			err = validateImmutableManagedClusterFields(index, elem)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateImmutableExternalClusterFields(new, old *TargetCluster) error {
+	for _, index := range new.ExternalCluster {
+		for _, elem := range old.ExternalCluster {
+			if *index != *elem {
+				return models.ErrImmutableExternalCluster
+			}
+		}
+	}
+	return nil
+}
+
+func validateImmutableManagedClusterFields(new, old *TargetCluster) error {
+	for _, index := range new.ManagedCluster {
+		for _, elem := range old.ManagedCluster {
+			if *index != *elem {
+				return models.ErrImmutableManagedCluster
+			}
+		}
+	}
+	return nil
 }

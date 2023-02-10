@@ -54,7 +54,6 @@ resources:
   path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
   version: v1alpha1
   webhooks:
-    defaulting: false
     validation: true
     webhookVersion: v1
 - api:
@@ -105,6 +104,10 @@ resources:
   kind: KafkaConnect
   path: github.com/instaclustr/operator/apis/clusters/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -127,7 +130,6 @@ resources:
   path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
   version: v1alpha1
   webhooks:
-    defaulting: false
     validation: true
     webhookVersion: v1
 - api:
