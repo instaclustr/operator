@@ -39,7 +39,6 @@ type PgDataCentre struct {
 	DataCentre `json:",inline"`
 	// PostgreSQL options
 	ClientEncryption           bool                          `json:"clientEncryption"`
-	PostgresqlNodeCount        int32                         `json:"postgresqlNodeCount"`
 	InterDataCentreReplication []*InterDataCentreReplication `json:"interDataCentreReplication,omitempty"`
 	IntraDataCentreReplication []*IntraDataCentreReplication `json:"intraDataCentreReplication"`
 	// PGBouncer options
@@ -121,10 +120,10 @@ type immutablePostgreSQLDCFields struct {
 }
 
 type specificPostgreSQLDC struct {
-	ClientEncryption    bool
-	PostgresqlNodeCount int32
-	PGBouncerVersion    string
-	PoolMode            string
+	ClientEncryption bool
+	NodesNumber      int32
+	PGBouncerVersion string
+	PoolMode         string
 }
 
 func init() {
@@ -190,7 +189,7 @@ func (pdc *PgDataCentre) ToInstAPI() *models.PGDataCentre {
 			Name:                pdc.Name,
 			Network:             pdc.Network,
 			NodeSize:            pdc.NodeSize,
-			NumberOfNodes:       pdc.PostgresqlNodeCount,
+			NumberOfNodes:       pdc.NodesNumber,
 			CloudProvider:       pdc.CloudProvider,
 			Region:              pdc.Region,
 			ProviderAccountName: pdc.ProviderAccountName,
@@ -268,7 +267,7 @@ func (pgs *PgSpec) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
 	for _, instDC := range instDCs {
 		for _, k8sDC := range pgs.DataCentres {
 			if instDC.Name == k8sDC.Name {
-				if k8sDC.PostgresqlNodeCount != instDC.NumberOfNodes ||
+				if k8sDC.NodesNumber != instDC.NumberOfNodes ||
 					k8sDC.Region != instDC.Region ||
 					k8sDC.CloudProvider != instDC.CloudProvider ||
 					k8sDC.ProviderAccountName != instDC.ProviderAccountName ||
@@ -350,7 +349,7 @@ func (pdc *PgDataCentre) SetDCFromInstAPI(instDC *models.PGDataCentre) {
 	pdc.SetTagsFromInstAPI(instDC.Tags)
 	pdc.SetCloudProviderSettingsFromInstAPI(&instDC.DataCentre)
 	pdc.ClientEncryption = instDC.ClientToClusterEncryption
-	pdc.PostgresqlNodeCount = instDC.NumberOfNodes
+	pdc.NodesNumber = instDC.NumberOfNodes
 	pdc.SetInterDCReplicationsFromInstAPI(instDC.InterDataCentreReplication)
 	pdc.SetIntraDCReplicationsFromInstAPI(instDC.IntraDataCentreReplication)
 	pdc.SetPGBouncerFromInstAPI(instDC.PGBouncer)
@@ -693,10 +692,10 @@ func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
 			Network:             pdc.Network,
 		},
 		specificPostgreSQLDC: specificPostgreSQLDC{
-			ClientEncryption:    pdc.ClientEncryption,
-			PostgresqlNodeCount: pdc.PostgresqlNodeCount,
-			PGBouncerVersion:    pdc.PGBouncerVersion,
-			PoolMode:            pdc.PoolMode,
+			ClientEncryption: pdc.ClientEncryption,
+			NodesNumber:      pdc.NodesNumber,
+			PGBouncerVersion: pdc.PGBouncerVersion,
+			PoolMode:         pdc.PoolMode,
 		},
 	}
 }
