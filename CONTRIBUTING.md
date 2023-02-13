@@ -27,9 +27,9 @@ please keep it that way; but please also tell us about it, so we can improve it.
 ### Submitting code changes
 
 Before submitting a pull request or re-request review, please make sure that:
-
 1. You have added and/or updated comments for all new changes (functions, types, vars, etc).
 2. If you have changed CRD, please run `make manifest`, `make generate`.
 3. You run `make test` without errors.
 4. You replied to reviewers comments.
-5. You linked issue in a PR description.
+5. You linked an issue in a PR description.
+6. You added proper labels on your PR. 
