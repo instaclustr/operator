@@ -95,9 +95,6 @@ spec:
                       type: string
                     poolMode:
                       type: string
-                    postgresqlNodeCount:
-                      format: int32
-                      type: integer
                     region:
                       description: 'Region. APIv1 : "dataCentre"'
                       type: string
@@ -112,7 +109,6 @@ spec:
                   - network
                   - nodeSize
                   - nodesNumber
-                  - postgresqlNodeCount
                   - region
                   type: object
                 type: array

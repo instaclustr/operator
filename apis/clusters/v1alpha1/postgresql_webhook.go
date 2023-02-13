@@ -110,7 +110,8 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 		return models.ErrTypeAssertion
 	}
 
-	if oldCluster.Spec.PgRestoreFrom != nil {
+	if oldCluster.Spec.PgRestoreFrom != nil ||
+		r.Status.ID == "" {
 		return nil
 	}
 

@@ -955,6 +955,11 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
