@@ -1,0 +1,24 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: Cassandra
+metadata:
+  name: cassandra-cluster
+spec:
+  name: "Cassandra"
+  version: "3.11.13"
+  dataCentres:
+    - name: "AWS_cassandra"
+      region: "US_EAST_1"
+      cloudProvider: "AWS_VPC"
+      continuousBackup: false
+      nodesNumber: 2
+      replicationFactor: 2
+      privateIpBroadcastForDiscovery: false
+      network: "172.16.0.0/19"
+      tags:
+        "tag": "testTag"
+      clientToClusterEncryption: false
+      nodeSize: "CAS-DEV-t4g.small-5"
+  pciCompliance: false
+  luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
+  passwordAndUserAuth: false
+  slaTier: "NON_PRODUCTION"

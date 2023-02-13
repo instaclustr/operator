@@ -89,7 +89,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	scheduler.ClusterStatusInterval = 1 * time.Second
-	scheduler.ClusterBackupsInterval = 1 * time.Second
+	scheduler.ClusterBackupsInterval = 30 * time.Second
 	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 3}
 
 	err = (&KafkaReconciler{
