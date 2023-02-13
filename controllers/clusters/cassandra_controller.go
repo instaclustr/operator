@@ -260,9 +260,8 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		"Cassandra cluster status has been updated",
 		"cluster name", cc.Spec.Name,
 		"cluster ID", cc.Status.ID,
-		"kind", cc.Kind,
-		"api Version", cc.APIVersion,
 		"namespace", cc.Namespace,
+		"data centres", cc.Spec.DataCentres,
 	)
 
 	return reconcile.Result{}
