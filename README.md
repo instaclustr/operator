@@ -29,43 +29,50 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
 ### Running on the cluster
-1. Deploy the cert manager:
-	
+1. Create the .env file, copy all content from the .env.tmpl and fill variables. When the operator deploys, it will create the secret from these variable to access the Instaclustr API.
+
+2. Deploy the cert-manager:
+
 ```sh
 make cert-deploy
 ```
 	
-2. Build and push your image to the location specified by `IMG`:
+3. Build and push your image to the location specified by `IMG`:
 	
 ```sh
 make docker-build docker-push IMG=<some-registry>/operator:tag
 ```
-3. Deploy the controller to the cluster with the image specified by `IMG`:
+
+4. Deploy the controller to the cluster with the image specified by `IMG`:
 
 ```sh
 make deploy IMG=<some-registry>/operator:tag
 ```
-4. Install Instances of Custom Resources:
+
+5. Install needed instances of Custom Resources:
 
 ```sh
-kubectl apply -f config/samples/
+kubectl apply -f config/samples/<resource-group>/<resource-name.yaml>
 ```
 
+**NOTE:** You can run `IMG=<some-registry>/operator:tag make` to simply install the controller 
+
 ### Uninstall CRDs
-To delete the CRDs from the cluster:
+To delete all CRDs from the cluster:
 
 ```sh
 make uninstall
 ```
 
 ### Undeploy controller
-UnDeploy the controller to the cluster:
+Undeploy the controller from the cluster:
 
 ```sh
 make undeploy
 ```
-### Undeploy controller
-UnDeploy the cert manager:
+
+### Undeploy cert-manager
+Undeploy the cert manager:
 
 ```sh
 make cert-undeploy
@@ -82,19 +89,11 @@ It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controlle
 which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster 
 
 ### Test It Out
-1. Install the CRDs into the cluster:
+1. Run the controller tests:
 
 ```sh
-make install
+make tests
 ```
-
-2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
-
-```sh
-make run
-```
-
-**NOTE:** You can also run this in one step by running: `make install run`
 
 ### Modifying the API definitions
 If you are editing the API definitions, generate the manifests such as CRs or CRDs using:

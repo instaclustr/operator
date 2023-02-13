@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= operator:latest
 
 IMG_TAG ?= latest
 OPERATOR_NAMESPACE ?= instaclustr-operator
@@ -20,7 +20,10 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 .PHONY: all
-all: build
+all: default
+
+.PHONY: default
+default: cert-deploy docker-build docker-push deploy
 
 ##@ General
 
@@ -72,6 +75,15 @@ test-kafkamanagement:
 .PHONY: test
 test: manifests generate fmt vet docker-build-server-stub run-server-stub envtest test-clusters test-clusterresources test-kafkamanagement stop-server-stub
 
+.PHONY: goimports
+goimports:
+	goimports -v -w -local github.com/instaclustr/operator -l $(GO_FILES)
+
+.PHONY: lint
+lint:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
+	golangci-lint run --timeout 5m --skip-dirs=pkg/instaclustr/mock
+
 ##@ Build
 
 .PHONY: build
@@ -116,8 +128,8 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-.PHONY: dev-deploy
-dev-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+.PHONY: deploy
+deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd scripts && ./make_creds_secret.sh
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
@@ -133,10 +145,6 @@ helm-deploy:
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: goimports
-goimports:
-	goimports -v -w -local github.com/instaclustr/operator -l $(GO_FILES)
 ##@ Build Dependencies
 
 ## Location to install dependencies to
