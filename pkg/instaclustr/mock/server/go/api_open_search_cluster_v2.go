@@ -63,6 +63,12 @@ func (c *OpenSearchClusterV2ApiController) Routes() Routes {
 			c.ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet,
 		},
 		{
+			"ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut",
+			strings.ToUpper("Put"),
+			"/cluster-management/v2/resources/applications/opensearch/clusters/v2/{clusterId}",
+			c.ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut,
+		},
+		{
 			"ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post",
 			strings.ToUpper("Post"),
 			"/cluster-management/v2/resources/applications/opensearch/clusters/v2/",
@@ -93,6 +99,33 @@ func (c *OpenSearchClusterV2ApiController) ClusterManagementV2ResourcesApplicati
 	clusterIdParam := params["clusterId"]
 
 	result, err := c.service.ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet(r.Context(), clusterIdParam)
+	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+
+}
+
+// ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut - Update a OpenSearch cluster
+func (c *OpenSearchClusterV2ApiController) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	clusterIdParam := params["clusterId"]
+
+	bodyParam := OpenSearchClusterUpdateV2{}
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&bodyParam); err != nil {
+		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
+		return
+	}
+	if err := AssertOpenSearchClusterUpdateV2Required(bodyParam); err != nil {
+		c.errorHandler(w, r, err, nil)
+		return
+	}
+	result, err := c.service.ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut(r.Context(), clusterIdParam, bodyParam)
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)

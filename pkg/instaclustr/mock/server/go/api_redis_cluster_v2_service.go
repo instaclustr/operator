@@ -48,6 +48,20 @@ func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedis
 	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet method not implemented")
 }
 
+// ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut - Update Redis Cluster Details
+func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut(ctx context.Context, clusterId string, body RedisClusterUpdateV2) (ImplResponse, error) {
+	// TODO - update ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut with the required logic for this service method.
+	// Add api_redis_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+
+	//TODO: Uncomment the next line to return response Response(202, RedisClusterV2{}) or use other options such as http.Ok ...
+	//return Response(202, RedisClusterV2{}), nil
+
+	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
+	//return Response(404, ErrorListResponseV2{}), nil
+
+	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut method not implemented")
+}
+
 // ClusterManagementV2ResourcesApplicationsRedisClustersV2Post - Create a Redis Cluster
 func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedisClustersV2Post(ctx context.Context, body RedisClusterV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsRedisClustersV2Post with the required logic for this service method.

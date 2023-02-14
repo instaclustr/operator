@@ -15,7 +15,7 @@ type KafkaKarapaceRestProxyDetailsV2 struct {
 	// Enables Integration of the Karapace REST proxy with the local Karapace Schema registry.
 	IntegrateRestProxyWithSchemaRegistry bool `json:"integrateRestProxyWithSchemaRegistry"`
 
-	// Adds the specified version of Kafka REST Proxy to the Kafka cluster. Available versions: <ul> <li>`3.2.0`</li> </ul>
+	// Adds the specified version of Kafka REST Proxy to the Kafka cluster. Available versions: <ul> <li>`3.4.3`</li> </ul>
 	Version string `json:"version"`
 }
 

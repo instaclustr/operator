@@ -53,31 +53,12 @@ func (c *SwaggerV2ApiController) Routes() Routes {
 			"/cluster-management/v2/swagger-for-terraform.yaml",
 			c.ClusterManagementV2SwaggerForTerraformYamlGet,
 		},
-		{
-			"ClusterManagementV2SwaggerYamlGet",
-			strings.ToUpper("Get"),
-			"/cluster-management/v2/swagger.yaml",
-			c.ClusterManagementV2SwaggerYamlGet,
-		},
 	}
 }
 
 // ClusterManagementV2SwaggerForTerraformYamlGet - Retrieve Swagger YAML
 func (c *SwaggerV2ApiController) ClusterManagementV2SwaggerForTerraformYamlGet(w http.ResponseWriter, r *http.Request) {
 	result, err := c.service.ClusterManagementV2SwaggerForTerraformYamlGet(r.Context())
-	// If an error occurred, encode the error with the status code
-	if err != nil {
-		c.errorHandler(w, r, err, &result)
-		return
-	}
-	// If no error, encode the body and the result code
-	EncodeJSONResponse(result.Body, &result.Code, w)
-
-}
-
-// ClusterManagementV2SwaggerYamlGet - Retrieve Swagger YAML
-func (c *SwaggerV2ApiController) ClusterManagementV2SwaggerYamlGet(w http.ResponseWriter, r *http.Request) {
-	result, err := c.service.ClusterManagementV2SwaggerYamlGet(r.Context())
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)

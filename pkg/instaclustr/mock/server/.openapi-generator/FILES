@@ -1,8 +1,5 @@
-.openapi-generator-ignore
-Dockerfile
 README.md
 api/openapi.yaml
-go.mod
 go/api.go
 go/api_account_cluster_list_v2.go
 go/api_account_cluster_list_v2_service.go
@@ -29,7 +26,6 @@ go/api_gcpvpc_peer_v2_service.go
 go/api_kafka_aclv2.go
 go/api_kafka_aclv2_service.go
 go/api_kafka_cluster_v2.go
-go/api_kafka_cluster_v2_service.go
 go/api_kafka_connect_cluster_v2.go
 go/api_kafka_connect_cluster_v2_service.go
 go/api_kafka_connect_mirror_v2.go
@@ -56,6 +52,8 @@ go/api_postgresql_user_v2.go
 go/api_postgresql_user_v2_service.go
 go/api_redis_cluster_v2.go
 go/api_redis_cluster_v2_service.go
+go/api_redis_user_v2.go
+go/api_redis_user_v2_service.go
 go/api_swagger_v2.go
 go/api_swagger_v2_service.go
 go/api_terraform_documentation_v2.go
@@ -150,6 +148,7 @@ go/model_mongodb_data_centre_v2.go
 go/model_node_details_v2.go
 go/model_node_roles_v2.go
 go/model_open_search_cluster_manager_node_v2.go
+go/model_open_search_cluster_update_v2.go
 go/model_open_search_cluster_v2.go
 go/model_open_search_dashboard_v2.go
 go/model_open_search_data_centre_v2.go
@@ -178,8 +177,13 @@ go/model_provider_aws_settings_v2.go
 go/model_provider_azure_settings_v2.go
 go/model_provider_gcp_settings_v2.go
 go/model_provider_tag_v2.go
+go/model_redis_cluster_update_v2.go
 go/model_redis_cluster_v2.go
 go/model_redis_data_centre_v2.go
+go/model_redis_user_password_v2.go
+go/model_redis_user_summaries_v2.go
+go/model_redis_user_summary_v2.go
+go/model_redis_user_v2.go
 go/model_sla_tier_v2.go
 go/model_spark_details_v2.go
 go/model_two_factor_delete_settings_v2.go

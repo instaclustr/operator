@@ -48,6 +48,20 @@ func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet method not implemented")
 }
 
+// ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut - Update a OpenSearch cluster
+func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut(ctx context.Context, clusterId string, body OpenSearchClusterUpdateV2) (ImplResponse, error) {
+	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut with the required logic for this service method.
+	// Add api_open_search_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+
+	//TODO: Uncomment the next line to return response Response(202, OpenSearchClusterV2{}) or use other options such as http.Ok ...
+	//return Response(202, OpenSearchClusterV2{}), nil
+
+	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
+	//return Response(404, ErrorListResponseV2{}), nil
+
+	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut method not implemented")
+}
+
 // ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post - Create an OpenSearch cluster
 func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post(ctx context.Context, body OpenSearchClusterV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post with the required logic for this service method.

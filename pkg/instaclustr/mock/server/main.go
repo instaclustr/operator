@@ -97,6 +97,9 @@ func main() {
 	RedisClusterV2ApiService := openapi.NewRedisClusterV2ApiService()
 	RedisClusterV2ApiController := openapi.NewRedisClusterV2ApiController(RedisClusterV2ApiService)
 
+	RedisUserV2ApiService := openapi.NewRedisUserV2ApiService()
+	RedisUserV2ApiController := openapi.NewRedisUserV2ApiController(RedisUserV2ApiService)
+
 	SwaggerV2ApiService := openapi.NewSwaggerV2ApiService()
 	SwaggerV2ApiController := openapi.NewSwaggerV2ApiController(SwaggerV2ApiService)
 
@@ -106,7 +109,7 @@ func main() {
 	TerraformImportV2ApiService := openapi.NewTerraformImportV2ApiService()
 	TerraformImportV2ApiController := openapi.NewTerraformImportV2ApiController(TerraformImportV2ApiService)
 
-	router := openapi.NewRouter(AWSEncryptionKeyV2ApiController, AWSEndpointServicePrincipalsV2ApiController, AWSSecurityGroupFirewallRuleV2ApiController, AWSVPCPeerV2ApiController, AccountClusterListV2ApiController, ApacheZookeeperClusterV2ApiController, AzureVnetPeerV2ApiController, CadenceClusterV2ApiController, CassandraClusterV2ApiController, ClusterNetworkFirewallRuleV2ApiController, GCPVPCPeerV2ApiController, KafkaACLV2ApiController, KafkaClusterV2ApiController, KafkaConnectClusterV2ApiController, KafkaConnectMirrorV2ApiController, KafkaTopicV2ApiController, KafkaUserV2ApiController, MongodbClusterV2ApiController, OpenAPISpecificationV2ApiController, OpenSearchClusterV2ApiController, OpenSearchEgressRulesV2ApiController, PostgresqlClusterV2ApiController, PostgresqlConfigurationV2ApiController, PostgresqlReloadOperationV2ApiController, PostgresqlUserV2ApiController, RedisClusterV2ApiController, SwaggerV2ApiController, TerraformDocumentationV2ApiController, TerraformImportV2ApiController)
+	router := openapi.NewRouter(AWSEncryptionKeyV2ApiController, AWSEndpointServicePrincipalsV2ApiController, AWSSecurityGroupFirewallRuleV2ApiController, AWSVPCPeerV2ApiController, AccountClusterListV2ApiController, ApacheZookeeperClusterV2ApiController, AzureVnetPeerV2ApiController, CadenceClusterV2ApiController, CassandraClusterV2ApiController, ClusterNetworkFirewallRuleV2ApiController, GCPVPCPeerV2ApiController, KafkaACLV2ApiController, KafkaClusterV2ApiController, KafkaConnectClusterV2ApiController, KafkaConnectMirrorV2ApiController, KafkaTopicV2ApiController, KafkaUserV2ApiController, MongodbClusterV2ApiController, OpenAPISpecificationV2ApiController, OpenSearchClusterV2ApiController, OpenSearchEgressRulesV2ApiController, PostgresqlClusterV2ApiController, PostgresqlConfigurationV2ApiController, PostgresqlReloadOperationV2ApiController, PostgresqlUserV2ApiController, RedisClusterV2ApiController, RedisUserV2ApiController, SwaggerV2ApiController, TerraformDocumentationV2ApiController, TerraformImportV2ApiController)
 
-	log.Fatal(http.ListenAndServe(":8090", router))
+	log.Fatal(http.ListenAndServe(":8082", router))
 }

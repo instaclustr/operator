@@ -62,11 +62,14 @@ type KafkaClusterV2 struct {
 	// Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).
 	PrivateNetworkCluster bool `json:"privateNetworkCluster"`
 
-	// Version of Kafka to run on the cluster. Available versions: <ul> <li>`3.0.2`</li> <li>`3.1.2`</li> <li>`2.8.2`</li> <li>`2.7.1`</li> </ul>
+	// Version of Kafka to run on the cluster. Available versions: <ul> <li>`3.0.2`</li> <li>`3.1.2`</li> <li>`2.8.2`</li> </ul>
 	KafkaVersion string `json:"kafkaVersion"`
 
 	// Name of the cluster.
 	Name string `json:"name"`
+
+	// Provision this cluster for [Bundled Use only](https://www.instaclustr.com/support/documentation/cadence/getting-started-with-cadence/bundled-use-only-cluster-deployments/).
+	BundledUseOnly bool `json:"bundledUseOnly,omitempty"`
 
 	// Enables Client ⇄ Broker Authentication with Encryption.
 	ClientAuthBrokerWithEncryption bool `json:"clientAuthBrokerWithEncryption,omitempty"`

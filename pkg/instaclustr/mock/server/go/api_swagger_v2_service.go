@@ -36,14 +36,3 @@ func (s *SwaggerV2ApiService) ClusterManagementV2SwaggerForTerraformYamlGet(ctx 
 
 	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2SwaggerForTerraformYamlGet method not implemented")
 }
-
-// ClusterManagementV2SwaggerYamlGet - Retrieve Swagger YAML
-func (s *SwaggerV2ApiService) ClusterManagementV2SwaggerYamlGet(ctx context.Context) (ImplResponse, error) {
-	// TODO - update ClusterManagementV2SwaggerYamlGet with the required logic for this service method.
-	// Add api_swagger_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
-
-	//TODO: Uncomment the next line to return response Response(200, string{}) or use other options such as http.Ok ...
-	//return Response(200, string{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2SwaggerYamlGet method not implemented")
-}
