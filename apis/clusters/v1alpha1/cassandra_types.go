@@ -44,11 +44,23 @@ type CassandraRestoreDC struct {
 }
 
 type CassandraRestoreFrom struct {
-	ClusterID           string               `json:"clusterID"`
-	ClusterNameOverride string               `json:"clusterNameOverride,omitempty"`
-	CDCInfos            []CassandraRestoreDC `json:"cdcInfos,omitempty"`
-	PointInTime         int64                `json:"pointInTime,omitempty"`
-	KeyspaceTables      string               `json:"keyspaceTables,omitempty"`
+	// Original cluster ID. Backup from that cluster will be used for restore
+	ClusterID string `json:"clusterID"`
+
+	// The display name of the restored cluster.
+	ClusterNameOverride string `json:"clusterNameOverride,omitempty"`
+
+	// An optional list of cluster data centres for which custom VPC settings will be used.
+	CDCInfos []CassandraRestoreDC `json:"cdcInfos,omitempty"`
+
+	// Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.
+	PointInTime int64 `json:"pointInTime,omitempty"`
+
+	// Only data for the specified tables will be restored, for the point in time.
+	KeyspaceTables string `json:"keyspaceTables,omitempty"`
+
+	// The cluster network for this cluster to be restored to.
+	ClusterNetwork string `json:"clusterNetwork,omitempty"`
 }
 
 // CassandraSpec defines the desired state of Cassandra

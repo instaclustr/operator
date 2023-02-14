@@ -134,6 +134,8 @@ spec:
               restoreFrom:
                 properties:
                   cdcInfos:
+                    description: An optional list of cluster data centres for which
+                      custom VPC settings will be used.
                     items:
                       properties:
                         cdcId:
@@ -147,12 +149,23 @@ spec:
                       type: object
                     type: array
                   clusterId:
+                    description: Original cluster ID. Backup from that cluster will
+                      be used for restore
                     type: string
                   clusterNameOverride:
+                    description: The display name of the restored cluster.
+                    type: string
+                  clusterNetwork:
+                    description: The cluster network for this cluster to be restored
+                      to.
                     type: string
                   indexNames:
+                    description: Only data for the specified indices will be restored,
+                      for the point in time.
                     type: string
                   pointInTime:
+                    description: Timestamp in milliseconds since epoch. All backed
+                      up data will be restored for this point in time.
                     format: int64
                     type: integer
                 required:
