@@ -1313,14 +1313,17 @@ func (c *Client) GetNodeReloadStatus(
 func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
-	var restoreRequest struct {
+	restoreRequest := struct {
 		ClusterNameOverride string                       `json:"clusterNameOverride,omitempty"`
 		CDCInfos            []*v1alpha1.PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                        `json:"pointInTime"`
+		PointInTime         int64                        `json:"pointInTime,omitempty"`
+		ClusterNetwork      string                       `json:"clusterNetwork,omitempty"`
+	}{
+		ClusterNameOverride: restoreData.ClusterNameOverride,
+		CDCInfos:            restoreData.CDCInfos,
+		PointInTime:         restoreData.PointInTime,
+		ClusterNetwork:      restoreData.ClusterNetwork,
 	}
-	restoreRequest.CDCInfos = restoreData.CDCInfos
-	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
-	restoreRequest.PointInTime = restoreData.PointInTime
 
 	jsonData, err := json.Marshal(restoreRequest)
 	if err != nil {
@@ -1357,16 +1360,19 @@ func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, 
 func (c *Client) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
-	var restoreRequest struct {
+	restoreRequest := struct {
 		ClusterNameOverride string                          `json:"clusterNameOverride,omitempty"`
 		CDCInfos            []*v1alpha1.RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
 		PointInTime         int64                           `json:"pointInTime,omitempty"`
 		IndexNames          string                          `json:"indexNames,omitempty"`
+		ClusterNetwork      string                          `json:"clusterNetwork,omitempty"`
+	}{
+		CDCInfos:            restoreData.CDCInfos,
+		ClusterNameOverride: restoreData.ClusterNameOverride,
+		PointInTime:         restoreData.PointInTime,
+		IndexNames:          restoreData.IndexNames,
+		ClusterNetwork:      restoreData.ClusterNetwork,
 	}
-	restoreRequest.CDCInfos = restoreData.CDCInfos
-	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
-	restoreRequest.PointInTime = restoreData.PointInTime
-	restoreRequest.IndexNames = restoreData.IndexNames
 
 	jsonData, err := json.Marshal(restoreRequest)
 	if err != nil {
@@ -1403,16 +1409,19 @@ func (c *Client) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (st
 func (c *Client) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
-	var restoreRequest struct {
+	restoreRequest := struct {
 		ClusterNameOverride string                               `json:"clusterNameOverride,omitempty"`
 		CDCInfos            []*v1alpha1.OpenSearchRestoreCDCInfo `json:"cdcInfos,omitempty"`
 		PointInTime         int64                                `json:"pointInTime,omitempty"`
 		IndexNames          string                               `json:"indexNames,omitempty"`
+		ClusterNetwork      string                               `json:"clusterNetwork,omitempty"`
+	}{
+		ClusterNameOverride: restoreData.ClusterNameOverride,
+		CDCInfos:            restoreData.CDCInfos,
+		PointInTime:         restoreData.PointInTime,
+		IndexNames:          restoreData.IndexNames,
+		ClusterNetwork:      restoreData.ClusterNetwork,
 	}
-	restoreRequest.CDCInfos = restoreData.CDCInfos
-	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
-	restoreRequest.PointInTime = restoreData.PointInTime
-	restoreRequest.IndexNames = restoreData.IndexNames
 
 	jsonData, err := json.Marshal(restoreRequest)
 	if err != nil {
@@ -1602,16 +1611,19 @@ func (c *Client) GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCl
 func (c *Client) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
-	var restoreRequest struct {
+	restoreRequest := struct {
 		ClusterNameOverride string                        `json:"clusterNameOverride,omitempty"`
 		CDCInfos            []v1alpha1.CassandraRestoreDC `json:"cdcInfos,omitempty"`
 		PointInTime         int64                         `json:"pointInTime,omitempty"`
 		KeyspaceTables      string                        `json:"keyspaceTables,omitempty"`
+		ClusterNetwork      string                        `json:"clusterNetwork,omitempty"`
+	}{
+		CDCInfos:            restoreData.CDCInfos,
+		ClusterNameOverride: restoreData.ClusterNameOverride,
+		PointInTime:         restoreData.PointInTime,
+		KeyspaceTables:      restoreData.KeyspaceTables,
+		ClusterNetwork:      restoreData.ClusterNetwork,
 	}
-	restoreRequest.CDCInfos = restoreData.CDCInfos
-	restoreRequest.ClusterNameOverride = restoreData.ClusterNameOverride
-	restoreRequest.PointInTime = restoreData.PointInTime
-	restoreRequest.KeyspaceTables = restoreData.KeyspaceTables
 
 	jsonData, err := json.Marshal(restoreRequest)
 	if err != nil {

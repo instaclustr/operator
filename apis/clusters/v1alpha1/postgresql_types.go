@@ -55,10 +55,20 @@ type IntraDataCentreReplication struct {
 }
 
 type PgRestoreFrom struct {
-	ClusterID           string              `json:"clusterId"`
-	ClusterNameOverride string              `json:"clusterNameOverride,omitempty"`
-	CDCInfos            []*PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
-	PointInTime         int64               `json:"pointInTime,omitempty"`
+	// Original cluster ID. Backup from that cluster will be used for restore
+	ClusterID string `json:"clusterId"`
+
+	// The display name of the restored cluster.
+	ClusterNameOverride string `json:"clusterNameOverride,omitempty"`
+
+	// An optional list of cluster data centres for which custom VPC settings will be used.
+	CDCInfos []*PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
+
+	// Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.
+	PointInTime int64 `json:"pointInTime,omitempty"`
+
+	// The cluster network for this cluster to be restored to.
+	ClusterNetwork string `json:"clusterNetwork,omitempty"`
 }
 
 type PgRestoreCDCInfo struct {
