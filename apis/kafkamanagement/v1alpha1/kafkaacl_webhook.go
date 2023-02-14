@@ -52,7 +52,6 @@ func (kacl *KafkaACL) ValidateCreate() error {
 func (kacl *KafkaACL) ValidateUpdate(old runtime.Object) error {
 	kafkaacllog.Info("validate update", "name", kacl.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
 	return nil
 }
 
@@ -60,6 +59,5 @@ func (kacl *KafkaACL) ValidateUpdate(old runtime.Object) error {
 func (kacl *KafkaACL) ValidateDelete() error {
 	kafkaacllog.Info("validate delete", "name", kacl.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

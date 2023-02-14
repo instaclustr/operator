@@ -36,19 +36,19 @@ func validateACLCreation(acl ACL) error {
 	}
 
 	if !validation.Contains(acl.PermissionType, models.ACLPermissionType) {
-		return fmt.Errorf("acl permission type %s is unavailable, available values: %v",
+		return fmt.Errorf("permissionType %s is unavailable, available values: %v",
 			acl.PermissionType, models.ACLPermissionType)
 	}
 	if !validation.Contains(acl.PatternType, models.ACLPatternType) {
-		return fmt.Errorf("acl pattern type %s is unavailable, available values: %v",
+		return fmt.Errorf("patternType %s is unavailable, available values: %v",
 			acl.PatternType, models.ACLPatternType)
 	}
 	if !validation.Contains(acl.Operation, models.ACLOperation) {
-		return fmt.Errorf("acl operation %s is unavailable, available values: %v",
+		return fmt.Errorf("operation %s is unavailable, available values: %v",
 			acl.Operation, models.ACLOperation)
 	}
 	if !validation.Contains(acl.ResourceType, models.ACLResourceType) {
-		return fmt.Errorf("acl resource type %s is unavailable, available values: %v",
+		return fmt.Errorf("resourceType %s is unavailable, available values: %v",
 			acl.ResourceType, models.ACLResourceType)
 	}
 

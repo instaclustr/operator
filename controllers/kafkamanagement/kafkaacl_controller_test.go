@@ -13,8 +13,8 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Successful creation of a kafka ACL resource", func() {
-	Context("When setting up a kafka ACL CRD", func() {
+var _ = Describe("Successful creation of a KafkaACL resource", func() {
+	Context("When setting up a KafkaACL CRD", func() {
 		kafkaACLSpec := kafkamanagementv1alpha1.KafkaACLSpec{
 			ACLs: []kafkamanagementv1alpha1.ACL{
 				{
@@ -43,10 +43,10 @@ var _ = Describe("Successful creation of a kafka ACL resource", func() {
 			Spec: kafkaACLSpec,
 		}
 
-		It("Should create a kafka ACL resources", func() {
+		It("Should create a KafkaACL resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
-			By("Sending kafka ACL specification to Instaclustr API v2")
+			By("Sending KafkaACL specification to Instaclustr API v2")
 			var kafkaACL kafkamanagementv1alpha1.KafkaACL
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "kafkaacl", Namespace: "default"}, &kafkaACL); err != nil {

@@ -66,10 +66,10 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	err := r.Client.Get(ctx, req.NamespacedName, &azure)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Azure VNet Peering resource is not found", "request", req)
+			l.Error(err, "AzureVNetPeering resource is not found", "request", req)
 			return reconcile.Result{}, nil
 		}
-		l.Error(err, "unable to fetch Azure VNet Peering", "request", req)
+		l.Error(err, "Unable to fetch AzureVNetPeering", "request", req)
 		return reconcile.Result{}, err
 	}
 
@@ -83,12 +83,12 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, &azure, &l), nil
 	default:
-		l.Info("event isn't handled",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+		l.Info("Event isn't handled",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Request", req,
+			"request", req,
 			"event", azure.Annotations[models.ResourceStateAnnotation])
 		return reconcile.Result{}, nil
 	}
@@ -102,18 +102,18 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 
 	if azure.Status.ID == "" {
 		l.Info(
-			"Creating Azure VNet Peering resource",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			"Creating AzureVNetPeering resource",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 		)
 
 		azureStatus, err := r.API.CreatePeering(instaclustr.AzurePeeringEndpoint, &azure.Spec)
 		if err != nil {
 			l.Error(
-				err, "cannot create Azure VNet Peering resource",
-				"Azure VNet Peering resource spec", azure.Spec,
+				err, "Cannot create AzureVNetPeering resource",
+				"AzureVNetPeering resource spec", azure.Spec,
 			)
 			return models.ReconcileRequeue
 		}
@@ -122,10 +122,10 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 		azure.Status.PeeringStatus = *azureStatus
 		err = r.Status().Patch(ctx, azure, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Azure VNet Peering resource status",
-				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			l.Error(err, "Cannot patch AzureVNetPeering resource status",
+				"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 				"AD Object ID", azure.Spec.PeerADObjectID,
-				"Resource Group", azure.Spec.PeerResourceGroup,
+				"resource Group", azure.Spec.PeerResourceGroup,
 				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 			)
 			return models.ReconcileRequeue
@@ -135,29 +135,29 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 		azure.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, azure, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Azure VNet Peering resource metadata",
-				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			l.Error(err, "Cannot patch AzureVNetPeering resource metadata",
+				"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 				"AD Object ID", azure.Spec.PeerADObjectID,
-				"Resource Group", azure.Spec.PeerResourceGroup,
+				"resource Group", azure.Spec.PeerResourceGroup,
 				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-				"Azure VNet Peering metadata", azure.ObjectMeta,
+				"AzureVNetPeering metadata", azure.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
 
 		l.Info(
-			"Azure VNet Peering resource was created",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			"AzureVNetPeering resource was created",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Peer Subnets", azure.Spec.PeerSubnets,
+			"peer Subnets", azure.Spec.PeerSubnets,
 		)
 	}
 	err := r.startAzureVNetPeeringStatusJob(azure)
 	if err != nil {
-		l.Error(err, "cannot start Azure VNet Peering checker status job",
-			"Azure VNet Peering ID", azure.Status.ID)
+		l.Error(err, "Cannot start AzureVNetPeering checker status job",
+			"AzureVNetPeering ID", azure.Status.ID)
 		return models.ReconcileRequeue
 	}
 
@@ -171,12 +171,12 @@ func (r *AzureVNetPeeringReconciler) handleUpdateCluster(
 ) reconcile.Result {
 	err := r.API.UpdatePeering(azure.Status.ID, instaclustr.AzurePeeringEndpoint, &azure.Spec)
 	if err != nil {
-		l.Error(err, "cannot update Azure VNet Peering",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+		l.Error(err, "Cannot update AzureVNetPeering",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Subnets", azure.Spec.PeerSubnets,
+			"subnets", azure.Spec.PeerSubnets,
 		)
 	}
 
@@ -184,22 +184,22 @@ func (r *AzureVNetPeeringReconciler) handleUpdateCluster(
 	azure.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.Patch(ctx, azure, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Azure VNet Peering resource metadata",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+		l.Error(err, "Cannot patch AzureVNetPeering resource metadata",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Azure VNet Peering metadata", azure.ObjectMeta,
+			"AzureVNetPeering metadata", azure.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Azure VNet Peering resource has been updated",
-		"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+	l.Info("AzureVNetPeering resource has been updated",
+		"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 		"AD Object ID", azure.Spec.PeerADObjectID,
-		"Resource Group", azure.Spec.PeerResourceGroup,
+		"resource Group", azure.Spec.PeerResourceGroup,
 		"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-		"Azure VNet Peering Status", azure.Status.PeeringStatus,
+		"AzureVNetPeering Status", azure.Status.PeeringStatus,
 	)
 
 	return reconcile.Result{}
@@ -214,12 +214,12 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 	patch := azure.NewPatch()
 	err := r.Patch(ctx, azure, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Azure VNet Peering resource metadata",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+		l.Error(err, "Cannot patch AzureVNetPeering resource metadata",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Azure VNet Peering metadata", azure.ObjectMeta,
+			"AzureVNetPeering metadata", azure.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
@@ -227,10 +227,10 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 	status, err := r.API.GetPeeringStatus(azure.Status.ID, instaclustr.AzurePeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "cannot get Azure VNet Peering status from the Instaclustr API",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			err, "Cannot get AzureVNetPeering status from the Instaclustr API",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 		)
 		return models.ReconcileRequeue
@@ -240,12 +240,12 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 		r.Scheduler.RemoveJob(azure.GetJobID(scheduler.StatusChecker))
 		err = r.API.DeletePeering(azure.Status.ID, instaclustr.AzurePeeringEndpoint)
 		if err != nil {
-			l.Error(err, "cannot update Azure VNet Peering resource statuss",
-				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			l.Error(err, "Cannot update AzureVNetPeering resource statuss",
+				"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 				"AD Object ID", azure.Spec.PeerADObjectID,
-				"Resource Group", azure.Spec.PeerResourceGroup,
+				"resource Group", azure.Spec.PeerResourceGroup,
 				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-				"Azure VNet Peering metadata", azure.ObjectMeta,
+				"AzureVNetPeering metadata", azure.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 
@@ -257,23 +257,23 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 	azure.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, azure, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Azure VNet Peering resource metadata",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+		l.Error(err, "Cannot patch AzureVNetPeering resource metadata",
+			"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
+			"resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Azure VNet Peering metadata", azure.ObjectMeta,
+			"AzureVNetPeering metadata", azure.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Azure VNet Peering has been deleted",
-		"Azure VNet Peering ID", azure.Status.ID,
-		"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+	l.Info("AzureVNetPeering has been deleted",
+		"AzureVNetPeering ID", azure.Status.ID,
+		"azure Subscription ID", azure.Spec.PeerSubscriptionID,
 		"AD Object ID", azure.Spec.PeerADObjectID,
-		"Resource Group", azure.Spec.PeerResourceGroup,
+		"resource Group", azure.Spec.PeerResourceGroup,
 		"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-		"Azure VNet Peering Status", azure.Status.PeeringStatus,
+		"AzureVNetPeering Status", azure.Status.PeeringStatus,
 	)
 
 	return reconcile.Result{}
@@ -297,14 +297,14 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *cluster
 	return func() error {
 		instaPeeringStatus, err := r.API.GetPeeringStatus(azureVNetPeering.Status.ID, instaclustr.AzurePeeringEndpoint)
 		if err != nil {
-			l.Error(err, "cannot get Azure VNet Peering Status from Inst API", "Azure VNet Peering ID", azureVNetPeering.Status.ID)
+			l.Error(err, "Cannot get AzureVNetPeering Status from Inst API", "AzureVNetPeering ID", azureVNetPeering.Status.ID)
 			return err
 		}
 
 		if !isPeeringStatusesEqual(instaPeeringStatus, &azureVNetPeering.Status.PeeringStatus) {
-			l.Info("Azure VNet Peering status of k8s is different from Instaclustr. Reconcile statuses..",
-				"Azure VNet Peering Status from Inst API", instaPeeringStatus,
-				"Azure VNet Peering Status", azureVNetPeering.Status)
+			l.Info("AzureVNetPeering status of k8s is different from Instaclustr. Reconcile statuses..",
+				"AzureVNetPeering Status from Inst API", instaPeeringStatus,
+				"AzureVNetPeering Status", azureVNetPeering.Status)
 
 			patch := azureVNetPeering.NewPatch()
 			azureVNetPeering.Status.PeeringStatus = *instaPeeringStatus

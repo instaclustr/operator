@@ -180,7 +180,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		if err != nil {
 			logger.Error(err, "Cannot patch OpenSearch cluster spec",
 				"cluster ID", openSearch.Status.ID,
-				"spec", openSearch.Spec,
+				"cluster spec", openSearch.Spec,
 			)
 
 			return models.ReconcileRequeue
@@ -256,7 +256,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	if openSearchInstClusterStatus.Status != models.RunningStatus {
+	if openSearchInstClusterStatus.Status != models.StatusRUNNING {
 		logger.Info("OpenSearch cluster is not ready to update",
 			"cluster Name", openSearch.Spec.Name,
 			"reason", instaclustr.ClusterNotRunning,
@@ -270,7 +270,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		logger.Info("OpenSearch cluster is not ready to resize",
 			"cluster name", openSearch.Spec.Name,
 			"cluster status", openSearchInstClusterStatus.Status,
-			"new data centre spec", openSearch.Spec.DataCentres[0],
+			"data centre spec", openSearch.Spec.DataCentres[0],
 			"reason", err,
 		)
 
@@ -554,10 +554,10 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 				cluster.Spec.RestoreFrom = nil
 				err = r.Patch(context.TODO(), cluster, patch)
 				if err != nil {
-					l.Error(err, "Cannot patch PostgreSQL cluster spec",
+					l.Error(err, "Cannot patch OpenSearch cluster spec",
 						"cluster name", cluster.Spec.Name,
 						"cluster ID", cluster.Status.ID,
-						"instaclustr spec", instSpec,
+						"cluster spec", instSpec,
 					)
 
 					return err
@@ -565,7 +565,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(cluster *clustersv1alpha1.OpenS
 
 				l.Info("OpenSearch cluster spec was updated",
 					"cluster ID", cluster.Status.ID,
-					"spec", cluster.Spec,
+					"cluster spec", cluster.Spec,
 				)
 			}
 		}
@@ -609,7 +609,7 @@ func (r *OpenSearchReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Open
 		if err != nil {
 			l.Error(err, "Cannot list OpenSearch cluster backups",
 				"cluster name", cluster.Spec.Name,
-				"clusterID", cluster.Status.ID,
+				"cluster ID", cluster.Status.ID,
 			)
 
 			return err

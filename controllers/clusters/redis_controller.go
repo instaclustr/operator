@@ -219,7 +219,7 @@ func (r *RedisReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	if redisInstClusterStatus.Status != models.RunningStatus {
+	if redisInstClusterStatus.Status != models.StatusRUNNING {
 		logger.Info("Cluster is not ready to update",
 			"cluster ID", redisCluster.Status.ID,
 		)
@@ -286,8 +286,8 @@ func (r *RedisReconciler) HandleDeleteCluster(
 	status, err := r.API.GetClusterStatus(redisCluster.Status.ID, instaclustr.RedisEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get Redis cluster status from Instaclustr",
-			"cluster ID", redisCluster.Status.ID,
 			"cluster Name", redisCluster.Spec.Name,
+			"cluster ID", redisCluster.Status.ID,
 		)
 
 		return models.ReconcileRequeue
@@ -433,7 +433,7 @@ func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) sch
 			if err != nil {
 				l.Error(err, "Cannot patch Redis cluster",
 					"cluster name", cluster.Spec.Name,
-					"status", cluster.Status.Status,
+					"cluster status", cluster.Status.Status,
 				)
 
 				return err

@@ -13,8 +13,8 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Successful creation of a Cluster Network Firewall Rule resource", func() {
-	Context("When setting up a Cluster Network Firewall Rule CRD", func() {
+var _ = Describe("Successful creation of a ClusterNetworkFirewallRule resource", func() {
+	Context("When setting up a ClusterNetworkFirewallRule CRD", func() {
 		clusterNetworkFirewallRuleSpec := v1alpha1.ClusterNetworkFirewallRuleSpec{
 			FirewallRuleSpec: v1alpha1.FirewallRuleSpec{
 				ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
@@ -35,10 +35,10 @@ var _ = Describe("Successful creation of a Cluster Network Firewall Rule resourc
 			Spec: clusterNetworkFirewallRuleSpec,
 		}
 
-		It("Should create a Cluster Network Firewall Rule resources", func() {
+		It("Should create a ClusterNetworkFirewallRule resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
-			By("Sending Cluster Network Firewall Rule Specification to Instaclustr API v2")
+			By("Sending ClusterNetworkFirewallRule Specification to Instaclustr API v2")
 			var clusterNetworkFirewallRule v1alpha1.ClusterNetworkFirewallRule
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "clusternetworkfwrule", Namespace: "default"}, &clusterNetworkFirewallRule); err != nil {

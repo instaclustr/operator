@@ -31,9 +31,9 @@ import (
 // log is for logging in this package.
 var postgresqllog = logf.Log.WithName("postgresql-resource")
 
-func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (pg *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(pg).
 		Complete()
 }
 
@@ -93,8 +93,7 @@ func (pg *PostgreSQL) ValidateCreate() error {
 		}
 		if !validation.Contains(dc.IntraDataCentreReplication[0].ReplicationMode, models.ReplicationModes) {
 			return fmt.Errorf("replicationMode '%s' is unavailable, available values: %v",
-				dc.IntraDataCentreReplication[0].ReplicationMode,
-				models.ReplicationModes)
+				dc.IntraDataCentreReplication[0].ReplicationMode, models.ReplicationModes)
 		}
 	}
 
@@ -102,12 +101,12 @@ func (pg *PostgreSQL) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
-	postgresqllog.Info("validate update", "name", r.Name)
+func (pg *PostgreSQL) ValidateUpdate(old runtime.Object) error {
+	postgresqllog.Info("validate update", "name", pg.Name)
 
 	oldCluster, ok := old.(*PostgreSQL)
 	if !ok {
-		return models.ErrTypeAssertion
+		return fmt.Errorf("cannot assert object %v to PostgreSQL", old.GetObjectKind())
 	}
 
 	if oldCluster.Spec.PgRestoreFrom != nil ||
@@ -115,7 +114,7 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 		return nil
 	}
 
-	err := r.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
+	err := pg.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("immutable fields validation error: %v", err)
 	}
@@ -124,8 +123,8 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PostgreSQL) ValidateDelete() error {
-	postgresqllog.Info("validate delete", "name", r.Name)
+func (pg *PostgreSQL) ValidateDelete() error {
+	postgresqllog.Info("validate delete", "name", pg.Name)
 
 	return nil
 }

@@ -12,7 +12,7 @@ package openapi
 // AwsSecurityGroupFirewallRuleV2 - Definition of an AWS Security Group based firewall rule to be applied to a cluster.
 type AwsSecurityGroupFirewallRuleV2 struct {
 
-	// The security group ID of the AWS security group firewall rule.
+	// The security group ID of the AWSSecurityGroupFirewallRule.
 	SecurityGroupId string `json:"securityGroupId"`
 
 	// The reason (if needed) for the deferred status of the AWS security group firewall rule.

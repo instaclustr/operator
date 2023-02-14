@@ -24,9 +24,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type SourceCluster struct {
 	// Alias to use for the source kafka cluster. This will be used to rename topics if renameMirroredTopics is turned on
 	Alias string `json:"alias"`
@@ -44,7 +41,7 @@ type ExternalCluster struct {
 }
 
 type ManagedCluster struct {
-	// Whether or not to connect to source cluster's private IP addresses
+	// Whether connect to source cluster's private IP addresses
 	UsePrivateIPs bool `json:"usePrivateIps"`
 
 	// Source kafka cluster id
@@ -53,9 +50,6 @@ type ManagedCluster struct {
 
 // MirrorSpec defines the desired state of Mirror
 type MirrorSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// The latency in milliseconds above which this mirror will be considered out of sync. It can not be less than 1000ms
 	// The suggested initial latency is 30000ms for connectors to be created.
 	TargetLatency int32 `json:"targetLatency"`
@@ -100,9 +94,6 @@ type MirroredTopic struct {
 
 // MirrorStatus defines the observed state of Mirror
 type MirrorStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Detailed list of Connectors for the mirror.
 	Connectors []*Connector `json:"connectors"`
 

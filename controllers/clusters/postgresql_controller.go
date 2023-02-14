@@ -207,7 +207,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	if err != nil {
 		logger.Error(err, "Cannot patch PostgreSQL resource status",
 			"cluster name", pgCluster.Spec.Name,
-			"status", pgCluster.Status,
+			"cluster status", pgCluster.Status,
 		)
 
 		return models.ReconcileRequeue
@@ -868,12 +868,12 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 		return err
 	}
 
-	finzlizersPatch := &clustersv1alpha1.PatchRequest{
+	finalizersPatch := &clustersv1alpha1.PatchRequest{
 		Operation: models.ReplaceOperation,
 		Path:      models.FinalizersPath,
 		Value:     json.RawMessage(finalizersPayload),
 	}
-	patchRequest = append(patchRequest, finzlizersPatch)
+	patchRequest = append(patchRequest, finalizersPatch)
 
 	patchPayload, err := json.Marshal(patchRequest)
 	if err != nil {

@@ -76,7 +76,7 @@ func (s *scheduler) ScheduleJob(jobID string, interval time.Duration, job Job) e
 
 	_, exists := s.workItems[jobID]
 	if exists {
-		s.logger.Info("Scheduled task already exists", "job id", jobID)
+		s.logger.Info("Scheduled task already exists", "job ID", jobID)
 		return nil
 	}
 
@@ -103,7 +103,7 @@ func (s *scheduler) ScheduleJob(jobID string, interval time.Duration, job Job) e
 
 	s.workItems[jobID] = wi
 
-	s.logger.Info("Scheduled job has been started", "job id", jobID)
+	s.logger.Info("Scheduled job has been started", "job ID", jobID)
 
 	return nil
 }
@@ -114,12 +114,12 @@ func (s *scheduler) RemoveJob(jobID string) {
 
 	v, exists := s.workItems[jobID]
 	if !exists {
-		s.logger.Info("There is no scheduled job", "job id", jobID)
+		s.logger.Info("There is no scheduled job", "job ID", jobID)
 		return
 	}
 
 	delete(s.workItems, jobID)
-	s.logger.Info("Job was removed", "job id", jobID)
+	s.logger.Info("Job was removed", "job ID", jobID)
 
 	v.done <- struct{}{}
 }

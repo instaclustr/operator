@@ -23,9 +23,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type ZookeeperDataCentre struct {
 	Name                     string                   `json:"name,omitempty"`
 	Region                   string                   `json:"region"`
@@ -41,9 +38,6 @@ type ZookeeperDataCentre struct {
 
 // ZookeeperSpec defines the desired state of Zookeeper
 type ZookeeperSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Name                  string                 `json:"name"`
 	Version               string                 `json:"version"`
 	SLATier               string                 `json:"slaTier"`
@@ -54,9 +48,6 @@ type ZookeeperSpec struct {
 
 // ZookeeperStatus defines the observed state of Zookeeper
 type ZookeeperStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	ClusterStatus `json:",inline"`
 }
 
@@ -85,12 +76,12 @@ func init() {
 	SchemeBuilder.Register(&Zookeeper{}, &ZookeeperList{})
 }
 
-func (k *Zookeeper) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(k).String() + "/" + jobName
+func (z *Zookeeper) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(z).String() + "/" + jobName
 }
 
-func (k *Zookeeper) NewPatch() client.Patch {
-	old := k.DeepCopy()
+func (z *Zookeeper) NewPatch() client.Patch {
+	old := z.DeepCopy()
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }

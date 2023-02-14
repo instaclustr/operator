@@ -29,13 +29,11 @@ import (
 
 var awsvpcpeeringlog = logf.Log.WithName("awsvpcpeering-resource")
 
-func (r *AWSVPCPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (aws *AWSVPCPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(aws).
 		Complete()
 }
-
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1alpha1-awsvpcpeering,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=awsvpcpeerings,verbs=create;update,versions=v1alpha1,name=vawsvpcpeering.kb.io,admissionReviewVersions=v1
@@ -43,26 +41,23 @@ func (r *AWSVPCPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &AWSVPCPeering{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSVPCPeering) ValidateCreate() error {
-	awsvpcpeeringlog.Info("validate create", "name", r.Name)
+func (aws *AWSVPCPeering) ValidateCreate() error {
+	awsvpcpeeringlog.Info("validate create", "name", aws.Name)
 
-	if r.Spec.PeerAWSAccountID == "" {
-		return fmt.Errorf("peer AWS Account ID is empty")
+	if aws.Spec.PeerAWSAccountID == "" {
+		return fmt.Errorf("peerAwsAccountId is empty")
+	}
+	if aws.Spec.PeerRegion == "" {
+		return fmt.Errorf("peerRegion is empty")
+	}
+	if aws.Spec.DataCentreID == "" {
+		return fmt.Errorf("cdcId is empty")
+	}
+	if aws.Spec.PeerSubnets == nil {
+		return fmt.Errorf("peerSubnets is empty")
 	}
 
-	if r.Spec.PeerRegion == "" {
-		return fmt.Errorf("peer AWS Account Region is empty")
-	}
-
-	if r.Spec.DataCentreID == "" {
-		return fmt.Errorf("dataCentre ID is empty")
-	}
-
-	if r.Spec.PeerSubnets == nil {
-		return fmt.Errorf("peer Subnets list is empty")
-	}
-
-	err := r.Spec.Validate(models.AWSRegions)
+	err := aws.Spec.Validate(models.AWSRegions)
 	if err != nil {
 		return err
 	}
@@ -71,10 +66,10 @@ func (r *AWSVPCPeering) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSVPCPeering) ValidateUpdate(old runtime.Object) error {
-	awsvpcpeeringlog.Info("validate update", "name", r.Name)
+func (aws *AWSVPCPeering) ValidateUpdate(old runtime.Object) error {
+	awsvpcpeeringlog.Info("validate update", "name", aws.Name)
 
-	err := r.Spec.ValidateUpdate(old.(*AWSVPCPeering).Spec)
+	err := aws.Spec.ValidateUpdate(old.(*AWSVPCPeering).Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)
 	}
@@ -82,9 +77,8 @@ func (r *AWSVPCPeering) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSVPCPeering) ValidateDelete() error {
-	awsvpcpeeringlog.Info("validate delete", "name", r.Name)
+func (aws *AWSVPCPeering) ValidateDelete() error {
+	awsvpcpeeringlog.Info("validate delete", "name", aws.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

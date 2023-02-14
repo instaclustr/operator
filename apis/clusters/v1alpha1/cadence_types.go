@@ -136,12 +136,12 @@ func (c *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
 		return nil, err
 	}
 
-	finzlizersPatch := &PatchRequest{
+	finalizersPatch := &PatchRequest{
 		Operation: models.ReplaceOperation,
 		Path:      models.FinalizersPath,
 		Value:     json.RawMessage(finalizersPayload),
 	}
-	patchRequest = append(patchRequest, finzlizersPatch)
+	patchRequest = append(patchRequest, finalizersPatch)
 
 	patchPayload, err := json.Marshal(patchRequest)
 	if err != nil {
@@ -285,14 +285,14 @@ func (cs *CadenceSpec) GetSecret(ctx context.Context, k8sClient client.Client) (
 		return "", "", err
 	}
 
-	var AWSAccessKeyID string
-	var AWSSecretAccessKey string
+	var awsAccessKeyID string
+	var awsSecretAccessKey string
 	keyID := awsCredsSecret.Data[models.AWSAccessKeyID]
 	secretAccessKey := awsCredsSecret.Data[models.AWSSecretAccessKey]
-	AWSAccessKeyID = string(keyID[:len(keyID)-1])
-	AWSSecretAccessKey = string(secretAccessKey[:len(secretAccessKey)-1])
+	awsAccessKeyID = string(keyID[:len(keyID)-1])
+	awsSecretAccessKey = string(secretAccessKey[:len(secretAccessKey)-1])
 
-	return AWSAccessKeyID, AWSSecretAccessKey, err
+	return awsAccessKeyID, awsSecretAccessKey, err
 }
 
 func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {

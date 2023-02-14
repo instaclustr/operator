@@ -58,7 +58,7 @@ func (r *Redis) ValidateCreate() error {
 	}
 
 	if len(r.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
+		return models.ErrZeroDataCentres
 	}
 
 	for _, dc := range r.Spec.DataCentres {
@@ -83,7 +83,6 @@ func (r *Redis) ValidateCreate() error {
 func (r *Redis) ValidateUpdate(old runtime.Object) error {
 	redislog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
 	return nil
 }
 
@@ -91,6 +90,5 @@ func (r *Redis) ValidateUpdate(old runtime.Object) error {
 func (r *Redis) ValidateDelete() error {
 	redislog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

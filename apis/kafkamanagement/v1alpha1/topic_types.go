@@ -23,14 +23,8 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // TopicSpec defines the desired state of Topic
 type TopicSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Partitions        int32             `json:"partitions"`
 	ReplicationFactor int32             `json:"replicationFactor"`
 	TopicName         string            `json:"topic"`
@@ -40,9 +34,6 @@ type TopicSpec struct {
 
 // TopicStatus defines the observed state of Topic
 type TopicStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// ID for the Kafka topic. The value of this property has the form: [cluster-id]_[kafka-topic]
 	ID string `json:"id"`
 

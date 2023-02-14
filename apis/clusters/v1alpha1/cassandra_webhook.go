@@ -68,7 +68,7 @@ func (c *Cassandra) ValidateCreate() error {
 	}
 
 	if len(c.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
+		return models.ErrZeroDataCentres
 	}
 
 	for _, dc := range c.Spec.DataCentres {
@@ -87,7 +87,7 @@ func (c *Cassandra) ValidateCreate() error {
 	}
 	if len(c.Spec.Spark) == 1 {
 		if !validation.Contains(c.Spec.Spark[0].Version, models.SparkVersions) {
-			return fmt.Errorf("cluster spark version %s is unavailable, available versions: %v",
+			return fmt.Errorf("spark version %s is unavailable, available values: %v",
 				c.Spec.Spark[0].Version, models.SparkVersions)
 		}
 	}
@@ -101,7 +101,7 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 
 	oldCluster, ok := old.(*Cassandra)
 	if !ok {
-		return models.ErrTypeAssertion
+		return fmt.Errorf("cannot assert object %v to Cassandra", old.GetObjectKind())
 	}
 
 	if oldCluster.Spec.RestoreFrom != nil {
@@ -120,6 +120,5 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 func (c *Cassandra) ValidateDelete() error {
 	cassandralog.Info("validate delete", "name", c.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

@@ -13,8 +13,8 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Successful creation of a Azure VNet Peering resource", func() {
-	Context("When setting up a Azure VNet Peering CRD", func() {
+var _ = Describe("Successful creation of a AzureVNetPeering resource", func() {
+	Context("When setting up a AzureVNetPeering CRD", func() {
 		azureVNetPeeringSpec := v1alpha1.AzureVNetPeeringSpec{
 			VPCPeeringSpec: v1alpha1.VPCPeeringSpec{
 				DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
@@ -38,10 +38,10 @@ var _ = Describe("Successful creation of a Azure VNet Peering resource", func() 
 			Spec: azureVNetPeeringSpec,
 		}
 
-		It("Should create a Azure VNet Peering resources", func() {
+		It("Should create a AzureVNetPeering resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
-			By("Sending Azure VNet Peering Specification to Instaclustr API v2")
+			By("Sending AzureVNetPeering Specification to Instaclustr API v2")
 			var azureVNetPeering v1alpha1.AzureVNetPeering
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "azurevnetpeering", Namespace: "default"}, &azureVNetPeering); err != nil {

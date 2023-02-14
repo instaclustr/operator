@@ -13,8 +13,8 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Successful creation of a AWS Security Group Firewall Rule resource", func() {
-	Context("When setting up a AWS Security Group Firewall Rule CRD", func() {
+var _ = Describe("Successful creation of a AWSSecurityGroupFirewallRule resource", func() {
+	Context("When setting up a AWSSecurityGroupFirewallRule CRD", func() {
 		awsSGFirewallRuleSpec := v1alpha1.AWSSecurityGroupFirewallRuleSpec{
 			FirewallRuleSpec: v1alpha1.FirewallRuleSpec{
 				ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
@@ -35,10 +35,10 @@ var _ = Describe("Successful creation of a AWS Security Group Firewall Rule reso
 			Spec: awsSGFirewallRuleSpec,
 		}
 
-		It("Should create a AWS Security Group Firewall Rule resources", func() {
+		It("Should create a AWSSecurityGroupFirewallRule resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
-			By("Sending AWS Security Group Firewall Rule Specification to Instaclustr API v2")
+			By("Sending AWSSecurityGroupFirewallRule Specification to Instaclustr API v2")
 			var awsSGFirewallRule v1alpha1.AWSSecurityGroupFirewallRule
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "awssgfwrule", Namespace: "default"}, &awsSGFirewallRule); err != nil {

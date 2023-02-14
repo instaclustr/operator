@@ -11,19 +11,19 @@ import (
 func (c *Cluster) ValidateCreation(availableVersions []string) error {
 	clusterNameMatched, err := regexp.Match(models.ClusterNameRegExp, []byte(c.Name))
 	if !clusterNameMatched || err != nil {
-		return fmt.Errorf("cluster name should have lenght from 3 to 32 symbols and fit pattern: %s",
+		return fmt.Errorf("name should have lenght from 3 to 32 symbols and fit pattern: %s",
 			models.ClusterNameRegExp)
 	}
 
 	if len(c.TwoFactorDelete) > 1 {
-		return fmt.Errorf("two factor delete should not have more than 1 item")
+		return fmt.Errorf("twoFactorDelete should not have more than 1 item")
 	}
 	if !validation.Contains(c.Version, availableVersions) {
-		return fmt.Errorf("cluster version %s is unavailable, available versions: %v",
+		return fmt.Errorf("version %s is unavailable, available values: %v",
 			c.Version, availableVersions)
 	}
 	if !validation.Contains(c.SLATier, models.SLATiers) {
-		return fmt.Errorf("cluster SLATier %s is unavailable, available values: %v",
+		return fmt.Errorf("slaTier %s is unavailable, available values: %v",
 			c.SLATier, models.SLATiers)
 	}
 
@@ -32,7 +32,7 @@ func (c *Cluster) ValidateCreation(availableVersions []string) error {
 
 func (dc *DataCentre) ValidateCreation() error {
 	if !validation.Contains(dc.CloudProvider, models.CloudProviders) {
-		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
+		return fmt.Errorf("cloudProvider %s is unavailable for data centre: %s, available values: %v",
 			dc.CloudProvider, dc.Name, models.CloudProviders)
 	}
 
@@ -60,7 +60,7 @@ func (dc *DataCentre) ValidateCreation() error {
 	}
 
 	if len(dc.CloudProviderSettings) > 1 {
-		return fmt.Errorf("cloud provider settings should not have more than 1 item")
+		return fmt.Errorf("cloudProviderSettings should not have more than 1 item")
 	}
 
 	if len(dc.CloudProviderSettings) == 1 {

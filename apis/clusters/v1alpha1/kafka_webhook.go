@@ -90,7 +90,6 @@ func (k *Kafka) ValidateUpdate(old runtime.Object) error {
 func (k *Kafka) ValidateDelete() error {
 	kafkalog.Info("validate delete", "name", k.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
 

@@ -1,9 +1,6 @@
 package models
 
 const (
-	Cadence            = "CADENCE"
-	CadenceNodePurpose = "CADENCE"
-
 	AWSAccessKeyID     = "awsAccessKeyId"
 	AWSSecretAccessKey = "awsSecretAccessKey"
 

@@ -75,10 +75,10 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Client.Get(ctx, req.NamespacedName, &kafkaUser)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Kafka User resource is not found", "request", req)
+			l.Error(err, "KafkaUser resource is not found", "request", req)
 			return reconcile.Result{}, nil
 		}
-		l.Error(err, "unable to fetch Kafka User", "request", req)
+		l.Error(err, "Unable to fetch KafkaUser", "request", req)
 		return reconcile.Result{}, err
 	}
 
@@ -99,14 +99,14 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		err = r.Client.Get(ctx, kafkaUserSecretNamespacedName, kafkaUserSecret)
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "cannot get Kafka User credentials. Secret is not found",
+			l.Error(err, "Cannot get KafkaUser credentials. Secret is not found",
 				"request", req,
 			)
 			return models.ReconcileRequeue, nil
 		}
 		return r.handleUpdateKafkaUser(ctx, &kafkaUser, l), nil
 	default:
-		l.Info("Unhandled event", "Annotations", kafkaUser.Annotations[models.ResourceStateAnnotation])
+		l.Info("Unhandled event", "annotations", kafkaUser.Annotations[models.ResourceStateAnnotation])
 		return reconcile.Result{}, nil
 	}
 }
@@ -118,17 +118,17 @@ func (r *KafkaUserReconciler) handleCreateKafkaUser(
 ) reconcile.Result {
 	if kafkaUser.Status.ID == "" {
 		l.Info(
-			"Creating Kafka User resource",
+			"Creating KafkaUser resource",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
 		)
 
 		kafkaUserSpec, err := convertors.KafkaUserToAPIv2(&kafkaUser.Spec, &ctx, r.Client)
 		if err != nil {
 			l.Error(
-				err, "cannot convert Kafka User Spec",
-				"Kafka User Spec", kafkaUserSpec,
+				err, "Cannot convert KafkaUser Spec",
+				"KafkaUser Spec", kafkaUserSpec,
 			)
 			return models.ReconcileRequeue
 		}
@@ -136,8 +136,8 @@ func (r *KafkaUserReconciler) handleCreateKafkaUser(
 		kafkaUserStatus, err := r.API.CreateKafkaUser(instaclustr.KafkaUserEndpoint, kafkaUserSpec)
 		if err != nil {
 			l.Error(
-				err, "cannot create Kafka User resource",
-				"Kafka User resource spec", kafkaUser.Spec,
+				err, "Cannot create KafkaUser resource",
+				"KafkaUser resource spec", kafkaUser.Spec,
 			)
 			return models.ReconcileRequeue
 		}
@@ -146,10 +146,10 @@ func (r *KafkaUserReconciler) handleCreateKafkaUser(
 		kafkaUser.Status = *kafkaUserStatus
 		err = r.Status().Patch(ctx, kafkaUser, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Kafka User resource status",
+			l.Error(err, "Cannot patch KafkaUser resource status",
 				"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-				"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-				"Kafka User Options", kafkaUser.Spec.Options,
+				"initial Permissions", kafkaUser.Spec.InitialPermissions,
+				"KafkaUser Options", kafkaUser.Spec.Options,
 			)
 			return models.ReconcileRequeue
 		}
@@ -158,20 +158,20 @@ func (r *KafkaUserReconciler) handleCreateKafkaUser(
 		kafkaUser.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, kafkaUser, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Kafka User resource metadata",
+			l.Error(err, "Cannot patch KafkaUser resource metadata",
 				"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-				"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-				"Kafka User Options", kafkaUser.Spec.Options,
-				"Kafka User metadata", kafkaUser.ObjectMeta,
+				"initial Permissions", kafkaUser.Spec.InitialPermissions,
+				"KafkaUser Options", kafkaUser.Spec.Options,
+				"KafkaUser metadata", kafkaUser.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
 
 		l.Info(
-			"Kafka User resource was created",
+			"KafkaUser resource was created",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
 		)
 	}
 
@@ -186,18 +186,18 @@ func (r *KafkaUserReconciler) handleUpdateKafkaUser(
 	kafkaUserSpec, err := convertors.KafkaUserToAPIv2(&kafkaUser.Spec, &ctx, r.Client)
 	if err != nil {
 		l.Error(
-			err, "cannot convert Kafka User Spec",
-			"Kafka User Spec", kafkaUserSpec,
+			err, "Cannot convert KafkaUser Spec",
+			"KafkaUser Spec", kafkaUserSpec,
 		)
 		return models.ReconcileRequeue
 	}
 
 	err = r.API.UpdateKafkaUser(kafkaUser.Status.ID, instaclustr.KafkaUserEndpoint, kafkaUserSpec)
 	if err != nil {
-		l.Error(err, "cannot update Kafka User",
+		l.Error(err, "Cannot update KafkaUser",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
 		)
 	}
 
@@ -205,19 +205,19 @@ func (r *KafkaUserReconciler) handleUpdateKafkaUser(
 	kafkaUser.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.Patch(ctx, kafkaUser, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Kafka User resource metadata",
+		l.Error(err, "Cannot patch KafkaUser resource metadata",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
-			"Kafka User metadata", kafkaUser.ObjectMeta,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
+			"KafkaUser metadata", kafkaUser.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Kafka User resource has been updated",
+	l.Info("KafkaUser resource has been updated",
 		"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-		"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-		"Kafka User Options", kafkaUser.Spec.Options,
+		"initial Permissions", kafkaUser.Spec.InitialPermissions,
+		"KafkaUser Options", kafkaUser.Spec.Options,
 	)
 
 	return reconcile.Result{}
@@ -231,11 +231,11 @@ func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 	patch := kafkaUser.NewPatch()
 	err := r.Patch(ctx, kafkaUser, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Kafka User resource metadata",
+		l.Error(err, "Cannot patch KafkaUser resource metadata",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
-			"Kafka User metadata", kafkaUser.ObjectMeta,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
+			"KafkaUser metadata", kafkaUser.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
@@ -243,10 +243,10 @@ func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 	status, err := r.API.GetKafkaUserStatus(kafkaUser.Status.ID, instaclustr.KafkaUserEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "cannot get Kafka User status from the Instaclustr API",
+			err, "Cannot get KafkaUser status from the Instaclustr API",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
 		)
 		return models.ReconcileRequeue
 	}
@@ -254,11 +254,11 @@ func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 	if status != nil {
 		err = r.API.DeleteKafkaUser(kafkaUser.Status.ID, instaclustr.KafkaUserEndpoint)
 		if err != nil {
-			l.Error(err, "cannot update Kafka User resource statuss",
+			l.Error(err, "Cannot update KafkaUser resource statuss",
 				"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-				"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-				"Kafka User Options", kafkaUser.Spec.Options,
-				"Kafka User metadata", kafkaUser.ObjectMeta,
+				"initial Permissions", kafkaUser.Spec.InitialPermissions,
+				"KafkaUser Options", kafkaUser.Spec.Options,
+				"KafkaUser metadata", kafkaUser.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
@@ -269,19 +269,19 @@ func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 	kafkaUser.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, kafkaUser, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Kafka User resource metadata",
+		l.Error(err, "Cannot patch KafkaUser resource metadata",
 			"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-			"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-			"Kafka User Options", kafkaUser.Spec.Options,
-			"Kafka User metadata", kafkaUser.ObjectMeta,
+			"initial Permissions", kafkaUser.Spec.InitialPermissions,
+			"KafkaUser Options", kafkaUser.Spec.Options,
+			"KafkaUser metadata", kafkaUser.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Kafka User has been deleted",
+	l.Info("KafkaUser has been deleted",
 		"Kafka Cluster ID", kafkaUser.Spec.ClusterID,
-		"Initial Permissions", kafkaUser.Spec.InitialPermissions,
-		"Kafka User Options", kafkaUser.Spec.Options,
+		"initial Permissions", kafkaUser.Spec.InitialPermissions,
+		"KafkaUser Options", kafkaUser.Spec.Options,
 	)
 
 	return reconcile.Result{}

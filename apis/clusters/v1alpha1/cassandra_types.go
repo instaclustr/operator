@@ -29,9 +29,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type Spark struct {
 	Version string `json:"version"`
 }
@@ -53,8 +50,8 @@ type CassandraRestoreFrom struct {
 
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
 	Cluster             `json:",inline"`
+	RestoreFrom         *CassandraRestoreFrom  `json:"restoreFrom,omitempty"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
@@ -63,8 +60,6 @@ type CassandraSpec struct {
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	ClusterStatus `json:",inline"`
 }
 

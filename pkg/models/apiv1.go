@@ -1,11 +1,5 @@
 package models
 
-const (
-	ProvisionedStatus = "PROVISIONED"
-	RunningStatus     = "RUNNING"
-	Disabled          = "DISABLED"
-)
-
 type Cluster struct {
 	ClusterName           string           `json:"clusterName"`
 	Provider              *ClusterProvider `json:"provider"`

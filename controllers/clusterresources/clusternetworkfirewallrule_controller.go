@@ -38,10 +38,6 @@ import (
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
-const (
-	statusDELETED = "DELETED"
-)
-
 // ClusterNetworkFirewallRuleReconciler reconciles a ClusterNetworkFirewallRule object
 type ClusterNetworkFirewallRuleReconciler struct {
 	client.Client
@@ -69,13 +65,13 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 	err := r.Client.Get(ctx, req.NamespacedName, firewallRule)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Info("Cluster network firewall rule resource is not found",
+			l.Info("ClusterNetworkFirewallRule resource is not found",
 				"resource name", req.NamespacedName,
 			)
 			return reconcile.Result{}, nil
 		}
 
-		l.Error(err, "Unable to fetch cluster network firewall rule")
+		l.Error(err, "Unable to fetch ClusterNetworkFirewallRule")
 		return reconcile.Result{}, err
 	}
 
@@ -90,7 +86,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 		reconcileResult := r.HandleDeleteFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
 	case models.GenericEvent:
-		l.Info("Cluster network firewall rule event isn't handled",
+		l.Info("ClusterNetworkFirewallRule event isn't handled",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
@@ -108,7 +104,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 ) reconcile.Result {
 	if firewallRule.Status.ID == "" {
 		l.Info(
-			"Creating cluster network firewall rule",
+			"Creating ClusterNetworkFirewallRule",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
@@ -118,7 +114,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.ClusterNetworkFirewallRuleEndpoint, &firewallRule.Spec)
 		if err != nil {
 			l.Error(
-				err, "Cannot create cluster network firewall rule",
+				err, "Cannot create ClusterNetworkFirewallRule",
 				"spec", firewallRule.Spec,
 			)
 			return models.ReconcileRequeue
@@ -128,7 +124,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 		err = r.Status().Patch(ctx, firewallRule, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch cluster network firewall rule status ", "ID", firewallRule.Status.ID)
+			l.Error(err, "Cannot patch ClusterNetworkFirewallRule status ", "ID", firewallRule.Status.ID)
 			return models.ReconcileRequeue
 		}
 
@@ -137,7 +133,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 		err = r.Patch(ctx, firewallRule, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch cluster network firewall rule",
+			l.Error(err, "Cannot patch ClusterNetworkFirewallRule",
 				"cluster ID", firewallRule.Spec.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
@@ -145,7 +141,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		}
 
 		l.Info(
-			"Cluster network firewall rule resource has been created",
+			"ClusterNetworkFirewallRule resource has been created",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
@@ -153,7 +149,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 	err := r.startFirewallRuleStatusJob(firewallRule)
 	if err != nil {
-		l.Error(err, "Cannot start cluster network firewall rule status checker job",
+		l.Error(err, "Cannot start ClusterNetworkFirewallRule status checker job",
 			"firewall rule ID", firewallRule.Status.ID)
 		return models.ReconcileRequeue
 	}
@@ -166,7 +162,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
-	l.Info("Cluster network firewall rule update is not implemented",
+	l.Info("ClusterNetworkFirewallRule update is not implemented",
 		"firewall rule ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
 	)
@@ -182,7 +178,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	patch := firewallRule.NewPatch()
 	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch cluster network firewall rule metadata",
+		l.Error(err, "Cannot patch ClusterNetworkFirewallRule metadata",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
@@ -192,17 +188,17 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	status, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "Cannot get cluster network firewall rule status from the Instaclustr API",
+			err, "Cannot get ClusterNetworkFirewallRule status from the Instaclustr API",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 		return models.ReconcileRequeue
 	}
 
-	if status != nil && status.Status != statusDELETED {
+	if status != nil && status.Status != models.StatusDELETED {
 		err = r.API.DeleteFirewallRule(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
 		if err != nil {
-			l.Error(err, "Cannot delete cluster network firewall rule",
+			l.Error(err, "Cannot delete ClusterNetworkFirewallRule",
 				"rule ID", firewallRule.Status.ID,
 				"cluster ID", firewallRule.Spec.ClusterID,
 				"type", firewallRule.Spec.Type,
@@ -219,7 +215,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 
 	err = r.Patch(ctx, firewallRule, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch cluster network firewall rule metadata",
+		l.Error(err, "Cannot patch ClusterNetworkFirewallRule metadata",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"status", firewallRule.Status,
@@ -227,7 +223,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Cluster network firewall rule has been deleted",
+	l.Info("ClusterNetworkFirewallRule has been deleted",
 		"cluster ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
 		"status", firewallRule.Status,
@@ -252,12 +248,12 @@ func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *c
 	return func() error {
 		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
 		if err != nil {
-			l.Error(err, "Cannot get cluster network firewall rule status from Inst API", "firewall rule ID", firewallRule.Status.ID)
+			l.Error(err, "Cannot get ClusterNetworkFirewallRule status from Inst API", "firewall rule ID", firewallRule.Status.ID)
 			return err
 		}
 
 		if !isFirewallRuleStatusesEqual(instaFirewallRuleStatus, &firewallRule.Status.FirewallRuleStatus) {
-			l.Info("Cluster network firewall rule status of k8s is different from Instaclustr. Reconcile statuses..",
+			l.Info("ClusterNetworkFirewallRule status of k8s is different from Instaclustr. Reconcile statuses..",
 				"firewall rule Status from Inst API", instaFirewallRuleStatus,
 				"firewall rule status", firewallRule.Status)
 			firewallRule.Status.FirewallRuleStatus = *instaFirewallRuleStatus

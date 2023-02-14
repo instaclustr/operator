@@ -135,11 +135,12 @@ func (me *MaintenanceEvents) AreExclusionWindowsStatusesEqual(instExclusionWindo
 	return true
 }
 
-func (ews *MaintenanceEventsSpec) NewExclusionWindowMap() map[ExclusionWindowSpec]string {
+func (mes *MaintenanceEventsSpec) NewExclusionWindowMap() map[ExclusionWindowSpec]string {
 	eWindowsMap := map[ExclusionWindowSpec]string{}
-	for _, eWindow := range ews.ExclusionWindows {
+	for _, eWindow := range mes.ExclusionWindows {
 		eWindowsMap[*eWindow] = ""
 	}
+
 	return eWindowsMap
 }
 
@@ -151,7 +152,7 @@ func (mes *MaintenanceEventsSpec) ValidateExclusionWindows() error {
 		}
 
 		if !validation.Contains(window.DayOfWeek, models.DaysOfWeek) {
-			return fmt.Errorf("%v, available values: %v",
+			return fmt.Errorf("dayOfWeek %v is unavailable, available values: %v",
 				models.ErrIncorrectDayOfWeek, models.DaysOfWeek)
 		}
 
@@ -174,6 +175,5 @@ func (mes *MaintenanceEventsSpec) ValidateMaintenanceEventsReschedules() error {
 }
 
 func init() {
-
 	SchemeBuilder.Register(&MaintenanceEvents{}, &MaintenanceEventsList{})
 }

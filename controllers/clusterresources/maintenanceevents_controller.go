@@ -64,14 +64,14 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	err := r.Client.Get(ctx, req.NamespacedName, me)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Info("Maintenance Event resource is not found",
+			l.Info("MaintenanceEvents resource is not found",
 				"request", req,
 			)
 
 			return models.ReconcileResult, nil
 		}
 
-		l.Error(err, "Cannot get Maintenance Event resource",
+		l.Error(err, "Cannot get MaintenanceEvents resource",
 			"request", req,
 		)
 
@@ -93,7 +93,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		controllerutil.RemoveFinalizer(me, models.DeletionFinalizer)
 		err = r.Patch(ctx, me, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch Maintenance Event resource",
+			l.Error(err, "Cannot patch MaintenanceEvents resource",
 				"resource", me,
 			)
 
@@ -105,8 +105,8 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	err = r.reconcileMaintenanceEventsReschedules(me)
 	if err != nil {
-		l.Error(err, "Cannot reconcile Maintenance Events Reschedules",
-			"spec", me.Spec,
+		l.Error(err, "Cannot reconcile MaintenanceEvents Reschedules",
+			"maintenance events spec", me.Spec,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -115,7 +115,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	err = r.reconcileExclusionWindows(me)
 	if err != nil {
 		l.Error(err, "Cannot reconcile Exclusion Windows",
-			"spec", me.Spec,
+			"maintenance events spec", me.Spec,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -123,8 +123,8 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	err = r.Status().Patch(ctx, me, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Maintenance Event status",
-			"status", me.Status,
+		l.Error(err, "Cannot patch MaintenanceEvents status",
+			"maintenance events status", me.Status,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -133,8 +133,8 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	controllerutil.AddFinalizer(me, models.DeletionFinalizer)
 	err = r.Patch(ctx, me, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Maintenance Event status",
-			"status", me.Status,
+		l.Error(err, "Cannot patch MaintenanceEvents status",
+			"maintenance events  status", me.Status,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -142,16 +142,16 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	err = r.startMaintenanceEventStatusJob(me)
 	if err != nil {
-		l.Error(err, "Cannot start Maintenance Event status job",
-			"spec", me.Spec,
+		l.Error(err, "Cannot start MaintenanceEvents status job",
+			"maintenance events spec", me.Spec,
 		)
 
 		return models.ReconcileRequeue, nil
 	}
 
-	l.Info("Maintenance Event resource was reconciled",
-		"spec", me.Spec,
-		"status", me.Status,
+	l.Info("MaintenanceEvents resource was reconciled",
+		"maintenance events spec", me.Spec,
+		"maintenance events status", me.Status,
 	)
 
 	return models.ReconcileResult, nil
@@ -176,8 +176,8 @@ func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1al
 			Namespace: me.Namespace,
 		}, me)
 		if err != nil {
-			l.Error(err, "Cannot get Maintenance Events resource",
-				"resource", me,
+			l.Error(err, "Cannot get MaintenanceEventss resource",
+				"maintenance events resource", me,
 			)
 
 			return err
@@ -187,8 +187,8 @@ func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1al
 		patch := me.NewPatch()
 		instMEventsStatuses, err := r.API.GetMaintenanceEventsStatuses(me.Spec.ClusterID)
 		if err != nil {
-			l.Error(err, "Cannot get Maintenance Events statuses",
-				"resource", me,
+			l.Error(err, "Cannot get MaintenanceEvents statuses",
+				"maintenance events resource", me,
 			)
 
 			return err
@@ -202,7 +202,7 @@ func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1al
 		instWindowsStatuses, err := r.API.GetExclusionWindowsStatuses(me.Spec.ClusterID)
 		if err != nil {
 			l.Error(err, "Cannot get Exclusion Windows statuses",
-				"resource", me,
+				"maintenance events resource", me,
 			)
 
 			return err
@@ -216,15 +216,15 @@ func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1al
 		if updated {
 			err = r.Status().Patch(context.TODO(), me, patch)
 			if err != nil {
-				l.Error(err, "Cannot get Maintenance Events resource status",
-					"resource", me,
+				l.Error(err, "Cannot get MaintenanceEvents resource status",
+					"maintenance events resource", me,
 				)
 
 				return err
 			}
 
-			l.Info("Maintenance Events resource status was updated",
-				"resource", me,
+			l.Info("MaintenanceEvents resource status was updated",
+				"maintenance events resource", me,
 			)
 		}
 

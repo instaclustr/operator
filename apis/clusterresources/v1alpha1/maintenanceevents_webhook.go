@@ -39,14 +39,14 @@ func (r *MaintenanceEvents) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &MaintenanceEvents{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *MaintenanceEvents) ValidateCreate() error {
-	maintenanceeventslog.Info("validate create", "name", r.Name)
+func (me *MaintenanceEvents) ValidateCreate() error {
+	maintenanceeventslog.Info("validate create", "name", me.Name)
 
-	if err := r.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
-		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)
+	if err := me.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
+		return fmt.Errorf("maintenanceEvents reschedules validation failed: %v", err)
 	}
 
-	if err := r.Spec.ValidateExclusionWindows(); err != nil {
+	if err := me.Spec.ValidateExclusionWindows(); err != nil {
 		return fmt.Errorf("exclusion windows validation failed: %v", err)
 	}
 
@@ -54,28 +54,27 @@ func (r *MaintenanceEvents) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *MaintenanceEvents) ValidateUpdate(old runtime.Object) error {
-	maintenanceeventslog.Info("validate update", "name", r.Name)
+func (me *MaintenanceEvents) ValidateUpdate(old runtime.Object) error {
+	maintenanceeventslog.Info("validate update", "name", me.Name)
 
-	if r.DeletionTimestamp != nil {
+	if me.DeletionTimestamp != nil {
 		return nil
 	}
 
-	if err := r.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
-		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)
+	if err := me.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
+		return fmt.Errorf("maintenanceEvents reschedules validation failed: %v", err)
 	}
 
-	if err := r.Spec.ValidateExclusionWindows(); err != nil {
-		return fmt.Errorf("exclusion windows validation failed: %v", err)
+	if err := me.Spec.ValidateExclusionWindows(); err != nil {
+		return fmt.Errorf("exclusionWindows validation failed: %v", err)
 	}
 
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *MaintenanceEvents) ValidateDelete() error {
-	maintenanceeventslog.Info("validate delete", "name", r.Name)
+func (me *MaintenanceEvents) ValidateDelete() error {
+	maintenanceeventslog.Info("validate delete", "name", me.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

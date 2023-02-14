@@ -127,12 +127,12 @@ func (r *RedisReconciler) patchClusterMetadata(
 		return err
 	}
 
-	finzlizersPatch := &clustersv1alpha1.PatchRequest{
+	finalizersPatch := &clustersv1alpha1.PatchRequest{
 		Operation: models.ReplaceOperation,
 		Path:      models.FinalizersPath,
 		Value:     json.RawMessage(finalizersPayload),
 	}
-	patchRequest = append(patchRequest, finzlizersPatch)
+	patchRequest = append(patchRequest, finalizersPatch)
 
 	patchPayload, err := json.Marshal(patchRequest)
 	if err != nil {
@@ -145,9 +145,9 @@ func (r *RedisReconciler) patchClusterMetadata(
 	}
 
 	logger.Info("Redis cluster patched",
-		"Cluster name", redisCluster.Spec.Name,
-		"Finalizers", redisCluster.Finalizers,
-		"Annotations", redisCluster.Annotations,
+		"cluster name", redisCluster.Spec.Name,
+		"finalizers", redisCluster.Finalizers,
+		"annotations", redisCluster.Annotations,
 	)
 	return nil
 }
@@ -167,8 +167,8 @@ func (r *RedisReconciler) reconcileDataCentresNumber(
 			}
 
 			logger.Info("Add Redis data centre request was sent",
-				"Cluster name", cluster.Spec.Name,
-				"Data centre name", dataCentreToAdd.Name,
+				"cluster name", cluster.Spec.Name,
+				"data centre name", dataCentreToAdd.Name,
 			)
 		}
 	}
@@ -220,10 +220,10 @@ func (r *RedisReconciler) reconcileDataCentresNodeSize(
 	if len(dataCentresToResize) > 0 {
 		err := r.resizeDataCentres(dataCentresToResize, cluster, logger)
 		if err != nil {
-			logger.Error(err, "cannot resize Redis cluster data centres",
-				"Cluster name", cluster.Spec.Name,
-				"New data centres", cluster.Spec.DataCentres,
-				"Old data centres", instClusterStatus.DataCentres,
+			logger.Error(err, "Cannot resize Redis cluster data centres",
+				"cluster name", cluster.Spec.Name,
+				"new data centres", cluster.Spec.DataCentres,
+				"old data centres", instClusterStatus.DataCentres,
 			)
 
 			return err
@@ -277,9 +277,9 @@ func (r *RedisReconciler) resizeDataCentres(
 		if err != nil {
 			if errors.Is(err, instaclustr.StatusPreconditionFailed) {
 				logger.Info("Redis cluster is not ready to resize",
-					"Cluster name", cluster.Spec.Name,
-					"Cluster status", cluster.Status.Status,
-					"Reason", err,
+					"cluster name", cluster.Spec.Name,
+					"cluster status", cluster.Status.Status,
+					"reason", err,
 				)
 
 				return err
@@ -289,9 +289,9 @@ func (r *RedisReconciler) resizeDataCentres(
 		}
 
 		logger.Info("Data centre resize request was sent",
-			"Cluster name", cluster.Spec.Name,
-			"Data centre id", dataCentre.DataCentreID,
-			"New node size", dataCentre.NewNodeSize,
+			"cluster name", cluster.Spec.Name,
+			"data centre ID", dataCentre.DataCentreID,
+			"new node size", dataCentre.NewNodeSize,
 		)
 	}
 

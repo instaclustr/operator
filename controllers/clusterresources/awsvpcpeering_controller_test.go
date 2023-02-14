@@ -13,8 +13,8 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
-	Context("When setting up a AWS VPC Peering CRD", func() {
+var _ = Describe("Successful creation of a AWSVPCPeering resource", func() {
+	Context("When setting up a AWSVPCPeering CRD", func() {
 		awsVPCPeeringSpec := v1alpha1.AWSVPCPeeringSpec{
 			VPCPeeringSpec: v1alpha1.VPCPeeringSpec{
 				DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
@@ -37,10 +37,10 @@ var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
 			Spec: awsVPCPeeringSpec,
 		}
 
-		It("Should create a AWS VPC Peering resources", func() {
+		It("Should create a AWSVPCPeering resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
-			By("Sending AWS VPC Peering Specification to Instaclustr API v2")
+			By("Sending AWSVPCPeering Specification to Instaclustr API v2")
 			var awsVPCPeering v1alpha1.AWSVPCPeering
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "awsvpcpeering", Namespace: "default"}, &awsVPCPeering); err != nil {

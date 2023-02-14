@@ -115,6 +115,5 @@ func (os *OpenSearch) ValidateUpdate(old runtime.Object) error {
 func (os *OpenSearch) ValidateDelete() error {
 	opensearchlog.Info("validate delete", "name", os.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

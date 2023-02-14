@@ -30,9 +30,9 @@ import (
 
 var awssecuritygroupfirewallrulelog = logf.Log.WithName("awssecuritygroupfirewallrule-resource")
 
-func (r *AWSSecurityGroupFirewallRule) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (fr *AWSSecurityGroupFirewallRule) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(fr).
 		Complete()
 }
 
@@ -42,38 +42,37 @@ func (r *AWSSecurityGroupFirewallRule) SetupWebhookWithManager(mgr ctrl.Manager)
 var _ webhook.Validator = &AWSSecurityGroupFirewallRule{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSSecurityGroupFirewallRule) ValidateCreate() error {
-	awssecuritygroupfirewallrulelog.Info("validate create", "name", r.Name)
+func (fr *AWSSecurityGroupFirewallRule) ValidateCreate() error {
+	awssecuritygroupfirewallrulelog.Info("validate create", "name", fr.Name)
 
-	if !validation.Contains(r.Spec.Type, models.BundleTypes) {
-		return fmt.Errorf("type %s is unavailable, available types: %v",
-			r.Spec.Type, models.BundleTypes)
+	if !validation.Contains(fr.Spec.Type, models.BundleTypes) {
+		return fmt.Errorf("type %s is unavailable, available values: %v",
+			fr.Spec.Type, models.BundleTypes)
 	}
 
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSSecurityGroupFirewallRule) ValidateUpdate(old runtime.Object) error {
-	awssecuritygroupfirewallrulelog.Info("validate update", "name", r.Name)
+func (fr *AWSSecurityGroupFirewallRule) ValidateUpdate(old runtime.Object) error {
+	awssecuritygroupfirewallrulelog.Info("validate update", "name", fr.Name)
 
 	oldRule, ok := old.(*AWSSecurityGroupFirewallRule)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to AWSSecurityGroupFirewallRule", old.GetObjectKind())
 	}
 
-	if r.DeletionTimestamp == nil &&
-		r.Generation != oldRule.Generation {
-		return models.ErrImmutableAWSSecurityGroupFirewallRule
+	if fr.DeletionTimestamp == nil &&
+		fr.Generation != oldRule.Generation {
+		return fmt.Errorf("AWSSecurityGroupFirewallRule resource is immutable")
 	}
 
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSSecurityGroupFirewallRule) ValidateDelete() error {
-	awssecuritygroupfirewallrulelog.Info("validate delete", "name", r.Name)
+func (fr *AWSSecurityGroupFirewallRule) ValidateDelete() error {
+	awssecuritygroupfirewallrulelog.Info("validate delete", "name", fr.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

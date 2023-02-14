@@ -80,8 +80,8 @@ spec:
                             description: Source kafka cluster id
                             type: string
                           usePrivateIps:
-                            description: Whether or not to connect to source cluster's
-                              private IP addresses
+                            description: Whether connect to source cluster's private
+                              IP addresses
                             type: boolean
                         required:
                         - sourceKafkaClusterId

@@ -255,7 +255,7 @@ func (oss *OpenSearchSpec) SetSpecFromInst(instSpec *models.ClusterSpec) bool {
 	oss.Name = instSpec.ClusterName
 	oss.Version = instSpec.BundleVersion
 	oss.SLATier = instSpec.SLATier
-	oss.PCICompliance = instSpec.PCICompliance != models.Disabled
+	oss.PCICompliance = instSpec.PCICompliance != models.StatusDisabled
 
 	k8sDataCentres := []*OpenSearchDataCentre{}
 	for _, instDC := range instSpec.DataCentres {

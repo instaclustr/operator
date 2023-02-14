@@ -62,15 +62,15 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	err := r.Get(ctx, req.NamespacedName, backup)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("cluster backup resource is not found",
-				"Resource name", req.NamespacedName,
+			logger.Info("ClusterBackup resource is not found",
+				"resource name", req.NamespacedName,
 			)
 
 			return models.ReconcileResult, nil
 		}
 
-		logger.Error(err, "cannot get cluster backup",
-			"Backup name", req.NamespacedName,
+		logger.Error(err, "Cannot get cluster backup",
+			"backup name", req.NamespacedName,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -86,8 +86,8 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		err = r.Patch(ctx, backup, patch)
 		if err != nil {
-			logger.Error(err, "cannot patch cluster backup resource labels",
-				"Backup name", backup.Name,
+			logger.Error(err, "Cannot patch ClusterBackup resource labels",
+				"backup name", backup.Name,
 			)
 
 			return models.ReconcileRequeue, nil
@@ -96,9 +96,9 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	instBackup, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
 	if err != nil {
-		logger.Error(err, "cannot get cluster backups from Instaclustr",
-			"Backup name", backup.Name,
-			"Cluster ID", backup.Spec.ClusterID,
+		logger.Error(err, "Cannot get ClusterBackup list from Instaclustr",
+			"backup name", backup.Name,
+			"cluster ID", backup.Spec.ClusterID,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -108,9 +108,9 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	backupsList, err := r.listClusterBackups(ctx, backup.Spec.ClusterID, backup.Namespace)
 	if err != nil {
-		logger.Error(err, "cannot get cluster backups",
-			"Backup name", backup.Name,
-			"Cluster ID", backup.Spec.ClusterID,
+		logger.Error(err, "Cannot get ClusterBackup list",
+			"backup name", backup.Name,
+			"cluster ID", backup.Spec.ClusterID,
 		)
 
 		return models.ReconcileRequeue, nil
@@ -119,16 +119,16 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if len(instBackupEvents) < len(backupsList.Items) {
 		err = r.API.TriggerClusterBackup(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
 		if err != nil {
-			logger.Error(err, "cannot trigger cluster backup",
-				"Backup name", backup.Name,
-				"Cluster ID", backup.Spec.ClusterID,
+			logger.Error(err, "Cannot trigger ClusterBackup",
+				"backup name", backup.Name,
+				"cluster ID", backup.Spec.ClusterID,
 			)
 
 			return models.ReconcileRequeue, nil
 		}
 
-		logger.Info("New cluster backup request was sent",
-			"Cluster ID", backup.Spec.ClusterID,
+		logger.Info("New ClusterBackup request was sent",
+			"cluster ID", backup.Spec.ClusterID,
 		)
 	}
 
@@ -136,8 +136,8 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		backup.Status.Start == 0 {
 		backup.Status.Start, err = strconv.Atoi(backup.Annotations[models.StartTimestampAnnotation])
 		if err != nil {
-			logger.Error(err, "cannot convert backup start timestamp to string",
-				"Backup name", backup.Name,
+			logger.Error(err, "Cannot convert backup start timestamp to string",
+				"backup name", backup.Name,
 				"Annotations", backup.Annotations,
 			)
 
@@ -146,8 +146,8 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		err = r.Status().Patch(ctx, backup, patch)
 		if err != nil {
-			logger.Error(err, "cannot patch cluster backup resource status",
-				"Backup name", backup.Name,
+			logger.Error(err, "Cannot patch ClusterBackup resource status",
+				"backup name", backup.Name,
 			)
 
 			return models.ReconcileRequeue, nil
@@ -157,16 +157,16 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	r.reconcileFinalizers(backup)
 	err = r.Patch(ctx, backup, patch)
 	if err != nil {
-		logger.Error(err, "cannot patch cluster backup resource",
-			"Backup name", backup.Name,
+		logger.Error(err, "Cannot patch ClusterBackup resource",
+			"backup name", backup.Name,
 		)
 
 		return models.ReconcileRequeue, nil
 	}
 
-	logger.Info("Cluster backup resource was reconciled",
-		"Backup name", backup.Name,
-		"Cluster ID", backup.Spec.ClusterID,
+	logger.Info("ClusterBackup resource was reconciled",
+		"backup name", backup.Name,
+		"cluster ID", backup.Spec.ClusterID,
 	)
 
 	return models.ReconcileResult, nil

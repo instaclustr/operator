@@ -46,7 +46,7 @@ func (fr *ClusterNetworkFirewallRule) ValidateCreate() error {
 	clusternetworkfirewallrulelog.Info("validate create", "name", fr.Name)
 
 	if !validation.Contains(fr.Spec.Type, models.BundleTypes) {
-		return fmt.Errorf("type  %s is unavailable, available types: %v",
+		return fmt.Errorf("type %s is unavailable, available values: %v",
 			fr.Spec.Type, models.BundleTypes)
 	}
 
@@ -59,12 +59,12 @@ func (fr *ClusterNetworkFirewallRule) ValidateUpdate(old runtime.Object) error {
 
 	oldRule, ok := old.(*ClusterNetworkFirewallRule)
 	if !ok {
-		return models.ErrTypeAssertion
+		return fmt.Errorf("cannot assert object %v to ClusterNetworkFirewallRule", old.GetObjectKind())
 	}
 
 	if fr.DeletionTimestamp == nil &&
 		fr.Generation != oldRule.Generation {
-		return fmt.Errorf("cluster network firewall rule resource is immutable")
+		return fmt.Errorf("ClusterNetworkFirewallRule resource is immutable")
 	}
 
 	return nil
@@ -74,6 +74,5 @@ func (fr *ClusterNetworkFirewallRule) ValidateUpdate(old runtime.Object) error {
 func (fr *ClusterNetworkFirewallRule) ValidateDelete() error {
 	clusternetworkfirewallrulelog.Info("validate delete", "name", fr.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

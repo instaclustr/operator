@@ -77,7 +77,6 @@ type Cluster struct {
 	// Enum: "PRODUCTION" "NON_PRODUCTION".
 	// Required for APIv2, but for APIv1 set "NON_PRODUCTION" as a default.
 	SLATier string `json:"slaTier,omitempty"`
-
 	// APIv2, unlike AP1, receives an array of TwoFactorDelete (<= 1 items);
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 }
@@ -199,7 +198,7 @@ func (c *Cluster) SetTwoFactorDeletesFromInstAPI(instTFDs []*modelsv2.TwoFactorD
 }
 
 func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
-	_, ipnet, err := net.ParseCIDR(dc.Network)
+	_, ipNetwork, err := net.ParseCIDR(dc.Network)
 	if err != nil {
 		return false, err
 	}
@@ -209,7 +208,7 @@ func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
 		return false, err
 	}
 
-	if ipnet.Contains(cassIP) {
+	if ipNetwork.Contains(cassIP) {
 		return true, nil
 	}
 

@@ -38,7 +38,7 @@ type FirewallRuleStatus struct {
 }
 
 type immutablePeeringFields struct {
-	DataCentreID string
+	dataCentreID string
 }
 
 func IsClusterBeingDeleted(deletionTimestamp *metav1.Time, twoFactorDeleteLen int, deletionConfirmedAnnotation string) bool {

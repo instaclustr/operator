@@ -90,7 +90,7 @@ func (aws *AWSVPCPeeringSpec) newImmutableFields() *immutableAWSVPCPeeringFields
 			peerRegion:       aws.PeerRegion,
 		},
 		immutablePeeringFields{
-			DataCentreID: aws.DataCentreID,
+			dataCentreID: aws.DataCentreID,
 		},
 	}
 }

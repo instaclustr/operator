@@ -63,10 +63,10 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	err := r.Client.Get(ctx, req.NamespacedName, &nrs)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Node Reload resource is not found", "request", req)
+			l.Error(err, "NodeReload resource is not found", "request", req)
 			return reconcile.Result{}, nil
 		}
-		l.Error(err, "Unable to fetch Node Reload", "request", req)
+		l.Error(err, "Unable to fetch NodeReload", "request", req)
 		return reconcile.Result{}, err
 	}
 
@@ -74,14 +74,14 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		err = r.Client.Delete(ctx, &nrs)
 		if err != nil {
 			l.Error(err,
-				"Cannot delete Node Reload resource from K8s cluster",
-				"Node Reload spec", nrs.Spec,
+				"Cannot delete NodeReload resource from K8s cluster",
+				"node reload spec", nrs.Spec,
 			)
 			return models.ReconcileRequeue, nil
 		}
 		l.Info(
 			"Nodes were reloaded, resource was deleted",
-			"Node Reload spec", nrs.Spec,
+			"node reload spec", nrs.Spec,
 		)
 		return models.ReconcileResult, nil
 	}
@@ -100,9 +100,9 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		err = r.API.CreateNodeReload(nodeInProgress.Bundle, nodeInProgress.NodeID, nodeInProgress)
 		if err != nil {
 			l.Error(err,
-				"Cannot start Node Reload process",
+				"Cannot start NodeReload process",
 				"bundle", nodeInProgress.Bundle,
-				"nodeID", nodeInProgress.NodeID,
+				"node ID", nodeInProgress.NodeID,
 			)
 			return models.ReconcileRequeue, nil
 		}
@@ -110,9 +110,9 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		err = r.Status().Patch(ctx, &nrs, patch)
 		if err != nil {
 			l.Error(err,
-				"Cannot patch Node Reload status",
+				"Cannot patch NodeReload status",
 				"bundle", nrs.Status.NodeInProgress.Bundle,
-				"nodeID", nrs.Status.NodeInProgress.NodeID,
+				"node ID", nrs.Status.NodeInProgress.NodeID,
 			)
 			return models.ReconcileRequeue, nil
 		}
@@ -121,9 +121,9 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	nodeReloadStatus, err := r.API.GetNodeReloadStatus(nrs.Status.NodeInProgress.Bundle, nrs.Status.NodeInProgress.NodeID)
 	if err != nil {
 		l.Error(err,
-			"Cannot get Node Reload status",
+			"Cannot get NodeReload status",
 			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"node ID", nrs.Status.NodeInProgress.NodeID,
 		)
 		return models.ReconcileRequeue, nil
 	}
@@ -132,17 +132,17 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	err = r.Status().Patch(ctx, &nrs, patch)
 	if err != nil {
 		l.Error(err,
-			"Cannot patch Node Reload status",
+			"Cannot patch NodeReload status",
 			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"node ID", nrs.Status.NodeInProgress.NodeID,
 		)
 		return models.ReconcileRequeue, nil
 	}
 
 	if nrs.Status.CurrentOperationStatus[0].Status != "COMPLETED" {
-		l.Info("Node Reload operation is not completed yet, please wait a few minutes",
+		l.Info("NodeReload operation is not completed yet, please wait a few minutes",
 			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"node ID", nrs.Status.NodeInProgress.NodeID,
 			"status", nrs.Status.CurrentOperationStatus,
 		)
 		return models.ReconcileRequeue, nil
@@ -154,9 +154,9 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	err = r.Status().Patch(ctx, &nrs, patch)
 	if err != nil {
 		l.Error(err,
-			"Cannot patch Node Reload status",
+			"Cannot patch NodeReload status",
 			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"node ID", nrs.Status.NodeInProgress.NodeID,
 		)
 		return models.ReconcileRequeue, nil
 	}
@@ -164,7 +164,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	nrs.Spec.Nodes = nrs.Spec.Nodes[:len(nrs.Spec.Nodes)-1]
 	err = r.Patch(ctx, &nrs, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Node Reload cluster",
+		l.Error(err, "Cannot patch NodeReload cluster",
 			"spec", nrs.Spec,
 		)
 		return models.ReconcileRequeue, nil

@@ -42,10 +42,6 @@ import (
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
-const (
-	StatusRUNNING = "RUNNING"
-)
-
 // CassandraReconciler reconciles a Cassandra object
 type CassandraReconciler struct {
 	client.Client
@@ -153,7 +149,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"cluster name", cc.Spec.Name,
 				"cluster ID", cc.Status.ID,
 				"kind", cc.Kind,
-				"api Version", cc.APIVersion,
+				"api version", cc.APIVersion,
 				"namespace", cc.Namespace,
 				"cluster metadata", cc.ObjectMeta,
 			)
@@ -169,7 +165,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"cluster name", cc.Spec.Name,
 				"cluster ID", cc.Status.ID,
 				"kind", cc.Kind,
-				"api Version", cc.APIVersion,
+				"api version", cc.APIVersion,
 				"namespace", cc.Namespace,
 				"cluster metadata", cc.ObjectMeta,
 			)
@@ -181,7 +177,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"cluster name", cc.Spec.Name,
 			"cluster ID", cc.Status.ID,
 			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
+			"api version", cc.APIVersion,
 			"namespace", cc.Namespace,
 		)
 	}
@@ -250,7 +246,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"cluster name", cc.Spec.Name,
 			"cluster ID", cc.Status.ID,
 			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
+			"api version", cc.APIVersion,
 			"namespace", cc.Namespace,
 			"cluster metadata", cc.ObjectMeta,
 		)
@@ -279,7 +275,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"cluster name", cc.Spec.Name,
 			"cluster ID", cc.Status.ID,
 			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
+			"api version", cc.APIVersion,
 			"namespace", cc.Namespace,
 			"cluster metadata", cc.ObjectMeta,
 		)
@@ -314,7 +310,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"cluster name", cc.Spec.Name,
 			"cluster ID", cc.Status.ID,
 			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
+			"api version", cc.APIVersion,
 			"namespace", cc.Namespace,
 		)
 		return models.ReconcileRequeue
@@ -328,7 +324,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 				"cluster name", cc.Spec.Name,
 				"status", cc.Status.Status,
 				"kind", cc.Kind,
-				"api Version", cc.APIVersion,
+				"api version", cc.APIVersion,
 				"namespace", cc.Namespace,
 			)
 			return models.ReconcileRequeue
@@ -368,7 +364,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"cluster name", cc.Spec.Name,
 			"cluster ID", cc.Status.ID,
 			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
+			"api version", cc.APIVersion,
 			"namespace", cc.Namespace,
 			"cluster metadata", cc.ObjectMeta,
 		)
@@ -379,7 +375,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		"cluster name", cc.Spec.Name,
 		"cluster ID", cc.Status.ID,
 		"kind", cc.Kind,
-		"api Version", cc.APIVersion,
+		"api version", cc.APIVersion,
 		"namespace", cc.Namespace,
 	)
 
@@ -428,21 +424,21 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 			return nil
 		}
 
-		instaclusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+		instaClusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot get cassandraCluster instaclusterStatus",
-				"clusterID", cassandraCluster.Status.ID)
+				"cluster ID", cassandraCluster.Status.ID)
 			return err
 		}
 
-		if !areStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
+		if !areStatusesEqual(instaClusterStatus, &cassandraCluster.Status.ClusterStatus) {
 			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instaclusterStatus", instaclusterStatus,
+				"instaClusterStatus", instaClusterStatus,
 				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
 
 			patch := cassandraCluster.NewPatch()
-			instaclusterStatus.MaintenanceEvents = cassandraCluster.Status.ClusterStatus.MaintenanceEvents
-			cassandraCluster.Status.ClusterStatus = *instaclusterStatus
+			instaClusterStatus.MaintenanceEvents = cassandraCluster.Status.ClusterStatus.MaintenanceEvents
+			cassandraCluster.Status.ClusterStatus = *instaClusterStatus
 			err = r.Status().Patch(context.Background(), cassandraCluster, patch)
 			if err != nil {
 				return err
@@ -478,7 +474,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alph
 			)
 		}
 
-		if instaclusterStatus.CurrentClusterOperationStatus == models.NoOperation {
+		if instaClusterStatus.CurrentClusterOperationStatus == models.NoOperation {
 			instSpec, err := r.API.GetCassandra(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
 			if err != nil {
 				l.Error(err, "Cannot get Cassandra cluster spec from Instaclustr API",

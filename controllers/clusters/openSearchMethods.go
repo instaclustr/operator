@@ -88,9 +88,9 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 		}
 
 		logger.Info("Data nodes resize request was sent",
-			"Cluster name", openSearchCluster.Spec.Name,
-			"Data centre id", dataCentreToResize.DataCentreID,
-			"New node size", dataCentreToResize.NewNodeSize,
+			"cluster name", openSearchCluster.Spec.Name,
+			"data centre ID", dataCentreToResize.DataCentreID,
+			"new node size", dataCentreToResize.NewNodeSize,
 		)
 
 		return instaclustr.HasActiveResizeOperation
@@ -104,9 +104,9 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 		}
 
 		logger.Info("Master nodes resize request was sent",
-			"Cluster name", openSearchCluster.Spec.Name,
-			"Data centre id", dataCentreToResize.DataCentreID,
-			"New node size", dataCentreToResize.NewNodeSize,
+			"cluster name", openSearchCluster.Spec.Name,
+			"data centre ID", dataCentreToResize.DataCentreID,
+			"new node size", dataCentreToResize.NewNodeSize,
 		)
 
 		return instaclustr.HasActiveResizeOperation
@@ -120,9 +120,9 @@ func (r *OpenSearchReconciler) resizeDataCentres(
 		}
 
 		logger.Info("Dashboard nodes resize request was sent",
-			"Cluster name", openSearchCluster.Spec.Name,
-			"Data centre id", dataCentreToResize.DataCentreID,
-			"New node size", dataCentreToResize.NewNodeSize,
+			"cluster name", openSearchCluster.Spec.Name,
+			"data centre ID", dataCentreToResize.DataCentreID,
+			"new node size", dataCentreToResize.NewNodeSize,
 		)
 
 		return instaclustr.HasActiveResizeOperation

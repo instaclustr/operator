@@ -36,14 +36,12 @@ import (
 )
 
 type PgDataCentre struct {
-	DataCentre `json:",inline"`
-	// PostgreSQL options
+	DataCentre                 `json:",inline"`
 	ClientEncryption           bool                          `json:"clientEncryption"`
 	InterDataCentreReplication []*InterDataCentreReplication `json:"interDataCentreReplication,omitempty"`
 	IntraDataCentreReplication []*IntraDataCentreReplication `json:"intraDataCentreReplication"`
-	// PGBouncer options
-	PGBouncerVersion string `json:"pgBouncerVersion,omitempty"`
-	PoolMode         string `json:"poolMode,omitempty"`
+	PGBouncerVersion           string                        `json:"pgBouncerVersion,omitempty"`
+	PoolMode                   string                        `json:"poolMode,omitempty"`
 }
 
 type InterDataCentreReplication struct {
@@ -291,7 +289,6 @@ func (pgs *PgSpec) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
 }
 
 // SetDefaultValues should be implemented using validation webhook
-// TODO https://github.com/instaclustr/operator/issues/219
 func (pgs *PgSpec) SetDefaultValues() {
 	for _, dataCentre := range pgs.DataCentres {
 		if dataCentre.ProviderAccountName == "" {
@@ -576,15 +573,13 @@ func (pdc *PgDataCentre) ValidatePGBouncer() error {
 		}
 	} else {
 		if !validation.Contains(pdc.PGBouncerVersion, models.PGBouncerVersions) {
-			return fmt.Errorf("pgBouncerVersion '%s' is unavailable, available versions: %v",
-				pdc.PGBouncerVersion,
-				models.PGBouncerVersions)
+			return fmt.Errorf("pgBouncerVersion '%s' is unavailable, available values: %v",
+				pdc.PGBouncerVersion, models.PGBouncerVersions)
 		}
 		if pdc.PoolMode != "" &&
 			!validation.Contains(pdc.PoolMode, models.PoolModes) {
-			return fmt.Errorf("poolMode '%s' is unavailable, available poolModes: %v",
-				pdc.PoolMode,
-				models.PoolModes)
+			return fmt.Errorf("poolMode '%s' is unavailable, available values: %v",
+				pdc.PoolMode, models.PoolModes)
 		}
 	}
 

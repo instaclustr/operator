@@ -25,11 +25,7 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type TargetCluster struct {
-
 	// Details to connect to a Non-Instaclustr managed cluster. Cannot be provided if targeting an Instaclustr managed cluster.
 	ExternalCluster []*ExternalCluster `json:"externalCluster,omitempty"`
 
@@ -107,9 +103,6 @@ type KafkaConnectDataCentre struct {
 
 // KafkaConnectSpec defines the desired state of KafkaConnect
 type KafkaConnectSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Cluster       `json:",inline"`
 	DataCentres   []*KafkaConnectDataCentre `json:"dataCentres"`
 	TargetCluster []*TargetCluster          `json:"targetCluster"`
@@ -120,9 +113,6 @@ type KafkaConnectSpec struct {
 
 // KafkaConnectStatus defines the observed state of KafkaConnect
 type KafkaConnectStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	ClusterStatus `json:",inline"`
 }
 
@@ -147,12 +137,12 @@ type KafkaConnectList struct {
 	Items           []KafkaConnect `json:"items"`
 }
 
-func (k *KafkaConnect) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(k).String() + "/" + jobName
+func (kc *KafkaConnect) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(kc).String() + "/" + jobName
 }
 
-func (k *KafkaConnect) NewPatch() client.Patch {
-	old := k.DeepCopy()
+func (kc *KafkaConnect) NewPatch() client.Patch {
+	old := kc.DeepCopy()
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }

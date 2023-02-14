@@ -145,7 +145,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 ) reconcile.Result {
 	l = l.WithName("Update Event")
 
-	if k.Status.ClusterStatus.Status != StatusRUNNING {
+	if k.Status.ClusterStatus.Status != models.StatusRUNNING {
 		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
 			"cluster name", k.Spec.Name,
 			"cluster status", k.Status.ClusterStatus.Status)
@@ -258,7 +258,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			return err
 		}
 
-		instaclusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		instaClusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
 		if errors.Is(err, instaclustr.NotFound) {
 			patch := kafka.NewPatch()
 			l.Info("Kafka cluster is not found in Instaclustr. Deleting resource.",
@@ -283,18 +283,18 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			return nil
 		}
 		if err != nil {
-			l.Error(err, "Cannot get kafka instaclusterStatus", "cluster ID", kafka.Status.ID)
+			l.Error(err, "Cannot get kafka instaClusterStatus", "cluster ID", kafka.Status.ID)
 			return err
 		}
 
-		if !areStatusesEqual(instaclusterStatus, &kafka.Status.ClusterStatus) {
+		if !areStatusesEqual(instaClusterStatus, &kafka.Status.ClusterStatus) {
 			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instacluster status", instaclusterStatus,
-				"k8s status", kafka.Status.ClusterStatus)
+				"kafka status", instaClusterStatus,
+				"cluster status", kafka.Status.ClusterStatus)
 
 			patch := kafka.NewPatch()
-			instaclusterStatus.MaintenanceEvents = kafka.Status.MaintenanceEvents
-			kafka.Status.ClusterStatus = *instaclusterStatus
+			instaClusterStatus.MaintenanceEvents = kafka.Status.MaintenanceEvents
+			kafka.Status.ClusterStatus = *instaClusterStatus
 			err := r.Status().Patch(context.Background(), kafka, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka cluster",

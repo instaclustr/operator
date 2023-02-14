@@ -56,6 +56,12 @@ const (
 )
 
 const (
+	StatusRUNNING  = "RUNNING"
+	StatusDELETED  = "DELETED"
+	StatusDisabled = "DISABLED"
+)
+
+const (
 	CreatingEvent = "creating"
 	CreatedEvent  = "created"
 	UpdatingEvent = "updating"

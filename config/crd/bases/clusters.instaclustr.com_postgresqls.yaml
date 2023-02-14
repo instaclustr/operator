@@ -45,7 +45,6 @@ spec:
                     accountName:
                       type: string
                     clientEncryption:
-                      description: PostgreSQL options
                       type: boolean
                     cloudProvider:
                       type: string
@@ -91,7 +90,6 @@ spec:
                       format: int32
                       type: integer
                     pgBouncerVersion:
-                      description: PGBouncer options
                       type: string
                     poolMode:
                       type: string
