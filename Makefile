@@ -107,7 +107,7 @@ docker-build-server-stub: ## Build an Instaclustr server-stub image.
 
 .PHONY: run-server-stub
 run-server-stub: ## Run an Instaclustr server-stub from your host.
-	docker run --rm -d --name instaclustr-server-stub -p 8090:8090 instaclustr-server-stub
+	docker run --rm -d --name instaclustr-server-stub -p 8082:8082 instaclustr-server-stub
 
 PHONY: stop-server-stub
 stop-server-stub: ## Stop an Instaclustr server-stub from your host.

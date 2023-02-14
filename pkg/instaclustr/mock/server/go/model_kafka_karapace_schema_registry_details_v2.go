@@ -12,7 +12,7 @@ package openapi
 // KafkaKarapaceSchemaRegistryDetailsV2 -
 type KafkaKarapaceSchemaRegistryDetailsV2 struct {
 
-	// Adds the specified version of Kafka Schema Registry to the Kafka cluster. Available versions: <ul> <li>`3.2.0`</li> </ul>
+	// Adds the specified version of Kafka Schema Registry to the Kafka cluster. Available versions: <ul> <li>`3.4.3`</li> </ul>
 	Version string `json:"version"`
 }
 

@@ -24,6 +24,9 @@ type OpenSearchClusterV2 struct {
 	// Version of OpenSearch to run on the cluster
 	OpensearchVersion string `json:"opensearchVersion"`
 
+	// Enable asynchronous search plugin
+	AsynchronousSearchPlugin bool `json:"asynchronousSearchPlugin,omitempty"`
+
 	//
 	TwoFactorDelete []TwoFactorDeleteSettingsV2 `json:"twoFactorDelete,omitempty"`
 
@@ -36,10 +39,19 @@ type OpenSearchClusterV2 struct {
 	// Enable reporting plugin
 	ReportingPlugin bool `json:"reportingPlugin,omitempty"`
 
+	// Enable sql plugin
+	SqlPlugin bool `json:"sqlPlugin,omitempty"`
+
+	// Enable notifications plugin
+	NotificationsPlugin bool `json:"notificationsPlugin,omitempty"`
+
 	// List of data centre settings.
 	DataCentres []OpenSearchDataCentreV2 `json:"dataCentres"`
 
 	CurrentClusterOperationStatus CurrentClusterOperationStatusV2 `json:"currentClusterOperationStatus,omitempty"`
+
+	// Enable anomaly detection plugin
+	AnomalyDetectionPlugin bool `json:"anomalyDetectionPlugin,omitempty"`
 
 	// Enable Load Balancer
 	LoadBalancer bool `json:"loadBalancer,omitempty"`
@@ -49,6 +61,9 @@ type OpenSearchClusterV2 struct {
 
 	// Name of the cluster.
 	Name string `json:"name,omitempty"`
+
+	// Provision this cluster for [Bundled Use only](https://www.instaclustr.com/support/documentation/cadence/getting-started-with-cadence/bundled-use-only-cluster-deployments/).
+	BundledUseOnly bool `json:"bundledUseOnly,omitempty"`
 
 	// List of cluster managers node settings
 	ClusterManagerNodes []OpenSearchClusterManagerNodeV2 `json:"clusterManagerNodes,omitempty"`
@@ -60,6 +75,9 @@ type OpenSearchClusterV2 struct {
 	Id string `json:"id,omitempty"`
 
 	SlaTier SlaTierV2 `json:"slaTier,omitempty"`
+
+	// Enable alerting plugin
+	AlertingPlugin bool `json:"alertingPlugin,omitempty"`
 
 	// Status of the cluster.
 	Status string `json:"status,omitempty"`

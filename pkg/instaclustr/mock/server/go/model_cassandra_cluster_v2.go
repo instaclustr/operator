@@ -44,6 +44,9 @@ type CassandraClusterV2 struct {
 	// Name of the cluster.
 	Name string `json:"name"`
 
+	// Provision this cluster for [Bundled Use only](https://www.instaclustr.com/support/documentation/cadence/getting-started-with-cadence/bundled-use-only-cluster-deployments/).
+	BundledUseOnly bool `json:"bundledUseOnly,omitempty"`
+
 	// ID of the cluster.
 	Id string `json:"id,omitempty"`
 

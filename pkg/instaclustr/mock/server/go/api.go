@@ -208,6 +208,7 @@ type OpenAPISpecificationV2ApiRouter interface {
 type OpenSearchClusterV2ApiRouter interface {
 	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete(http.ResponseWriter, *http.Request)
 	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet(http.ResponseWriter, *http.Request)
+	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut(http.ResponseWriter, *http.Request)
 	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post(http.ResponseWriter, *http.Request)
 }
 
@@ -264,7 +265,18 @@ type PostgresqlUserV2ApiRouter interface {
 type RedisClusterV2ApiRouter interface {
 	ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdDelete(http.ResponseWriter, *http.Request)
 	ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet(http.ResponseWriter, *http.Request)
+	ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut(http.ResponseWriter, *http.Request)
 	ClusterManagementV2ResourcesApplicationsRedisClustersV2Post(http.ResponseWriter, *http.Request)
+}
+
+// RedisUserV2ApiRouter defines the required methods for binding the api requests to a responses for the RedisUserV2Api
+// The RedisUserV2ApiRouter implementation should parse necessary information from the http request,
+// pass the data to a RedisUserV2ApiServicer to perform the required actions, then write the service results to the http response.
+type RedisUserV2ApiRouter interface {
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2Post(http.ResponseWriter, *http.Request)
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2RedisUserIdDelete(http.ResponseWriter, *http.Request)
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2RedisUserIdGet(http.ResponseWriter, *http.Request)
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2RedisUserIdPut(http.ResponseWriter, *http.Request)
 }
 
 // SwaggerV2ApiRouter defines the required methods for binding the api requests to a responses for the SwaggerV2Api
@@ -272,7 +284,6 @@ type RedisClusterV2ApiRouter interface {
 // pass the data to a SwaggerV2ApiServicer to perform the required actions, then write the service results to the http response.
 type SwaggerV2ApiRouter interface {
 	ClusterManagementV2SwaggerForTerraformYamlGet(http.ResponseWriter, *http.Request)
-	ClusterManagementV2SwaggerYamlGet(http.ResponseWriter, *http.Request)
 }
 
 // TerraformDocumentationV2ApiRouter defines the required methods for binding the api requests to a responses for the TerraformDocumentationV2Api
@@ -503,6 +514,7 @@ type OpenAPISpecificationV2ApiServicer interface {
 type OpenSearchClusterV2ApiServicer interface {
 	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete(context.Context, string) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet(context.Context, string) (ImplResponse, error)
+	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut(context.Context, string, OpenSearchClusterUpdateV2) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post(context.Context, OpenSearchClusterV2) (ImplResponse, error)
 }
 
@@ -565,7 +577,19 @@ type PostgresqlUserV2ApiServicer interface {
 type RedisClusterV2ApiServicer interface {
 	ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdDelete(context.Context, string) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet(context.Context, string) (ImplResponse, error)
+	ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut(context.Context, string, RedisClusterUpdateV2) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsRedisClustersV2Post(context.Context, RedisClusterV2) (ImplResponse, error)
+}
+
+// RedisUserV2ApiServicer defines the api actions for the RedisUserV2Api service
+// This interface intended to stay up to date with the openapi yaml used to generate it,
+// while the service implementation can be ignored with the .openapi-generator-ignore file
+// and updated with the logic required for the API.
+type RedisUserV2ApiServicer interface {
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2Post(context.Context, RedisUserV2) (ImplResponse, error)
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2RedisUserIdDelete(context.Context, string) (ImplResponse, error)
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2RedisUserIdGet(context.Context, string) (ImplResponse, error)
+	ClusterManagementV2ResourcesApplicationsRedisUsersV2RedisUserIdPut(context.Context, string, RedisUserPasswordV2) (ImplResponse, error)
 }
 
 // SwaggerV2ApiServicer defines the api actions for the SwaggerV2Api service
@@ -574,7 +598,6 @@ type RedisClusterV2ApiServicer interface {
 // and updated with the logic required for the API.
 type SwaggerV2ApiServicer interface {
 	ClusterManagementV2SwaggerForTerraformYamlGet(context.Context) (ImplResponse, error)
-	ClusterManagementV2SwaggerYamlGet(context.Context) (ImplResponse, error)
 }
 
 // TerraformDocumentationV2ApiServicer defines the api actions for the TerraformDocumentationV2Api service

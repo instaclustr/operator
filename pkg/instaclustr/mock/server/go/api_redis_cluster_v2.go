@@ -63,6 +63,12 @@ func (c *RedisClusterV2ApiController) Routes() Routes {
 			c.ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet,
 		},
 		{
+			"ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut",
+			strings.ToUpper("Put"),
+			"/cluster-management/v2/resources/applications/redis/clusters/v2/{clusterId}",
+			c.ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut,
+		},
+		{
 			"ClusterManagementV2ResourcesApplicationsRedisClustersV2Post",
 			strings.ToUpper("Post"),
 			"/cluster-management/v2/resources/applications/redis/clusters/v2",
@@ -93,6 +99,33 @@ func (c *RedisClusterV2ApiController) ClusterManagementV2ResourcesApplicationsRe
 	clusterIdParam := params["clusterId"]
 
 	result, err := c.service.ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet(r.Context(), clusterIdParam)
+	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+
+}
+
+// ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut - Update Redis Cluster Details
+func (c *RedisClusterV2ApiController) ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	clusterIdParam := params["clusterId"]
+
+	bodyParam := RedisClusterUpdateV2{}
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&bodyParam); err != nil {
+		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
+		return
+	}
+	if err := AssertRedisClusterUpdateV2Required(bodyParam); err != nil {
+		c.errorHandler(w, r, err, nil)
+		return
+	}
+	result, err := c.service.ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut(r.Context(), clusterIdParam, bodyParam)
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)
