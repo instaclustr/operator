@@ -158,7 +158,7 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.
 	}
 }
 
-func (cs *CassandraSpec) AreSpecsEqual(instSpec *modelsv2.CassandraCluster) bool {
+func (cs *CassandraSpec) AreSpecsEqual(instSpec *models.CassandraCluster) bool {
 	if cs.Name != instSpec.Name ||
 		cs.Version != instSpec.CassandraVersion ||
 		cs.PCICompliance != instSpec.PCIComplianceMode ||
@@ -220,7 +220,7 @@ func (cs *CassandraSpec) IsSparkEqual(instSparks []*modelsv2.Spark) bool {
 	return true
 }
 
-func (cs *CassandraSpec) SetSpecFromInst(instSpec *modelsv2.CassandraCluster) {
+func (cs *CassandraSpec) SetSpecFromInst(instSpec *models.CassandraCluster) {
 	cs.Name = instSpec.Name
 	cs.Version = instSpec.CassandraVersion
 	cs.PCICompliance = instSpec.PCIComplianceMode
@@ -367,6 +367,94 @@ func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Cassan
 	}
 
 	return nil
+}
+
+func (cs *CassandraStatus) SetFromInstAPI(instStatus *models.CassandraCluster) {
+	cs.Status = instStatus.Status
+	cs.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
+	cs.SetDCsFromInstAPI(instStatus.DataCentres)
+}
+
+func (cs *CassandraStatus) SetDCsFromInstAPI(instDCs []*modelsv2.CassandraDataCentre) {
+	var dcs []*DataCentreStatus
+	for _, instDC := range instDCs {
+		dc := &DataCentreStatus{
+			ID:         instDC.ID,
+			Status:     instDC.Status,
+			NodeNumber: instDC.NumberOfNodes,
+		}
+		dc.SetNodesFromInstAPI(instDC.Nodes)
+		dcs = append(dcs, dc)
+	}
+	cs.DataCentres = dcs
+}
+
+func (cs *CassandraStatus) IsEqual(instStatus *models.CassandraCluster) bool {
+	if cs.Status != instStatus.Status ||
+		cs.CurrentClusterOperationStatus != instStatus.CurrentClusterOperationStatus ||
+		cs.AreDCsEqual(instStatus.DataCentres) {
+		return false
+	}
+
+	return true
+}
+
+func (cs *CassandraStatus) AreDCsEqual(instDCs []*modelsv2.CassandraDataCentre) bool {
+	if len(cs.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range cs.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if k8sDC.Status != instDC.Status ||
+					k8sDC.NodeNumber != instDC.NumberOfNodes ||
+					!k8sDC.AreNodesEqual(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
+func (cs *CassandraSpec) NewDataCentresUpdate() *models.CassandraClusterAPIUpdate {
+	return &models.CassandraClusterAPIUpdate{
+		DataCentres: cs.DCsToInstAPI(),
+	}
+}
+
+func (cs *CassandraSpec) DCsToInstAPI() []*modelsv2.CassandraDataCentre {
+	var dcs []*modelsv2.CassandraDataCentre
+	for _, k8sDC := range cs.DataCentres {
+		dcs = append(dcs, k8sDC.ToInstAPI())
+	}
+	return dcs
+}
+
+func (cdc *CassandraDataCentre) ToInstAPI() *modelsv2.CassandraDataCentre {
+	instDC := &modelsv2.CassandraDataCentre{
+		DataCentre: modelsv2.DataCentre{
+			Name:                cdc.Name,
+			Network:             cdc.Network,
+			NodeSize:            cdc.NodeSize,
+			NumberOfNodes:       cdc.NodesNumber,
+			CloudProvider:       cdc.CloudProvider,
+			Region:              cdc.Region,
+			ProviderAccountName: cdc.ProviderAccountName,
+		},
+		ClientToClusterEncryption:      cdc.ClientToClusterEncryption,
+		ContinuousBackup:               cdc.ContinuousBackup,
+		PrivateIPBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
+		ReplicationFactor:              cdc.ReplicationFactor,
+	}
+	cdc.CloudProviderSettingsToInstAPI(&instDC.DataCentre)
+	cdc.TagsToInstAPI(&instDC.DataCentre)
+
+	return instDC
 }
 
 func init() {

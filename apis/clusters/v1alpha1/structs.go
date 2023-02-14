@@ -151,6 +151,17 @@ func (c *Cluster) TwoFactorDeletesToInstAPI() []*modelsv2.TwoFactorDelete {
 	return TFDs
 }
 
+func (c *Cluster) TwoFactorDeleteToInstAPIv1() *models.TwoFactorDelete {
+	if len(c.TwoFactorDelete) == 0 {
+		return nil
+	}
+
+	return &models.TwoFactorDelete{
+		DeleteVerifyEmail: c.TwoFactorDelete[0].Email,
+		DeleteVerifyPhone: c.TwoFactorDelete[0].Phone,
+	}
+}
+
 func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFactorDelete) bool {
 	if len(c.TwoFactorDelete) != len(instTwoFactorDeletes) {
 		return false
@@ -346,7 +357,7 @@ func (dc *DataCentre) SetTagsFromInstAPI(instTags []*modelsv2.Tag) {
 	dc.Tags = k8sTags
 }
 
-func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*models.ClusterProvider) {
+func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*models.ClusterProviderV1) {
 	if len(instProviderSettings) != 0 {
 		dc.ProviderAccountName = instProviderSettings[0].AccountName
 		dc.CloudProvider = instProviderSettings[0].Name
@@ -399,6 +410,26 @@ func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*modelsv2.Node) bool {
 	return true
 }
 
+func (dcs *DataCentreStatus) AreNodesEqualAPIv1(instNodes []*models.NodeStatusV1) bool {
+	if len(dcs.Nodes) != len(instNodes) {
+		return false
+	}
+
+	for _, instNode := range instNodes {
+		for _, k8sNode := range dcs.Nodes {
+			if instNode.ID == k8sNode.ID {
+				if !k8sNode.IsNodeEqualAPIv1(instNode) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
 func (n *Node) IsNodeEqual(instNode *modelsv2.Node) bool {
 	if n == nil || instNode == nil {
 		return (n == nil) == (instNode == nil)
@@ -411,6 +442,23 @@ func (n *Node) IsNodeEqual(instNode *modelsv2.Node) bool {
 		instNode.PrivateAddress != n.PrivateAddress ||
 		instNode.PublicAddress != n.PublicAddress ||
 		!slices.Equal(instNode.Roles, n.Roles) {
+		return false
+	}
+
+	return true
+}
+
+func (n *Node) IsNodeEqualAPIv1(instNode *models.NodeStatusV1) bool {
+	if n == nil || instNode == nil {
+		return (n == nil) == (instNode == nil)
+	}
+
+	if instNode.ID != n.ID ||
+		instNode.NodeStatus != n.Status ||
+		instNode.Size != n.Size ||
+		instNode.Rack != n.Rack ||
+		instNode.PrivateAddress != n.PrivateAddress ||
+		instNode.PublicAddress != n.PublicAddress {
 		return false
 	}
 
@@ -459,4 +507,48 @@ func (c *ClusterStatus) AreMaintenanceEventsEqual(instEvents []*MaintenanceEvent
 	}
 
 	return true
+}
+
+func (c *ClusterStatus) SetFromInstAPIv1(instStatus *models.ClusterV1) {
+	c.ID = instStatus.ID
+	c.Status = instStatus.ClusterStatus
+	c.CDCID = instStatus.CDCID
+	if instStatus.BundleOptions != nil {
+		c.Options = &Options{
+			DataNodeSize:                 instStatus.BundleOptions.DataNodeSize,
+			MasterNodeSize:               instStatus.BundleOptions.MasterNodeSize,
+			OpenSearchDashboardsNodeSize: instStatus.BundleOptions.OpenSearchDashboardsNodeSize,
+		}
+	}
+	c.SetDCsFromInstAPIv1(instStatus.DataCentres)
+}
+
+func (c *ClusterStatus) SetDCsFromInstAPIv1(instDCs []*models.DataCentreV1) {
+	var dcs []*DataCentreStatus
+	for _, instDC := range instDCs {
+		dc := &DataCentreStatus{
+			ID:              instDC.ID,
+			Status:          instDC.CDCStatus,
+			NodeNumber:      instDC.NodeCount,
+			EncryptionKeyID: instDC.EncryptionKeyID,
+		}
+		dc.SetNodesFromInstAPIv1(instDC.Nodes)
+		dcs = append(dcs, dc)
+	}
+	c.DataCentres = dcs
+}
+
+func (dc *DataCentreStatus) SetNodesFromInstAPIv1(instNodes []*models.NodeStatusV1) {
+	var nodes []*Node
+	for _, node := range instNodes {
+		nodes = append(nodes, &Node{
+			ID:             node.ID,
+			Rack:           node.Rack,
+			PublicAddress:  node.PublicAddress,
+			PrivateAddress: node.PrivateAddress,
+			Status:         node.NodeStatus,
+			Size:           node.Size,
+		})
+	}
+	dc.Nodes = nodes
 }

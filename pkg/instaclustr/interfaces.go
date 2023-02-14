@@ -6,7 +6,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -14,7 +13,7 @@ import (
 type API interface {
 	DoRequest(url string, method string, data []byte) (*http.Response, error)
 	CreateCluster(url string, clusterSpec any) (string, error)
-	GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error)
+	GetOpenSearch(id string) (*models.ClusterV1, error)
 	UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error
 	GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error)
 	GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error)
@@ -35,6 +34,7 @@ type API interface {
 	CreateKafkaUser(url string, kafkaUser *modelsv2.KafkaUserAPIv2) (*kafkamanagementv1alpha1.KafkaUserStatus, error)
 	UpdateKafkaUser(kafkaUserID, kafkaUserEndpoint string, kafkaUserSpec *modelsv2.KafkaUserAPIv2) error
 	DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error
+	GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus, error)
 	CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
 	DeleteKafkaTopic(url, id string) error
 	UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
@@ -53,15 +53,17 @@ type API interface {
 	RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error)
 	RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error)
 	RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error)
-	CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error
-	GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error)
-	GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error)
+	CreateNodeReload(bundle, nodeID string, nr *models.NodeReloadV1) error
+	GetNodeReloadStatus(bundle, nodeID string) (*models.NodeReloadStatusAPIv1, error)
 	GetRedis(id string) (*models.RedisCluster, error)
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
 	UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error
-	GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error)
+	GetCassandra(id string) (*models.CassandraCluster, error)
+	GetKafka(id string) (*models.KafkaCluster, error)
+	GetKafkaConnect(id string) (*models.KafkaConnectCluster, error)
+	GetZookeeper(id string) (*models.ZookeeperCluster, error)
 	RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error)
 	GetPostgreSQL(id string) (*models.PGStatus, error)
 	UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error
@@ -69,6 +71,6 @@ type API interface {
 	CreatePostgreSQLConfiguration(id, name, value string) error
 	UpdatePostgreSQLConfiguration(id, name, value string) error
 	ResetPostgreSQLConfiguration(id, name string) error
-	GetCadence(id string) (*models.CadenceAPIv2, error)
+	GetCadence(id string) (*models.CadenceSpec, error)
 	UpdatePostgreSQLDefaultUserPassword(id, password string) error
 }

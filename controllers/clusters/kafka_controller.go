@@ -172,7 +172,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
 	l = l.WithName("Deletion Event")
 
-	instaCluster, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+	instaCluster, err := r.API.GetKafka(kafka.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get Kafka cluster",
 			"cluster name", kafka.Spec.Name,
@@ -257,7 +257,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			return err
 		}
 
-		instaclusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		instStatus, err := r.API.GetKafka(kafka.Status.ID)
 		if errors.Is(err, instaclustr.NotFound) {
 			patch := kafka.NewPatch()
 			l.Info("Kafka cluster is not found in Instaclustr. Deleting resource.",
@@ -286,14 +286,13 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			return err
 		}
 
-		if !areStatusesEqual(instaclusterStatus, &kafka.Status.ClusterStatus) {
+		if !kafka.Status.IsEqual(instStatus) {
 			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instacluster status", instaclusterStatus,
+				"instacluster status", instStatus,
 				"k8s status", kafka.Status.ClusterStatus)
 
 			patch := kafka.NewPatch()
-			instaclusterStatus.MaintenanceEvents = kafka.Status.MaintenanceEvents
-			kafka.Status.ClusterStatus = *instaclusterStatus
+			kafka.Status.SetFromInst(instStatus)
 			err := r.Status().Patch(context.Background(), kafka, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka cluster",

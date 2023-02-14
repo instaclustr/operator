@@ -210,7 +210,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	l logr.Logger,
 	cc *clustersv1alpha1.Cassandra,
 ) reconcile.Result {
-	currentClusterStatus, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
+	instStatus, err := r.API.GetCassandra(cc.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get Cassandra cluster status from the Instaclustr API",
@@ -220,11 +220,10 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	result := apiv2.CompareCassandraDCs(cc.Spec.DataCentres, currentClusterStatus)
-	if result != nil {
+	if !cc.Spec.AreSpecsEqual(instStatus) {
 		err = r.API.UpdateCluster(cc.Status.ID,
 			instaclustr.CassandraEndpoint,
-			result,
+			cc.Spec.NewDataCentresUpdate(),
 		)
 		if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
 			l.Error(err, "Cluster is not ready to resize",
@@ -307,7 +306,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		return models.ReconcileResult
 	}
 
-	status, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
+	status, err := r.API.GetCassandra(cc.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get Cassandra cluster status from the Instaclustr API",
@@ -408,101 +407,92 @@ func (r *CassandraReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.C
 	return nil
 }
 
-func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) scheduler.Job {
+func (r *CassandraReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "cassandraStatusClusterJob")
 	return func() error {
-		err := r.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: cassandraCluster.Name}, cassandraCluster)
+		err := r.Get(context.Background(), types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
 		if err != nil {
 			l.Error(err, "Cannot get Cassandra custom resource",
-				"resource name", cassandraCluster.Name,
+				"resource name", cluster.Name,
 			)
 			return err
 		}
 
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cassandraCluster.DeletionTimestamp, len(cassandraCluster.Spec.TwoFactorDelete), cassandraCluster.Annotations[models.DeletionConfirmed]) {
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
 			l.Info("Cassandra cluster is being deleted. Status check job skipped",
-				"cluster name", cassandraCluster.Spec.Name,
-				"cluster ID", cassandraCluster.Status.ID,
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
 			)
 
 			return nil
 		}
 
-		instaclusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+		instStatus, err := r.API.GetCassandra(cluster.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get cassandraCluster instaclusterStatus",
-				"clusterID", cassandraCluster.Status.ID)
+				"clusterID", cluster.Status.ID)
 			return err
 		}
 
-		if !areStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
+		if !cluster.Status.IsEqual(instStatus) {
 			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instaclusterStatus", instaclusterStatus,
-				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
+				"instaclusterStatus", instStatus,
+				"k8s status", cluster.Status.ClusterStatus)
 
-			patch := cassandraCluster.NewPatch()
-			instaclusterStatus.MaintenanceEvents = cassandraCluster.Status.ClusterStatus.MaintenanceEvents
-			cassandraCluster.Status.ClusterStatus = *instaclusterStatus
-			err = r.Status().Patch(context.Background(), cassandraCluster, patch)
+			patch := cluster.NewPatch()
+			cluster.Status.SetFromInstAPI(instStatus)
+			err = r.Status().Patch(context.Background(), cluster, patch)
 			if err != nil {
 				return err
 			}
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(cassandraCluster.Status.ID)
+		maintEvents, err := r.API.GetMaintenanceEvents(cluster.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get Cassandra cluster maintenance events",
-				"cluster name", cassandraCluster.Spec.Name,
-				"cluster ID", cassandraCluster.Status.ID,
+				"cluster name", cluster.Spec.Name,
+				"cluster ID", cluster.Status.ID,
 			)
 
 			return err
 		}
 
-		if !cassandraCluster.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := cassandraCluster.NewPatch()
-			cassandraCluster.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), cassandraCluster, patch)
+		if !cluster.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cluster.NewPatch()
+			cluster.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cluster, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cassandra cluster maintenance events",
-					"cluster name", cassandraCluster.Spec.Name,
-					"cluster ID", cassandraCluster.Status.ID,
+					"cluster name", cluster.Spec.Name,
+					"cluster ID", cluster.Status.ID,
 				)
 
 				return err
 			}
 
 			l.Info("Cassandra cluster maintenance events were updated",
-				"cluster ID", cassandraCluster.Status.ID,
-				"events", cassandraCluster.Status.MaintenanceEvents,
+				"cluster ID", cluster.Status.ID,
+				"events", cluster.Status.MaintenanceEvents,
 			)
 		}
 
-		if instaclusterStatus.CurrentClusterOperationStatus == models.NoOperation {
-			instSpec, err := r.API.GetCassandra(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
-			if err != nil {
-				l.Error(err, "Cannot get Cassandra cluster spec from Instaclustr API",
-					"cluster ID", cassandraCluster.Status.ID)
-
-				return err
-			}
-
-			if !cassandraCluster.Spec.AreSpecsEqual(instSpec) {
-				patch := cassandraCluster.NewPatch()
-				cassandraCluster.Spec.RestoreFrom = nil
-				cassandraCluster.Spec.SetSpecFromInst(instSpec)
-				err = r.Patch(context.Background(), cassandraCluster, patch)
+		if instStatus.CurrentClusterOperationStatus == models.NoOperation {
+			if !cluster.Spec.AreSpecsEqual(instStatus) {
+				patch := cluster.NewPatch()
+				cluster.Spec.RestoreFrom = nil
+				cluster.Spec.SetSpecFromInst(instStatus)
+				err = r.Patch(context.Background(), cluster, patch)
 				if err != nil {
 					l.Error(err, "Cannot patch Cassandra cluster spec",
-						"cluster ID", cassandraCluster.Status.ID,
-						"spec from Instaclustr API", instSpec,
+						"cluster ID", cluster.Status.ID,
+						"spec from Instaclustr API", instStatus,
 					)
 
 					return err
 				}
 
 				l.Info("Cassandra cluster spec has been updated",
-					"cluster ID", cassandraCluster.Status.ID,
+					"cluster ID", cluster.Status.ID,
 				)
 			}
 		}

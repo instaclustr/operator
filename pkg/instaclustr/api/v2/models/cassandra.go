@@ -11,10 +11,13 @@ type CassandraCluster struct {
 
 type CassandraDataCentre struct {
 	DataCentre                     `json:",inline"`
-	ReplicationFactor              int  `json:"replicationFactor"`
-	ContinuousBackup               bool `json:"continuousBackup"`
-	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
+	ReplicationFactor              int     `json:"replicationFactor"`
+	ContinuousBackup               bool    `json:"continuousBackup"`
+	PrivateIPBroadcastForDiscovery bool    `json:"privateIpBroadcastForDiscovery"`
+	ClientToClusterEncryption      bool    `json:"clientToClusterEncryption"`
+	ID                             string  `json:"id,omitempty"`
+	Status                         string  `json:"status,omitempty"`
+	Nodes                          []*Node `json:"nodes"`
 }
 
 // CassandraStatus defines the observed state of Cassandra

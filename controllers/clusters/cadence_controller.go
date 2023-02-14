@@ -18,7 +18,6 @@ package clusters
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -951,10 +950,6 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 
-				updatedFields := newObj.Spec.GetUpdatedFields(&oldObj.Spec)
-				updatedFieldsJson, _ := json.Marshal(&updatedFields)
-
-				newObj.Annotations[models.UpdatedFieldsAnnotation] = string(updatedFieldsJson)
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				event.ObjectNew.SetAnnotations(newObj.Annotations)
 

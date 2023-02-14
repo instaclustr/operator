@@ -166,20 +166,19 @@ func (oss *OpenSearchSpec) HasRestore() bool {
 	return false
 }
 
-func (oss *OpenSearchSpec) IsSpecEqual(instSpec *models.ClusterSpec) bool {
+func (oss *OpenSearchSpec) IsSpecEqual(instSpec *models.ClusterV1) bool {
 	if len(oss.DataCentres) == 0 ||
 		len(instSpec.DataCentres) != len(oss.DataCentres) ||
 		oss.Version != instSpec.BundleVersion ||
 		oss.SLATier != instSpec.SLATier ||
-		oss.Name != instSpec.ClusterName ||
-		(len(oss.TwoFactorDelete) == 0 && instSpec.TwoFactorDeleteEnabled) {
+		oss.Name != instSpec.ClusterName {
 		return false
 	}
 
 	for _, instDataCentre := range instSpec.DataCentres {
 		for _, dataCentre := range oss.DataCentres {
 			if dataCentre.Name == instDataCentre.CDCName {
-				if !dataCentre.AreOptionsEqual(instSpec.BundleOptions) ||
+				if !dataCentre.AreOptionsEqual(*instSpec.BundleOptions) ||
 					!dataCentre.IsDataCentreEqual(instDataCentre, oss.PrivateLink) ||
 					!dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) ||
 					oss.PrivateNetworkCluster != instDataCentre.PrivateIPOnly {
@@ -211,7 +210,7 @@ func (odc *OpenSearchDataCentre) AreOptionsEqual(instOptions models.BundleOption
 	return true
 }
 
-func (odc *OpenSearchDataCentre) IsDataCentreEqual(instDC *models.DataCentreSpec, privateLink *PrivateLink) bool {
+func (odc *OpenSearchDataCentre) IsDataCentreEqual(instDC *models.DataCentreV1, privateLink *PrivateLink) bool {
 	if odc.Name != instDC.CDCName ||
 		odc.Region != instDC.Name ||
 		odc.CloudProvider != instDC.Provider ||
@@ -238,7 +237,7 @@ func (odc *OpenSearchDataCentre) IsDataCentreEqual(instDC *models.DataCentreSpec
 	return true
 }
 
-func (odc *OpenSearchDataCentre) IsClusterProviderEqual(instClusterProvider []*models.ClusterProvider) bool {
+func (odc *OpenSearchDataCentre) IsClusterProviderEqual(instClusterProvider []*models.ClusterProviderV1) bool {
 	for _, instProvider := range instClusterProvider {
 		if odc.CloudProvider != instProvider.Name ||
 			odc.ProviderAccountName != instProvider.AccountName {
@@ -259,11 +258,10 @@ func (odc *OpenSearchDataCentre) IsClusterProviderEqual(instClusterProvider []*m
 			}
 		}
 	}
-
 	return true
 }
 
-func (oss *OpenSearchSpec) SetSpecFromInst(instSpec *models.ClusterSpec) bool {
+func (oss *OpenSearchSpec) SetSpecFromInst(instSpec *models.ClusterV1) bool {
 	oss.Name = instSpec.ClusterName
 	oss.Version = instSpec.BundleVersion
 	oss.SLATier = instSpec.SLATier
@@ -378,6 +376,106 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Open
 	}
 
 	return nil
+}
+
+func (odc *OpenSearchDataCentre) newBundleInstAPIv1(version string) []*models.OpenSearchBundleV1 {
+	var newBundles []*models.OpenSearchBundleV1
+	bundle := &models.OpenSearchBundleV1{
+		Bundle: models.Bundle{
+			Bundle:  models.OpenSearchV1,
+			Version: version,
+		},
+		Options: &models.OpenSearchBundleOptionsV1{
+			DedicatedMasterNodes:         odc.DedicatedMasterNodes,
+			MasterNodeSize:               odc.MasterNodeSize,
+			OpenSearchDashboardsNodeSize: odc.OpenSearchDashboardsNodeSize,
+			IndexManagementPlugin:        odc.IndexManagementPlugin,
+			ICUPlugin:                    odc.ICUPlugin,
+			KNNPlugin:                    odc.KNNPlugin,
+			NotificationsPlugin:          odc.NotificationsPlugin,
+			ReportsPlugin:                odc.ReportsPlugin,
+		},
+	}
+	newBundles = append(newBundles, bundle)
+
+	return newBundles
+}
+
+func (oss *OpenSearchSpec) ToInstAPIv1Creation() *models.OpenSearchClusterCreationV1 {
+	if len(oss.DataCentres) == 0 {
+		return nil
+	}
+
+	rackAlloc := &models.RackAllocationV1{
+		NodesPerRack:  oss.DataCentres[0].NodesNumber,
+		NumberOfRacks: oss.DataCentres[0].RacksNumber,
+	}
+
+	return &models.OpenSearchClusterCreationV1{
+		ClusterV1: models.ClusterV1{
+			ClusterName:           oss.Name,
+			NodeSize:              oss.DataCentres[0].NodeSize,
+			PrivateNetworkCluster: oss.PrivateNetworkCluster,
+			SLATier:               oss.SLATier,
+			DataCentre:            oss.DataCentres[0].Region,
+			DataCentreCustomName:  oss.DataCentres[0].Name,
+			ClusterNetwork:        oss.DataCentres[0].Network,
+			RackAllocation:        rackAlloc,
+		},
+		Bundles:         oss.DataCentres[0].newBundleInstAPIv1(oss.Version),
+		TwoFactorDelete: oss.TwoFactorDeleteToInstAPIv1(),
+		Provider:        oss.DataCentres[0].providerToInstAPIv1(),
+	}
+}
+
+func (odc *OpenSearchDataCentre) providerToInstAPIv1() *models.ClusterProviderV1 {
+	var instCustomVirtualNetworkId string
+	var instResourceGroup string
+	var insDiskEncryptionKey string
+	if len(odc.CloudProviderSettings) > 0 {
+		instCustomVirtualNetworkId = odc.CloudProviderSettings[0].CustomVirtualNetworkID
+		instResourceGroup = odc.CloudProviderSettings[0].ResourceGroup
+		insDiskEncryptionKey = odc.CloudProviderSettings[0].DiskEncryptionKey
+	}
+
+	return &models.ClusterProviderV1{
+		Name:                   odc.CloudProvider,
+		AccountName:            odc.ProviderAccountName,
+		Tags:                   odc.Tags,
+		CustomVirtualNetworkID: instCustomVirtualNetworkId,
+		ResourceGroup:          instResourceGroup,
+		DiskEncryptionKey:      insDiskEncryptionKey,
+	}
+}
+
+func (oss *OpenSearchStatus) IsEqual(instStatus *models.ClusterV1) bool {
+	if oss.Status != instStatus.ClusterStatus ||
+		!oss.AreDCsEqual(instStatus.DataCentres) {
+		return false
+	}
+
+	return true
+}
+
+func (oss *OpenSearchStatus) AreDCsEqual(instDCs []*models.DataCentreV1) bool {
+	if len(oss.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range oss.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if instDC.CDCStatus != k8sDC.Status ||
+					!k8sDC.AreNodesEqualAPIv1(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
 }
 
 func init() {

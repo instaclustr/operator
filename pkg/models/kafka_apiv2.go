@@ -1,36 +1,66 @@
 package models
 
 import (
-	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
+	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
+type KafkaCluster struct {
+	ID                                string                      `json:"ID"`
+	Status                            string                      `json:"status"`
+	CurrentClusterOperationStatus     string                      `json:"currentClusterOperationStatus"`
+	Name                              string                      `json:"name"`
+	KafkaVersion                      string                      `json:"kafkaVersion"`
+	PrivateNetworkCluster             bool                        `json:"privateNetworkCluster"`
+	SLATier                           string                      `json:"slaTier"`
+	TwoFactorDelete                   []*modelsv2.TwoFactorDelete `json:"twoFactorDelete"`
+	AllowDeleteTopics                 bool                        `json:"allowDeleteTopics"`
+	AutoCreateTopics                  bool                        `json:"autoCreateTopics"`
+	BundledUseOnly                    bool                        `json:"bundledUseOnly"`
+	ClientAuthBrokerWithEncryption    bool                        `json:"clientAuthBrokerWithEncryption"`
+	ClientAuthBrokerWithoutEncryption bool                        `json:"clientAuthBrokerWithoutEncryption"`
+	ClientBrokerAuthWithMtls          bool                        `json:"clientBrokerAuthWithMtls"`
+	ClientToClusterEncryption         bool                        `json:"clientToClusterEncryption"`
+	DataCentres                       []*KafkaDataCentre          `json:"dataCentres"`
+	DedicatedZookeeper                []*DedicatedZookeeper       `json:"dedicatedZookeeper"`
+	DefaultNumberOfPartitions         int                         `json:"defaultNumberOfPartitions"`
+	DefaultReplicationFactor          int                         `json:"defaultReplicationFactor"`
+	KarapaceRestProxy                 []*KarapaceRestProxy        `json:"karapaceRestProxy"`
+	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry   `json:"karapaceSchemaRegistry"`
+	PCIComplianceMode                 bool                        `json:"PCIComplianceMode"`
+	RestProxy                         []*RestProxy                `json:"restProxy"`
+	SchemaRegistry                    []*SchemaRegistry           `json:"schemaRegistry"`
+}
+
 type KafkaInstAPICreateRequest struct {
-	PCIComplianceMode                 bool                      `json:"pciComplianceMode"`
-	SchemaRegistry                    []*SchemaRegistry         `json:"schemaRegistry,omitempty"`
-	DefaultReplicationFactor          int32                     `json:"defaultReplicationFactor"`
-	DefaultNumberOfPartitions         int32                     `json:"defaultNumberOfPartitions"`
-	RestProxy                         []*RestProxy              `json:"restProxy,omitempty"`
-	TwoFactorDelete                   []*models.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	AllowDeleteTopics                 bool                      `json:"allowDeleteTopics"`
-	AutoCreateTopics                  bool                      `json:"autoCreateTopics"`
-	ClientToClusterEncryption         bool                      `json:"clientToClusterEncryption"`
-	KafkaDataCentre                   []*KafkaDataCentre        `json:"dataCentres"`
-	DedicatedZookeeper                []*DedicatedZookeeper     `json:"dedicatedZookeeper,omitempty"`
-	PrivateNetworkCluster             bool                      `json:"privateNetworkCluster"`
-	KafkaVersion                      string                    `json:"kafkaVersion"`
-	Name                              string                    `json:"name"`
-	SLATier                           string                    `json:"slaTier"`
-	ClientBrokerAuthWithMTLS          bool                      `json:"clientBrokerAuthWithMtls,omitempty"`
-	ClientAuthBrokerWithoutEncryption bool                      `json:"clientAuthBrokerWithoutEncryption,omitempty"`
-	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption,omitempty"`
-	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
-	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
-	BundledUseOnly                    bool                      `json:"bundledUseOnly,omitempty"`
+	PCIComplianceMode                 bool                        `json:"pciComplianceMode"`
+	SchemaRegistry                    []*SchemaRegistry           `json:"schemaRegistry,omitempty"`
+	DefaultReplicationFactor          int32                       `json:"defaultReplicationFactor"`
+	DefaultNumberOfPartitions         int32                       `json:"defaultNumberOfPartitions"`
+	RestProxy                         []*RestProxy                `json:"restProxy,omitempty"`
+	TwoFactorDelete                   []*modelsv2.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	AllowDeleteTopics                 bool                        `json:"allowDeleteTopics"`
+	AutoCreateTopics                  bool                        `json:"autoCreateTopics"`
+	ClientToClusterEncryption         bool                        `json:"clientToClusterEncryption"`
+	KafkaDataCentre                   []*KafkaDataCentre          `json:"dataCentres"`
+	DedicatedZookeeper                []*DedicatedZookeeper       `json:"dedicatedZookeeper,omitempty"`
+	PrivateNetworkCluster             bool                        `json:"privateNetworkCluster"`
+	KafkaVersion                      string                      `json:"kafkaVersion"`
+	Name                              string                      `json:"name"`
+	SLATier                           string                      `json:"slaTier"`
+	ClientBrokerAuthWithMTLS          bool                        `json:"clientBrokerAuthWithMtls,omitempty"`
+	ClientAuthBrokerWithoutEncryption bool                        `json:"clientAuthBrokerWithoutEncryption,omitempty"`
+	ClientAuthBrokerWithEncryption    bool                        `json:"clientAuthBrokerWithEncryption,omitempty"`
+	KarapaceRestProxy                 []*KarapaceRestProxy        `json:"karapaceRestProxy,omitempty"`
+	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry   `json:"karapaceSchemaRegistry,omitempty"`
+	BundledUseOnly                    bool                        `json:"bundledUseOnly,omitempty"`
 }
 
 type KafkaDataCentre struct {
-	models.DataCentre
-	PrivateLink []*KafkaPrivateLink `json:"privateLink,omitempty"`
+	ID                  string           `json:"ID,omitempty,"`
+	Status              string           `json:"status,omitempty"`
+	Nodes               []*modelsv2.Node `json:"nodes,omitempty"`
+	modelsv2.DataCentre `json:",inline"`
+	PrivateLink         []*KafkaPrivateLink `json:"privateLink,omitempty"`
 }
 
 type KafkaPrivateLink struct {

@@ -91,3 +91,57 @@ func (k *Zookeeper) NewPatch() client.Patch {
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
+
+func (zs *ZookeeperStatus) IsEqual(instStatus *models.ZookeeperCluster) bool {
+	if zs.Status != instStatus.Status ||
+		zs.CurrentClusterOperationStatus != instStatus.CurrentClusterOperationStatus ||
+		!zs.AreDCsEqual(instStatus.DataCentres) {
+		return false
+	}
+
+	return true
+
+}
+
+func (zs *ZookeeperStatus) AreDCsEqual(instDCs []*models.ZookeeperDataCentre) bool {
+	if len(zs.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range zs.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if instDC.Status != k8sDC.Status ||
+					instDC.NumberOfNodes != k8sDC.NodeNumber ||
+					!k8sDC.AreNodesEqual(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+
+}
+
+func (zs *ZookeeperStatus) SetFromInst(instStatus *models.ZookeeperCluster) {
+	zs.Status = instStatus.Status
+	zs.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
+	zs.SetDScFromInst(instStatus.DataCentres)
+}
+
+func (zs *ZookeeperStatus) SetDScFromInst(instDCs []*models.ZookeeperDataCentre) {
+	var dcs []*DataCentreStatus
+	for _, instDC := range instDCs {
+		dc := &DataCentreStatus{
+			ID:         instDC.ID,
+			Status:     instDC.Status,
+			NodeNumber: instDC.NumberOfNodes,
+		}
+		dc.SetNodesFromInstAPI(instDC.Nodes)
+		dcs = append(dcs, dc)
+	}
+	zs.DataCentres = dcs
+}

@@ -1,10 +1,8 @@
 package clusters
 
 import (
-	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -18,80 +16,6 @@ func confirmDeletion(obj client.Object) bool {
 	}
 
 	return false
-}
-
-func areStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
-	if a.ID != b.ID ||
-		a.Status != b.Status ||
-		a.CDCID != b.CDCID ||
-		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
-		!areDataCentresEqual(a.DataCentres, b.DataCentres) ||
-		!areDataCentreOptionsEqual(a.Options, b.Options) {
-		return false
-	}
-
-	return true
-}
-
-func areDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil {
-		return false
-	}
-
-	return *a == *b
-}
-
-func areDataCentresEqual(a, b []*clustersv1alpha1.DataCentreStatus) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i].ID != b[i].ID ||
-			a[i].Status != b[i].Status ||
-			a[i].NodeNumber != b[i].NodeNumber ||
-			a[i].EncryptionKeyID != b[i].EncryptionKeyID {
-			return false
-		}
-
-		if !isDataCentreNodesEqual(a[i].Nodes, b[i].Nodes) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isDataCentreNodesEqual(a, b []*clustersv1alpha1.Node) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i].ID != b[i].ID ||
-			a[i].Size != b[i].Size ||
-			a[i].PublicAddress != b[i].PublicAddress ||
-			a[i].PrivateAddress != b[i].PrivateAddress ||
-			a[i].Status != b[i].Status ||
-			!slices.Equal(a[i].Roles, b[i].Roles) ||
-			a[i].Rack != b[i].Rack {
-			return false
-		}
-	}
-
-	return true
 }
 
 func convertAPIv2ConfigToMap(instConfigs []*models.ConfigurationProperties) map[string]string {

@@ -100,11 +100,6 @@ type KafkaStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	ClusterStatus `json:",inline"`
-
-	// +optional
-	// CurrentClusterOperation indicates if the cluster is currently performing any restructuring operation
-	// such as being created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"
-	CurrentClusterOperation string `json:"currentClusterOperationStatus"`
 }
 
 //+kubebuilder:object:root=true
@@ -280,6 +275,60 @@ func (k *KafkaSpec) dedicatedZookeeperToInstAPIUpdate() []*models.DedicatedZooke
 	}
 
 	return instaZookeepers
+}
+
+func (k *KafkaStatus) IsEqual(instStatus *models.KafkaCluster) bool {
+	if k.Status != instStatus.Status ||
+		k.CurrentClusterOperationStatus != instStatus.CurrentClusterOperationStatus ||
+		!k.AreDCsEqual(instStatus.DataCentres) {
+		return false
+	}
+
+	return true
+
+}
+
+func (k *KafkaStatus) AreDCsEqual(instDCs []*models.KafkaDataCentre) bool {
+	if len(k.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range k.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if instDC.Status != k8sDC.Status ||
+					instDC.NumberOfNodes != k8sDC.NodeNumber ||
+					!k8sDC.AreNodesEqual(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+
+}
+
+func (k *KafkaStatus) SetFromInst(instStatus *models.KafkaCluster) {
+	k.Status = instStatus.Status
+	k.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
+	k.SetDCsFromInst(instStatus.DataCentres)
+}
+
+func (k *KafkaStatus) SetDCsFromInst(instDCs []*models.KafkaDataCentre) {
+	var dcs []*DataCentreStatus
+	for _, instDC := range instDCs {
+		dc := &DataCentreStatus{
+			ID:         instDC.ID,
+			Status:     instDC.Status,
+			NodeNumber: instDC.NumberOfNodes,
+		}
+		dc.SetNodesFromInstAPI(instDC.Nodes)
+		dcs = append(dcs, dc)
+	}
+	k.DataCentres = dcs
 }
 
 func init() {

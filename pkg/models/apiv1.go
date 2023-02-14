@@ -5,25 +5,30 @@ const (
 	Disabled      = "DISABLED"
 )
 
-type Cluster struct {
-	ClusterName           string           `json:"clusterName"`
-	Provider              *ClusterProvider `json:"provider"`
-	PrivateNetworkCluster bool             `json:"privateNetworkCluster,omitempty"`
-	SLATier               string           `json:"slaTier,omitempty"`
-	NodeSize              string           `json:"nodeSize"`
-	ClusterNetwork        string           `json:"clusterNetwork,omitempty"`
-
-	// DataCentre is a single data centre, for multiple leave blank and use DataCentres.
-	DataCentre            string           `json:"dataCentre,omitempty"`
-	DataCentreCustomName  string           `json:"dataCentreCustomName,omitempty"`
-	RackAllocation        *RackAllocation  `json:"rackAllocation,omitempty"`
-	FirewallRules         []*FirewallRule  `json:"firewallRules,omitempty"`
-	TwoFactorDelete       *TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	OIDCProvider          string           `json:"oidcProvider,omitempty"`
-	BundledUseOnlyCluster bool             `json:"bundledUseOnlyCluster,omitempty"`
+type ClusterV1 struct {
+	ID                    string               `json:"id,omitempty"`
+	ClusterName           string               `json:"clusterName,omitempty"`
+	ClusterStatus         string               `json:"clusterStatus,omitempty"`
+	ClusterProvider       []*ClusterProviderV1 `json:"clusterProvider,omitempty"`
+	PrivateNetworkCluster bool                 `json:"privateNetworkCluster,omitempty"`
+	SLATier               string               `json:"slaTier,omitempty"`
+	NodeSize              string               `json:"nodeSize,omitempty"`
+	ClusterNetwork        string               `json:"clusterNetwork,omitempty"`
+	DataCentre            string               `json:"dataCentre,omitempty"`
+	CDCID                 string               `json:"cdcid,omitempty"`
+	DataCentreCustomName  string               `json:"dataCentreCustomName,omitempty"`
+	RackAllocation        *RackAllocationV1    `json:"rackAllocation,omitempty"`
+	FirewallRules         []*FirewallRule      `json:"firewallRules,omitempty"`
+	OIDCProvider          string               `json:"oidcProvider,omitempty"`
+	BundledUseOnlyCluster bool                 `json:"bundledUseOnlyCluster,omitempty"`
+	DataCentres           []*DataCentreV1      `json:"dataCentres,omitempty"`
+	BundleOptions         *BundleOptions       `json:"bundleOptions,omitempty"`
+	BundleVersion         string               `json:"bundleVersion,omitempty"`
+	PCICompliance         string               `json:"pciCompliance,omitempty"`
+	AddonBundles          []*AddonBundle       `json:"addonBundles,omitempty"`
 }
 
-type ClusterProvider struct {
+type ClusterProviderV1 struct {
 	Name                   string            `json:"name"`
 	AccountName            string            `json:"accountName,omitempty"`
 	CustomVirtualNetworkID string            `json:"customVirtualNetworkId,omitempty"`
@@ -33,7 +38,7 @@ type ClusterProvider struct {
 	ResourceName           string            `json:"resourceName,omitempty"`
 }
 
-type RackAllocation struct {
+type RackAllocationV1 struct {
 	NumberOfRacks int32 `json:"numberOfRacks"`
 	NodesPerRack  int32 `json:"nodesPerRack"`
 }
@@ -62,55 +67,31 @@ type Bundle struct {
 	Version string `json:"version"`
 }
 
-type DataCentre struct {
-	Name           string           `json:"name,omitempty"`
-	DataCentre     string           `json:"dataCentre"`
-	Network        string           `json:"network"`
-	Provider       *ClusterProvider `json:"provider,omitempty"`
-	NodeSize       string           `json:"nodeSize,omitempty"`
-	RackAllocation *RackAllocation  `json:"rackAllocation,omitempty"`
-	Nodes          []*NodeStatus    `json:"nodes"`
+type DataCentreV1 struct {
+	ID                            string          `json:"id,omitempty"`
+	Name                          string          `json:"name"`
+	CDCName                       string          `json:"CDCName"`
+	Provider                      string          `json:"provider"`
+	CDCNetwork                    string          `json:"cdcNetwork"`
+	ClientEncryption              bool            `json:"clientEncryption"`
+	PasswordAuthentication        bool            `json:"passwordAuthentication"`
+	UserAuthorization             bool            `json:"userAuthorization"`
+	UsePrivateBroadcastRPCAddress bool            `json:"usePrivateBroadcastRPCAddress"`
+	PrivateIPOnly                 bool            `json:"privateIPOnly"`
+	EncryptionKeyID               string          `json:"encryptionKeyId,omitempty"`
+	NodeCount                     int32           `json:"nodeCount,omitempty"`
+	Nodes                         []*NodeStatusV1 `json:"nodes"`
+	PrivateLink                   *PrivateLink    `json:"privateLink,omitempty"`
+	CDCStatus                     string          `json:"cdcStatus,omitempty"`
 }
 
-type DataCentreSpec struct {
-	Name                          string        `json:"name"`
-	CDCName                       string        `json:"CDCName"`
-	Provider                      string        `json:"provider"`
-	CDCNetwork                    string        `json:"cdcNetwork"`
-	ClientEncryption              bool          `json:"clientEncryption"`
-	PasswordAuthentication        bool          `json:"passwordAuthentication"`
-	UserAuthorization             bool          `json:"userAuthorization"`
-	UsePrivateBroadcastRPCAddress bool          `json:"usePrivateBroadcastRPCAddress"`
-	PrivateIPOnly                 bool          `json:"privateIPOnly"`
-	Nodes                         []*NodeStatus `json:"nodes"`
-	PrivateLink                   *PrivateLink  `json:"privateLink,omitempty"`
-}
-
-type DataCentreStatus struct {
-	ID              string        `json:"id,omitempty"`
-	CDCStatus       string        `json:"cdcStatus,omitempty"`
-	Nodes           []*NodeStatus `json:"nodes,omitempty"`
-	NodeCount       int32         `json:"nodeCount,omitempty"`
-	EncryptionKeyID string        `json:"encryptionKeyId,omitempty"`
-}
-
-type NodeStatus struct {
+type NodeStatusV1 struct {
 	ID             string `json:"id"`
 	Rack           string `json:"rack"`
 	Size           string `json:"size"`
 	PublicAddress  string `json:"publicAddress"`
 	PrivateAddress string `json:"privateAddress"`
 	NodeStatus     string `json:"nodeStatus"`
-}
-
-type ClusterStatus struct {
-	ClusterName     string              `json:"clusterName,omitempty"`
-	ID              string              `json:"id,omitempty"`
-	ClusterStatus   string              `json:"clusterStatus,omitempty"`
-	TwoFactorDelete bool                `json:"twoFactorDelete,omitempty"`
-	CDCID           string              `json:"cdcid,omitempty"`
-	DataCentres     []*DataCentreStatus `json:"dataCentres,omitempty"`
-	BundleOptions   *BundleOptions      `json:"bundleOptions,omitempty"`
 }
 
 type ResizeRequest struct {
@@ -141,11 +122,6 @@ type BundleOptions struct {
 	DataNodeSize                 string `json:"dataNodeSize,omitempty"`
 	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
 	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
-	ClientEncryption             bool   `json:"clientEncryption,omitempty"`
-	ReplicationMode              string `json:"replicationMode,omitempty"`
-	SynchronousModeStrict        bool   `json:"synchronousModeStrict,omitempty"`
-	PostgresqlNodeCount          int32  `json:"postgresqlNodeCount,omitempty"`
-	PoolMode                     string `json:"poolMode,omitempty"`
 	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin               bool   `json:"alertingPlugin,omitempty"`
 	ICUPlugin                    bool   `json:"icuPlugin,omitempty"`
@@ -175,6 +151,28 @@ type BackupEvent struct {
 	End      int     `json:"end"`
 }
 
+type AddonBundle struct {
+	Bundle  string         `json:"bundle"`
+	Version string         `json:"version"`
+	Options *BundleOptions `json:"options"`
+}
+
+type NodeReloadV1 struct {
+	Bundle string `json:"bundle"`
+	NodeID string `json:"nodeId"`
+}
+
+type NodeReloadStatusAPIv1 struct {
+	Operations []*OperationV1 `json:"operations"`
+}
+
+type OperationV1 struct {
+	TimeCreated  int64  `json:"timeCreated"`
+	TimeModified int64  `json:"timeModified"`
+	Status       string `json:"status"`
+	Message      string `json:"message"`
+}
+
 func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEvent {
 	var eventType string
 
@@ -197,22 +195,4 @@ func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEven
 	}
 
 	return instBackupEvents
-}
-
-type ClusterSpec struct {
-	ClusterName            string             `json:"clusterName"`
-	BundleVersion          string             `json:"bundleVersion"`
-	BundleOptions          BundleOptions      `json:"bundleOptions"`
-	SLATier                string             `json:"slaTier"`
-	PCICompliance          string             `json:"pciCompliance"`
-	DataCentres            []*DataCentreSpec  `json:"dataCentres"`
-	AddonBundles           []*AddonBundle     `json:"addonBundles"`
-	ClusterProvider        []*ClusterProvider `json:"clusterProvider"`
-	TwoFactorDeleteEnabled bool               `json:"twoFactorDelete"`
-}
-
-type AddonBundle struct {
-	Bundle  string         `json:"bundle"`
-	Version string         `json:"version"`
-	Options *BundleOptions `json:"options"`
 }

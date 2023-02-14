@@ -21,8 +21,8 @@ spec:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
       cloudProvider: "AWS_VPC"
-      nodeSize: "SRH-DEV-t4g.small-5"
-#      nodeSize: "SRH-DEV-t4g.medium-30"
+#      nodeSize: "SRH-DEV-t4g.small-5"
+      nodeSize: "SRH-DEV-t4g.medium-30"
       racksNumber: 3
       nodesNumber: 1
       indexManagementPlugin: false

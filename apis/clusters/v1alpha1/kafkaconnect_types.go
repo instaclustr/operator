@@ -290,3 +290,57 @@ func validateImmutableManagedClusterFields(new, old *TargetCluster) error {
 	}
 	return nil
 }
+
+func (k *KafkaConnectStatus) IsEqual(instStatus *models.KafkaConnectCluster) bool {
+	if k.Status != instStatus.Status ||
+		k.CurrentClusterOperationStatus != instStatus.CurrentClusterOperationStatus ||
+		!k.AreDCsEqual(instStatus.DataCentres) {
+		return false
+	}
+
+	return true
+
+}
+
+func (k *KafkaConnectStatus) AreDCsEqual(instDCs []*models.KafkaConnectDataCentre) bool {
+	if len(k.DataCentres) != len(instDCs) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range k.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if instDC.Status != k8sDC.Status ||
+					instDC.NumberOfNodes != k8sDC.NodeNumber ||
+					!k8sDC.AreNodesEqual(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+
+}
+
+func (k *KafkaConnectStatus) SetFromInst(instStatus *models.KafkaConnectCluster) {
+	k.Status = instStatus.Status
+	k.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
+	k.SetDCsFromInst(instStatus.DataCentres)
+}
+
+func (k *KafkaConnectStatus) SetDCsFromInst(instDCs []*models.KafkaConnectDataCentre) {
+	var dcs []*DataCentreStatus
+	for _, instDC := range instDCs {
+		dc := &DataCentreStatus{
+			ID:         instDC.ID,
+			Status:     instDC.Status,
+			NodeNumber: instDC.NumberOfNodes,
+		}
+		dc.SetNodesFromInstAPI(instDC.Nodes)
+		dcs = append(dcs, dc)
+	}
+	k.DataCentres = dcs
+}

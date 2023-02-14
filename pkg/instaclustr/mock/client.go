@@ -6,7 +6,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -31,8 +30,8 @@ func (c *mockClient) DoRequest(url string, method string, data []byte) (*http.Re
 	panic("DoRequest: is not implemented")
 }
 
-func (c *mockClient) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error) {
-	panic("GetClusterStatus: is not implemented")
+func (c *mockClient) GetOpenSearch(id string) (*models.ClusterV1, error) {
+	panic("GetOpenSearch: is not implemented")
 }
 
 func (c *mockClient) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
@@ -130,6 +129,10 @@ func (c *mockClient) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) erro
 	panic("DeleteKafkaUser: is not implemented")
 }
 
+func (c *mockClient) GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus, error) {
+	panic("GetTopicStatus: is not implemented")
+}
+
 func (c *mockClient) CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error {
 	panic("CreateKafkaTopic: is not implemented")
 }
@@ -162,13 +165,13 @@ func (c *mockClient) TriggerClusterBackup(url, clusterID string) error {
 	panic("TriggerClusterBackup: is not implemented")
 }
 
-func (c *mockClient) CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error {
+func (c *mockClient) CreateNodeReload(bundle, nodeID string, nr *models.NodeReloadV1) error {
 	return nil
 }
 
-func (c *mockClient) GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error) {
-	nrs := &modelsv1.NodeReloadStatusAPIv1{
-		Operations: []*modelsv1.Operation{{
+func (c *mockClient) GetNodeReloadStatus(bundle, nodeID string) (*models.NodeReloadStatusAPIv1, error) {
+	nrs := &models.NodeReloadStatusAPIv1{
+		Operations: []*models.OperationV1{{
 			TimeCreated:  1232132,
 			TimeModified: 143432,
 			Status:       StatusID,
@@ -225,10 +228,6 @@ func (c *mockClient) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.Maintena
 	panic("UpdateMaintenanceEvent: is not implemented")
 }
 
-func (c *mockClient) GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error) {
-	panic("GetClusterSpec: is not implemented")
-}
-
 func (c *mockClient) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error) {
 	panic("RestorePgCluster: is not implemented")
 }
@@ -237,12 +236,24 @@ func (c *mockClient) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom)
 	panic("RestoreCassandra: is not implemented")
 }
 
-func (c *mockClient) GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error) {
+func (c *mockClient) GetCassandra(id string) (*models.CassandraCluster, error) {
 	panic("GetCassandra: is not implemented")
 }
 
 func (c *mockClient) GetRedis(id string) (*models.RedisCluster, error) {
 	panic("GetRedis: is not implemented")
+}
+
+func (c *mockClient) GetKafka(id string) (*models.KafkaCluster, error) {
+	panic("GetKafka: is not implemented")
+}
+
+func (c *mockClient) GetKafkaConnect(id string) (*models.KafkaConnectCluster, error) {
+	panic("GetKafkaConnect: is not implemented")
+}
+
+func (c *mockClient) GetZookeeper(id string) (*models.ZookeeperCluster, error) {
+	panic("GetZookeeper: is not implemented")
 }
 
 func (c *mockClient) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error) {
@@ -277,7 +288,7 @@ func (c *mockClient) ResetPostgreSQLConfiguration(id, name string) error {
 	panic("ResetPostgreSQLConfiguration: is not implemented")
 }
 
-func (c *mockClient) GetCadence(id string) (*models.CadenceAPIv2, error) {
+func (c *mockClient) GetCadence(id string) (*models.CadenceSpec, error) {
 	panic("GetCadence: is not implemented")
 }
 

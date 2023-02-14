@@ -4,7 +4,7 @@ metadata:
   name: zookeeper-sample
 spec:
   dataCentres:
-    - clientToServerEncryption: true
+    - clientToServerEncryption: false
       cloudProvider: "AWS_VPC"
       name: "MyTestDataCentre1"
       network: "10.0.0.0/16"

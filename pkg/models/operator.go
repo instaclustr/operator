@@ -11,7 +11,6 @@ const (
 	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
 	DeletionConfirmed         = "instaclustr.com/deletionConfirmed"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
-	UpdatedFieldsAnnotation   = "instaclustr.com/updatedFields"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
 	ControlledByLabel                  = "instaclustr.com/controlledBy"

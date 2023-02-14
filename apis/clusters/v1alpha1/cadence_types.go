@@ -32,7 +32,6 @@ import (
 
 type CadenceDataCentre struct {
 	DataCentre       `json:",inline"`
-	CadenceNodeCount int  `json:"cadenceNodeCount"`
 	ClientEncryption bool `json:"clientEncryption,omitempty"`
 }
 
@@ -162,27 +161,7 @@ func (c *Cadence) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
-func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) models.CadenceUpdatedFields {
-	updatedFields := models.CadenceUpdatedFields{}
-
-	if cs.DataCentres[0].NodeSize != oldSpec.DataCentres[0].NodeSize {
-		updatedFields.NodeSizeUpdated = true
-	}
-
-	if cs.Description != oldSpec.Description {
-		updatedFields.DescriptionUpdated = true
-	}
-
-	if len(cs.TwoFactorDelete) != 0 {
-		if cs.TwoFactorDelete[0] != oldSpec.TwoFactorDelete[0] {
-			updatedFields.TwoFactorDeleteUpdated = true
-		}
-	}
-
-	return updatedFields
-}
-
-func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceAPIv2, error) {
+func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceSpec, error) {
 	var AWSArchival []*models.AWSArchival
 	var err error
 	if cs.EnableArchival {
@@ -204,7 +183,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 		}
 	}
 
-	return &models.CadenceAPIv2{
+	return &models.CadenceSpec{
 		CadenceVersion:        cs.Version,
 		DataCentres:           cs.DataCentresToInstAPI(),
 		Name:                  cs.Name,
@@ -303,7 +282,7 @@ func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
 			Name:                cdc.Name,
 			Network:             cdc.Network,
 			NodeSize:            cdc.NodeSize,
-			NumberOfNodes:       int32(cdc.CadenceNodeCount),
+			NumberOfNodes:       cdc.NodesNumber,
 			Region:              cdc.Region,
 			ProviderAccountName: cdc.ProviderAccountName,
 		},
@@ -324,7 +303,7 @@ func (cs *CadenceSpec) DataCentresToInstAPI() []*models.CadenceDataCentre {
 	return instDCs
 }
 
-func (cst *CadenceStatus) SetStatusFromInst(instStatus *models.CadenceAPIv2) {
+func (cst *CadenceStatus) SetStatusFromInst(instStatus *models.CadenceSpec) {
 	cst.ID = instStatus.ID
 	cst.Status = instStatus.Status
 	cst.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
@@ -345,7 +324,7 @@ func (cst *CadenceStatus) SetDCsStatusFromInst(instDCs []*models.CadenceDataCent
 	cst.DataCentres = dcs
 }
 
-func (cst *CadenceStatus) AreStatusesEqual(instCadence *models.CadenceAPIv2) bool {
+func (cst *CadenceStatus) AreStatusesEqual(instCadence *models.CadenceSpec) bool {
 	if cst.Status != instCadence.Status ||
 		cst.CurrentClusterOperationStatus != instCadence.CurrentClusterOperationStatus ||
 		!cst.AreDCsEqual(instCadence.DataCentres) {

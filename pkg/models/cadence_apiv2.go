@@ -4,7 +4,16 @@ import (
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 )
 
-type CadenceAPIv2 struct {
+const (
+	AWSAccessKeyID     = "awsAccessKeyId"
+	AWSSecretAccessKey = "awsSecretAccessKey"
+
+	SharedProvisioningType   = "SHARED"
+	PackagedProvisioningType = "PACKAGED"
+	StandardProvisioningType = "STANDARD"
+)
+
+type CadenceSpec struct {
 	ID                            string                         `json:"id,omitempty"`
 	Name                          string                         `json:"name"`
 	CadenceVersion                string                         `json:"cadenceVersion"`

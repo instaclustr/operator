@@ -11,8 +11,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
-	apiv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	apiv2convertors "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
@@ -94,11 +92,8 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 	return creationResponse.ID, nil
 }
 
-func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.ClusterStatus, error) {
-	url := c.serverHostname + clusterEndpoint + id
-	if clusterEndpoint == ClustersEndpointV1 {
-		url += TerraformDescription
-	}
+func (c *Client) GetOpenSearch(id string) (*models.ClusterV1, error) {
+	url := c.serverHostname + ClustersEndpointV1 + id + TerraformDescription
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -115,57 +110,13 @@ func (c *Client) GetClusterStatus(id, clusterEndpoint string) (*v1alpha1.Cluster
 		return nil, NotFound
 	}
 
-	var clusterStatus *v1alpha1.ClusterStatus
-	if clusterEndpoint == ClustersEndpointV1 {
-		if resp.StatusCode != http.StatusAccepted {
-			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-		}
-
-		clusterStatus, err = apiv1.ClusterStatusFromInstAPI(body)
-	} else {
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-		}
-
-		clusterStatus, err = apiv2convertors.ClusterStatusFromInstAPI(body)
-	}
+	clusterStatus := &models.ClusterV1{}
+	err = json.Unmarshal(body, clusterStatus)
 	if err != nil {
 		return nil, err
 	}
 
 	return clusterStatus, nil
-}
-
-func (c *Client) GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error) {
-	url := c.serverHostname + clusterEndpoint + id + TerraformDescription
-
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, NotFound
-	}
-
-	if resp.StatusCode != http.StatusAccepted {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	clusterSpec := &models.ClusterSpec{}
-
-	err = json.Unmarshal(body, clusterSpec)
-	if err != nil {
-		return nil, err
-	}
-
-	return clusterSpec, nil
 }
 
 func (c *Client) GetRedis(id string) (*models.RedisCluster, error) {
@@ -197,6 +148,130 @@ func (c *Client) GetRedis(id string) (*models.RedisCluster, error) {
 	}
 
 	return redisSpec, nil
+}
+
+func (c *Client) GetCassandra(id string) (*models.CassandraCluster, error) {
+	url := c.serverHostname + CassandraEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	cluster := &models.CassandraCluster{}
+	err = json.Unmarshal(body, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+func (c *Client) GetKafka(id string) (*models.KafkaCluster, error) {
+	url := c.serverHostname + KafkaEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	cluster := &models.KafkaCluster{}
+	err = json.Unmarshal(body, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+func (c *Client) GetKafkaConnect(id string) (*models.KafkaConnectCluster, error) {
+	url := c.serverHostname + KafkaConnectEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	cluster := &models.KafkaConnectCluster{}
+	err = json.Unmarshal(body, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+func (c *Client) GetZookeeper(id string) (*models.ZookeeperCluster, error) {
+	url := c.serverHostname + ZookeeperEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	cluster := &models.ZookeeperCluster{}
+	err = json.Unmarshal(body, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
 }
 
 func (c *Client) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
@@ -672,6 +747,34 @@ func (c *Client) DeleteFirewallRule(
 	}
 
 	return nil
+}
+
+func (c *Client) GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus, error) {
+	url := c.serverHostname + KafkaTopicEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	clusterStatus := &kafkamanagementv1alpha1.TopicStatus{}
+
+	err = json.Unmarshal(body, &clusterStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterStatus, nil
 }
 
 func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
@@ -1250,7 +1353,7 @@ func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceE
 
 func (c *Client) CreateNodeReload(bundle,
 	nodeID string,
-	nr *modelsv1.NodeReload,
+	nr *models.NodeReloadV1,
 ) error {
 	data, err := json.Marshal(nr)
 	if err != nil {
@@ -1279,7 +1382,7 @@ func (c *Client) CreateNodeReload(bundle,
 func (c *Client) GetNodeReloadStatus(
 	bundle,
 	nodeID string,
-) (*modelsv1.NodeReloadStatusAPIv1, error) {
+) (*models.NodeReloadStatusAPIv1, error) {
 	url := fmt.Sprintf(c.serverHostname+NodeReloadEndpoint, bundle, nodeID)
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -1300,7 +1403,7 @@ func (c *Client) GetNodeReloadStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var nodeReload *modelsv1.NodeReloadStatusAPIv1
+	var nodeReload *models.NodeReloadStatusAPIv1
 	err = json.Unmarshal(body, &nodeReload)
 	if err != nil {
 		return nil, err
@@ -1576,37 +1679,6 @@ func (c *Client) UpdateKafkaACL(
 	return nil
 }
 
-func (c *Client) GetCassandra(id, clusterEndpoint string) (*modelsv2.CassandraCluster, error) {
-	url := c.serverHostname + clusterEndpoint + id
-
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, NotFound
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	cassandraSpec := &modelsv2.CassandraCluster{}
-	err = json.Unmarshal(body, cassandraSpec)
-	if err != nil {
-		return nil, err
-	}
-
-	return cassandraSpec, nil
-}
-
 func (c *Client) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
@@ -1846,7 +1918,7 @@ func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
 	return nil
 }
 
-func (c *Client) GetCadence(id string) (*models.CadenceAPIv2, error) {
+func (c *Client) GetCadence(id string) (*models.CadenceSpec, error) {
 	url := c.serverHostname + CadenceEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -1867,7 +1939,7 @@ func (c *Client) GetCadence(id string) (*models.CadenceAPIv2, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	cadence := &models.CadenceAPIv2{}
+	cadence := &models.CadenceSpec{}
 	err = json.Unmarshal(body, cadence)
 	if err != nil {
 		return nil, err

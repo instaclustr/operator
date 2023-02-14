@@ -31,8 +31,6 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	convertorsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/convertors"
-	modelsv1 "github.com/instaclustr/operator/pkg/instaclustr/api/v1/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -88,7 +86,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	patch := nrs.NewPatch()
 
 	if nrs.Status.NodeInProgress.NodeID == "" && nrs.Status.NodeInProgress.Bundle == "" {
-		nodeInProgress := &modelsv1.NodeReload{
+		nodeInProgress := &models.NodeReloadV1{
 			Bundle: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].Bundle,
 			NodeID: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].NodeID,
 		}
@@ -128,7 +126,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return models.ReconcileRequeue, nil
 	}
 
-	nrs.Status = convertorsv1.NodeReloadStatusFromInstAPI(nrs.Status.NodeInProgress, nodeReloadStatus)
+	nrs.Status.SetFromInstAPI(nodeReloadStatus)
 	err = r.Status().Patch(ctx, &nrs, patch)
 	if err != nil {
 		l.Error(err,
