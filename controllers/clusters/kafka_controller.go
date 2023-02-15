@@ -34,7 +34,6 @@ import (
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	"github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
@@ -105,7 +104,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 		patch := kafka.NewPatch()
 		var err error
 
-		kafka.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, convertors.KafkaToInstAPI(kafka.Spec))
+		kafka.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, kafka.Spec.ToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot create Kafka cluster", "spec", kafka.Spec)
 			return models.ReconcileRequeue
@@ -155,7 +154,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 	err := r.API.UpdateCluster(
 		k.Status.ID,
 		instaclustr.KafkaEndpoint,
-		convertors.KafkaToInstAPIUpdate(&k.Spec))
+		k.Spec.ToInstAPIUpdate())
 	if err != nil {
 		l.Error(err, "Unable to update cluster, got error from Instaclustr",
 			"cluster name", k.Spec.Name,

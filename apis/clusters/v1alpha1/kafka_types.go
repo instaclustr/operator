@@ -18,9 +18,9 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -82,18 +82,16 @@ type KafkaSpec struct {
 	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption,omitempty"`
 	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
 	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
+	BundledUseOnly                    bool                      `json:"bundledUseOnly,omitempty"`
 }
 
 type KafkaDataCentre struct {
-	Name                  string                   `json:"name,omitempty"`
-	Region                string                   `json:"region"`
-	CloudProvider         string                   `json:"cloudProvider"`
-	ProviderAccountName   string                   `json:"accountName,omitempty"`
-	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
-	Network               string                   `json:"network"`
-	NodeSize              string                   `json:"nodeSize"`
-	NodesNumber           int32                    `json:"nodesNumber"`
-	Tags                  map[string]string        `json:"tags,omitempty"`
+	DataCentre  `json:",inline"`
+	PrivateLink []*KafkaPrivateLink `json:"privateLink,omitempty"`
+}
+
+type KafkaPrivateLink struct {
+	AdvertisedHostname string `json:"advertisedHostname"`
 }
 
 // KafkaStatus defines the observed state of Kafka
@@ -138,6 +136,150 @@ func (k *Kafka) NewPatch() client.Patch {
 	old := k.DeepCopy()
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
+}
+
+func (k *KafkaSpec) ToInstAPI() *models.KafkaInstAPICreateRequest {
+	return &models.KafkaInstAPICreateRequest{
+		SchemaRegistry:                    k.schemaRegistryToInstAPI(),
+		RestProxy:                         k.restProxyToInstAPI(),
+		PCIComplianceMode:                 k.PCICompliance,
+		DefaultReplicationFactor:          k.ReplicationFactorNumber,
+		DefaultNumberOfPartitions:         k.PartitionsNumber,
+		TwoFactorDelete:                   k.TwoFactorDeletesToInstAPI(),
+		AllowDeleteTopics:                 k.AllowDeleteTopics,
+		AutoCreateTopics:                  k.AutoCreateTopics,
+		ClientToClusterEncryption:         k.ClientToClusterEncryption,
+		DedicatedZookeeper:                k.dedicatedZookeeperToInstAPI(),
+		PrivateNetworkCluster:             k.PrivateNetworkCluster,
+		Name:                              k.Name,
+		SLATier:                           k.SLATier,
+		KafkaVersion:                      k.Version,
+		KafkaDataCentre:                   k.dcToInstAPI(),
+		ClientBrokerAuthWithMTLS:          k.ClientBrokerAuthWithMTLS,
+		ClientAuthBrokerWithoutEncryption: k.ClientAuthBrokerWithoutEncryption,
+		ClientAuthBrokerWithEncryption:    k.ClientAuthBrokerWithEncryption,
+		BundledUseOnly:                    k.BundledUseOnly,
+		KarapaceRestProxy:                 k.karapaceRestProxyToInstAPI(),
+		KarapaceSchemaRegistry:            k.karapaceSchemaRegistryToInstAPI(),
+	}
+}
+
+func (k *KafkaSpec) schemaRegistryToInstAPI() []*models.SchemaRegistry {
+	var instaSchemas []*models.SchemaRegistry
+	for _, schema := range k.SchemaRegistry {
+		instaSchemas = append(instaSchemas, &models.SchemaRegistry{
+			Version: schema.Version,
+		})
+	}
+
+	return instaSchemas
+}
+
+func (k *KafkaSpec) karapaceSchemaRegistryToInstAPI() []*models.KarapaceSchemaRegistry {
+	var instaSchemas []*models.KarapaceSchemaRegistry
+	for _, schema := range k.KarapaceSchemaRegistry {
+		instaSchemas = append(instaSchemas, &models.KarapaceSchemaRegistry{
+			Version: schema.Version,
+		})
+	}
+
+	return instaSchemas
+}
+
+func (k *KafkaSpec) restProxyToInstAPI() []*models.RestProxy {
+	var instaRestProxies []*models.RestProxy
+	for _, proxy := range k.RestProxy {
+		instaRestProxies = append(instaRestProxies, &models.RestProxy{
+			IntegrateRestProxyWithSchemaRegistry: proxy.IntegrateRestProxyWithSchemaRegistry,
+			UseLocalSchemaRegistry:               proxy.UseLocalSchemaRegistry,
+			SchemaRegistryServerURL:              proxy.SchemaRegistryServerURL,
+			SchemaRegistryUsername:               proxy.SchemaRegistryUsername,
+			SchemaRegistryPassword:               proxy.SchemaRegistryPassword,
+			Version:                              proxy.Version,
+		})
+	}
+
+	return instaRestProxies
+}
+
+func (k *KafkaSpec) karapaceRestProxyToInstAPI() []*models.KarapaceRestProxy {
+	var instaRestProxies []*models.KarapaceRestProxy
+	for _, proxy := range k.KarapaceRestProxy {
+		instaRestProxies = append(instaRestProxies, &models.KarapaceRestProxy{
+			IntegrateRestProxyWithSchemaRegistry: proxy.IntegrateRestProxyWithSchemaRegistry,
+			Version:                              proxy.Version,
+		})
+	}
+
+	return instaRestProxies
+}
+
+func (k *KafkaSpec) dedicatedZookeeperToInstAPI() []*models.DedicatedZookeeper {
+	var instaZookeepers []*models.DedicatedZookeeper
+	for _, zookeeper := range k.DedicatedZookeeper {
+		instaZookeepers = append(instaZookeepers, &models.DedicatedZookeeper{
+			ZookeeperNodeSize:  zookeeper.NodeSize,
+			ZookeeperNodeCount: zookeeper.NodesNumber,
+		})
+	}
+
+	return instaZookeepers
+}
+
+func (k *KafkaDataCentre) privateLinkToInstAPI() []*models.KafkaPrivateLink {
+	var instaPrivateLink []*models.KafkaPrivateLink
+	for _, link := range k.PrivateLink {
+		instaPrivateLink = append(instaPrivateLink, &models.KafkaPrivateLink{
+			AdvertisedHostname: link.AdvertisedHostname,
+		})
+	}
+
+	return instaPrivateLink
+}
+
+func (k *KafkaSpec) dcToInstAPI() []*models.KafkaDataCentre {
+	var instaDCs []*models.KafkaDataCentre
+	for _, crdDC := range k.DataCentres {
+		dc := &models2.DataCentre{
+			Name:                crdDC.Name,
+			Network:             crdDC.Network,
+			NodeSize:            crdDC.NodeSize,
+			NumberOfNodes:       crdDC.NodesNumber,
+			CloudProvider:       crdDC.CloudProvider,
+			Region:              crdDC.Region,
+			ProviderAccountName: crdDC.ProviderAccountName,
+		}
+		crdDC.CloudProviderSettingsToInstAPI(dc)
+		crdDC.TagsToInstAPI(dc)
+
+		kafkaDC := &models.KafkaDataCentre{
+			DataCentre:  *dc,
+			PrivateLink: crdDC.privateLinkToInstAPI(),
+		}
+
+		instaDCs = append(instaDCs, kafkaDC)
+	}
+
+	return instaDCs
+}
+
+func (k *KafkaSpec) ToInstAPIUpdate() *models.KafkaInstAPIUpdateRequest {
+	newKafka := &models.KafkaInstAPIUpdateRequest{}
+	newKafka.DataCentre = k.dcToInstAPI()
+	newKafka.DedicatedZookeeper = k.dedicatedZookeeperToInstAPIUpdate()
+
+	return newKafka
+}
+
+func (k *KafkaSpec) dedicatedZookeeperToInstAPIUpdate() []*models.DedicatedZookeeperUpdate {
+	var instaZookeepers []*models.DedicatedZookeeperUpdate
+	for _, zookeeper := range k.DedicatedZookeeper {
+		instaZookeepers = append(instaZookeepers, &models.DedicatedZookeeperUpdate{
+			ZookeeperNodeSize: zookeeper.NodeSize,
+		})
+	}
+
+	return instaZookeepers
 }
 
 func init() {
