@@ -19,8 +19,8 @@
 ### TwoFactorDeleteObject
 | Field                   | Type                                       | Description                                                                            |
 |-------------------------|--------------------------------------------|----------------------------------------------------------------------------------------|
-| confirmationPhoneNumber | string <br />                     | The phone number which will be contacted when the cluster is requested to be deleted.  |
-| confirmationEmail       | string <br /> **required** <br /> | The email address which will be contacted when the cluster is requested to be deleted. |
+| confirmationPhoneNumber | string                     | The phone number which will be contacted when the cluster is requested to be deleted.  |
+| confirmationEmail       | string <br /> **required** | The email address which will be contacted when the cluster is requested to be deleted. |
 
 ### SparkObject
 | Field            | Type                        | Description                                                                                                    |
@@ -177,4 +177,4 @@ Next, you need to apply this manifest in your K8s cluster. This will create a cu
 kubectl apply cassandra-restore.yaml
 ```
 
-New cluster will be crated from the backup of the "restored-from" cluster. Spec will be updated automatically.
+New cluster will be created from the backup of the "restored-from" cluster. Spec will be updated automatically.
