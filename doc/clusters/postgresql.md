@@ -9,7 +9,7 @@
 | privateNetworkCluster | bool                                                                        | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                               |
 | slaTier               | String  <br /> **required**                                                 | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`. |
 | twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject))<br />_mutable_ | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                |
-| dataCentres           | Array of objects ([PgDataCentre](#PgDataCentreObject))                      | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                        |
+| dataCentres           | Array of objects ([PgDataCentre](#PgDataCentreObject)) <br />_mutable_      | List of data centre settings.                                                                                                                                                                                                                                                                                                                |
 | clusterConfigurations | map[string]string<br />_mutable_                                            | PostgreSQL cluster configurations. Cluster nodes will need to be manually reloaded to apply configuration changes. <br />**Format**:<br />clusterConfigurations:<br />- key: value                                                                                                                                                           |
 | description           | String<br />_mutable_                                                       | A description of the cluster.                                                                                                                                                                                                                                                                                                                |
 | synchronousModeStrict | bool                                                                        | Create the PostgreSQL cluster with the selected replication mode, see [PostgreSQL replication mode](https://www.instaclustr.com/support/documentation/postgresql/options/replication-mode/).                                                                                                                                                 |
@@ -172,3 +172,28 @@ To update default user password you need to edit `defaultUserPassword` field in 
 kubectl edit default-user-password-postgresql-sample
 ```
 
+## Cluster restore example
+
+To restore a PostgreSQL cluster instance from an existing one you need to prepare the yaml manifest. Here is an example:
+```yaml
+# postgresql-restore.yaml
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: PostgreSQL
+metadata:
+  name: postgresql-sample-restored
+  annotations:
+    testAnnotation: test
+spec:
+  pgRestoreFrom:
+    clusterId: 826e00dc-eda5-426a-9185-48fc35f13dfc
+    clusterNameOverride: "pgRestoredTest"
+    pointInTime: 1676371087358
+    clusterNetwork: "10.13.0.0/16"
+```
+
+Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside:
+```console
+kubectl apply postgresql-restore.yaml
+```
+
+New cluster will be created from the backup of the "restored-from" cluster. Spec will be updated automatically.
