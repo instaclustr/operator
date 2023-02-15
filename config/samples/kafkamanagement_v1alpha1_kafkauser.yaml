@@ -3,8 +3,8 @@ kind: Secret
 metadata:
   name: secret-test
 data:
-  Username: "ZGFueWxvCg=="
-  Password: "ZGFzRGQ5X2FzMjEK"
+  Username: "U2FuY2hv"
+  Password: "ZnJlaGcxX3BpbmRmNTRfaW9rMDk="
 ---
 apiVersion: kafkamanagement.instaclustr.com/v1alpha1
 kind: KafkaUser
