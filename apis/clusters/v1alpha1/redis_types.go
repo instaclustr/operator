@@ -30,10 +30,8 @@ import (
 
 type RedisDataCentre struct {
 	DataCentre   `json:",inline"`
-	MasterNodes  int32 `json:"masterNodes"`
-	ReplicaNodes int32 `json:"replicaNodes"`
-	PasswordAuth bool  `json:"passwordAuth,omitempty"`
-	RacksNumber  int32 `json:"racksNumber"`
+	MasterNodes  int  `json:"masterNodes"`
+	PasswordAuth bool `json:"passwordAuth,omitempty"`
 }
 
 type RedisRestoreFrom struct {
@@ -133,7 +131,7 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.Clus
 }
 
 func (rs *RedisSpec) ToInstAPIv2() *models.RedisCluster {
-	instDCs := rs.DataCentresToInstAPIv2()
+	instDCs := rs.DCsToInstAPI()
 	instTwoFactorDelete := rs.TwoFactorDeletesToInstAPI()
 
 	instSpec := &models.RedisCluster{
@@ -151,7 +149,7 @@ func (rs *RedisSpec) ToInstAPIv2() *models.RedisCluster {
 	return instSpec
 }
 
-func (rs *RedisSpec) DataCentresToInstAPIv2() []*models.RedisDataCentre {
+func (rs *RedisSpec) DCsToInstAPI() []*models.RedisDataCentre {
 	instDCs := []*models.RedisDataCentre{}
 	for _, redisDC := range rs.DataCentres {
 		instDC := &models.RedisDataCentre{
@@ -163,8 +161,8 @@ func (rs *RedisSpec) DataCentresToInstAPIv2() []*models.RedisDataCentre {
 				Region:              redisDC.Region,
 				ProviderAccountName: redisDC.ProviderAccountName,
 			},
-			MasterNodes:  int(redisDC.MasterNodes),
-			ReplicaNodes: int(redisDC.ReplicaNodes),
+			MasterNodes:  redisDC.MasterNodes,
+			ReplicaNodes: int(redisDC.NodesNumber),
 		}
 
 		redisDC.CloudProviderSettingsToInstAPI(&instDC.DataCentre)
@@ -176,6 +174,12 @@ func (rs *RedisSpec) DataCentresToInstAPIv2() []*models.RedisDataCentre {
 	return instDCs
 }
 
+func (rs *RedisSpec) DCsToInstAPIUpdate() *models.RedisDataCentreUpdate {
+	return &models.RedisDataCentreUpdate{
+		DataCentres: rs.DCsToInstAPI(),
+	}
+}
+
 func (rs *RedisSpec) HasRestore() bool {
 	if rs.RestoreFrom != nil && rs.RestoreFrom.ClusterID != "" {
 		return true
@@ -184,7 +188,7 @@ func (rs *RedisSpec) HasRestore() bool {
 	return false
 }
 
-func (rs *RedisSpec) IsSpecEqual(instSpec *models.RedisCluster) bool {
+func (rs *RedisSpec) IsEqual(instSpec *models.RedisCluster) bool {
 	if instSpec.ClientToNodeEncryption != rs.ClientEncryption ||
 		instSpec.RedisVersion != rs.Version ||
 		instSpec.PCIComplianceMode != rs.PCICompliance ||
@@ -192,7 +196,7 @@ func (rs *RedisSpec) IsSpecEqual(instSpec *models.RedisCluster) bool {
 		instSpec.PasswordAndUserAuth != rs.PasswordAndUserAuth ||
 		instSpec.Name != rs.Name ||
 		instSpec.SLATier != rs.SLATier ||
-		!rs.AreDataCentresEqual(instSpec.DataCentres) ||
+		!rs.AreDCsEqual(instSpec.DataCentres) ||
 		!rs.IsTwoFactorDeleteEqual(instSpec.TwoFactorDelete) {
 		return false
 	}
@@ -200,7 +204,7 @@ func (rs *RedisSpec) IsSpecEqual(instSpec *models.RedisCluster) bool {
 	return true
 }
 
-func (rs *RedisSpec) AreDataCentresEqual(instDCs []*models.RedisDataCentre) bool {
+func (rs *RedisSpec) AreDCsEqual(instDCs []*models.RedisDataCentre) bool {
 	if len(instDCs) != len(rs.DataCentres) {
 		return false
 	}
@@ -210,8 +214,8 @@ func (rs *RedisSpec) AreDataCentresEqual(instDCs []*models.RedisDataCentre) bool
 			if dataCentre.Name == instDC.Name {
 				if instDC.Network != dataCentre.Network ||
 					instDC.NodeSize != dataCentre.NodeSize ||
-					instDC.MasterNodes != int(dataCentre.MasterNodes) ||
-					instDC.ReplicaNodes != int(dataCentre.ReplicaNodes) ||
+					instDC.MasterNodes != dataCentre.MasterNodes ||
+					instDC.ReplicaNodes != int(dataCentre.NodesNumber) ||
 					instDC.Region != dataCentre.Region ||
 					instDC.ProviderAccountName != dataCentre.ProviderAccountName ||
 					!dataCentre.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) ||
@@ -227,7 +231,7 @@ func (rs *RedisSpec) AreDataCentresEqual(instDCs []*models.RedisDataCentre) bool
 	return true
 }
 
-func (rs *RedisSpec) SetSpecFromInst(instSpec *models.RedisCluster) {
+func (rs *RedisSpec) SetFromInstAPI(instSpec *models.RedisCluster) {
 	rs.ClientEncryption = instSpec.ClientToNodeEncryption
 	rs.Version = instSpec.RedisVersion
 	rs.PCICompliance = instSpec.PCIComplianceMode
@@ -238,10 +242,10 @@ func (rs *RedisSpec) SetSpecFromInst(instSpec *models.RedisCluster) {
 
 	rs.SetTwoFactorDeletesFromInstAPI(instSpec.TwoFactorDelete)
 
-	rs.SetDCsFromInst(instSpec.DataCentres)
+	rs.SetDCsFromInstAPI(instSpec.DataCentres)
 }
 
-func (rs *RedisSpec) SetDCsFromInst(instDCs []*models.RedisDataCentre) {
+func (rs *RedisSpec) SetDCsFromInstAPI(instDCs []*models.RedisDataCentre) {
 	dataCentres := []*RedisDataCentre{}
 	for _, instDC := range instDCs {
 		redisDC := &RedisDataCentre{
@@ -252,9 +256,9 @@ func (rs *RedisSpec) SetDCsFromInst(instDCs []*models.RedisDataCentre) {
 				ProviderAccountName: instDC.ProviderAccountName,
 				Network:             instDC.Network,
 				NodeSize:            instDC.NodeSize,
+				NodesNumber:         int32(instDC.ReplicaNodes),
 			},
-			MasterNodes:  int32(instDC.MasterNodes),
-			ReplicaNodes: int32(instDC.ReplicaNodes),
+			MasterNodes: instDC.MasterNodes,
 		}
 
 		redisDC.SetCloudProviderSettingsFromInstAPI(&instDC.DataCentre)
@@ -263,6 +267,56 @@ func (rs *RedisSpec) SetDCsFromInst(instDCs []*models.RedisDataCentre) {
 		dataCentres = append(dataCentres, redisDC)
 	}
 	rs.DataCentres = dataCentres
+}
+
+func (rs *RedisStatus) AreEqual(instRedis *models.RedisCluster) bool {
+	if rs.Status != instRedis.Status ||
+		rs.CurrentClusterOperationStatus != instRedis.CurrentClusterOperationStatus ||
+		!rs.AreDCsEqual(instRedis.DataCentres) {
+		return false
+	}
+
+	return true
+}
+
+func (rs *RedisStatus) AreDCsEqual(instDCs []*models.RedisDataCentre) bool {
+	if len(instDCs) != len(rs.DataCentres) {
+		return false
+	}
+
+	for _, instDC := range instDCs {
+		for _, k8sDC := range rs.DataCentres {
+			if instDC.ID == k8sDC.ID {
+				if instDC.Status != k8sDC.Status ||
+					k8sDC.AreNodesEqual(instDC.Nodes) {
+					return false
+				}
+
+				break
+			}
+		}
+	}
+
+	return true
+}
+
+func (rs *RedisStatus) SetFromInstAPI(instRedis *models.RedisCluster) {
+	rs.Status = instRedis.Status
+	rs.CurrentClusterOperationStatus = instRedis.CurrentClusterOperationStatus
+	rs.SetDCsFromInstAPI(instRedis.DataCentres)
+}
+
+func (rs *RedisStatus) SetDCsFromInstAPI(instDCs []*models.RedisDataCentre) {
+	newDCs := []*DataCentreStatus{}
+	for _, instDC := range instDCs {
+		dc := &DataCentreStatus{
+			ID:     instDC.ID,
+			Status: instDC.Status,
+		}
+		dc.SetNodesFromInstAPI(instDC.Nodes)
+		newDCs = append(newDCs, dc)
+	}
+	rs.DataCentres = newDCs
 }
 
 func init() {

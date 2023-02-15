@@ -56,7 +56,7 @@ type API interface {
 	CreateNodeReload(bundle, nodeID string, nr *modelsv1.NodeReload) error
 	GetNodeReloadStatus(bundle, nodeID string) (*modelsv1.NodeReloadStatusAPIv1, error)
 	GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec, error)
-	GetRedisSpec(id, clusterEndpoint string) (*models.RedisCluster, error)
+	GetRedis(id string) (*models.RedisCluster, error)
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error

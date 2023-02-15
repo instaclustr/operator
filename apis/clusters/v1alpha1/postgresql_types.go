@@ -417,7 +417,7 @@ func (ps *PgStatus) SetDCsFromInstAPI(instDCs []*models.PGDataCentre) {
 			NodeNumber: instDC.NumberOfNodes,
 		}
 
-		k8sDC.SetNodesStatusFromInstAPI(instDC.Nodes)
+		k8sDC.SetNodesFromInstAPI(instDC.Nodes)
 		k8sDCs = append(k8sDCs, k8sDC)
 	}
 	ps.DataCentres = k8sDCs

@@ -363,7 +363,7 @@ func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*mode
 	dc.CloudProviderSettings = cloudProviderSettings
 }
 
-func (dcs *DataCentreStatus) SetNodesStatusFromInstAPI(instNodes []*modelsv2.Node) {
+func (dcs *DataCentreStatus) SetNodesFromInstAPI(instNodes []*modelsv2.Node) {
 	k8sNodes := []*Node{}
 	for _, instNode := range instNodes {
 		k8sNodes = append(k8sNodes, &Node{
