@@ -73,7 +73,7 @@ After you have applied the entity, the Instaclustr operator will create it on yo
 ## Resource update flow
 
 To update an Kafka Connect Mirror you can apply an updated resource manifest or edit the custom resource instance in the K8s cluster:
-* Apply an updated cluster manifest:
+* Apply an updated resource manifest:
     ```console
     kubectl apply kafka-connect-mirror.yaml
     ```
