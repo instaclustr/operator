@@ -79,15 +79,12 @@ spec:
                         type: object
                       type: array
                     name:
-                      description: When use one data centre name of field is dataCentreCustomName
-                        for APIv1
                       type: string
                     network:
                       type: string
                     nodeSize:
                       type: string
                     nodesNumber:
-                      description: 'APIv2: numberOfNodes; APIv1: nodesPerRack.'
                       format: int32
                       type: integer
                     pgBouncerVersion:
@@ -96,7 +93,6 @@ spec:
                     poolMode:
                       type: string
                     region:
-                      description: 'Region. APIv1 : "dataCentre"'
                       type: string
                     tags:
                       additionalProperties:
@@ -115,15 +111,13 @@ spec:
               description:
                 type: string
               name:
-                description: 'Name [ 3 .. 32 ] characters. APIv2 : "name", APIv1 :
-                  "clusterName".'
+                description: Name [ 3 .. 32 ] characters.
                 type: string
               pciCompliance:
-                description: "The PCI compliance standards relate to the security
-                  of user data and transactional information. Can only be applied
-                  clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
+                description: The PCI compliance standards relate to the security of
+                  user data and transactional information. Can only be applied clusters
+                  provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
                   and Redis. PCI compliance cannot be enabled if the cluster has Spark.
-                  \n APIv1 : \"pciCompliantCluster,omitempty\"; APIv2 : pciComplianceMode."
                 type: boolean
               pgRestoreFrom:
                 properties:
@@ -151,29 +145,23 @@ spec:
                 - clusterId
                 type: object
               privateNetworkCluster:
-                description: Required for APIv2, but for APIv1 set "false" as a default.
                 type: boolean
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
                   and reduced SLAs. Production tier is not available when using Developer
                   class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
-                  "NON_PRODUCTION". Required for APIv2, but for APIv1 set "NON_PRODUCTION"
-                  as a default.'
+                  "NON_PRODUCTION".'
                 type: string
               synchronousModeStrict:
                 type: boolean
               twoFactorDelete:
-                description: APIv2, unlike AP1, receives an array of TwoFactorDelete
-                  (<= 1 items);
                 items:
                   properties:
                     email:
-                      description: 'Email address which will be contacted when the
-                        cluster is requested to be deleted. APIv1: deleteVerifyEmail;
-                        APIv2: confirmationEmail.'
+                      description: Email address which will be contacted when the
+                        cluster is requested to be deleted.
                       type: string
                     phone:
-                      description: 'APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.'
                       type: string
                   required:
                   - email

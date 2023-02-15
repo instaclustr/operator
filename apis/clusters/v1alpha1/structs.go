@@ -17,22 +17,15 @@ type CloudProviderSettings struct {
 }
 
 type DataCentre struct {
-	// When use one data centre name of field is dataCentreCustomName for APIv1
-	Name string `json:"name,omitempty"`
-
-	// Region. APIv1 : "dataCentre"
+	Name                  string                   `json:"name,omitempty"`
 	Region                string                   `json:"region"`
 	CloudProvider         string                   `json:"cloudProvider"`
 	ProviderAccountName   string                   `json:"accountName,omitempty"`
 	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
-
-	Network  string `json:"network"`
-	NodeSize string `json:"nodeSize"`
-
-	// APIv2: numberOfNodes; APIv1: nodesPerRack.
-	NodesNumber int32 `json:"nodesNumber"`
-
-	Tags map[string]string `json:"tags,omitempty"`
+	Network               string                   `json:"network"`
+	NodeSize              string                   `json:"nodeSize"`
+	NodesNumber           int32                    `json:"nodesNumber"`
+	Tags                  map[string]string        `json:"tags,omitempty"`
 }
 
 type DataCentreStatus struct {
@@ -61,24 +54,22 @@ type Options struct {
 
 type Cluster struct {
 	// Name [ 3 .. 32 ] characters.
-	// APIv2 : "name", APIv1 : "clusterName".
-	Name    string `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
+
 	Version string `json:"version,omitempty"`
+
 	// The PCI compliance standards relate to the security of user data and transactional information.
 	// Can only be applied clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch and Redis.
 	// PCI compliance cannot be enabled if the cluster has Spark.
-	//
-	// APIv1 : "pciCompliantCluster,omitempty"; APIv2 : pciComplianceMode.
 	PCICompliance bool `json:"pciCompliance,omitempty"`
-	// Required for APIv2, but for APIv1 set "false" as a default.
+
 	PrivateNetworkCluster bool `json:"privateNetworkCluster,omitempty"`
+
 	// Non-production clusters may receive lower priority support and reduced SLAs.
 	// Production tier is not available when using Developer class nodes. See SLA Tier for more information.
 	// Enum: "PRODUCTION" "NON_PRODUCTION".
-	// Required for APIv2, but for APIv1 set "NON_PRODUCTION" as a default.
 	SLATier string `json:"slaTier,omitempty"`
 
-	// APIv2, unlike AP1, receives an array of TwoFactorDelete (<= 1 items);
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 }
 
@@ -105,10 +96,8 @@ type MaintenanceEvent struct {
 
 type TwoFactorDelete struct {
 	// Email address which will be contacted when the cluster is requested to be deleted.
-	// APIv1: deleteVerifyEmail; APIv2: confirmationEmail.
 	Email string `json:"email"`
 
-	// APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.
 	Phone string `json:"phone,omitempty"`
 }
 
@@ -429,20 +418,6 @@ func (n *Node) IsNodeEqual(instNode *modelsv2.Node) bool {
 }
 
 func (dc *DataCentre) SetDefaultValues() {
-	if dc.ProviderAccountName == "" {
-		dc.ProviderAccountName = models.DefaultAccountName
-	}
-
-	if len(dc.CloudProviderSettings) == 0 {
-		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
-			CustomVirtualNetworkID: "",
-			ResourceGroup:          "",
-			DiskEncryptionKey:      "",
-		})
-	}
-}
-
-func (dc *KafkaDataCentre) SetDefaultValues() {
 	if dc.ProviderAccountName == "" {
 		dc.ProviderAccountName = models.DefaultAccountName
 	}

@@ -730,8 +730,8 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
-	kafkaDataCentres := []*clustersv1alpha1.KafkaDataCentre{
-		{
+	kafkaDataCentres := []*clustersv1alpha1.KafkaDataCentre{{
+		DataCentre: clustersv1alpha1.DataCentre{
 			Name:                dcName,
 			Region:              dcRegion,
 			CloudProvider:       cloudProvider,
@@ -739,7 +739,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 			NodeSize:            kafkaNodeSize,
 			NodesNumber:         int32(kafkaNodesNumber),
 			Network:             kafkaNetwork,
-		},
+		}},
 	}
 
 	slaTier := cadence.Spec.SLATier
@@ -749,7 +749,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	spec := clustersv1alpha1.KafkaSpec{
 		Cluster: clustersv1alpha1.Cluster{
 			Name:                  models.KafkaChildPrefix + cadence.Name,
-			Version:               models.KafkaV2_7_1,
+			Version:               models.KafkaV2_8_2,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       kafkaTFD,

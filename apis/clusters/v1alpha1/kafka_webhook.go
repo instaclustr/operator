@@ -226,6 +226,7 @@ type specificKafkaFields struct {
 	allowDeleteTopics         bool
 	autoCreateTopics          bool
 	clientToClusterEncryption bool
+	bundledUseOnly            bool
 }
 
 func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
@@ -236,6 +237,7 @@ func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
 			allowDeleteTopics:         ks.AllowDeleteTopics,
 			autoCreateTopics:          ks.AutoCreateTopics,
 			clientToClusterEncryption: ks.ClientToClusterEncryption,
+			bundledUseOnly:            ks.BundledUseOnly,
 		},
 		cluster: ks.Cluster.newImmutableFields(),
 	}

@@ -89,12 +89,10 @@ spec:
                 items:
                   properties:
                     email:
-                      description: 'Email address which will be contacted when the
-                        cluster is requested to be deleted. APIv1: deleteVerifyEmail;
-                        APIv2: confirmationEmail.'
+                      description: Email address which will be contacted when the
+                        cluster is requested to be deleted.
                       type: string
                     phone:
-                      description: 'APIv1: deleteVerifyPhone; APIv2: confirmationPhoneNumber.'
                       type: string
                   required:
                   - email
