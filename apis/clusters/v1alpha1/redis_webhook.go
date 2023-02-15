@@ -35,6 +35,16 @@ func (r *Redis) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
+// +kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-redis,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=redis,verbs=create;update,versions=v1alpha1,name=mredis.kb.io,admissionReviewVersions=v1
+var _ webhook.Defaulter = &Redis{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *Redis) Default() {
+	for _, dataCentre := range r.Spec.DataCentres {
+		dataCentre.SetDefaultValues()
+	}
+}
+
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-redis,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=redis,verbs=create;update,versions=v1alpha1,name=vredis.kb.io,admissionReviewVersions=v1
 
@@ -62,13 +72,13 @@ func (r *Redis) ValidateCreate() error {
 	}
 
 	for _, dc := range r.Spec.DataCentres {
-		err := dc.DataCentre.ValidateCreation()
+		err = dc.DataCentre.ValidateCreation()
 		if err != nil {
 			return err
 		}
 
-		if dc.ReplicaNodes < 0 || dc.ReplicaNodes > 100 {
-			return fmt.Errorf("replica nodes should not be less than 0 or more than 100")
+		if dc.NodesNumber < 0 || dc.NodesNumber > 100 {
+			return fmt.Errorf("replica nodes number should not be less than 0 or more than 100")
 		}
 
 		if dc.MasterNodes < 3 || dc.MasterNodes > 100 {

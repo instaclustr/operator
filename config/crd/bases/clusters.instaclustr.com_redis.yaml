@@ -59,7 +59,6 @@ spec:
                         type: object
                       type: array
                     masterNodes:
-                      format: int32
                       type: integer
                     name:
                       type: string
@@ -72,14 +71,8 @@ spec:
                       type: integer
                     passwordAuth:
                       type: boolean
-                    racksNumber:
-                      format: int32
-                      type: integer
                     region:
                       type: string
-                    replicaNodes:
-                      format: int32
-                      type: integer
                     tags:
                       additionalProperties:
                         type: string
@@ -90,9 +83,7 @@ spec:
                   - network
                   - nodeSize
                   - nodesNumber
-                  - racksNumber
                   - region
-                  - replicaNodes
                   type: object
                 type: array
               description:

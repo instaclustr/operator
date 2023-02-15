@@ -36,14 +36,13 @@ spec:
     name: "testdc"
 #    nodeSize: "CAD-DEV-t3.medium-30"
     nodeSize: "CAD-DEV-t3.small-5"
-    racksNumber: 3
     nodesNumber: 1
     cadenceNodeCount: 3
   description: "test 222"
   slaTier: "NON_PRODUCTION"
-#  provisioningType: "PACKAGED"
+  provisioningType: "PACKAGED"
 #  provisioningType: "SHARED"
-  provisioningType: "STANDARD"
+#  provisioningType: "STANDARD"
 #  enableArchival: true
 #  archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
 #  archivalS3Region: "us-east-1"
@@ -56,8 +55,8 @@ spec:
     nodesNumber: 3
     privateIPBroadcastForDiscovery: false
     passwordAndUserAuth: true
-  useAdvancedVisibility: false
-#  useAdvancedVisibility: true
+#  useAdvancedVisibility: false
+  useAdvancedVisibility: true
   bundledKafkaSpec:
     nodeSize: "KFK-DEV-t4g.small-5"
     nodesNumber: 3

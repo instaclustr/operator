@@ -1,9 +1,8 @@
 package models
 
 const (
-	ProvisionedStatus = "PROVISIONED"
-	RunningStatus     = "RUNNING"
-	Disabled          = "DISABLED"
+	RunningStatus = "RUNNING"
+	Disabled      = "DISABLED"
 )
 
 type Cluster struct {

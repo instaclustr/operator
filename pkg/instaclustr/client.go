@@ -168,8 +168,8 @@ func (c *Client) GetClusterSpec(id, clusterEndpoint string) (*models.ClusterSpec
 	return clusterSpec, nil
 }
 
-func (c *Client) GetRedisSpec(id, clusterEndpoint string) (*models.RedisCluster, error) {
-	url := c.serverHostname + clusterEndpoint + id
+func (c *Client) GetRedis(id string) (*models.RedisCluster, error) {
+	url := c.serverHostname + RedisEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -191,7 +191,6 @@ func (c *Client) GetRedisSpec(id, clusterEndpoint string) (*models.RedisCluster,
 	}
 
 	redisSpec := &models.RedisCluster{}
-
 	err = json.Unmarshal(body, redisSpec)
 	if err != nil {
 		return nil, err

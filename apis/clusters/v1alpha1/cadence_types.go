@@ -334,13 +334,13 @@ func (cst *CadenceStatus) SetStatusFromInst(instStatus *models.CadenceAPIv2) {
 func (cst *CadenceStatus) SetDCsStatusFromInst(instDCs []*models.CadenceDataCentre) {
 	dcs := []*DataCentreStatus{}
 	for _, instDC := range instDCs {
-		dcToAppend := &DataCentreStatus{
+		dc := &DataCentreStatus{
 			ID:         instDC.ID,
 			Status:     instDC.Status,
 			NodeNumber: instDC.NumberOfNodes,
 		}
-		dcToAppend.SetNodesStatusFromInstAPI(instDC.Nodes)
-		dcs = append(dcs, dcToAppend)
+		dc.SetNodesFromInstAPI(instDC.Nodes)
+		dcs = append(dcs, dc)
 	}
 	cst.DataCentres = dcs
 }
