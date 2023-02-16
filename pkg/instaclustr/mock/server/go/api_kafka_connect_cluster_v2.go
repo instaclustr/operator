@@ -77,7 +77,7 @@ func (c *KafkaConnectClusterV2ApiController) Routes() Routes {
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2Post",
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/applications/kafka-connect/clusters/v2/",
+			"/cluster-management/v2/resources/applications/kafka-connect/clusters/v2",
 			c.ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2Post,
 		},
 	}

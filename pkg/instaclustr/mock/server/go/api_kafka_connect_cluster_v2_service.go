@@ -19,6 +19,7 @@ import (
 // This service should implement the business logic for every endpoint for the KafkaConnectClusterV2Api API.
 // Include any external packages or services that will be required by this service.
 type KafkaConnectClusterV2ApiService struct {
+	MockKafkaConnectCluster *KafkaConnectClusterV2
 }
 
 // NewKafkaConnectClusterV2ApiService creates a default api service
@@ -42,10 +43,8 @@ func (s *KafkaConnectClusterV2ApiService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_kafka_connect_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdDelete method not implemented")
+	s.MockKafkaConnectCluster = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdGet - Get Kafka connect cluster details
@@ -53,13 +52,13 @@ func (s *KafkaConnectClusterV2ApiService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_kafka_connect_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaConnectClusterV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaConnectClusterV2{}), nil
+	if s.MockKafkaConnectCluster != nil {
+		s.MockKafkaConnectCluster.Status = RUNNING
+	} else {
+		return Response(404, nil), nil
+	}
 
-	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
-	//return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdGet method not implemented")
+	return Response(200, s.MockKafkaConnectCluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdPut - Update a Kafka connect cluster
@@ -67,13 +66,12 @@ func (s *KafkaConnectClusterV2ApiService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_kafka_connect_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, KafkaConnectClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, KafkaConnectClusterV2{}), nil
+	s.MockKafkaConnectCluster.DataCentres[0].NumberOfNodes = body.DataCentres[0].NumberOfNodes
+
+	return Response(202, nil), nil
 
 	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	//return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2ClusterIdPut method not implemented")
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2Post - Create a Kafka connect cluster.
@@ -81,8 +79,7 @@ func (s *KafkaConnectClusterV2ApiService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2Post with the required logic for this service method.
 	// Add api_kafka_connect_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, KafkaConnectClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, KafkaConnectClusterV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectClustersV2Post method not implemented")
+	s.MockKafkaConnectCluster = &body
+	s.MockKafkaConnectCluster.Id = CreatedID
+	return Response(202, s.MockKafkaConnectCluster), nil
 }
