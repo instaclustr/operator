@@ -9,4 +9,15 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: kafkaacl-sample
 spec:
-  # TODO(user): Add fields here
+  acls:
+      - host: "*"
+        operation: DESCRIBE
+        patternType: LITERAL
+        permissionType: ALLOW
+        principal: User:test
+        resourceName: kafka-cluster
+        resourceType: CLUSTER
+  clusterId: c1af59c6-ba0e-4cc2-a0f3-65cee17a5f37
+  id: c1af59c6-ba0e-4cc2-a0f3-65cee17a5f37_test
+  userQuery: test
+
