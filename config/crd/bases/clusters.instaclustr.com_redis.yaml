@@ -38,8 +38,6 @@ spec:
               clientEncryption:
                 description: Enables client to node encryption
                 type: boolean
-              concurrentResizes:
-                type: integer
               dataCentres:
                 items:
                   properties:
@@ -69,8 +67,6 @@ spec:
                     nodesNumber:
                       format: int32
                       type: integer
-                    passwordAuth:
-                      type: boolean
                     region:
                       type: string
                     tags:
@@ -91,8 +87,6 @@ spec:
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
-              notifySupportContacts:
-                type: boolean
               passwordAndUserAuth:
                 type: boolean
               pciCompliance:
