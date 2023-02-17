@@ -85,13 +85,19 @@ spec:
                     nodeSize:
                       type: string
                     nodesNumber:
-                      format: int32
                       type: integer
-                    pgBouncerVersion:
-                      description: PGBouncer options
-                      type: string
-                    poolMode:
-                      type: string
+                    pgBouncer:
+                      items:
+                        properties:
+                          pgBouncerVersion:
+                            type: string
+                          poolMode:
+                            type: string
+                        required:
+                        - pgBouncerVersion
+                        - poolMode
+                        type: object
+                      type: array
                     region:
                       type: string
                     tags:
@@ -196,7 +202,6 @@ spec:
                     id:
                       type: string
                     nodeNumber:
-                      format: int32
                       type: integer
                     nodes:
                       items:
@@ -255,7 +260,7 @@ spec:
                   openSearchDashboardsNodeSize:
                     type: string
                 type: object
-              status:
+              state:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

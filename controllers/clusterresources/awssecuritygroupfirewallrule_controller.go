@@ -231,7 +231,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 		"status", firewallRule.Status,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule) error {

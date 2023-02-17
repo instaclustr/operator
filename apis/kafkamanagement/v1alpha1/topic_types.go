@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -75,4 +77,45 @@ func (t *Topic) NewPatch() client.Patch {
 
 func init() {
 	SchemeBuilder.Register(&Topic{}, &TopicList{})
+}
+
+func (ts *TopicStatus) FromInstAPI(body []byte) (TopicStatus, error) {
+	var status models.TopicStatus
+	err := json.Unmarshal(body, &status)
+	if err != nil {
+		return TopicStatus{}, err
+	}
+
+	StatusCRD := TopicStatus{
+		ID:           status.ID,
+		TopicConfigs: ts.topicConfigsToCRD(status.TopicConfigs),
+	}
+
+	return StatusCRD, nil
+}
+
+func (ts *TopicStatus) topicConfigsToCRD(c []*models.TopicConfigs) map[string]string {
+	if c == nil {
+		return nil
+	}
+
+	crdConfigs := make(map[string]string)
+
+	for _, config := range c {
+		crdConfigs[config.Key] = config.Value
+	}
+
+	return crdConfigs
+}
+
+func (ts *TopicSpec) TopicConfigsUpdateToInstAPI() *models.UpdateTopicConfigs {
+	iTags := &models.UpdateTopicConfigs{}
+	for k, v := range ts.TopicConfigs {
+		iTags.TopicConfigs = append(iTags.TopicConfigs, &models.TopicConfigs{
+			Key:   k,
+			Value: v,
+		})
+	}
+
+	return iTags
 }

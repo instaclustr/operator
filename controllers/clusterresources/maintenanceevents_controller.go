@@ -68,7 +68,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				"request", req,
 			)
 
-			return models.ReconcileResult, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Cannot get Maintenance Event resource",
@@ -100,7 +100,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return models.ReconcileRequeue, nil
 		}
 
-		return models.ReconcileResult, nil
+		return models.ExitReconcile, nil
 	}
 
 	err = r.reconcileMaintenanceEventsReschedules(me)
@@ -154,7 +154,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		"status", me.Status,
 	)
 
-	return models.ReconcileResult, nil
+	return models.ExitReconcile, nil
 }
 
 func (r *MaintenanceEventsReconciler) startMaintenanceEventStatusJob(me *clusterresourcesv1alpha1.MaintenanceEvents) error {

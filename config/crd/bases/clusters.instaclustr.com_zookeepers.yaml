@@ -38,6 +38,8 @@ spec:
               dataCentres:
                 items:
                   properties:
+                    accountName:
+                      type: string
                     clientToServerEncryption:
                       type: boolean
                     cloudProvider:
@@ -60,10 +62,7 @@ spec:
                     nodeSize:
                       type: string
                     nodesNumber:
-                      format: int32
                       type: integer
-                    providerAccountName:
-                      type: string
                     region:
                       type: string
                     tags:
@@ -80,10 +79,21 @@ spec:
                   type: object
                 type: array
               name:
+                description: Name [ 3 .. 32 ] characters.
                 type: string
+              pciCompliance:
+                description: The PCI compliance standards relate to the security of
+                  user data and transactional information. Can only be applied clusters
+                  provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
+                  and Redis. PCI compliance cannot be enabled if the cluster has Spark.
+                type: boolean
               privateNetworkCluster:
                 type: boolean
               slaTier:
+                description: 'Non-production clusters may receive lower priority support
+                  and reduced SLAs. Production tier is not available when using Developer
+                  class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
+                  "NON_PRODUCTION".'
                 type: string
               twoFactorDelete:
                 items:
@@ -102,9 +112,6 @@ spec:
                 type: string
             required:
             - dataCentres
-            - name
-            - slaTier
-            - version
             type: object
           status:
             description: ZookeeperStatus defines the observed state of Zookeeper
@@ -121,7 +128,6 @@ spec:
                     id:
                       type: string
                     nodeNumber:
-                      format: int32
                       type: integer
                     nodes:
                       items:
@@ -178,7 +184,7 @@ spec:
                   openSearchDashboardsNodeSize:
                     type: string
                 type: object
-              status:
+              state:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

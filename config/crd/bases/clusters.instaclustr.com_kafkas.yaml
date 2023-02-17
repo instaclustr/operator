@@ -74,7 +74,6 @@ spec:
                     nodeSize:
                       type: string
                     nodesNumber:
-                      format: int32
                       type: integer
                     privateLink:
                       items:
@@ -146,7 +145,6 @@ spec:
               partitionsNumber:
                 description: PartitionsNumber number of partitions to use when created
                   new topics.
-                format: int32
                 type: integer
               pciCompliance:
                 description: The PCI compliance standards relate to the security of
@@ -159,7 +157,6 @@ spec:
               replicationFactorNumber:
                 description: ReplicationFactorNumber to use for new topic. Also represents
                   the number of racks to use when allocating nodes.
-                format: int32
                 type: integer
               restProxy:
                 items:
@@ -234,7 +231,6 @@ spec:
                     id:
                       type: string
                     nodeNumber:
-                      format: int32
                       type: integer
                     nodes:
                       items:
@@ -291,7 +287,7 @@ spec:
                   openSearchDashboardsNodeSize:
                     type: string
                 type: object
-              status:
+              state:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

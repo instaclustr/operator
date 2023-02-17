@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -25,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -72,8 +72,6 @@ type CassandraSpec struct {
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	ClusterStatus `json:",inline"`
 }
 
@@ -158,122 +156,19 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.
 	}
 }
 
-func (cs *CassandraSpec) AreSpecsEqual(instSpec *modelsv2.CassandraCluster) bool {
-	if cs.Name != instSpec.Name ||
-		cs.Version != instSpec.CassandraVersion ||
-		cs.PCICompliance != instSpec.PCIComplianceMode ||
-		cs.PrivateNetworkCluster != instSpec.PrivateNetworkCluster ||
-		cs.SLATier != instSpec.SLATier ||
-		!cs.IsTwoFactorDeleteEqual(instSpec.TwoFactorDeletes) ||
-		!cs.AreDataCentresEqual(instSpec.DataCentres) ||
-		cs.LuceneEnabled != instSpec.LuceneEnabled ||
-		cs.PasswordAndUserAuth != instSpec.PasswordAndUserAuth ||
-		!cs.IsSparkEqual(instSpec.Spark) {
-		return false
+func (c *Cassandra) FromInstAPI(iData []byte) (*Cassandra, error) {
+	iCass := models.CassandraCluster{}
+	err := json.Unmarshal(iData, &iCass)
+	if err != nil {
+		return nil, err
 	}
 
-	return true
-}
-
-func (cs *CassandraSpec) AreDataCentresEqual(instDataCentres []*modelsv2.CassandraDataCentre) bool {
-	if len(cs.DataCentres) != len(instDataCentres) {
-		return false
-	}
-
-	for _, instDC := range instDataCentres {
-		for _, dataCentre := range cs.DataCentres {
-			if instDC.Name == dataCentre.Name {
-				if instDC.ClientToClusterEncryption != dataCentre.ClientToClusterEncryption ||
-					instDC.PrivateIPBroadcastForDiscovery != dataCentre.PrivateIPBroadcastForDiscovery ||
-					instDC.ContinuousBackup != dataCentre.ContinuousBackup ||
-					instDC.CloudProvider != dataCentre.CloudProvider ||
-					instDC.NodeSize != dataCentre.NodeSize ||
-					instDC.ProviderAccountName != dataCentre.ProviderAccountName ||
-					instDC.Region != dataCentre.Region ||
-					instDC.Network != dataCentre.Network ||
-					instDC.NumberOfNodes != dataCentre.NodesNumber ||
-					instDC.ReplicationFactor != dataCentre.ReplicationFactor ||
-					!dataCentre.AreTagsEqual(instDC.Tags) ||
-					!dataCentre.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) {
-					return false
-				}
-
-				break
-			}
-		}
-	}
-
-	return true
-}
-
-func (cs *CassandraSpec) IsSparkEqual(instSparks []*modelsv2.Spark) bool {
-	if len(cs.Spark) != len(instSparks) {
-		return false
-	}
-
-	for i, instSpark := range instSparks {
-		if cs.Spark[i].Version != instSpark.Version {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (cs *CassandraSpec) SetSpecFromInst(instSpec *modelsv2.CassandraCluster) {
-	cs.Name = instSpec.Name
-	cs.Version = instSpec.CassandraVersion
-	cs.PCICompliance = instSpec.PCIComplianceMode
-	cs.PrivateNetworkCluster = instSpec.PrivateNetworkCluster
-	cs.SLATier = instSpec.SLATier
-	cs.LuceneEnabled = instSpec.LuceneEnabled
-	cs.PasswordAndUserAuth = instSpec.PasswordAndUserAuth
-
-	twoFactorDeletes := []*TwoFactorDelete{}
-	for _, instTFD := range instSpec.TwoFactorDeletes {
-		twoFactorDeletes = append(twoFactorDeletes, &TwoFactorDelete{
-			Phone: instTFD.ConfirmationPhoneNumber,
-			Email: instTFD.ConfirmationEmail,
-		})
-	}
-	cs.TwoFactorDelete = twoFactorDeletes
-
-	dataCentres := []*CassandraDataCentre{}
-	for _, instDC := range instSpec.DataCentres {
-		cassDC := &CassandraDataCentre{
-			DataCentre: DataCentre{
-				Name:                instDC.Name,
-				Region:              instDC.Region,
-				CloudProvider:       instDC.CloudProvider,
-				ProviderAccountName: instDC.ProviderAccountName,
-				Network:             instDC.Network,
-				NodeSize:            instDC.NodeSize,
-				NodesNumber:         instDC.NumberOfNodes,
-			},
-			ContinuousBackup:               instDC.ContinuousBackup,
-			PrivateIPBroadcastForDiscovery: instDC.PrivateIPBroadcastForDiscovery,
-			ClientToClusterEncryption:      instDC.ClientToClusterEncryption,
-			ReplicationFactor:              instDC.ReplicationFactor,
-		}
-
-		cassDC.SetCloudProviderSettingsFromInstAPI(&instDC.DataCentre)
-
-		tags := map[string]string{}
-		for _, tag := range instDC.Tags {
-			tags[tag.Key] = tag.Value
-		}
-		cassDC.Tags = tags
-		dataCentres = append(dataCentres, cassDC)
-	}
-	cs.DataCentres = dataCentres
-
-	sparks := []*Spark{}
-	for _, instSpark := range instSpec.Spark {
-		sparks = append(sparks, &Spark{
-			Version: instSpark.Version,
-		})
-	}
-	cs.Spark = sparks
+	return &Cassandra{
+		TypeMeta:   c.TypeMeta,
+		ObjectMeta: c.ObjectMeta,
+		Spec:       c.Spec.FromInstAPI(iCass),
+		Status:     c.Status.FromInstAPI(iCass),
+	}, nil
 }
 
 func (cs *CassandraSpec) HasRestore() bool {
@@ -282,6 +177,12 @@ func (cs *CassandraSpec) HasRestore() bool {
 	}
 
 	return false
+}
+
+func (cs *CassandraSpec) NewDCsUpdate() models.CassandraClusterAPIUpdate {
+	return models.CassandraClusterAPIUpdate{
+		DataCentres: cs.DCsToInstAPI(),
+	}
 }
 
 func (cs *CassandraSpec) newImmutableFields() *immutableCassandraFields {
@@ -318,24 +219,6 @@ func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 	return nil
 }
 
-func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields {
-	return &immutableCassandraDCFields{
-		immutableDC{
-			Name:                cdc.Name,
-			Region:              cdc.Region,
-			CloudProvider:       cdc.CloudProvider,
-			ProviderAccountName: cdc.ProviderAccountName,
-			Network:             cdc.Network,
-		},
-		specificCassandraDC{
-			replicationFactor:              cdc.ReplicationFactor,
-			continuousBackup:               cdc.ContinuousBackup,
-			privateIpBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
-			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
-		},
-	}
-}
-
 func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CassandraSpec) error {
 	if len(cs.DataCentres) < len(oldSpec.DataCentres) {
 		return models.ErrDecreasedDataCentresNumber
@@ -367,6 +250,164 @@ func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Cassan
 	}
 
 	return nil
+}
+
+func (cs *CassandraSpec) FromInstAPI(iCass models.CassandraCluster) CassandraSpec {
+	return CassandraSpec{
+		Cluster: Cluster{
+			Name:                  iCass.Name,
+			Version:               iCass.CassandraVersion,
+			PCICompliance:         iCass.PCIComplianceMode,
+			PrivateNetworkCluster: iCass.PrivateNetworkCluster,
+			SLATier:               iCass.SLATier,
+			TwoFactorDelete:       cs.Cluster.TwoFactorDeleteFromInstAPI(iCass.TwoFactorDelete),
+		},
+		DataCentres:         cs.DCsFromInstAPI(iCass.DataCentres),
+		LuceneEnabled:       iCass.LuceneEnabled,
+		PasswordAndUserAuth: iCass.PasswordAndUserAuth,
+		Spark:               cs.SparkFromInstAPI(iCass.Spark),
+	}
+}
+
+func (cs *CassandraSpec) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs []*CassandraDataCentre) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &CassandraDataCentre{
+			DataCentre:                     cs.Cluster.DCFromInstAPI(iDC.DataCentre),
+			ContinuousBackup:               iDC.ContinuousBackup,
+			PrivateIPBroadcastForDiscovery: iDC.PrivateIPBroadcastForDiscovery,
+			ClientToClusterEncryption:      iDC.ClientToClusterEncryption,
+			ReplicationFactor:              iDC.ReplicationFactor,
+		})
+	}
+	return
+}
+
+func (cs *CassandraSpec) SparkFromInstAPI(iSparks []*models.Spark) (sparks []*Spark) {
+	for _, iSpark := range iSparks {
+		sparks = append(sparks, &Spark{
+			Version: iSpark.Version,
+		})
+	}
+	return
+}
+
+func (cs *CassandraSpec) DCsToInstAPI() (iDCs []*models.CassandraDataCentre) {
+	for _, dc := range cs.DataCentres {
+		iDCs = append(iDCs, dc.ToInstAPI())
+	}
+	return
+}
+
+func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
+	return &models.CassandraCluster{
+		Name:                  cs.Name,
+		CassandraVersion:      cs.Version,
+		LuceneEnabled:         cs.LuceneEnabled,
+		PasswordAndUserAuth:   cs.PasswordAndUserAuth,
+		Spark:                 cs.SparkToInstAPI(),
+		DataCentres:           cs.DCsToInstAPI(),
+		SLATier:               cs.SLATier,
+		PrivateNetworkCluster: cs.PrivateNetworkCluster,
+		PCIComplianceMode:     cs.PCICompliance,
+		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
+	}
+}
+
+func (cs *CassandraSpec) SparkToInstAPI() (iSparks []*models.Spark) {
+	for _, spark := range cs.Spark {
+		iSparks = append(iSparks, &models.Spark{
+			Version: spark.Version,
+		})
+	}
+	return
+}
+
+func (cs *CassandraSpec) IsEqual(spec CassandraSpec) bool {
+	return cs.Cluster.IsEqual(spec.Cluster) &&
+		cs.AreDCsEqual(spec.DataCentres) &&
+		cs.LuceneEnabled == spec.LuceneEnabled &&
+		cs.PasswordAndUserAuth == spec.PasswordAndUserAuth &&
+		cs.IsSparkEqual(spec.Spark)
+}
+
+func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
+	if len(cs.DataCentres) != len(dcs) {
+		return false
+	}
+
+	for i, iDC := range dcs {
+		dataCentre := cs.DataCentres[i]
+		if !dataCentre.IsEqual(iDC.DataCentre) ||
+			iDC.ClientToClusterEncryption != dataCentre.ClientToClusterEncryption ||
+			iDC.PrivateIPBroadcastForDiscovery != dataCentre.PrivateIPBroadcastForDiscovery ||
+			iDC.ContinuousBackup != dataCentre.ContinuousBackup ||
+			iDC.ReplicationFactor != dataCentre.ReplicationFactor {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (cs *CassandraSpec) IsSparkEqual(sparks []*Spark) bool {
+	if len(cs.Spark) != len(sparks) {
+		return false
+	}
+
+	for i, spark := range sparks {
+		if cs.Spark[i].Version != spark.Version {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (cs *CassandraStatus) FromInstAPI(iCass models.CassandraCluster) CassandraStatus {
+	return CassandraStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                            iCass.ID,
+			State:                         iCass.Status,
+			DataCentres:                   cs.DCsFromInstAPI(iCass.DataCentres),
+			CurrentClusterOperationStatus: iCass.CurrentClusterOperationStatus,
+			MaintenanceEvents:             cs.MaintenanceEvents,
+		},
+	}
+}
+
+func (cs *CassandraStatus) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+	}
+	return
+}
+
+func (cdc *CassandraDataCentre) ToInstAPI() *models.CassandraDataCentre {
+	return &models.CassandraDataCentre{
+		DataCentre:                     cdc.DataCentre.ToInstAPI(),
+		ClientToClusterEncryption:      cdc.ClientToClusterEncryption,
+		ContinuousBackup:               cdc.ContinuousBackup,
+		PrivateIPBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
+		ReplicationFactor:              cdc.ReplicationFactor,
+	}
+}
+
+func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields {
+	return &immutableCassandraDCFields{
+		immutableDC{
+			Name:                cdc.Name,
+			Region:              cdc.Region,
+			CloudProvider:       cdc.CloudProvider,
+			ProviderAccountName: cdc.ProviderAccountName,
+			Network:             cdc.Network,
+		},
+		specificCassandraDC{
+			replicationFactor:              cdc.ReplicationFactor,
+			continuousBackup:               cdc.ContinuousBackup,
+			privateIpBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
+			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
+		},
+	}
 }
 
 func init() {

@@ -1,29 +1,22 @@
 package models
 
-import modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
-
 type RedisCluster struct {
-	ID                            string                      `json:"id,omitempty"`
-	Name                          string                      `json:"name"`
-	RedisVersion                  string                      `json:"redisVersion"`
-	ClientToNodeEncryption        bool                        `json:"clientToNodeEncryption"`
-	PCIComplianceMode             bool                        `json:"pciComplianceMode"`
-	DataCentres                   []*RedisDataCentre          `json:"dataCentres"`
-	PrivateNetworkCluster         bool                        `json:"privateNetworkCluster"`
-	PasswordAndUserAuth           bool                        `json:"passwordAndUserAuth"`
-	TwoFactorDelete               []*modelsv2.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	SLATier                       string                      `json:"slaTier"`
-	CurrentClusterOperationStatus string                      `json:"currentClusterOperationStatus,omitempty"`
-	Status                        string                      `json:"status,omitempty"`
+	ClusterStatus          `json:",inline"`
+	Name                   string             `json:"name,omitempty"`
+	RedisVersion           string             `json:"redisVersion,omitempty"`
+	ClientToNodeEncryption bool               `json:"clientToNodeEncryption,omitempty"`
+	PCIComplianceMode      bool               `json:"pciComplianceMode,omitempty"`
+	DataCentres            []*RedisDataCentre `json:"dataCentres,omitempty"`
+	PrivateNetworkCluster  bool               `json:"privateNetworkCluster,omitempty"`
+	PasswordAndUserAuth    bool               `json:"passwordAndUserAuth,omitempty"`
+	TwoFactorDelete        []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	SLATier                string             `json:"slaTier,omitempty"`
 }
 
 type RedisDataCentre struct {
-	modelsv2.DataCentre
-	MasterNodes  int              `json:"masterNodes"`
-	ReplicaNodes int              `json:"replicaNodes"`
-	ID           string           `json:"id"`
-	Status       string           `json:"status"`
-	Nodes        []*modelsv2.Node `json:"nodes"`
+	DataCentre   `json:",inline"`
+	MasterNodes  int `json:"masterNodes"`
+	ReplicaNodes int `json:"replicaNodes"`
 }
 
 type RedisDataCentreUpdate struct {

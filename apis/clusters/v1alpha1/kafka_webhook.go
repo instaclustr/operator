@@ -221,8 +221,8 @@ type immutableKafkaFields struct {
 }
 
 type specificKafkaFields struct {
-	replicationFactorNumber   int32
-	partitionsNumber          int32
+	replicationFactorNumber   int
+	partitionsNumber          int
 	allowDeleteTopics         bool
 	autoCreateTopics          bool
 	clientToClusterEncryption bool

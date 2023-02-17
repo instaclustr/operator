@@ -17,8 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"k8s.io/utils/strings/slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,7 +42,7 @@ type OpenSearchDataCentre struct {
 	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
 	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
 	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
-	RacksNumber                  int32  `json:"racksNumber"`
+	RacksNumber                  int    `json:"racksNumber"`
 }
 
 type OpenSearchRestoreFrom struct {
@@ -78,6 +81,7 @@ type OpenSearchSpec struct {
 	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
 	Description           string                  `json:"description,omitempty"`
 	PrivateLink           *PrivateLink            `json:"privateLink,omitempty"`
+	BundledUseOnly        bool                    `json:"bundleUseOnly,omitempty"`
 }
 
 // OpenSearchStatus defines the observed state of OpenSearch
@@ -166,145 +170,162 @@ func (oss *OpenSearchSpec) HasRestore() bool {
 	return false
 }
 
-func (oss *OpenSearchSpec) IsSpecEqual(instSpec *models.ClusterSpec) bool {
-	if len(oss.DataCentres) == 0 ||
-		len(instSpec.DataCentres) != len(oss.DataCentres) ||
-		oss.Version != instSpec.BundleVersion ||
-		oss.SLATier != instSpec.SLATier ||
-		oss.Name != instSpec.ClusterName ||
-		(len(oss.TwoFactorDelete) == 0 && instSpec.TwoFactorDeleteEnabled) {
-		return false
+func (os *OpenSearch) FromInstAPIv1(iData []byte) (*OpenSearch, error) {
+	iOs := models.OpenSearchClusterV1{}
+	err := json.Unmarshal(iData, &iOs)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, instDataCentre := range instSpec.DataCentres {
-		for _, dataCentre := range oss.DataCentres {
-			if dataCentre.Name == instDataCentre.CDCName {
-				if !dataCentre.AreOptionsEqual(instSpec.BundleOptions) ||
-					!dataCentre.IsDataCentreEqual(instDataCentre, oss.PrivateLink) ||
-					!dataCentre.IsClusterProviderEqual(instSpec.ClusterProvider) ||
-					oss.PrivateNetworkCluster != instDataCentre.PrivateIPOnly {
-					return false
-				}
+	return &OpenSearch{
+		TypeMeta:   os.TypeMeta,
+		ObjectMeta: os.ObjectMeta,
+		Spec:       os.Spec.FromInstAPIv1(iOs),
+		Status:     os.Status.FromInstAPIv1(iOs),
+	}, nil
+}
 
+func (oss *OpenSearchSpec) FromInstAPIv1(iOs models.OpenSearchClusterV1) OpenSearchSpec {
+	os := OpenSearchSpec{
+		Cluster: Cluster{
+			Name:                  iOs.ClusterName,
+			Version:               iOs.BundleVersion,
+			PCICompliance:         iOs.PCICompliance != models.Disabled,
+			PrivateNetworkCluster: iOs.PrivateNetworkCluster,
+			SLATier:               iOs.SLATier,
+		},
+		DataCentres:           oss.DCsFromInstAPIv1(iOs),
+		ConcurrentResizes:     oss.ConcurrentResizes,
+		NotifySupportContacts: oss.NotifySupportContacts,
+		Description:           oss.Description,
+		BundledUseOnly:        iOs.BundledUseOnlyCluster,
+	}
+	if len(iOs.DataCentre) != 0 &&
+		iOs.DataCentres[0].PrivateLink != nil {
+		os.PrivateLink = &PrivateLink{
+			IAMPrincipalARNs: iOs.DataCentres[0].PrivateLink.IAMPrincipalARNs,
+		}
+	}
+	return os
+}
+
+func (oss *OpenSearchSpec) DCsFromInstAPIv1(iOs models.OpenSearchClusterV1) (dcs []*OpenSearchDataCentre) {
+	for _, iDC := range iOs.DataCentres {
+		var provider *models.ClusterProviderV1
+		for _, iProvider := range iOs.ClusterProvider {
+			if iProvider.Name == iDC.Provider {
+				provider = iProvider
 				break
 			}
 		}
-	}
-
-	return true
-}
-
-func (odc *OpenSearchDataCentre) AreOptionsEqual(instOptions models.BundleOptions) bool {
-	if odc.ReportsPlugin != instOptions.ReportsPlugin ||
-		odc.KNNPlugin != instOptions.KNNPlugin ||
-		odc.NotificationsPlugin != instOptions.NotificationsPlugin ||
-		odc.ICUPlugin != instOptions.ICUPlugin ||
-		odc.AlertingPlugin != instOptions.AlertingPlugin ||
-		odc.IndexManagementPlugin != instOptions.IndexManagementPlugin ||
-		(instOptions.DedicatedMasterNodes && odc.NodeSize != instOptions.DataNodeSize) ||
-		(!instOptions.DedicatedMasterNodes && odc.NodeSize != instOptions.MasterNodeSize) ||
-		(odc.MasterNodeSize != "" && odc.MasterNodeSize != instOptions.MasterNodeSize) ||
-		odc.OpenSearchDashboardsNodeSize != instOptions.OpenSearchDashboardsNodeSize {
-		return false
-	}
-
-	return true
-}
-
-func (odc *OpenSearchDataCentre) IsDataCentreEqual(instDC *models.DataCentreSpec, privateLink *PrivateLink) bool {
-	if odc.Name != instDC.CDCName ||
-		odc.Region != instDC.Name ||
-		odc.CloudProvider != instDC.Provider ||
-		odc.Network != instDC.CDCNetwork {
-		return false
-	}
-
-	if instDC.PrivateLink != nil {
-		for _, instLink := range instDC.PrivateLink.IAMPrincipalARNs {
-			foundLink := false
-			for _, k8sLink := range privateLink.IAMPrincipalARNs {
-				if instLink == k8sLink {
-					foundLink = true
-					break
-				}
-			}
-
-			if !foundLink {
-				return false
-			}
+		dataCentre := DataCentre{
+			Name:                iDC.CDCName,
+			Region:              iDC.Name,
+			CloudProvider:       iDC.Provider,
+			ProviderAccountName: provider.AccountName,
+			CloudProviderSettings: []*CloudProviderSettings{
+				{
+					CustomVirtualNetworkID: provider.CustomVirtualNetworkID,
+					ResourceGroup:          provider.ResourceGroup,
+					DiskEncryptionKey:      provider.DiskEncryptionKey,
+				},
+			},
+			NodeSize:    iOs.BundleOptions.DataNodeSize,
+			Network:     iDC.CDCNetwork,
+			NodesNumber: iDC.NodeCount,
+			Tags:        provider.Tags,
 		}
-	}
+		if iOs.BundleOptions.DataNodeSize == "" {
+			dataCentre.NodeSize = iOs.BundleOptions.MasterNodeSize
+			iOs.BundleOptions.MasterNodeSize = ""
+		}
 
-	return true
+		dcs = append(dcs, &OpenSearchDataCentre{
+			DataCentre:                   dataCentre,
+			DedicatedMasterNodes:         iOs.BundleOptions.DedicatedMasterNodes,
+			MasterNodeSize:               iOs.BundleOptions.MasterNodeSize,
+			OpenSearchDashboardsNodeSize: iOs.BundleOptions.OpenSearchDashboardsNodeSize,
+			IndexManagementPlugin:        iOs.BundleOptions.IndexManagementPlugin,
+			AlertingPlugin:               iOs.BundleOptions.AlertingPlugin,
+			ICUPlugin:                    iOs.BundleOptions.ICUPlugin,
+			KNNPlugin:                    iOs.BundleOptions.KNNPlugin,
+			NotificationsPlugin:          iOs.BundleOptions.NotificationsPlugin,
+			ReportsPlugin:                iOs.BundleOptions.ReportsPlugin,
+		})
+	}
+	return
 }
 
-func (odc *OpenSearchDataCentre) IsClusterProviderEqual(instClusterProvider []*models.ClusterProvider) bool {
-	for _, instProvider := range instClusterProvider {
-		if odc.CloudProvider != instProvider.Name ||
-			odc.ProviderAccountName != instProvider.AccountName {
+func (oss *OpenSearchStatus) FromInstAPIv1(iOs models.OpenSearchClusterV1) OpenSearchStatus {
+	return OpenSearchStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                iOs.ID,
+			State:             iOs.ClusterStatus,
+			DataCentres:       oss.DCsFromInstAPIv1(iOs.DataCentres),
+			MaintenanceEvents: oss.MaintenanceEvents,
+			CDCID:             iOs.CDCID,
+		},
+	}
+}
+
+func (oss *OpenSearchStatus) DCsFromInstAPIv1(iDCs []*models.OpenSearchDataCentreV1) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &DataCentreStatus{
+			ID:         iDC.ID,
+			Status:     iDC.CDCStatus,
+			Nodes:      oss.NodesFromInstAPIv1(iDC.Nodes),
+			NodeNumber: iDC.NodeCount,
+		})
+	}
+	return
+}
+
+func (oss *OpenSearchSpec) IsEqual(iSpec OpenSearchSpec) bool {
+	return oss.Cluster.IsEqual(iSpec.Cluster) &&
+		oss.AreDCsEqual(iSpec.DataCentres) &&
+		oss.IsPrivateLinkEqual(iSpec.PrivateLink)
+}
+
+func (oss *OpenSearchSpec) AreDCsEqual(dcs []*OpenSearchDataCentre) bool {
+	if len(oss.DataCentres) != len(dcs) {
+		return false
+	}
+
+	for i, bDC := range dcs {
+		aDC := oss.DataCentres[i]
+		if !aDC.IsEqual(bDC.DataCentre) ||
+			aDC.DedicatedMasterNodes != bDC.DedicatedMasterNodes ||
+			aDC.MasterNodeSize != bDC.MasterNodeSize ||
+			aDC.OpenSearchDashboardsNodeSize != bDC.OpenSearchDashboardsNodeSize ||
+			aDC.IndexManagementPlugin != bDC.IndexManagementPlugin ||
+			aDC.AlertingPlugin != bDC.AlertingPlugin ||
+			aDC.ICUPlugin != bDC.ICUPlugin ||
+			aDC.KNNPlugin != bDC.KNNPlugin ||
+			aDC.NotificationsPlugin != bDC.NotificationsPlugin ||
+			aDC.ReportsPlugin != bDC.ReportsPlugin ||
+			aDC.RacksNumber != bDC.RacksNumber {
 			return false
 		}
-
-		for _, providerSettings := range odc.CloudProviderSettings {
-			if instProvider.DiskEncryptionKey != providerSettings.DiskEncryptionKey ||
-				instProvider.ResourceGroup != providerSettings.ResourceGroup ||
-				instProvider.CustomVirtualNetworkID != providerSettings.CustomVirtualNetworkID {
-				return false
-			}
-
-			for key, value := range instProvider.Tags {
-				if odc.Tags[key] != value {
-					return false
-				}
-			}
-		}
 	}
 
 	return true
 }
 
-func (oss *OpenSearchSpec) SetSpecFromInst(instSpec *models.ClusterSpec) bool {
-	oss.Name = instSpec.ClusterName
-	oss.Version = instSpec.BundleVersion
-	oss.SLATier = instSpec.SLATier
-	oss.PCICompliance = instSpec.PCICompliance != models.Disabled
-
-	k8sDataCentres := []*OpenSearchDataCentre{}
-	for _, instDC := range instSpec.DataCentres {
-		oss.PrivateNetworkCluster = instDC.PrivateIPOnly
-		if instDC.PrivateLink != nil {
-			oss.PrivateLink = &PrivateLink{IAMPrincipalARNs: instDC.PrivateLink.IAMPrincipalARNs}
-		}
-
-		dcToAppend := &OpenSearchDataCentre{
-			DataCentre: DataCentre{
-				Name:          instDC.CDCName,
-				Region:        instDC.Name,
-				CloudProvider: instDC.Provider,
-				Network:       instDC.CDCNetwork,
-			},
-			DedicatedMasterNodes:         instSpec.BundleOptions.DedicatedMasterNodes,
-			OpenSearchDashboardsNodeSize: instSpec.BundleOptions.OpenSearchDashboardsNodeSize,
-			IndexManagementPlugin:        instSpec.BundleOptions.IndexManagementPlugin,
-			AlertingPlugin:               instSpec.BundleOptions.AlertingPlugin,
-			ICUPlugin:                    instSpec.BundleOptions.ICUPlugin,
-			KNNPlugin:                    instSpec.BundleOptions.KNNPlugin,
-			NotificationsPlugin:          instSpec.BundleOptions.NotificationsPlugin,
-			ReportsPlugin:                instSpec.BundleOptions.ReportsPlugin,
-		}
-
-		if instSpec.BundleOptions.DedicatedMasterNodes {
-			dcToAppend.MasterNodeSize = instSpec.BundleOptions.MasterNodeSize
-			dcToAppend.NodeSize = instSpec.BundleOptions.DataNodeSize
-		} else {
-			dcToAppend.NodeSize = instSpec.BundleOptions.MasterNodeSize
-		}
-
-		dcToAppend.SetCloudProviderSettingsAPIv1(instSpec.ClusterProvider)
-
-		k8sDataCentres = append(k8sDataCentres, dcToAppend)
+func (oss *OpenSearchSpec) IsPrivateLinkEqual(iLink *PrivateLink) bool {
+	if oss.PrivateLink == iLink {
+		return true
 	}
-	oss.DataCentres = k8sDataCentres
+
+	if oss.PrivateLink != nil &&
+		len(oss.PrivateLink.IAMPrincipalARNs) != len(iLink.IAMPrincipalARNs) {
+		return false
+	}
+
+	for _, arn := range oss.PrivateLink.IAMPrincipalARNs {
+		if !slices.Contains(iLink.IAMPrincipalARNs, arn) {
+			return false
+		}
+	}
 
 	return true
 }
@@ -378,6 +399,72 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Open
 	}
 
 	return nil
+}
+
+func (odc *OpenSearchDataCentre) bundleToInstAPIv1(version string) []*models.OpenSearchBundleV1 {
+	var newBundles []*models.OpenSearchBundleV1
+	bundle := &models.OpenSearchBundleV1{
+		Bundle: models.Bundle{
+			Bundle:  models.OpenSearchV1,
+			Version: version,
+		},
+		Options: &models.OpenSearchBundleOptionsV1{
+			DedicatedMasterNodes:         odc.DedicatedMasterNodes,
+			MasterNodeSize:               odc.MasterNodeSize,
+			OpenSearchDashboardsNodeSize: odc.OpenSearchDashboardsNodeSize,
+			IndexManagementPlugin:        odc.IndexManagementPlugin,
+			ICUPlugin:                    odc.ICUPlugin,
+			KNNPlugin:                    odc.KNNPlugin,
+			NotificationsPlugin:          odc.NotificationsPlugin,
+			ReportsPlugin:                odc.ReportsPlugin,
+		},
+	}
+	newBundles = append(newBundles, bundle)
+
+	return newBundles
+}
+
+func (odc *OpenSearchDataCentre) providerToInstAPIv1() *models.ClusterProviderV1 {
+	var iCustomVirtualNetworkID string
+	var iResourceGroup string
+	var iDiskEncryptionKey string
+	if len(odc.CloudProviderSettings) > 0 {
+		iCustomVirtualNetworkID = odc.CloudProviderSettings[0].CustomVirtualNetworkID
+		iResourceGroup = odc.CloudProviderSettings[0].ResourceGroup
+		iDiskEncryptionKey = odc.CloudProviderSettings[0].DiskEncryptionKey
+	}
+
+	return &models.ClusterProviderV1{
+		Name:                   odc.CloudProvider,
+		AccountName:            odc.ProviderAccountName,
+		Tags:                   odc.Tags,
+		CustomVirtualNetworkID: iCustomVirtualNetworkID,
+		ResourceGroup:          iResourceGroup,
+		DiskEncryptionKey:      iDiskEncryptionKey,
+	}
+}
+
+func (oss *OpenSearchSpec) NewCreateRequestInstAPIv1() (iOs models.OpenSearchCreateAPIv1) {
+	iOs.ClusterName = oss.Name
+	iOs.PrivateNetworkCluster = oss.PrivateNetworkCluster
+	iOs.SLATier = oss.SLATier
+	iOs.BundledUseOnlyCluster = oss.BundledUseOnly
+	iOs.PCICompliantCluster = oss.PCICompliance
+	iOs.TwoFactorDelete = oss.Cluster.TwoFactorDeleteToInstAPIv1()
+	if len(oss.DataCentres) != 0 {
+		dc := oss.DataCentres[0]
+		iOs.NodeSize = dc.NodeSize
+		iOs.ClusterNetwork = dc.Network
+		iOs.DataCentre = dc.Region
+		iOs.DataCentreCustomName = dc.Name
+		iOs.Bundles = dc.bundleToInstAPIv1(oss.Version)
+		iOs.Provider = dc.providerToInstAPIv1()
+		iOs.RackAllocation = &models.RackAllocationV1{
+			NumberOfRacks: dc.RacksNumber,
+			NodesPerRack:  dc.NodesNumber,
+		}
+	}
+	return
 }
 
 func init() {

@@ -25,14 +25,14 @@ import (
 
 // KafkaUserSpec defines the desired state of KafkaUser
 type KafkaUserSpec struct {
-	Options                  *Options `json:"options"`
-	KafkaUserSecretName      string   `json:"kafkaUserSecretName"`
-	KafkaUserSecretNamespace string   `json:"kafkaUserSecretNamespace"`
-	ClusterID                string   `json:"clusterId"`
-	InitialPermissions       string   `json:"initialPermissions"`
+	Options                  *KafkaUserOptions `json:"options"`
+	KafkaUserSecretName      string            `json:"kafkaUserSecretName"`
+	KafkaUserSecretNamespace string            `json:"kafkaUserSecretNamespace"`
+	ClusterID                string            `json:"clusterId"`
+	InitialPermissions       string            `json:"initialPermissions"`
 }
 
-type Options struct {
+type KafkaUserOptions struct {
 	OverrideExistingUser bool   `json:"overrideExistingUser,omitempty"`
 	SASLSCRAMMechanism   string `json:"saslScramMechanism"`
 }
@@ -75,4 +75,20 @@ func (ku *KafkaUser) NewPatch() client.Patch {
 
 func init() {
 	SchemeBuilder.Register(&KafkaUser{}, &KafkaUserList{})
+}
+
+func (ks *KafkaUserSpec) ToInstAPI() *models.KafkaUser {
+	return &models.KafkaUser{
+		ClusterID:          ks.ClusterID,
+		InitialPermissions: ks.InitialPermissions,
+		Options:            ks.Options.ToInstAPI(),
+	}
+}
+
+func (ko *KafkaUserOptions) ToInstAPI() *models.KafkaUserOptions {
+	return &models.KafkaUserOptions{
+		OverrideExistingUser: ko.OverrideExistingUser,
+		SASLSCRAMMechanism:   ko.SASLSCRAMMechanism,
+	}
+
 }

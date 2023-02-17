@@ -47,10 +47,7 @@ func IsClusterBeingDeleted(deletionTimestamp *metav1.Time, twoFactorDeleteLen in
 			return true
 		}
 
-		if deletionConfirmedAnnotation == models.True {
-			return true
-		}
+		return deletionConfirmedAnnotation == models.True
 	}
-
 	return false
 }

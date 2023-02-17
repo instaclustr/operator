@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"net"
 
-	"k8s.io/utils/strings/slices"
-
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -24,7 +21,7 @@ type DataCentre struct {
 	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
 	Network               string                   `json:"network"`
 	NodeSize              string                   `json:"nodeSize"`
-	NodesNumber           int32                    `json:"nodesNumber"`
+	NodesNumber           int                      `json:"nodesNumber"`
 	Tags                  map[string]string        `json:"tags,omitempty"`
 }
 
@@ -32,7 +29,7 @@ type DataCentreStatus struct {
 	ID              string  `json:"id,omitempty"`
 	Status          string  `json:"status,omitempty"`
 	Nodes           []*Node `json:"nodes,omitempty"`
-	NodeNumber      int32   `json:"nodeNumber,omitempty"`
+	NodeNumber      int     `json:"nodeNumber,omitempty"`
 	EncryptionKeyID string  `json:"encryptionKeyId,omitempty"`
 }
 
@@ -75,7 +72,7 @@ type Cluster struct {
 
 type ClusterStatus struct {
 	ID                            string              `json:"id,omitempty"`
-	Status                        string              `json:"status,omitempty"`
+	State                         string              `json:"state,omitempty"`
 	DataCentres                   []*DataCentreStatus `json:"dataCentres,omitempty"`
 	CDCID                         string              `json:"cdcid,omitempty"`
 	TwoFactorDeleteEnabled        bool                `json:"twoFactorDeleteEnabled,omitempty"`
@@ -99,15 +96,6 @@ type TwoFactorDelete struct {
 	Email string `json:"email"`
 
 	Phone string `json:"phone,omitempty"`
-}
-
-type ResizedDataCentre struct {
-	CurrentNodeSize      string
-	NewNodeSize          string
-	DataCentreID         string
-	Provider             string
-	MasterNewNodeSize    string
-	DashboardNewNodeSize string
 }
 
 type PatchRequest struct {
@@ -136,39 +124,22 @@ type immutableDC struct {
 	Network             string
 }
 
-func (tfd *TwoFactorDelete) ToInstAPI() *modelsv2.TwoFactorDelete {
-	return &modelsv2.TwoFactorDelete{
-		ConfirmationPhoneNumber: tfd.Phone,
-		ConfirmationEmail:       tfd.Email,
-	}
+func (c *Cluster) IsEqual(cluster Cluster) bool {
+	return c.Name == cluster.Name &&
+		c.Version == cluster.Version &&
+		c.PCICompliance == cluster.PCICompliance &&
+		c.PrivateNetworkCluster == cluster.PrivateNetworkCluster &&
+		c.SLATier == cluster.SLATier &&
+		c.IsTwoFactorDeleteEqual(cluster.TwoFactorDelete)
 }
 
-func (c *Cluster) TwoFactorDeletesToInstAPI() []*modelsv2.TwoFactorDelete {
-	var TFDs []*modelsv2.TwoFactorDelete
-	for _, k8sTFD := range c.TwoFactorDelete {
-		TFDs = append(TFDs, k8sTFD.ToInstAPI())
-	}
-	return TFDs
-}
-
-func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFactorDelete) bool {
-	if len(c.TwoFactorDelete) != len(instTwoFactorDeletes) {
+func (c *Cluster) IsTwoFactorDeleteEqual(tfds []*TwoFactorDelete) bool {
+	if len(c.TwoFactorDelete) != len(tfds) {
 		return false
 	}
 
-	for _, instTFD := range instTwoFactorDeletes {
-		tfdFound := false
-		for _, k8sTFD := range c.TwoFactorDelete {
-			if instTFD.ConfirmationEmail == k8sTFD.Email {
-				tfdFound = true
-
-				if instTFD.ConfirmationPhoneNumber != k8sTFD.Phone {
-					return false
-				}
-			}
-		}
-
-		if !tfdFound {
+	for i, tfd := range tfds {
+		if *tfd != *c.TwoFactorDelete[i] {
 			return false
 		}
 	}
@@ -176,15 +147,29 @@ func (c *Cluster) IsTwoFactorDeleteEqual(instTwoFactorDeletes []*modelsv2.TwoFac
 	return true
 }
 
-func (c *Cluster) SetTwoFactorDeletesFromInstAPI(instTFDs []*modelsv2.TwoFactorDelete) {
-	var k8sTFD []*TwoFactorDelete
-	for _, instTFD := range instTFDs {
-		k8sTFD = append(k8sTFD, &TwoFactorDelete{
-			Email: instTFD.ConfirmationEmail,
-			Phone: instTFD.ConfirmationPhoneNumber,
-		})
+func (tfd *TwoFactorDelete) ToInstAPI() *models.TwoFactorDelete {
+	return &models.TwoFactorDelete{
+		ConfirmationPhoneNumber: tfd.Phone,
+		ConfirmationEmail:       tfd.Email,
 	}
-	c.TwoFactorDelete = k8sTFD
+}
+
+func (c *Cluster) TwoFactorDeletesToInstAPI() (TFDs []*models.TwoFactorDelete) {
+	for _, tfd := range c.TwoFactorDelete {
+		TFDs = append(TFDs, tfd.ToInstAPI())
+	}
+	return
+}
+
+func (c *Cluster) TwoFactorDeleteToInstAPIv1() *models.TwoFactorDeleteV1 {
+	if len(c.TwoFactorDelete) == 0 {
+		return nil
+	}
+
+	return &models.TwoFactorDeleteV1{
+		DeleteVerifyEmail: c.TwoFactorDelete[0].Email,
+		DeleteVerifyPhone: c.TwoFactorDelete[0].Phone,
+	}
 }
 
 func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
@@ -205,213 +190,114 @@ func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
 	return false, nil
 }
 
-func (dc *DataCentre) CloudProviderSettingsToInstAPI(instDC *modelsv2.DataCentre) {
+func (dc *DataCentre) ToInstAPI() models.DataCentre {
+	providerSettings := dc.CloudProviderSettingsToInstAPI()
+	return models.DataCentre{
+		Name:                dc.Name,
+		Network:             dc.Network,
+		NodeSize:            dc.NodeSize,
+		NumberOfNodes:       dc.NodesNumber,
+		AWSSettings:         providerSettings.AWSSettings,
+		GCPSettings:         providerSettings.GCPSettings,
+		AzureSettings:       providerSettings.AzureSettings,
+		Tags:                dc.TagsToInstAPI(),
+		CloudProvider:       dc.CloudProvider,
+		Region:              dc.Region,
+		ProviderAccountName: dc.ProviderAccountName,
+	}
+}
+
+func (dc *DataCentre) CloudProviderSettingsToInstAPI() *models.CloudProviderSettings {
+	iSettings := &models.CloudProviderSettings{}
 	switch dc.CloudProvider {
-	case modelsv2.AWSVPC:
-		awsSettings := []*modelsv2.AWSSetting{}
+	case models.AWSVPC:
+		awsSettings := []*models.AWSSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
 			awsSettings = append(awsSettings, providerSettings.AWSToInstAPI())
 		}
-		instDC.AWSSettings = awsSettings
-	case modelsv2.AZURE, modelsv2.AZUREAZ:
-		azureSettings := []*modelsv2.AzureSetting{}
+		iSettings.AWSSettings = awsSettings
+	case models.AZURE, models.AZUREAZ:
+		azureSettings := []*models.AzureSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
 			azureSettings = append(azureSettings, providerSettings.AzureToInstAPI())
-			instDC.AzureSettings = azureSettings
 		}
-	case modelsv2.GCP:
-		gcpSettings := []*modelsv2.GCPSetting{}
+		iSettings.AzureSettings = azureSettings
+	case models.GCP:
+		gcpSettings := []*models.GCPSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
 			gcpSettings = append(gcpSettings, providerSettings.GCPToInstAPI())
 		}
-		instDC.GCPSettings = gcpSettings
+		iSettings.GCPSettings = gcpSettings
 	}
 
+	return iSettings
 }
 
-func (cps *CloudProviderSettings) AWSToInstAPI() *modelsv2.AWSSetting {
-	return &modelsv2.AWSSetting{
+func (cps *CloudProviderSettings) AWSToInstAPI() *models.AWSSetting {
+	return &models.AWSSetting{
 		EBSEncryptionKey:       cps.DiskEncryptionKey,
 		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
 	}
 }
 
-func (cps *CloudProviderSettings) AzureToInstAPI() *modelsv2.AzureSetting {
-	return &modelsv2.AzureSetting{
+func (cps *CloudProviderSettings) AzureToInstAPI() *models.AzureSetting {
+	return &models.AzureSetting{
 		ResourceGroup: cps.ResourceGroup,
 	}
 }
 
-func (cps *CloudProviderSettings) GCPToInstAPI() *modelsv2.GCPSetting {
-	return &modelsv2.GCPSetting{
+func (cps *CloudProviderSettings) GCPToInstAPI() *models.GCPSetting {
+	return &models.GCPSetting{
 		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
 	}
 }
 
-func (dc *DataCentre) TagsToInstAPI(instDC *modelsv2.DataCentre) {
-	var tags []*modelsv2.Tag
-
+func (dc *DataCentre) TagsToInstAPI() (tags []*models.Tag) {
 	for key, value := range dc.Tags {
-		tags = append(tags, &modelsv2.Tag{
+		tags = append(tags, &models.Tag{
 			Key:   key,
 			Value: value,
 		})
 	}
 
-	instDC.Tags = tags
+	return
 }
 
-func (dc *DataCentre) AreCloudProviderSettingsEqual(
-	awsSettings []*modelsv2.AWSSetting,
-	gcpSettings []*modelsv2.GCPSetting,
-	azureSettings []*modelsv2.AzureSetting) bool {
-	switch dc.CloudProvider {
-	case modelsv2.AWSVPC:
-		if len(dc.CloudProviderSettings) != len(awsSettings) {
-			return false
-		}
-
-		for i, awsSetting := range awsSettings {
-			if dc.CloudProviderSettings[i].DiskEncryptionKey != awsSetting.EBSEncryptionKey ||
-				dc.CloudProviderSettings[i].CustomVirtualNetworkID != awsSetting.CustomVirtualNetworkID {
-				return false
-			}
-		}
-	case modelsv2.GCP:
-		if len(dc.CloudProviderSettings) != len(gcpSettings) {
-			return false
-		}
-
-		for i, gcpSetting := range gcpSettings {
-			if dc.CloudProviderSettings[i].CustomVirtualNetworkID != gcpSetting.CustomVirtualNetworkID {
-				return false
-			}
-		}
-	case modelsv2.AZURE, modelsv2.AZUREAZ:
-		if len(dc.CloudProviderSettings) != len(azureSettings) {
-			return false
-		}
-
-		for i, azureSetting := range azureSettings {
-			if dc.CloudProviderSettings[i].ResourceGroup != azureSetting.ResourceGroup {
-				return false
-			}
-		}
-	}
-
-	return true
+func (dc *DataCentre) IsEqual(iDC DataCentre) bool {
+	return iDC.Name == dc.Name &&
+		iDC.Region == dc.Region &&
+		iDC.CloudProvider == dc.CloudProvider &&
+		iDC.ProviderAccountName == dc.ProviderAccountName &&
+		dc.AreCloudProviderSettingsEqual(iDC.CloudProviderSettings) &&
+		iDC.Network == dc.Network &&
+		iDC.NodeSize == dc.NodeSize &&
+		iDC.NodesNumber == dc.NodesNumber &&
+		dc.AreTagsEqual(iDC.Tags)
 }
 
-func (dc *DataCentre) AreTagsEqual(instTags []*modelsv2.Tag) bool {
-	for _, instTag := range instTags {
-		if dc.Tags[instTag.Key] != instTag.Value {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (dc *DataCentre) SetCloudProviderSettingsFromInstAPI(instDC *modelsv2.DataCentre) {
-	cloudProviderSettings := []*CloudProviderSettings{}
-	switch dc.CloudProvider {
-	case modelsv2.AWSVPC:
-		for _, awsSetting := range instDC.AWSSettings {
-			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
-				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
-				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
-			})
-		}
-	case modelsv2.GCP:
-		for _, gcpSetting := range instDC.GCPSettings {
-			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
-				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
-			})
-		}
-	case modelsv2.AZURE, modelsv2.AZUREAZ:
-		for _, azureSetting := range instDC.AzureSettings {
-			cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
-				ResourceGroup: azureSetting.ResourceGroup,
-			})
-		}
-	}
-	dc.CloudProviderSettings = cloudProviderSettings
-}
-
-func (dc *DataCentre) SetTagsFromInstAPI(instTags []*modelsv2.Tag) {
-	k8sTags := make(map[string]string)
-	for _, instTag := range instTags {
-		k8sTags[instTag.Key] = instTag.Value
-	}
-	dc.Tags = k8sTags
-}
-
-func (dc *DataCentre) SetCloudProviderSettingsAPIv1(instProviderSettings []*models.ClusterProvider) {
-	if len(instProviderSettings) != 0 {
-		dc.ProviderAccountName = instProviderSettings[0].AccountName
-		dc.CloudProvider = instProviderSettings[0].Name
-	}
-
-	cloudProviderSettings := []*CloudProviderSettings{}
-	for _, instProviderSetting := range instProviderSettings {
-		cloudProviderSettings = append(cloudProviderSettings, &CloudProviderSettings{
-			CustomVirtualNetworkID: instProviderSetting.CustomVirtualNetworkID,
-			ResourceGroup:          instProviderSetting.ResourceGroup,
-			DiskEncryptionKey:      instProviderSetting.DiskEncryptionKey,
-		})
-	}
-	dc.CloudProviderSettings = cloudProviderSettings
-}
-
-func (dcs *DataCentreStatus) SetNodesFromInstAPI(instNodes []*modelsv2.Node) {
-	k8sNodes := []*Node{}
-	for _, instNode := range instNodes {
-		k8sNodes = append(k8sNodes, &Node{
-			ID:             instNode.ID,
-			Size:           instNode.Size,
-			Status:         instNode.Status,
-			PublicAddress:  instNode.PublicAddress,
-			PrivateAddress: instNode.PrivateAddress,
-			Rack:           instNode.Rack,
-			Roles:          instNode.Roles,
-		})
-	}
-	dcs.Nodes = k8sNodes
-}
-
-func (dcs *DataCentreStatus) AreNodesEqual(instNodes []*modelsv2.Node) bool {
-	if len(dcs.Nodes) != len(instNodes) {
+func (dc *DataCentre) AreCloudProviderSettingsEqual(settings []*CloudProviderSettings) bool {
+	if len(dc.CloudProviderSettings) != len(settings) {
 		return false
 	}
 
-	for _, instNode := range instNodes {
-		for _, k8sNode := range dcs.Nodes {
-			if instNode.ID == k8sNode.ID {
-				if !k8sNode.IsNodeEqual(instNode) {
-					return false
-				}
-
-				break
-			}
+	for i, setting := range settings {
+		if *dc.CloudProviderSettings[i] != *setting {
+			return false
 		}
 	}
 
 	return true
 }
 
-func (n *Node) IsNodeEqual(instNode *modelsv2.Node) bool {
-	if n == nil || instNode == nil {
-		return (n == nil) == (instNode == nil)
+func (dc *DataCentre) AreTagsEqual(tags map[string]string) bool {
+	if len(dc.Tags) != len(tags) {
+		return false
 	}
 
-	if instNode.ID != n.ID ||
-		instNode.Status != n.Status ||
-		instNode.Size != n.Size ||
-		instNode.Rack != n.Rack ||
-		instNode.PrivateAddress != n.PrivateAddress ||
-		instNode.PublicAddress != n.PublicAddress ||
-		!slices.Equal(instNode.Roles, n.Roles) {
-		return false
+	for key, val := range tags {
+		if value, exists := dc.Tags[key]; !exists || value != val {
+			return false
+		}
 	}
 
 	return true
@@ -441,15 +327,15 @@ func (c *Cluster) newImmutableFields() immutableCluster {
 	}
 }
 
-func (c *ClusterStatus) AreMaintenanceEventsEqual(instEvents []*MaintenanceEvent) bool {
-	if len(c.MaintenanceEvents) != len(instEvents) {
+func (cs *ClusterStatus) AreMaintenanceEventsEqual(iEvents []*MaintenanceEvent) bool {
+	if len(cs.MaintenanceEvents) != len(iEvents) {
 		return false
 	}
 
-	for _, instEvent := range instEvents {
-		for _, k8sEvent := range c.MaintenanceEvents {
-			if instEvent.ID == k8sEvent.ID {
-				if *instEvent != *k8sEvent {
+	for _, iEvent := range iEvents {
+		for _, k8sEvent := range cs.MaintenanceEvents {
+			if iEvent.ID == k8sEvent.ID {
+				if *iEvent != *k8sEvent {
 					return false
 				}
 
@@ -459,4 +345,121 @@ func (c *ClusterStatus) AreMaintenanceEventsEqual(instEvents []*MaintenanceEvent
 	}
 
 	return true
+}
+
+func (cs *ClusterStatus) DCFromInstAPI(iDC models.DataCentre) *DataCentreStatus {
+	return &DataCentreStatus{
+		ID:         iDC.ID,
+		Status:     iDC.Status,
+		Nodes:      cs.NodesFromInstAPI(iDC.Nodes),
+		NodeNumber: iDC.NumberOfNodes,
+	}
+}
+
+func (c *Cluster) TwoFactorDeleteFromInstAPI(iTFDs []*models.TwoFactorDelete) (tfd []*TwoFactorDelete) {
+	for _, iTFD := range iTFDs {
+		tfd = append(tfd, &TwoFactorDelete{
+			Email: iTFD.ConfirmationEmail,
+			Phone: iTFD.ConfirmationPhoneNumber,
+		})
+	}
+	return
+}
+
+func (c *Cluster) DCFromInstAPI(iDC models.DataCentre) DataCentre {
+	return DataCentre{
+		Name:                  iDC.Name,
+		Region:                iDC.Region,
+		CloudProvider:         iDC.CloudProvider,
+		ProviderAccountName:   iDC.ProviderAccountName,
+		CloudProviderSettings: c.CloudProviderSettingsFromInstAPI(iDC),
+		Network:               iDC.Network,
+		NodeSize:              iDC.NodeSize,
+		NodesNumber:           iDC.NumberOfNodes,
+		Tags:                  c.TagsFromInstAPI(iDC.Tags),
+	}
+}
+
+func (c *Cluster) TagsFromInstAPI(iTags []*models.Tag) map[string]string {
+	newTags := map[string]string{}
+	for _, iTag := range iTags {
+		newTags[iTag.Key] = iTag.Value
+	}
+	return newTags
+}
+
+func (c *Cluster) CloudProviderSettingsFromInstAPI(iDC models.DataCentre) (settings []*CloudProviderSettings) {
+	switch iDC.CloudProvider {
+	case models.AWSVPC:
+		for _, awsSetting := range iDC.AWSSettings {
+			settings = append(settings, &CloudProviderSettings{
+				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
+				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
+			})
+		}
+	case models.GCP:
+		for _, gcpSetting := range iDC.GCPSettings {
+			settings = append(settings, &CloudProviderSettings{
+				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
+			})
+		}
+	case models.AZURE, models.AZUREAZ:
+		for _, azureSetting := range iDC.AzureSettings {
+			settings = append(settings, &CloudProviderSettings{
+				ResourceGroup: azureSetting.ResourceGroup,
+			})
+		}
+	}
+	return
+}
+
+func (c *Cluster) CloudProviderSettingsFromInstAPIv1(iProviders []*models.ClusterProviderV1) (accountName string, settings []*CloudProviderSettings) {
+	for _, iProvider := range iProviders {
+		accountName = iProvider.AccountName
+		switch iProvider.Name {
+		case models.AWSVPC:
+			settings = append(settings, &CloudProviderSettings{
+				CustomVirtualNetworkID: iProvider.CustomVirtualNetworkID,
+				DiskEncryptionKey:      iProvider.DiskEncryptionKey,
+			})
+		case models.GCP:
+			settings = append(settings, &CloudProviderSettings{
+				CustomVirtualNetworkID: iProvider.CustomVirtualNetworkID,
+			})
+		case models.AZURE, models.AZUREAZ:
+			settings = append(settings, &CloudProviderSettings{
+				ResourceGroup: iProvider.ResourceGroup,
+			})
+		}
+	}
+	return
+}
+
+func (cs *ClusterStatus) NodesFromInstAPI(iNodes []*models.Node) (nodes []*Node) {
+	for _, iNode := range iNodes {
+		nodes = append(nodes, &Node{
+			ID:             iNode.ID,
+			Size:           iNode.Size,
+			PublicAddress:  iNode.PublicAddress,
+			PrivateAddress: iNode.PrivateAddress,
+			Status:         iNode.Status,
+			Roles:          iNode.Roles,
+			Rack:           iNode.Rack,
+		})
+	}
+	return nodes
+}
+
+func (cs *ClusterStatus) NodesFromInstAPIv1(iNodes []*models.NodeStatusV1) (nodes []*Node) {
+	for _, iNode := range iNodes {
+		nodes = append(nodes, &Node{
+			ID:             iNode.ID,
+			Size:           iNode.Size,
+			PublicAddress:  iNode.PublicAddress,
+			PrivateAddress: iNode.PrivateAddress,
+			Status:         iNode.NodeStatus,
+			Rack:           iNode.Rack,
+		})
+	}
+	return nodes
 }

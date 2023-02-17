@@ -17,10 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	models2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -56,18 +57,15 @@ type KarapaceSchemaRegistry struct {
 
 // KafkaSpec defines the desired state of Kafka
 type KafkaSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Cluster        `json:",inline"`
 	SchemaRegistry []*SchemaRegistry `json:"schemaRegistry,omitempty"`
 
 	// ReplicationFactorNumber to use for new topic.
 	// Also represents the number of racks to use when allocating nodes.
-	ReplicationFactorNumber int32 `json:"replicationFactorNumber"`
+	ReplicationFactorNumber int `json:"replicationFactorNumber"`
 
 	// PartitionsNumber number of partitions to use when created new topics.
-	PartitionsNumber          int32              `json:"partitionsNumber"`
+	PartitionsNumber          int                `json:"partitionsNumber"`
 	RestProxy                 []*RestProxy       `json:"restProxy,omitempty"`
 	AllowDeleteTopics         bool               `json:"allowDeleteTopics"`
 	AutoCreateTopics          bool               `json:"autoCreateTopics"`
@@ -96,15 +94,7 @@ type KafkaPrivateLink struct {
 
 // KafkaStatus defines the observed state of Kafka
 type KafkaStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	ClusterStatus `json:",inline"`
-
-	// +optional
-	// CurrentClusterOperation indicates if the cluster is currently performing any restructuring operation
-	// such as being created or resized. Enum: "NO_OPERATION" "OPERATION_IN_PROGRESS" "OPERATION_FAILED"
-	CurrentClusterOperation string `json:"currentClusterOperationStatus"`
 }
 
 //+kubebuilder:object:root=true
@@ -128,6 +118,10 @@ type KafkaList struct {
 	Items           []Kafka `json:"items"`
 }
 
+func init() {
+	SchemeBuilder.Register(&Kafka{}, &KafkaList{})
+}
+
 func (k *Kafka) GetJobID(jobName string) string {
 	return client.ObjectKeyFromObject(k).String() + "/" + jobName
 }
@@ -138,8 +132,8 @@ func (k *Kafka) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
-func (k *KafkaSpec) ToInstAPI() *models.KafkaInstAPICreateRequest {
-	return &models.KafkaInstAPICreateRequest{
+func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
+	return &models.KafkaCluster{
 		SchemaRegistry:                    k.schemaRegistryToInstAPI(),
 		RestProxy:                         k.restProxyToInstAPI(),
 		PCIComplianceMode:                 k.PCICompliance,
@@ -154,8 +148,8 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaInstAPICreateRequest {
 		Name:                              k.Name,
 		SLATier:                           k.SLATier,
 		KafkaVersion:                      k.Version,
-		KafkaDataCentre:                   k.dcToInstAPI(),
-		ClientBrokerAuthWithMTLS:          k.ClientBrokerAuthWithMTLS,
+		DataCentres:                       k.dcToInstAPI(),
+		ClientBrokerAuthWithMtls:          k.ClientBrokerAuthWithMTLS,
 		ClientAuthBrokerWithoutEncryption: k.ClientAuthBrokerWithoutEncryption,
 		ClientAuthBrokerWithEncryption:    k.ClientAuthBrokerWithEncryption,
 		BundledUseOnly:                    k.BundledUseOnly,
@@ -164,32 +158,29 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaInstAPICreateRequest {
 	}
 }
 
-func (k *KafkaSpec) schemaRegistryToInstAPI() []*models.SchemaRegistry {
-	var instaSchemas []*models.SchemaRegistry
+func (k *KafkaSpec) schemaRegistryToInstAPI() (iSchemas []*models.SchemaRegistry) {
 	for _, schema := range k.SchemaRegistry {
-		instaSchemas = append(instaSchemas, &models.SchemaRegistry{
+		iSchemas = append(iSchemas, &models.SchemaRegistry{
 			Version: schema.Version,
 		})
 	}
 
-	return instaSchemas
+	return
 }
 
-func (k *KafkaSpec) karapaceSchemaRegistryToInstAPI() []*models.KarapaceSchemaRegistry {
-	var instaSchemas []*models.KarapaceSchemaRegistry
+func (k *KafkaSpec) karapaceSchemaRegistryToInstAPI() (iSchemas []*models.KarapaceSchemaRegistry) {
 	for _, schema := range k.KarapaceSchemaRegistry {
-		instaSchemas = append(instaSchemas, &models.KarapaceSchemaRegistry{
+		iSchemas = append(iSchemas, &models.KarapaceSchemaRegistry{
 			Version: schema.Version,
 		})
 	}
 
-	return instaSchemas
+	return
 }
 
-func (k *KafkaSpec) restProxyToInstAPI() []*models.RestProxy {
-	var instaRestProxies []*models.RestProxy
+func (k *KafkaSpec) restProxyToInstAPI() (iRestProxies []*models.RestProxy) {
 	for _, proxy := range k.RestProxy {
-		instaRestProxies = append(instaRestProxies, &models.RestProxy{
+		iRestProxies = append(iRestProxies, &models.RestProxy{
 			IntegrateRestProxyWithSchemaRegistry: proxy.IntegrateRestProxyWithSchemaRegistry,
 			UseLocalSchemaRegistry:               proxy.UseLocalSchemaRegistry,
 			SchemaRegistryServerURL:              proxy.SchemaRegistryServerURL,
@@ -199,89 +190,197 @@ func (k *KafkaSpec) restProxyToInstAPI() []*models.RestProxy {
 		})
 	}
 
-	return instaRestProxies
+	return
 }
 
-func (k *KafkaSpec) karapaceRestProxyToInstAPI() []*models.KarapaceRestProxy {
-	var instaRestProxies []*models.KarapaceRestProxy
+func (k *KafkaSpec) karapaceRestProxyToInstAPI() (iRestProxies []*models.KarapaceRestProxy) {
 	for _, proxy := range k.KarapaceRestProxy {
-		instaRestProxies = append(instaRestProxies, &models.KarapaceRestProxy{
+		iRestProxies = append(iRestProxies, &models.KarapaceRestProxy{
 			IntegrateRestProxyWithSchemaRegistry: proxy.IntegrateRestProxyWithSchemaRegistry,
 			Version:                              proxy.Version,
 		})
 	}
 
-	return instaRestProxies
+	return
 }
 
-func (k *KafkaSpec) dedicatedZookeeperToInstAPI() []*models.DedicatedZookeeper {
-	var instaZookeepers []*models.DedicatedZookeeper
+func (k *KafkaSpec) dedicatedZookeeperToInstAPI() (iZookeepers []*models.DedicatedZookeeper) {
 	for _, zookeeper := range k.DedicatedZookeeper {
-		instaZookeepers = append(instaZookeepers, &models.DedicatedZookeeper{
+		iZookeepers = append(iZookeepers, &models.DedicatedZookeeper{
 			ZookeeperNodeSize:  zookeeper.NodeSize,
 			ZookeeperNodeCount: zookeeper.NodesNumber,
 		})
 	}
 
-	return instaZookeepers
+	return
 }
 
-func (k *KafkaDataCentre) privateLinkToInstAPI() []*models.KafkaPrivateLink {
-	var instaPrivateLink []*models.KafkaPrivateLink
+func (k *KafkaDataCentre) privateLinkToInstAPI() (iPrivateLink []*models.KafkaPrivateLink) {
 	for _, link := range k.PrivateLink {
-		instaPrivateLink = append(instaPrivateLink, &models.KafkaPrivateLink{
+		iPrivateLink = append(iPrivateLink, &models.KafkaPrivateLink{
 			AdvertisedHostname: link.AdvertisedHostname,
 		})
 	}
 
-	return instaPrivateLink
+	return
 }
 
-func (k *KafkaSpec) dcToInstAPI() []*models.KafkaDataCentre {
-	var instaDCs []*models.KafkaDataCentre
+func (k *KafkaSpec) dcToInstAPI() (iDCs []*models.KafkaDataCentre) {
 	for _, crdDC := range k.DataCentres {
-		dc := &models2.DataCentre{
-			Name:                crdDC.Name,
-			Network:             crdDC.Network,
-			NodeSize:            crdDC.NodeSize,
-			NumberOfNodes:       crdDC.NodesNumber,
-			CloudProvider:       crdDC.CloudProvider,
-			Region:              crdDC.Region,
-			ProviderAccountName: crdDC.ProviderAccountName,
-		}
-		crdDC.CloudProviderSettingsToInstAPI(dc)
-		crdDC.TagsToInstAPI(dc)
-
-		kafkaDC := &models.KafkaDataCentre{
-			DataCentre:  *dc,
+		iDCs = append(iDCs, &models.KafkaDataCentre{
+			DataCentre:  crdDC.DataCentre.ToInstAPI(),
 			PrivateLink: crdDC.privateLinkToInstAPI(),
-		}
-
-		instaDCs = append(instaDCs, kafkaDC)
+		})
 	}
-
-	return instaDCs
+	return
 }
 
 func (k *KafkaSpec) ToInstAPIUpdate() *models.KafkaInstAPIUpdateRequest {
-	newKafka := &models.KafkaInstAPIUpdateRequest{}
-	newKafka.DataCentre = k.dcToInstAPI()
-	newKafka.DedicatedZookeeper = k.dedicatedZookeeperToInstAPIUpdate()
-
-	return newKafka
+	return &models.KafkaInstAPIUpdateRequest{
+		DataCentre:         k.dcToInstAPI(),
+		DedicatedZookeeper: k.dedicatedZookeeperToInstAPIUpdate(),
+	}
 }
 
-func (k *KafkaSpec) dedicatedZookeeperToInstAPIUpdate() []*models.DedicatedZookeeperUpdate {
-	var instaZookeepers []*models.DedicatedZookeeperUpdate
+func (k *KafkaSpec) dedicatedZookeeperToInstAPIUpdate() (iZookeepers []*models.DedicatedZookeeperUpdate) {
 	for _, zookeeper := range k.DedicatedZookeeper {
-		instaZookeepers = append(instaZookeepers, &models.DedicatedZookeeperUpdate{
+		iZookeepers = append(iZookeepers, &models.DedicatedZookeeperUpdate{
 			ZookeeperNodeSize: zookeeper.NodeSize,
 		})
 	}
 
-	return instaZookeepers
+	return
 }
 
-func init() {
-	SchemeBuilder.Register(&Kafka{}, &KafkaList{})
+func (k *Kafka) FromInstAPI(iData []byte) (*Kafka, error) {
+	iKafka := models.KafkaCluster{}
+	err := json.Unmarshal(iData, &iKafka)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Kafka{
+		TypeMeta:   k.TypeMeta,
+		ObjectMeta: k.ObjectMeta,
+		Spec:       k.Spec.FromInstAPI(iKafka),
+		Status:     k.Status.FromInstAPI(iKafka),
+	}, nil
+}
+
+func (ks *KafkaSpec) FromInstAPI(iKafka models.KafkaCluster) KafkaSpec {
+	return KafkaSpec{
+		Cluster: Cluster{
+			Name:                  iKafka.Name,
+			Version:               iKafka.KafkaVersion,
+			PCICompliance:         iKafka.PCIComplianceMode,
+			PrivateNetworkCluster: iKafka.PrivateNetworkCluster,
+			SLATier:               iKafka.SLATier,
+			TwoFactorDelete:       ks.Cluster.TwoFactorDeleteFromInstAPI(iKafka.TwoFactorDelete),
+		},
+		SchemaRegistry:                    ks.SchemaRegistryFromInstAPI(iKafka.SchemaRegistry),
+		ReplicationFactorNumber:           iKafka.DefaultReplicationFactor,
+		PartitionsNumber:                  iKafka.DefaultNumberOfPartitions,
+		RestProxy:                         ks.RestProxyFromInstAPI(iKafka.RestProxy),
+		AllowDeleteTopics:                 iKafka.AllowDeleteTopics,
+		AutoCreateTopics:                  iKafka.AutoCreateTopics,
+		ClientToClusterEncryption:         iKafka.ClientToClusterEncryption,
+		DataCentres:                       ks.DCsFromInstAPI(iKafka.DataCentres),
+		DedicatedZookeeper:                ks.DedicatedZookeeperFromInstAPI(iKafka.DedicatedZookeeper),
+		ClientBrokerAuthWithMTLS:          iKafka.ClientBrokerAuthWithMtls,
+		ClientAuthBrokerWithoutEncryption: iKafka.ClientAuthBrokerWithoutEncryption,
+		ClientAuthBrokerWithEncryption:    iKafka.ClientAuthBrokerWithEncryption,
+		KarapaceRestProxy:                 ks.KarapaceRestProxyFromInstAPI(iKafka.KarapaceRestProxy),
+		KarapaceSchemaRegistry:            ks.KarapaceSchemaRegistryFromInstAPI(iKafka.KarapaceSchemaRegistry),
+		BundledUseOnly:                    iKafka.BundledUseOnly,
+	}
+}
+
+func (ks *KafkaStatus) FromInstAPI(iKafka models.KafkaCluster) KafkaStatus {
+	return KafkaStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                            iKafka.ID,
+			State:                         iKafka.Status,
+			DataCentres:                   ks.DCsFromInstAPI(iKafka.DataCentres),
+			CurrentClusterOperationStatus: iKafka.CurrentClusterOperationStatus,
+			MaintenanceEvents:             ks.MaintenanceEvents,
+		},
+	}
+}
+
+func (ks *KafkaSpec) DCsFromInstAPI(iDCs []*models.KafkaDataCentre) (dcs []*KafkaDataCentre) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &KafkaDataCentre{
+			DataCentre:  ks.Cluster.DCFromInstAPI(iDC.DataCentre),
+			PrivateLink: ks.PrivateLinkFromInstAPI(iDC.PrivateLink),
+		})
+	}
+	return
+}
+
+func (ks *KafkaSpec) PrivateLinkFromInstAPI(iPLs []*models.KafkaPrivateLink) (dcs []*KafkaPrivateLink) {
+	for _, iPL := range iPLs {
+		dcs = append(dcs, &KafkaPrivateLink{
+			AdvertisedHostname: iPL.AdvertisedHostname,
+		})
+	}
+	return
+}
+
+func (ks *KafkaSpec) SchemaRegistryFromInstAPI(iSRs []*models.SchemaRegistry) (srs []*SchemaRegistry) {
+	for _, iSR := range iSRs {
+		srs = append(srs, &SchemaRegistry{
+			Version: iSR.Version,
+		})
+	}
+	return
+}
+
+func (ks *KafkaSpec) RestProxyFromInstAPI(iRPs []*models.RestProxy) (rps []*RestProxy) {
+	for _, iRP := range iRPs {
+		rps = append(rps, &RestProxy{
+			IntegrateRestProxyWithSchemaRegistry: iRP.IntegrateRestProxyWithSchemaRegistry,
+			UseLocalSchemaRegistry:               iRP.UseLocalSchemaRegistry,
+			SchemaRegistryServerURL:              iRP.SchemaRegistryServerURL,
+			SchemaRegistryUsername:               iRP.SchemaRegistryUsername,
+			SchemaRegistryPassword:               iRP.SchemaRegistryPassword,
+			Version:                              iRP.Version,
+		})
+	}
+	return
+}
+
+func (ks *KafkaSpec) DedicatedZookeeperFromInstAPI(iDZs []*models.DedicatedZookeeper) (dzs []*DedicatedZookeeper) {
+	for _, iDZ := range iDZs {
+		dzs = append(dzs, &DedicatedZookeeper{
+			NodeSize:    iDZ.ZookeeperNodeSize,
+			NodesNumber: iDZ.ZookeeperNodeCount,
+		})
+	}
+	return
+}
+
+func (ks *KafkaSpec) KarapaceRestProxyFromInstAPI(iKRPs []*models.KarapaceRestProxy) (krps []*KarapaceRestProxy) {
+	for _, iKRP := range iKRPs {
+		krps = append(krps, &KarapaceRestProxy{
+			IntegrateRestProxyWithSchemaRegistry: iKRP.IntegrateRestProxyWithSchemaRegistry,
+			Version:                              iKRP.Version,
+		})
+	}
+	return
+}
+
+func (ks *KafkaSpec) KarapaceSchemaRegistryFromInstAPI(iKSRs []*models.KarapaceSchemaRegistry) (ksrs []*KarapaceSchemaRegistry) {
+	for _, iKSR := range iKSRs {
+		ksrs = append(ksrs, &KarapaceSchemaRegistry{
+			Version: iKSR.Version,
+		})
+	}
+	return
+}
+
+func (ks *KafkaStatus) DCsFromInstAPI(iDCs []*models.KafkaDataCentre) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, ks.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+	}
+	return dcs
 }

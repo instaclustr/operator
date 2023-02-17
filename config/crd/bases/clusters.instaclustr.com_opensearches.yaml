@@ -35,6 +35,8 @@ spec:
           spec:
             description: OpenSearchSpec defines the desired state of OpenSearch
             properties:
+              bundleUseOnly:
+                type: boolean
               concurrentResizes:
                 type: integer
               dataCentres:
@@ -74,14 +76,12 @@ spec:
                     nodeSize:
                       type: string
                     nodesNumber:
-                      format: int32
                       type: integer
                     notificationsPlugin:
                       type: boolean
                     openSearchDashboardsNodeSize:
                       type: string
                     racksNumber:
-                      format: int32
                       type: integer
                     region:
                       type: string
@@ -201,7 +201,6 @@ spec:
                     id:
                       type: string
                     nodeNumber:
-                      format: int32
                       type: integer
                     nodes:
                       items:
@@ -258,7 +257,7 @@ spec:
                   openSearchDashboardsNodeSize:
                     type: string
                 type: object
-              status:
+              state:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

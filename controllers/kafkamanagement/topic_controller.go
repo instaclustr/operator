@@ -69,7 +69,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return reconcile.Result{}, nil
 		}
 
-		l.Error(err, "unable to fetch Kafka topic", "request", req)
+		l.Error(err, "Unable to fetch Kafka topic", "request", req)
 		return reconcile.Result{}, err
 	}
 
@@ -84,7 +84,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return r.handleDeleteCluster(ctx, &topic, l), nil
 
 	case models.GenericEvent:
-		l.Info("event isn't handled", "Topic name", topic.Spec.TopicName, "request", req,
+		l.Info("Event isn't handled", "topic name", topic.Spec.TopicName, "request", req,
 			"event", topic.Annotations[models.ResourceStateAnnotation])
 		return reconcile.Result{}, nil
 	}
@@ -101,21 +101,21 @@ func (r *TopicReconciler) handleCreateCluster(
 
 	if topic.Status.ID == "" {
 		l.Info("Creating Kafka topic",
-			"Topic name", topic.Spec.TopicName)
+			"topic name", topic.Spec.TopicName)
 
 		patch := topic.NewPatch()
 		var err error
 
 		err = r.API.CreateKafkaTopic(instaclustr.KafkaTopicEndpoint, topic)
 		if err != nil {
-			l.Error(err, "cannot create Kafka topic", "spec", topic.Spec)
+			l.Error(err, "Cannot create Kafka topic", "spec", topic.Spec)
 			return models.ReconcileRequeue
 		}
 		l.Info("Kafka topic has been created", "cluster ID", topic.Status.ID)
 
 		err = r.Status().Patch(ctx, topic, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Kafka topic from the Instaclustr API",
+			l.Error(err, "Cannot patch Kafka topic from the Instaclustr API",
 				"spec", topic.Spec)
 			return models.ReconcileRequeue
 		}
@@ -125,7 +125,7 @@ func (r *TopicReconciler) handleCreateCluster(
 
 		err = r.Patch(ctx, topic, patch)
 		if err != nil {
-			l.Error(err, "cannot patch kafka topic after create op", "kafka topic name", topic.Spec.TopicName)
+			l.Error(err, "Cannot patch kafka topic after create op", "kafka topic name", topic.Spec.TopicName)
 			return models.ReconcileRequeue
 		}
 	}
@@ -146,19 +146,19 @@ func (r *TopicReconciler) handleUpdateCluster(
 	err := r.API.UpdateKafkaTopic(url, t)
 	if err != nil {
 		l.Error(err, "Unable to update topic, got error from Instaclustr",
-			"Cluster name", t.Spec.TopicName,
-			"Cluster status", t.Status,
+			"cluster name", t.Spec.TopicName,
+			"cluster status", t.Status,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("kafka topic has been updated",
+	l.Info("Kafka topic has been updated",
 		"topic configs to be updated", t.Spec.TopicConfigs,
 		"topic status", t.Status)
 
 	err = r.Status().Patch(ctx, t, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Kafka topic management after update op",
+		l.Error(err, "Cannot patch Kafka topic management after update op",
 			"spec", t.Spec)
 		return models.ReconcileRequeue
 	}
@@ -173,9 +173,9 @@ func (r *TopicReconciler) handleDeleteCluster(
 ) reconcile.Result {
 	l = l.WithName("Deletion Event")
 
-	status, err := r.API.GetClusterStatus(topic.Status.ID, instaclustr.KafkaTopicEndpoint)
+	status, err := r.API.GetTopicStatus(topic.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(err, "cannot get Kafka topic",
+		l.Error(err, "Cannot get Kafka topic",
 			"topic name", topic.Spec.TopicName,
 			"topic id", topic.Status.ID)
 		return models.ReconcileRequeue
@@ -184,7 +184,7 @@ func (r *TopicReconciler) handleDeleteCluster(
 	if status != nil {
 		err = r.API.DeleteKafkaTopic(instaclustr.KafkaTopicEndpoint, topic.Status.ID)
 		if err != nil {
-			l.Error(err, "cannot delete kafka topic",
+			l.Error(err, "Cannot delete kafka topic",
 				"topic name", topic.Spec.TopicName,
 				"topic ID", topic.Status.ID)
 			return models.ReconcileRequeue
@@ -196,13 +196,13 @@ func (r *TopicReconciler) handleDeleteCluster(
 	topic.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, topic, patch)
 	if err != nil {
-		l.Error(err, "cannot patch remove finalizer from kafka",
-			"Cluster name", topic.Spec.TopicName)
+		l.Error(err, "Cannot patch remove finalizer from kafka",
+			"cluster name", topic.Spec.TopicName)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Kafka topic has been deleted",
-		"Topic name", topic.Spec.TopicName)
+		"topic name", topic.Spec.TopicName)
 
 	return reconcile.Result{}
 }
