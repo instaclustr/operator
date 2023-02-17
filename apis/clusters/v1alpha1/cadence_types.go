@@ -64,8 +64,6 @@ type BundledOpenSearchSpec struct {
 type CadenceSpec struct {
 	Cluster                     `json:",inline"`
 	DataCentres                 []*CadenceDataCentre  `json:"dataCentres,omitempty"`
-	ConcurrentResizes           int                   `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts       bool                  `json:"notifySupportContacts,omitempty"`
 	Description                 string                `json:"description,omitempty"`
 	ProvisioningType            string                `json:"provisioningType"`
 	BundledCassandraSpec        BundledCassandraSpec  `json:"bundledCassandraSpec,omitempty"`
