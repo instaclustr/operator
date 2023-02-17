@@ -49,13 +49,13 @@ After you have applied the entity, the Instaclustr operator will create it on yo
 
 To update an AWS VPC Peering you can apply an updated resource manifest or edit the custom resource instance in the K8s cluster:
 * Apply an updated resource manifest:
-    ```console
+```console
     kubectl apply -f awsvpcpeering.yaml
-    ```
+```
 * Edit the custom resource instance:
-    ```console
+```console
     kubectl edit awsvpcpeerings.clusterresources.instaclustr.com awsvpcpeering-sample
-    ```
+```
 You can only update fields that are **mutable**. These fields are marked in the “Available spec fields” table.
 
 ## Resource delete flow
