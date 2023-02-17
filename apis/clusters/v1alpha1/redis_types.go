@@ -29,9 +29,8 @@ import (
 )
 
 type RedisDataCentre struct {
-	DataCentre   `json:",inline"`
-	MasterNodes  int  `json:"masterNodes"`
-	PasswordAuth bool `json:"passwordAuth,omitempty"`
+	DataCentre  `json:",inline"`
+	MasterNodes int `json:"masterNodes"`
 }
 
 type RedisRestoreFrom struct {
@@ -67,12 +66,10 @@ type RedisSpec struct {
 	Cluster     `json:",inline"`
 
 	// Enables client to node encryption
-	ClientEncryption      bool               `json:"clientEncryption,omitempty"`
-	PasswordAndUserAuth   bool               `json:"passwordAndUserAuth,omitempty"`
-	DataCentres           []*RedisDataCentre `json:"dataCentres,omitempty"`
-	ConcurrentResizes     int                `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts bool               `json:"notifySupportContacts,omitempty"`
-	Description           string             `json:"description,omitempty"`
+	ClientEncryption    bool               `json:"clientEncryption,omitempty"`
+	PasswordAndUserAuth bool               `json:"passwordAndUserAuth,omitempty"`
+	DataCentres         []*RedisDataCentre `json:"dataCentres,omitempty"`
+	Description         string             `json:"description,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis

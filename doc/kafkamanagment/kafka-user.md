@@ -46,7 +46,7 @@ spec:
 Next, you need to apply this manifest in your K8s cluster. This will create a secret with your user credentials and custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
 
 ```console
-kubectl apply kafka-user.yaml
+kubectl apply -f kafka-user.yaml
 ```
 
 Now you can get and describe the instance:
@@ -66,7 +66,7 @@ You can change the Kafka User password and username through secret.
 To update a Kafka User you can apply an updated resource manifest or edit the custom resource instance in the K8s cluster:
 * Apply an updated resource manifest:
     ```console
-    kubectl apply kafka-user.yaml
+    kubectl apply -f kafka-user.yaml
     ```
 * Edit the custom resource instance:
     ```console

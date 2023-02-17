@@ -28,21 +28,21 @@
 | version  | string <br /> **required**  | Adds the specified version of Apache Spark to the Cassandra cluster. **Available versions:** `2.3.2`, `3.0.1`. |
 
 ### CassandraDataCentreObject
-| Field                 | Type                                                                     | Description                                                                                                                                                                                                                                                                                                       |
-|-----------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                  | string <br /> **required**                                               | A logical name for the data centre within a cluster. These names must be unique in the cluster.                                                                                                                                                                                                                   |
-| region                | string <br /> **required**                                               | Region of the Data Centre. See the description for node size for a compatible Data Centre for a given node size.                                                                                                                                                                                                  |
-| cloudProvider         | string <br /> **required**                                               | Name of the cloud provider service in which the Data Centre will be provisioned. <br />**Enum**: `AWS_VPC` `GCP` `AZURE` `AZURE_AZ`.                                                                                                                                                                              |
-| accountName           | string                                                                   | For customers running in their own account. Your provider account can be found on the Create Cluster page on the Instaclustr Console, or the "Provider Account" property on any existing cluster. For customers provisioning on Instaclustr's cloud provider accounts, this property may be omitted.              |
-| cloudProviderSettings | Array of objects ([CloudProviderSettings](#CloudProviderSettingsObject)) | Cloud provider specific settings for the Data Centre.                                                                                                                                                                                                                                                             |
-| network               | string <br /> **required**                                               | The private network address block for the Data Centre specified using CIDR address notation. The network must have a prefix length between /12 and /22 and must be part of a private address space.                                                                                                               |
-| nodeSize              | string <br /> **required**<br />_mutable_                                | Size of the nodes provisioned in the Data Centre. Available node sizes, see [Instaclustr API docs NodeSize](https://instaclustr.redoc.ly/Current/tag/Kafka-Connect-Cluster-V2#paths/~1cluster-management~1v2~1resources~1applications~1kafka-connect~1clusters~1v2~1/post!path=dataCentres/nodeSize&t=request).   |
-| nodesNumber           | int32 <br /> **required**<br />_mutable_                                 | Total number of nodes in the Data Centre. <br/>Available values: [1…5].                                                                                                                                                                                                                                           |
-| tags                  | map[string]string                                                        | List of tags to apply to the Data Centre. Tags are metadata labels which allow you to identify, categorise and filter clusters. This can be useful for grouping together clusters into applications, environments, or any category that you require.<br/>**Format**:<br/>tags:<br/>- key: value.                  |
-| replicationFactor     | int32 <br /> **required**                                                | Number of racks to use when allocating nodes.                                                                                                                                                                                                                                                                     |                                                                                                                                                                                           
-| continuousBackup      | bool <br /> **required**                                                 | Enables commitlog backups and increases the frequency of the default snapshot backups.                                                                                                                                                                                                                            |                                                                                                                                                                                           
-| privateIpBroadcastForDiscovery      | bool <br /> **required**                                                 | Enables broadcast of private IPs for auto-discovery.                                                                                                                                                                                                                            |                                                                                                                                                                                           
-| clientToClusterEncryption      | bool <br /> **required**                                                 | Enables Client ⇄ Node Encryption.                                                                                                                                                                                                                            |                                                                                                                                                                                           
+| Field                            | Type                                                                     | Description                                                                                                                                                                                                                                                                                                     |
+|----------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                             | string <br /> **required**                                               | A logical name for the data centre within a cluster. These names must be unique in the cluster.                                                                                                                                                                                                                 |
+| region                           | string <br /> **required**                                               | Region of the Data Centre. See the description for node size for a compatible Data Centre for a given node size.                                                                                                                                                                                                |
+| cloudProvider                    | string <br /> **required**                                               | Name of the cloud provider service in which the Data Centre will be provisioned. <br />**Enum**: `AWS_VPC` `GCP` `AZURE` `AZURE_AZ`.                                                                                                                                                                            |
+| accountName                      | string                                                                   | For customers running in their own account. Your provider account can be found on the Create Cluster page on the Instaclustr Console, or the "Provider Account" property on any existing cluster. For customers provisioning on Instaclustr's cloud provider accounts, this property may be omitted.            |
+| cloudProviderSettings            | Array of objects ([CloudProviderSettings](#CloudProviderSettingsObject)) | Cloud provider specific settings for the Data Centre.                                                                                                                                                                                                                                                           |
+| network                          | string <br /> **required**                                               | The private network address block for the Data Centre specified using CIDR address notation. The network must have a prefix length between /12 and /22 and must be part of a private address space.                                                                                                             |
+| nodeSize                         | string <br /> **required**<br />_mutable_                                | Size of the nodes provisioned in the Data Centre. Available node sizes, see [Instaclustr API docs NodeSize](https://instaclustr.redoc.ly/Current/tag/Kafka-Connect-Cluster-V2#paths/~1cluster-management~1v2~1resources~1applications~1kafka-connect~1clusters~1v2~1/post!path=dataCentres/nodeSize&t=request). |
+| nodesNumber                      | int32 <br /> **required**<br />_mutable_                                 | Total number of nodes in the Data Centre. <br/>Available values: [1…5].                                                                                                                                                                                                                                         |
+| tags                             | map[string]string                                                        | List of tags to apply to the Data Centre. Tags are metadata labels which allow you to identify, categorise and filter clusters. This can be useful for grouping together clusters into applications, environments, or any category that you require.<br/>**Format**:<br/>tags:<br/>- key: value.                |
+| replicationFactor                | int32 <br /> **required**                                                | Number of racks to use when allocating nodes.                                                                                                                                                                                                                                                                   |                                                                                                                                                                                           
+| continuousBackup                 | bool <br /> **required**                                                 | Enables commitlog backups and increases the frequency of the default snapshot backups.                                                                                                                                                                                                                          |                                                                                                                                                                                           
+| privateIpBroadcastForDiscovery   | bool <br /> **required**                                                 | Enables broadcast of private IPs for auto-discovery.                                                                                                                                                                                                                                                            |                                                                                                                                                                                           
+| clientToClusterEncryption        | bool <br /> **required**                                                 | Enables Client ⇄ Node Encryption.                                                                                                                                                                                                                                                                               |                                                                                                                                                                                           
 
 
 ### CloudProviderSettingsObject
@@ -54,13 +54,13 @@
 
 ### CassandraRestoreFromObject
 
-| Field                 | Type                                                                     | Description                                                                                                                                                                                         |
-|-----------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| clusterId             | string `<uuid>`<br /> **required**                                       | Original cluster ID. Backup from that cluster will be used for restore                                                                                                                              |
-| clusterNameOverride   | string                                                                   | The display name of the restored cluster. <br/>By default, the restored cluster will be created with its current name appended with “restored” and the date & time it was requested to be restored. |
+| Field                 | Type                                                                         | Description                                                                                                                                                                                         |
+|-----------------------|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| clusterId             | string `<uuid>`<br /> **required**                                           | Original cluster ID. Backup from that cluster will be used for restore                                                                                                                              |
+| clusterNameOverride   | string                                                                       | The display name of the restored cluster. <br/>By default, the restored cluster will be created with its current name appended with “restored” and the date & time it was requested to be restored. |
 | cdcInfos              | Array of objects ([CassandraRestoreCDCInfo](#CassandraRestoreCDCInfoObject)) | An optional list of Cluster Data Centres for which custom VPC settings will be used. <br/>This property must be populated for all Cluster Data Centres or none at all.                              |
-| pointInTime           | int64   `>= 1420070400000`                                               | Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.                                                                                                  |
-| keyspaceTables        | string                                                                   | A comma separated list of keyspace/table names which follows the format `<keyspace>.<table1>`, `<keyspace>.<table2>`.                                                                               |
+| pointInTime           | int64   `>= 1420070400000`                                                   | Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.                                                                                                  |
+| keyspaceTables        | string                                                                       | A comma separated list of keyspace/table names which follows the format `<keyspace>.<table1>`, `<keyspace>.<table2>`.                                                                               |
 
 ### CassandraRestoreCDCInfoObject
 
@@ -79,7 +79,7 @@ To create a Cassandra cluster instance you need to prepare the yaml manifest. He
 apiVersion: clusters.instaclustr.com/v1alpha1
 kind: Cassandra
 metadata:
-  name: cassandra-cluster
+  name: cassandra-sample
 spec:
   name: "CassandraTEST"
   version: "3.11.13"               # 4.0.1 is deprecated | 4.0.4 and 3.11.13 are supported
@@ -108,15 +108,15 @@ spec:
 
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
 ```console
-kubectl apply cassandra.yaml
+kubectl apply -f cassandra.yaml
 ```
 
 Now you can get and describe the instance:
 ```console
-kubectl get cassandras.clusters.instaclustr.com cassandra-cluster
+kubectl get cassandras.clusters.instaclustr.com cassandra-sample
 ```
 ```console
-kubectl describe cassandras.clusters.instaclustr.com cassandra-cluster
+kubectl describe cassandras.clusters.instaclustr.com cassandra-sample
 ```
 
 After you have applied the entity, the Instaclustr operator will create it on your K8s cluster and send a request to the Instaclustr API. You can be sure, that the resource creation call was sent if the instance has an id field filled in the status section.
@@ -124,13 +124,13 @@ After you have applied the entity, the Instaclustr operator will create it on yo
 ## Cluster update flow
 To update a cluster you can apply an updated cluster manifest or edit the custom resource instance in kubernetes cluster:
 * Apply an updated cluster manifest:
-```console
-kubectl apply cassandra.yaml
-```
+    ```console
+    kubectl apply -f cassandra.yaml
+    ```
 * Edit the custom resource instance:
-```console
-kubectl edit cassandras.clusters.instaclustr.com cassandra-cluster
-```
+    ```console
+    kubectl edit cassandras.clusters.instaclustr.com cassandra-sample
+    ```
 You can only update fields that are **mutable**
 
 ## Cluster delete flow
@@ -138,7 +138,7 @@ You can only update fields that are **mutable**
 ### Cluster deletion
 To delete cluster run:
 ```console
-kubectl delete cassandras.clusters.instaclustr.com cassandra-cluster
+kubectl delete cassandras.clusters.instaclustr.com cassandra-sample
 ```
 
 It can take some time to delete the resource.
@@ -152,7 +152,7 @@ Annotations:
 
 And then simply run:
 ```console
-kubectl delete cassandras.clusters.instaclustr.com cassandra-cluster
+kubectl delete cassandras.clusters.instaclustr.com cassandra-sample
 ```
 
 After that, deletion confirmation email will be sent to the email defined in the `confirmationEmail` field of `TwoFactorDelete`. When deletion is confirmed via email, Instaclustr support will delete the cluster and the related cluster resources inside K8s will be also removed.
@@ -174,7 +174,7 @@ spec:
 
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
 ```console
-kubectl apply cassandra-restore.yaml
+kubectl apply -f cassandra-restore.yaml
 ```
 
 New cluster will be created from the backup of the "restored-from" cluster. Spec will be updated automatically.

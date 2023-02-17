@@ -56,7 +56,7 @@ spec:
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
 
 ```console
-kubectl apply kafka-connect-mirror.yaml
+kubectl apply -f kafka-connect-mirror.yaml
 ```
 
 Now you can get and describe the instance:
@@ -72,10 +72,10 @@ After you have applied the entity, the Instaclustr operator will create it on yo
 
 ## Resource update flow
 
-To update an Kafka Connect Mirror you can apply an updated resource manifest or edit the custom resource instance in the K8s cluster:
+To update a Kafka Connect Mirror you can apply an updated resource manifest or edit the custom resource instance in the K8s cluster:
 * Apply an updated resource manifest:
     ```console
-    kubectl apply kafka-connect-mirror.yaml
+    kubectl apply -f kafka-connect-mirror.yaml
     ```
 * Edit the custom resource instance:
     ```console

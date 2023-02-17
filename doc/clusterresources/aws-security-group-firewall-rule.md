@@ -25,7 +25,7 @@ spec:
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
 
 ```console
-kubectl apply awssecuritygroupfirewallrule.yaml
+kubectl apply -f awssecuritygroupfirewallrule.yaml
 ```
 
 Now you can get and describe the instance:

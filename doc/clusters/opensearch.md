@@ -107,7 +107,7 @@ spec:
 
 Next you need to apply this manifest. This will create OpenSearch custom resource instance:
 ```console
-kubectl apply opensearch.yaml
+kubectl apply -f opensearch.yaml
 ```
 
 Now you can get and describe the instance:
@@ -125,7 +125,7 @@ Cluster was created on Instaclustr premise if the instance has an id in the stat
 To update a cluster you can apply an updated cluster manifest or edit the custom resource instance in kubernetes cluster:
 * Apply an updated cluster manifest:
     ```console
-    kubectl apply opensearch.yaml
+    kubectl apply -f opensearch.yaml
     ```
 * Edit the custom resource instance:
     ```console
@@ -178,7 +178,7 @@ spec:
 
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside:
 ```console
-kubectl apply opensearch-restore.yaml
+kubectl apply -f opensearch-restore.yaml
 ```
 
 New cluster will be created from the backup of the "restored-from" cluster. Spec will be updated automatically.
