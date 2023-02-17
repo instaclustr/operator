@@ -37,7 +37,6 @@ import (
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	apiv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/convertors"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
@@ -60,330 +59,332 @@ type CassandraReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Cassandra object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var cassandra clustersv1alpha1.Cassandra
-	err := r.Client.Get(ctx, req.NamespacedName, &cassandra)
+	cassandra := &clustersv1alpha1.Cassandra{}
+	err := r.Client.Get(ctx, req.NamespacedName, cassandra)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra resource is not found",
+			l.Info("Cassandra resource is not found",
 				"request", req)
-			return models.ReconcileResult, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch Cassandra cluster",
 			"request", req)
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch cassandra.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, l, &cassandra), nil
-
+		return r.handleCreateCluster(ctx, l, cassandra), nil
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, l, &cassandra), nil
-
+		return r.handleUpdateCluster(ctx, l, cassandra), nil
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, l, &cassandra), nil
-
+		return r.handleDeleteCluster(ctx, l, cassandra), nil
 	case models.GenericEvent:
 		l.Info("Event isn't handled",
 			"cluster name", cassandra.Spec.Name,
 			"request", req,
 			"event", cassandra.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
+	default:
+		l.Info("Unknown event isn't handled",
+			"request", req,
+			"event", cassandra.Annotations[models.ResourceStateAnnotation],
+		)
+		return models.ExitReconcile, nil
 	}
-
-	return reconcile.Result{}, nil
 }
 
 func (r *CassandraReconciler) handleCreateCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cc *clustersv1alpha1.Cassandra,
+	cassandra *clustersv1alpha1.Cassandra,
 ) reconcile.Result {
-	var id string
+	l = l.WithName("Cassandra creation event")
 	var err error
-	patch := cc.NewPatch()
-	if cc.Status.ID == "" {
-		if cc.Spec.HasRestore() {
+	patch := cassandra.NewPatch()
+	if cassandra.Status.ID == "" {
+		var id string
+		if cassandra.Spec.HasRestore() {
 			l.Info(
-				"Creating Cassandra cluster from backup",
-				"original cluster ID", cc.Spec.RestoreFrom.ClusterID,
+				"Creating cluster from backup",
+				"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreCassandra(*cc.Spec.RestoreFrom)
+			id, err = r.API.RestoreCassandra(*cassandra.Spec.RestoreFrom)
 			if err != nil {
-				l.Error(err, "Cannot restore Cassandra cluster from backup",
-					"original cluster ID", cc.Spec.RestoreFrom.ClusterID,
+				l.Error(err, "Cannot restore cluster from backup",
+					"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
 				)
 
 				return models.ReconcileRequeue
 			}
 		} else {
 			l.Info(
-				"Creating Cassandra cluster",
-				"cluster name", cc.Spec.Name,
-				"data centres", cc.Spec.DataCentres,
+				"Creating cluster",
+				"cluster name", cassandra.Spec.Name,
+				"data centres", cassandra.Spec.DataCentres,
 			)
 
-			cassandraSpec := apiv2.CassandraToInstAPI(&cc.Spec)
-			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandraSpec)
+			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandra.Spec.ToInstAPI())
 			if err != nil {
 				l.Error(
-					err, "Cannot create Cassandra cluster",
-					"cassandra cluster spec", cc.Spec,
+					err, "Cannot create cluster",
+					"cluster spec", cassandra.Spec,
 				)
 				return models.ReconcileRequeue
 			}
 		}
 
-		cc.Status.ID = id
-		err = r.Status().Patch(ctx, cc, patch)
+		cassandra.Status.ID = id
+		err = r.Status().Patch(ctx, cassandra, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch Cassandra cluster status",
-				"cluster name", cc.Spec.Name,
-				"cluster ID", cc.Status.ID,
-				"kind", cc.Kind,
-				"api Version", cc.APIVersion,
-				"namespace", cc.Namespace,
-				"cluster metadata", cc.ObjectMeta,
+			l.Error(err, "Cannot patch cluster status",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID,
+				"kind", cassandra.Kind,
+				"api Version", cassandra.APIVersion,
+				"namespace", cassandra.Namespace,
+				"cluster metadata", cassandra.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
 
-		controllerutil.AddFinalizer(cc, models.DeletionFinalizer)
-		cc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		cc.Annotations[models.DeletionConfirmed] = models.False
-		err = r.Patch(ctx, cc, patch)
+		controllerutil.AddFinalizer(cassandra, models.DeletionFinalizer)
+		cassandra.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		cassandra.Annotations[models.DeletionConfirmed] = models.False
+		err = r.Patch(ctx, cassandra, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch Cassandra cluster",
-				"cluster name", cc.Spec.Name,
-				"cluster ID", cc.Status.ID,
-				"kind", cc.Kind,
-				"api Version", cc.APIVersion,
-				"namespace", cc.Namespace,
-				"cluster metadata", cc.ObjectMeta,
+			l.Error(err, "Cannot patch cluster",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID,
+				"kind", cassandra.Kind,
+				"api Version", cassandra.APIVersion,
+				"namespace", cassandra.Namespace,
+				"cluster metadata", cassandra.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
 
 		l.Info(
-			"Cassandra cluster has been created",
-			"cluster name", cc.Spec.Name,
-			"cluster ID", cc.Status.ID,
-			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
-			"namespace", cc.Namespace,
+			"Cluster has been created",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
+			"kind", cassandra.Kind,
+			"api Version", cassandra.APIVersion,
+			"namespace", cassandra.Namespace,
 		)
 	}
 
-	err = r.startClusterStatusJob(cc)
+	err = r.startClusterStatusJob(cassandra)
 	if err != nil {
 		l.Error(err, "Cannot start cluster status job",
-			"cassandra cluster ID", cc.Status.ID)
+			"cassandra cluster ID", cassandra.Status.ID)
 		return models.ReconcileRequeue
 	}
 
-	err = r.startClusterBackupsJob(cc)
+	err = r.startClusterBackupsJob(cassandra)
 	if err != nil {
-		l.Error(err, "Cannot start Cassandra cluster backups check job",
-			"cluster ID", cc.Status.ID,
+		l.Error(err, "Cannot start cluster backups check job",
+			"cluster ID", cassandra.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *CassandraReconciler) handleUpdateCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cc *clustersv1alpha1.Cassandra,
+	cassandra *clustersv1alpha1.Cassandra,
 ) reconcile.Result {
-	currentClusterStatus, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
-	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(
-			err, "Cannot get Cassandra cluster status from the Instaclustr API",
-			"cluster name", cc.Spec.Name,
-			"cluster ID", cc.Status.ID,
+	l = l.WithName("Cassandra update event")
+
+	iData, err := r.API.GetCassandra(cassandra.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get cluster from the Instaclustr API",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
 
-	result := apiv2.CompareCassandraDCs(cc.Spec.DataCentres, currentClusterStatus)
-	if result != nil {
-		err = r.API.UpdateCluster(cc.Status.ID,
-			instaclustr.CassandraEndpoint,
-			result,
-		)
-		if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
-			l.Error(err, "Cluster is not ready to resize",
-				"cluster name", cc.Spec.Name,
-				"cluster status", cc.Status,
-			)
-			return models.ReconcileRequeue
-		}
-		if err != nil {
-			l.Error(
-				err, "Cannot update Cassandra cluster status from the Instaclustr API",
-				"cluster name", cc.Spec.Name,
-				"cluster ID", cc.Status.ID,
-			)
-			return models.ReconcileRequeue
-		}
-	}
-	patch := cc.NewPatch()
-	cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Patch(ctx, cc, patch)
+	iCassandra, err := cassandra.FromInstAPI(iData)
 	if err != nil {
-		l.Error(err, "Cannot patch Cassandra cluster",
-			"cluster name", cc.Spec.Name,
-			"cluster ID", cc.Status.ID,
-			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
-			"namespace", cc.Namespace,
-			"cluster metadata", cc.ObjectMeta,
+		l.Error(
+			err, "Cannot convert cluster from the Instaclustr API",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
+
+	if !cassandra.Spec.IsEqual(iCassandra.Spec) {
+		err = r.API.UpdateCassandra(cassandra.Status.ID, cassandra.Spec.NewDCsUpdate())
+		if err != nil {
+			l.Error(err, "Cannot update cluster",
+				"cluster ID", cassandra.Status.ID,
+				"cluster name", cassandra.Spec.Name,
+				"cluster spec", cassandra.Spec,
+				"cluster state", cassandra.Status.State,
+			)
+			return models.ReconcileRequeue
+		}
+	}
+
+	patch := cassandra.NewPatch()
+	cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.Patch(ctx, cassandra, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
+			"kind", cassandra.Kind,
+			"api Version", cassandra.APIVersion,
+			"namespace", cassandra.Namespace,
+			"cluster metadata", cassandra.ObjectMeta,
+		)
+		return models.ReconcileRequeue
+	}
+
 	l.Info(
-		"Cassandra cluster status has been updated",
-		"cluster name", cc.Spec.Name,
-		"cluster ID", cc.Status.ID,
-		"namespace", cc.Namespace,
-		"data centres", cc.Spec.DataCentres,
+		"Cluster has been updated",
+		"cluster name", cassandra.Spec.Name,
+		"cluster ID", cassandra.Status.ID,
+		"namespace", cassandra.Namespace,
+		"data centres", cassandra.Spec.DataCentres,
 	)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *CassandraReconciler) handleDeleteCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cc *clustersv1alpha1.Cassandra,
+	cassandra *clustersv1alpha1.Cassandra,
 ) reconcile.Result {
-	patch := cc.NewPatch()
-	err := r.Patch(ctx, cc, patch)
+	l = l.WithName("Cassandra deletion event")
+
+	patch := cassandra.NewPatch()
+	err := r.Patch(ctx, cassandra, patch)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(err, "Cannot patch Cassandra cluster",
-			"cluster name", cc.Spec.Name,
-			"cluster ID", cc.Status.ID,
-			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
-			"namespace", cc.Namespace,
-			"cluster metadata", cc.ObjectMeta,
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
+			"kind", cassandra.Kind,
+			"api Version", cassandra.APIVersion,
+			"namespace", cassandra.Namespace,
+			"cluster metadata", cassandra.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	if len(cc.Spec.TwoFactorDelete) != 0 &&
-		cc.Annotations[models.DeletionConfirmed] != models.True {
-		l.Info("Cassandra cluster deletion is not confirmed",
-			"cluster ID", cc.Status.ID,
-			"cluster name", cc.Spec.Name,
+	if len(cassandra.Spec.TwoFactorDelete) != 0 &&
+		cassandra.Annotations[models.DeletionConfirmed] != models.True {
+		l.Info("Cluster deletion is not confirmed",
+			"cluster ID", cassandra.Status.ID,
+			"cluster name", cassandra.Spec.Name,
+			"deletion confirmation annotation", cassandra.Annotations[models.DeletionConfirmed],
 		)
 
-		cc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err = r.Status().Patch(ctx, cc, patch)
+		cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+		err = r.Patch(ctx, cassandra, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch Cassandra cluster metadata after finalizer removal",
-				"cluster name", cc.Spec.Name,
-				"cluster ID", cc.Status.ID,
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID,
 			)
 
 			return models.ReconcileRequeue
 		}
 
-		return models.ReconcileResult
+		return models.ExitReconcile
 	}
 
-	status, err := r.API.GetClusterStatus(cc.Status.ID, instaclustr.CassandraEndpoint)
+	_, err = r.API.GetCassandra(cassandra.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "Cannot get Cassandra cluster status from the Instaclustr API",
-			"cluster name", cc.Spec.Name,
-			"cluster ID", cc.Status.ID,
-			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
-			"namespace", cc.Namespace,
+			err, "Cannot get cluster from the Instaclustr API",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
+			"kind", cassandra.Kind,
+			"api Version", cassandra.APIVersion,
+			"namespace", cassandra.Namespace,
 		)
 		return models.ReconcileRequeue
 	}
 
-	if status != nil {
-		r.Scheduler.RemoveJob(cc.GetJobID(scheduler.StatusChecker))
-		err = r.API.DeleteCluster(cc.Status.ID, instaclustr.CassandraEndpoint)
+	if !errors.Is(err, instaclustr.NotFound) {
+		err = r.API.DeleteCluster(cassandra.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
-			l.Error(err, "Cannot delete Cassandra cluster",
-				"cluster name", cc.Spec.Name,
-				"status", cc.Status.Status,
-				"kind", cc.Kind,
-				"api Version", cc.APIVersion,
-				"namespace", cc.Namespace,
+			l.Error(err, "Cannot delete cluster",
+				"cluster name", cassandra.Spec.Name,
+				"state", cassandra.Status.State,
+				"kind", cassandra.Kind,
+				"api Version", cassandra.APIVersion,
+				"namespace", cassandra.Namespace,
 			)
 			return models.ReconcileRequeue
 		}
 
-		l.Info("Cassandra cluster is being deleted",
-			"cluster ID", cc.Status.ID,
+		l.Info("Cluster is being deleted",
+			"cluster ID", cassandra.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	r.Scheduler.RemoveJob(cc.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.BackupsChecker))
 
 	l.Info("Deleting cluster backup resources",
-		"cluster ID", cc.Status.ID,
+		"cluster ID", cassandra.Status.ID,
 	)
 
-	err = r.deleteBackups(ctx, cc.Status.ID, cc.Namespace)
+	err = r.deleteBackups(ctx, cassandra.Status.ID, cassandra.Namespace)
 	if err != nil {
 		l.Error(err, "Cannot delete cluster backup resources",
-			"cluster ID", cc.Status.ID,
+			"cluster ID", cassandra.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Cluster backup resources were deleted",
-		"cluster ID", cc.Status.ID,
+		"cluster ID", cassandra.Status.ID,
 	)
 
-	controllerutil.RemoveFinalizer(cc, models.DeletionFinalizer)
-	cc.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-
-	err = r.Patch(ctx, cc, patch)
+	controllerutil.RemoveFinalizer(cassandra, models.DeletionFinalizer)
+	cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	err = r.Patch(ctx, cassandra, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Cassandra cluster",
-			"cluster name", cc.Spec.Name,
-			"cluster ID", cc.Status.ID,
-			"kind", cc.Kind,
-			"api Version", cc.APIVersion,
-			"namespace", cc.Namespace,
-			"cluster metadata", cc.ObjectMeta,
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID,
+			"kind", cassandra.Kind,
+			"api Version", cassandra.APIVersion,
+			"namespace", cassandra.Namespace,
+			"cluster metadata", cassandra.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Cassandra cluster has been deleted",
-		"cluster name", cc.Spec.Name,
-		"cluster ID", cc.Status.ID,
-		"kind", cc.Kind,
-		"api Version", cc.APIVersion,
-		"namespace", cc.Namespace,
+	l.Info("Cluster has been deleted",
+		"cluster name", cassandra.Spec.Name,
+		"cluster ID", cassandra.Status.ID,
+		"kind", cassandra.Kind,
+		"api Version", cassandra.APIVersion,
+		"namespace", cassandra.Namespace,
 	)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) error {
@@ -408,103 +409,104 @@ func (r *CassandraReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.C
 	return nil
 }
 
-func (r *CassandraReconciler) newWatchStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) scheduler.Job {
-	l := log.Log.WithValues("component", "cassandraStatusClusterJob")
+func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cassandra) scheduler.Job {
+	l := log.Log.WithValues("component", "CassandraStatusClusterJob")
 	return func() error {
-		err := r.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: cassandraCluster.Name}, cassandraCluster)
+		err := r.Get(context.Background(), types.NamespacedName{
+			Namespace: cassandra.Namespace,
+			Name:      cassandra.Name,
+		}, cassandra)
 		if err != nil {
-			l.Error(err, "Cannot get Cassandra custom resource",
-				"resource name", cassandraCluster.Name,
+			l.Error(err, "Cannot get cluster resource",
+				"resource name", cassandra.Name,
 			)
 			return err
 		}
 
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cassandraCluster.DeletionTimestamp, len(cassandraCluster.Spec.TwoFactorDelete), cassandraCluster.Annotations[models.DeletionConfirmed]) {
-			l.Info("Cassandra cluster is being deleted. Status check job skipped",
-				"cluster name", cassandraCluster.Spec.Name,
-				"cluster ID", cassandraCluster.Status.ID,
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cassandra.DeletionTimestamp, len(cassandra.Spec.TwoFactorDelete), cassandra.Annotations[models.DeletionConfirmed]) {
+			l.Info("Cluster is being deleted. Status check job skipped",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID,
 			)
 
 			return nil
 		}
 
-		instaclusterStatus, err := r.API.GetClusterStatus(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+		iData, err := r.API.GetCassandra(cassandra.Status.ID)
 		if err != nil {
-			l.Error(err, "Cannot get cassandraCluster instaclusterStatus",
-				"clusterID", cassandraCluster.Status.ID)
+			l.Error(err, "Cannot get cluster from the Instaclustr API",
+				"clusterID", cassandra.Status.ID)
 			return err
 		}
 
-		if !areStatusesEqual(instaclusterStatus, &cassandraCluster.Status.ClusterStatus) {
-			l.Info("Cassandra status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instaclusterStatus", instaclusterStatus,
-				"cassandraCluster.Status.ClusterStatus", cassandraCluster.Status.ClusterStatus)
+		iCassandra, err := cassandra.FromInstAPI(iData)
+		if err != nil {
+			l.Error(err, "Cannot convert cluster from the Instaclustr API",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID,
+			)
+			return err
+		}
 
-			patch := cassandraCluster.NewPatch()
-			instaclusterStatus.MaintenanceEvents = cassandraCluster.Status.ClusterStatus.MaintenanceEvents
-			cassandraCluster.Status.ClusterStatus = *instaclusterStatus
-			err = r.Status().Patch(context.Background(), cassandraCluster, patch)
+		if !areStatusesEqual(&iCassandra.Status.ClusterStatus, &cassandra.Status.ClusterStatus) {
+			l.Info("Updating cluster status",
+				"status from insta", iCassandra.Status.ClusterStatus,
+				"status from k8s", cassandra.Status.ClusterStatus)
+
+			patch := cassandra.NewPatch()
+			cassandra.Status.ClusterStatus = iCassandra.Status.ClusterStatus
+			err = r.Status().Patch(context.Background(), cassandra, patch)
 			if err != nil {
 				return err
 			}
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(cassandraCluster.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get Cassandra cluster maintenance events",
-				"cluster name", cassandraCluster.Spec.Name,
-				"cluster ID", cassandraCluster.Status.ID,
-			)
-
-			return err
-		}
-
-		if !cassandraCluster.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := cassandraCluster.NewPatch()
-			cassandraCluster.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), cassandraCluster, patch)
+		if iCassandra.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			!cassandra.Spec.IsEqual(iCassandra.Spec) {
+			patch := cassandra.NewPatch()
+			cassandra.Spec = iCassandra.Spec
+			err = r.Patch(context.Background(), cassandra, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Cassandra cluster maintenance events",
-					"cluster name", cassandraCluster.Spec.Name,
-					"cluster ID", cassandraCluster.Status.ID,
+				l.Error(err, "Cannot patch cluster resource",
+					"cluster ID", cassandra.Status.ID,
+					"spec from insta", iCassandra.Spec,
 				)
 
 				return err
 			}
 
-			l.Info("Cassandra cluster maintenance events were updated",
-				"cluster ID", cassandraCluster.Status.ID,
-				"events", cassandraCluster.Status.MaintenanceEvents,
+			l.Info("Cluster spec has been updated",
+				"cluster ID", cassandra.Status.ID,
 			)
 		}
 
-		if instaclusterStatus.CurrentClusterOperationStatus == models.NoOperation {
-			instSpec, err := r.API.GetCassandra(cassandraCluster.Status.ID, instaclustr.CassandraEndpoint)
+		maintEvents, err := r.API.GetMaintenanceEvents(cassandra.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get cluster maintenance events",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID,
+			)
+
+			return err
+		}
+
+		if !cassandra.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := cassandra.NewPatch()
+			cassandra.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), cassandra, patch)
 			if err != nil {
-				l.Error(err, "Cannot get Cassandra cluster spec from Instaclustr API",
-					"cluster ID", cassandraCluster.Status.ID)
+				l.Error(err, "Cannot patch cluster maintenance events",
+					"cluster name", cassandra.Spec.Name,
+					"cluster ID", cassandra.Status.ID,
+				)
 
 				return err
 			}
 
-			if !cassandraCluster.Spec.AreSpecsEqual(instSpec) {
-				patch := cassandraCluster.NewPatch()
-				cassandraCluster.Spec.RestoreFrom = nil
-				cassandraCluster.Spec.SetSpecFromInst(instSpec)
-				err = r.Patch(context.Background(), cassandraCluster, patch)
-				if err != nil {
-					l.Error(err, "Cannot patch Cassandra cluster spec",
-						"cluster ID", cassandraCluster.Status.ID,
-						"spec from Instaclustr API", instSpec,
-					)
-
-					return err
-				}
-
-				l.Info("Cassandra cluster spec has been updated",
-					"cluster ID", cassandraCluster.Status.ID,
-				)
-			}
+			l.Info("Cluster maintenance events were updated",
+				"cluster ID", cassandra.Status.ID,
+				"events", cassandra.Status.MaintenanceEvents,
+			)
 		}
 
 		return nil
@@ -522,7 +524,7 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 		}
 
 		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
-			l.Info("Cassandra cluster is being deleted. Backups check job skipped",
+			l.Info("Cluster is being deleted. Backups check job skipped",
 				"cluster name", cluster.Spec.Name,
 				"cluster ID", cluster.Status.ID,
 			)
@@ -530,23 +532,23 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 			return nil
 		}
 
-		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		iBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
 		if err != nil {
-			l.Error(err, "Cannot get Cassandra cluster backups",
+			l.Error(err, "Cannot get cluster backups",
 				"cluster name", cluster.Spec.Name,
-				"clusterID", cluster.Status.ID,
+				"cluster ID", cluster.Status.ID,
 			)
 
 			return err
 		}
 
-		instBackupEvents := instBackups.GetBackupEvents(models.CassandraKind)
+		iBackupEvents := iBackups.GetBackupEvents(models.CassandraKind)
 
 		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
 		if err != nil {
-			l.Error(err, "Cannot list Cassandra cluster backups",
+			l.Error(err, "Cannot list cluster backups",
 				"cluster name", cluster.Spec.Name,
-				"clusterID", cluster.Status.ID,
+				"cluster ID", cluster.Status.ID,
 			)
 
 			return err
@@ -578,14 +580,14 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 			unassignedBackups = append(unassignedBackups, &k8sBackup)
 		}
 
-		for start, instBackup := range instBackupEvents {
+		for start, iBackup := range iBackupEvents {
 			if _, exists := k8sBackups[start]; exists {
 				if k8sBackups[start].Status.End != 0 {
 					continue
 				}
 
 				patch := k8sBackups[start].NewPatch()
-				k8sBackups[start].Status.UpdateStatus(instBackup)
+				k8sBackups[start].Status.UpdateStatus(iBackup)
 				err = r.Status().Patch(ctx, k8sBackups[start], patch)
 				if err != nil {
 					return err
@@ -601,8 +603,8 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 				backupToAssign := unassignedBackups[len(unassignedBackups)-1]
 				unassignedBackups = unassignedBackups[:len(unassignedBackups)-1]
 				patch := backupToAssign.NewPatch()
-				backupToAssign.Status.Start = instBackup.Start
-				backupToAssign.Status.UpdateStatus(instBackup)
+				backupToAssign.Status.Start = iBackup.Start
+				backupToAssign.Status.UpdateStatus(iBackup)
 				err = r.Status().Patch(context.TODO(), backupToAssign, patch)
 				if err != nil {
 					return err

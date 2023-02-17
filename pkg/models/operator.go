@@ -11,7 +11,6 @@ const (
 	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
 	DeletionConfirmed         = "instaclustr.com/deletionConfirmed"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
-	UpdatedFieldsAnnotation   = "instaclustr.com/updatedFields"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
 	ControlledByLabel                  = "instaclustr.com/controlledBy"
@@ -77,5 +76,5 @@ const Requeue60 = time.Second * 60
 
 var (
 	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
-	ReconcileResult  = reconcile.Result{}
+	ExitReconcile    = reconcile.Result{}
 )

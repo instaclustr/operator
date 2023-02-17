@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"unicode"
@@ -30,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/validation"
 )
@@ -41,9 +41,12 @@ type PgDataCentre struct {
 	ClientEncryption           bool                          `json:"clientEncryption"`
 	InterDataCentreReplication []*InterDataCentreReplication `json:"interDataCentreReplication,omitempty"`
 	IntraDataCentreReplication []*IntraDataCentreReplication `json:"intraDataCentreReplication"`
-	// PGBouncer options
-	PGBouncerVersion string `json:"pgBouncerVersion,omitempty"`
-	PoolMode         string `json:"poolMode,omitempty"`
+	PGBouncer                  []*PgBouncer                  `json:"pgBouncer,omitempty"`
+}
+
+type PgBouncer struct {
+	PGBouncerVersion string `json:"pgBouncerVersion"`
+	PoolMode         string `json:"poolMode"`
 }
 
 type InterDataCentreReplication struct {
@@ -131,9 +134,6 @@ type immutablePostgreSQLDCFields struct {
 
 type specificPostgreSQLDC struct {
 	ClientEncryption bool
-	NodesNumber      int32
-	PGBouncerVersion string
-	PoolMode         string
 }
 
 func init() {
@@ -179,290 +179,79 @@ func (pgs *PgSpec) HasRestore() bool {
 }
 
 func (pgs *PgSpec) ToInstAPI() *models.PGCluster {
-	instTFD := pgs.TwoFactorDeletesToInstAPI()
-
-	instDCs := pgs.DataCentresToInstAPI()
 	return &models.PGCluster{
 		Name:                  pgs.Name,
 		PostgreSQLVersion:     pgs.Version,
-		DataCentres:           instDCs,
+		DataCentres:           pgs.DCsToInstAPI(),
 		SynchronousModeStrict: pgs.SynchronousModeStrict,
 		PrivateNetworkCluster: pgs.PrivateNetworkCluster,
 		SLATier:               pgs.SLATier,
-		TwoFactorDelete:       instTFD,
+		TwoFactorDelete:       pgs.TwoFactorDeletesToInstAPI(),
 	}
+}
+
+func (pgs *PgSpec) DCsToInstAPI() (iDCs []*models.PGDataCentre) {
+	for _, dc := range pgs.DataCentres {
+		iDCs = append(iDCs, dc.ToInstAPI())
+	}
+	return
 }
 
 func (pdc *PgDataCentre) ToInstAPI() *models.PGDataCentre {
-	instDC := &models.PGDataCentre{
-		DataCentre: modelsv2.DataCentre{
-			Name:                pdc.Name,
-			Network:             pdc.Network,
-			NodeSize:            pdc.NodeSize,
-			NumberOfNodes:       pdc.NodesNumber,
-			CloudProvider:       pdc.CloudProvider,
-			Region:              pdc.Region,
-			ProviderAccountName: pdc.ProviderAccountName,
-		},
-		PGBouncer:                 []*models.PGBouncer{},
-		ClientToClusterEncryption: pdc.ClientEncryption,
+	return &models.PGDataCentre{
+		DataCentre:                 pdc.DataCentre.ToInstAPI(),
+		PGBouncer:                  pdc.PGBouncerToInstAPI(),
+		ClientToClusterEncryption:  pdc.ClientEncryption,
+		InterDataCentreReplication: pdc.InterDCReplicationToInstAPI(),
+		IntraDataCentreReplication: pdc.IntraDCReplicationToInstAPI(),
 	}
-
-	pdc.CloudProviderSettingsToInstAPI(&instDC.DataCentre)
-
-	pdc.TagsToInstAPI(&instDC.DataCentre)
-
-	pdc.InterDCReplicationToInstAPI(instDC)
-
-	pdc.IntraDCReplicationToInstAPI(instDC)
-
-	if pdc.PGBouncerVersion != "" {
-		pdc.PGBouncerToInstAPI(instDC)
-	}
-
-	return instDC
 }
 
-func (pdc *PgDataCentre) InterDCReplicationToInstAPI(instDC *models.PGDataCentre) {
-	var instReplication []*models.PGInterDCReplication
+func (pdc *PgDataCentre) InterDCReplicationToInstAPI() (iIRs []*models.PGInterDCReplication) {
 	for _, interDCReplication := range pdc.InterDataCentreReplication {
-		instReplication = append(instReplication, &models.PGInterDCReplication{
+		iIRs = append(iIRs, &models.PGInterDCReplication{
 			IsPrimaryDataCentre: interDCReplication.IsPrimaryDataCentre,
 		})
 	}
-
-	instDC.InterDataCentreReplication = instReplication
+	return
 }
 
-func (pdc *PgDataCentre) IntraDCReplicationToInstAPI(instDC *models.PGDataCentre) {
-	var instReplication []*models.PGIntraDCReplication
+func (pdc *PgDataCentre) IntraDCReplicationToInstAPI() (iIRs []*models.PGIntraDCReplication) {
 	for _, interDCReplication := range pdc.IntraDataCentreReplication {
-		instReplication = append(instReplication, &models.PGIntraDCReplication{
+		iIRs = append(iIRs, &models.PGIntraDCReplication{
 			ReplicationMode: interDCReplication.ReplicationMode,
 		})
 	}
-
-	instDC.IntraDataCentreReplication = instReplication
+	return
 }
 
-func (pdc *PgDataCentre) PGBouncerToInstAPI(instDC *models.PGDataCentre) {
-	instDC.PGBouncer = []*models.PGBouncer{
-		{
-			PGBouncerVersion: pdc.PGBouncerVersion,
-			PoolMode:         pdc.PoolMode,
-		},
+func (pdc *PgDataCentre) PGBouncerToInstAPI() (iPgB []*models.PGBouncer) {
+	for _, pgb := range pdc.PGBouncer {
+		iPgB = append(iPgB, &models.PGBouncer{
+			PGBouncerVersion: pgb.PGBouncerVersion,
+			PoolMode:         pgb.PoolMode,
+		})
 	}
+
+	return
 }
 
-func (pgs *PgSpec) AreSpecsEqual(instCluster *models.PGStatus) bool {
-	if pgs.Name != instCluster.Name ||
-		pgs.Version != instCluster.PostgreSQLVersion ||
-		pgs.PCICompliance != instCluster.PCIComplianceMode ||
-		pgs.PrivateNetworkCluster != instCluster.PrivateNetworkCluster ||
-		pgs.SLATier != instCluster.SLATier ||
-		!pgs.IsTwoFactorDeleteEqual(instCluster.TwoFactorDelete) ||
-		pgs.SynchronousModeStrict != instCluster.SynchronousModeStrict ||
-		!pgs.AreDCsEqual(instCluster.DataCentres) {
+func (pgs *PgSpec) IsEqual(iPG PgSpec) bool {
+	return pgs.Cluster.IsEqual(iPG.Cluster) && pgs.SynchronousModeStrict == iPG.SynchronousModeStrict
+}
+
+func (pgs *PgSpec) AreDCsEqual(iDCs []*PgDataCentre) bool {
+	if len(pgs.DataCentres) != len(iDCs) {
 		return false
 	}
 
-	return true
-}
-
-func (pgs *PgSpec) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
-	if len(pgs.DataCentres) != len(instDCs) {
-		return false
-	}
-
-	for _, instDC := range instDCs {
-		for _, k8sDC := range pgs.DataCentres {
-			if instDC.Name == k8sDC.Name {
-				if k8sDC.NodesNumber != instDC.NumberOfNodes ||
-					k8sDC.Region != instDC.Region ||
-					k8sDC.CloudProvider != instDC.CloudProvider ||
-					k8sDC.ProviderAccountName != instDC.ProviderAccountName ||
-					!k8sDC.AreCloudProviderSettingsEqual(instDC.AWSSettings, instDC.GCPSettings, instDC.AzureSettings) ||
-					k8sDC.Network != instDC.Network ||
-					k8sDC.NodeSize != instDC.NodeSize ||
-					!k8sDC.AreTagsEqual(instDC.Tags) ||
-					k8sDC.ClientEncryption != instDC.ClientToClusterEncryption ||
-					!k8sDC.AreInterDCReplicationsEqual(instDC.InterDataCentreReplication) ||
-					!k8sDC.AreIntraDCReplicationsEqual(instDC.IntraDataCentreReplication) ||
-					!k8sDC.ArePGBouncersEqual(instDC.PGBouncer) {
-					return false
-				}
-
-				break
-			}
-		}
-	}
-
-	return true
-}
-
-// SetDefaultValues should be implemented using validation webhook
-// TODO https://github.com/instaclustr/operator/issues/219
-func (pgs *PgSpec) SetDefaultValues() {
-	for _, dataCentre := range pgs.DataCentres {
-		if dataCentre.ProviderAccountName == "" {
-			dataCentre.ProviderAccountName = models.DefaultAccountName
-		}
-
-		if len(dataCentre.CloudProviderSettings) == 0 {
-			dataCentre.CloudProviderSettings = append(dataCentre.CloudProviderSettings, &CloudProviderSettings{
-				DiskEncryptionKey:      "",
-				ResourceGroup:          "",
-				CustomVirtualNetworkID: "",
-			})
-		}
-	}
-}
-
-func (pgs *PgSpec) DataCentresToInstAPI() []*models.PGDataCentre {
-	var instDCs []*models.PGDataCentre
-	for _, k8sDC := range pgs.DataCentres {
-		instDCs = append(instDCs, k8sDC.ToInstAPI())
-	}
-	return instDCs
-}
-
-func (pgs *PgSpec) SetSpecFromInstAPI(instCluster *models.PGStatus) {
-	pgs.Name = instCluster.Name
-	pgs.Version = instCluster.PostgreSQLVersion
-	pgs.PCICompliance = instCluster.PCIComplianceMode
-	pgs.PrivateNetworkCluster = instCluster.PrivateNetworkCluster
-	pgs.SLATier = instCluster.SLATier
-	pgs.SetTwoFactorDeletesFromInstAPI(instCluster.TwoFactorDelete)
-	pgs.SynchronousModeStrict = instCluster.SynchronousModeStrict
-	pgs.SetDCsFromInstAPI(instCluster.DataCentres)
-}
-
-func (pgs *PgSpec) SetDCsFromInstAPI(instDCs []*models.PGDataCentre) {
-	var k8sDCs []*PgDataCentre
-	for _, instDC := range instDCs {
-		dc := &PgDataCentre{}
-		dc.SetDCFromInstAPI(instDC)
-
-		k8sDCs = append(k8sDCs, dc)
-	}
-
-	pgs.DataCentres = k8sDCs
-}
-
-func (pdc *PgDataCentre) SetDCFromInstAPI(instDC *models.PGDataCentre) {
-	pdc.Name = instDC.Name
-	pdc.Region = instDC.Region
-	pdc.CloudProvider = instDC.CloudProvider
-	pdc.ProviderAccountName = instDC.ProviderAccountName
-	pdc.Network = instDC.Network
-	pdc.NodeSize = instDC.NodeSize
-	pdc.SetTagsFromInstAPI(instDC.Tags)
-	pdc.SetCloudProviderSettingsFromInstAPI(&instDC.DataCentre)
-	pdc.ClientEncryption = instDC.ClientToClusterEncryption
-	pdc.NodesNumber = instDC.NumberOfNodes
-	pdc.SetInterDCReplicationsFromInstAPI(instDC.InterDataCentreReplication)
-	pdc.SetIntraDCReplicationsFromInstAPI(instDC.IntraDataCentreReplication)
-	pdc.SetPGBouncerFromInstAPI(instDC.PGBouncer)
-}
-
-func (pdc *PgDataCentre) SetInterDCReplicationsFromInstAPI(instIRs []*models.PGInterDCReplication) {
-	k8sIRs := []*InterDataCentreReplication{}
-	for _, instIR := range instIRs {
-		k8sIR := &InterDataCentreReplication{}
-		k8sIR.SetInterDCReplicationFromInstAPI(instIR)
-		k8sIRs = append(k8sIRs, k8sIR)
-	}
-	pdc.InterDataCentreReplication = k8sIRs
-}
-
-func (ir *InterDataCentreReplication) SetInterDCReplicationFromInstAPI(instIR *models.PGInterDCReplication) {
-	ir.IsPrimaryDataCentre = instIR.IsPrimaryDataCentre
-}
-
-func (pdc *PgDataCentre) SetIntraDCReplicationsFromInstAPI(instIRs []*models.PGIntraDCReplication) {
-	k8sIRs := []*IntraDataCentreReplication{}
-	for _, instIR := range instIRs {
-		k8sIR := &IntraDataCentreReplication{}
-		k8sIR.SetIntraDCReplicationFromInstAPI(instIR)
-		k8sIRs = append(k8sIRs, k8sIR)
-	}
-	pdc.IntraDataCentreReplication = k8sIRs
-}
-
-func (ir *IntraDataCentreReplication) SetIntraDCReplicationFromInstAPI(instIR *models.PGIntraDCReplication) {
-	ir.ReplicationMode = instIR.ReplicationMode
-}
-
-func (pdc *PgDataCentre) SetPGBouncerFromInstAPI(instPGBs []*models.PGBouncer) {
-	for _, instPGB := range instPGBs {
-		pdc.PGBouncerVersion = instPGB.PGBouncerVersion
-		pdc.PoolMode = instPGB.PoolMode
-	}
-}
-
-func (ps *PgStatus) SetStatusFromInstAPI(instCluster *models.PGStatus) {
-	ps.ID = instCluster.ID
-	ps.Status = instCluster.Status
-	ps.CurrentClusterOperationStatus = instCluster.CurrentClusterOperationStatus
-	ps.TwoFactorDeleteEnabled = len(instCluster.TwoFactorDelete) > 0
-	ps.SetDCsFromInstAPI(instCluster.DataCentres)
-}
-
-func (ps *PgStatus) SetDCsFromInstAPI(instDCs []*models.PGDataCentre) {
-	k8sDCs := []*DataCentreStatus{}
-	for _, instDC := range instDCs {
-		k8sDC := &DataCentreStatus{
-			ID:         instDC.ID,
-			Status:     instDC.Status,
-			NodeNumber: instDC.NumberOfNodes,
-		}
-
-		k8sDC.SetNodesFromInstAPI(instDC.Nodes)
-		k8sDCs = append(k8sDCs, k8sDC)
-	}
-	ps.DataCentres = k8sDCs
-}
-
-func (ps *PgStatus) AreStatusesEqual(instStatus *models.PGStatus) bool {
-	if ps.ID != instStatus.ID ||
-		ps.Status != instStatus.Status ||
-		ps.CurrentClusterOperationStatus != instStatus.CurrentClusterOperationStatus ||
-		!ps.AreDCsEqual(instStatus.DataCentres) {
-		return false
-	}
-
-	return true
-}
-
-func (ps *PgStatus) AreDCsEqual(instDCs []*models.PGDataCentre) bool {
-	if len(ps.DataCentres) != len(instDCs) {
-		return false
-	}
-
-	for _, instDC := range instDCs {
-		for _, k8sDC := range ps.DataCentres {
-			if instDC.ID == k8sDC.ID {
-				if instDC.Status != k8sDC.Status ||
-					instDC.NumberOfNodes != k8sDC.NodeNumber ||
-					!k8sDC.AreNodesEqual(instDC.Nodes) {
-					return false
-				}
-
-				break
-			}
-		}
-	}
-
-	return true
-}
-
-func (pdc *PgDataCentre) AreInterDCReplicationsEqual(instIRs []*models.PGInterDCReplication) bool {
-	if len(pdc.InterDataCentreReplication) != len(instIRs) {
-		return false
-	}
-
-	for i, instIR := range instIRs {
-		if instIR.IsPrimaryDataCentre != pdc.InterDataCentreReplication[i].IsPrimaryDataCentre {
+	for i, iDC := range iDCs {
+		dc := pgs.DataCentres[i]
+		if !dc.IsEqual(iDC.DataCentre) ||
+			dc.ClientEncryption != iDC.ClientEncryption ||
+			!dc.AreInterDCReplicationsEqual(iDC.InterDataCentreReplication) ||
+			!dc.AreIntraDCReplicationsEqual(iDC.IntraDataCentreReplication) ||
+			!dc.ArePGBouncersEqual(iDC.PGBouncer) {
 			return false
 		}
 	}
@@ -470,13 +259,13 @@ func (pdc *PgDataCentre) AreInterDCReplicationsEqual(instIRs []*models.PGInterDC
 	return true
 }
 
-func (pdc *PgDataCentre) AreIntraDCReplicationsEqual(instIRs []*models.PGIntraDCReplication) bool {
-	if len(pdc.IntraDataCentreReplication) != len(instIRs) {
+func (pdc *PgDataCentre) AreInterDCReplicationsEqual(iIRs []*InterDataCentreReplication) bool {
+	if len(pdc.InterDataCentreReplication) != len(iIRs) {
 		return false
 	}
 
-	for i, instIR := range instIRs {
-		if instIR.ReplicationMode != pdc.IntraDataCentreReplication[i].ReplicationMode {
+	for i, iIR := range iIRs {
+		if iIR.IsPrimaryDataCentre != pdc.InterDataCentreReplication[i].IsPrimaryDataCentre {
 			return false
 		}
 	}
@@ -484,16 +273,28 @@ func (pdc *PgDataCentre) AreIntraDCReplicationsEqual(instIRs []*models.PGIntraDC
 	return true
 }
 
-func (pdc *PgDataCentre) ArePGBouncersEqual(instPGBs []*models.PGBouncer) bool {
-	if pdc.PoolMode != "" &&
-		pdc.PGBouncerVersion != "" &&
-		len(instPGBs) == 0 {
+func (pdc *PgDataCentre) AreIntraDCReplicationsEqual(iIRs []*IntraDataCentreReplication) bool {
+	if len(pdc.IntraDataCentreReplication) != len(iIRs) {
 		return false
 	}
 
-	for _, instPGB := range instPGBs {
-		if instPGB.PoolMode != pdc.PoolMode ||
-			instPGB.PGBouncerVersion != pdc.PGBouncerVersion {
+	for i, iIR := range iIRs {
+		if iIR.ReplicationMode != pdc.IntraDataCentreReplication[i].ReplicationMode {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (pdc *PgDataCentre) ArePGBouncersEqual(iPGBs []*PgBouncer) bool {
+	if len(iPGBs) != len(pdc.PGBouncer) {
+		return false
+	}
+
+	for i, iPGB := range iPGBs {
+		if iPGB.PoolMode != pdc.PGBouncer[i].PoolMode ||
+			iPGB.PGBouncerVersion != pdc.PGBouncer[i].PGBouncerVersion {
 			return false
 		}
 	}
@@ -580,20 +381,16 @@ func (pg *PostgreSQL) ValidateDefaultUserPassword(password string) bool {
 }
 
 func (pdc *PgDataCentre) ValidatePGBouncer() error {
-	if pdc.PGBouncerVersion == "" {
-		if pdc.PoolMode != "" {
-			return fmt.Errorf("poolMode field is filled. Fill PGBouncerVersion field to enable PGBouncer")
-		}
-	} else {
-		if !validation.Contains(pdc.PGBouncerVersion, models.PGBouncerVersions) {
+	for _, pgb := range pdc.PGBouncer {
+		if !validation.Contains(pgb.PGBouncerVersion, models.PGBouncerVersions) {
 			return fmt.Errorf("pgBouncerVersion '%s' is unavailable, available versions: %v",
-				pdc.PGBouncerVersion,
+				pgb.PGBouncerVersion,
 				models.PGBouncerVersions)
 		}
-		if pdc.PoolMode != "" &&
-			!validation.Contains(pdc.PoolMode, models.PoolModes) {
+
+		if !validation.Contains(pgb.PoolMode, models.PoolModes) {
 			return fmt.Errorf("poolMode '%s' is unavailable, available poolModes: %v",
-				pdc.PoolMode,
+				pgb.PoolMode,
 				models.PoolModes)
 		}
 	}
@@ -614,7 +411,7 @@ func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
 		return err
 	}
 
-	err = pgs.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	err = pgs.validateImmutableDCsFieldsUpdate(oldSpec)
 	if err != nil {
 		return err
 	}
@@ -622,7 +419,7 @@ func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
 	return nil
 }
 
-func (pgs *PgSpec) validateImmutableDataCentresFieldsUpdate(oldSpec PgSpec) error {
+func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 	if len(pgs.DataCentres) != len(oldSpec.DataCentres) {
 		return models.ErrImmutableDataCentresNumber
 	}
@@ -703,9 +500,99 @@ func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
 		},
 		specificPostgreSQLDC: specificPostgreSQLDC{
 			ClientEncryption: pdc.ClientEncryption,
-			NodesNumber:      pdc.NodesNumber,
-			PGBouncerVersion: pdc.PGBouncerVersion,
-			PoolMode:         pdc.PoolMode,
 		},
 	}
+}
+
+func (pg *PostgreSQL) FromInstAPI(iData []byte) (*PostgreSQL, error) {
+	iPg := models.PGCluster{}
+	err := json.Unmarshal(iData, &iPg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostgreSQL{
+		TypeMeta:   pg.TypeMeta,
+		ObjectMeta: pg.ObjectMeta,
+		Spec:       pg.Spec.FromInstAPI(iPg),
+		Status:     pg.Status.FromInstAPI(iPg),
+	}, nil
+}
+
+func (pgs *PgSpec) FromInstAPI(iPg models.PGCluster) PgSpec {
+	return PgSpec{
+		Cluster: Cluster{
+			Name:                  iPg.Name,
+			Version:               iPg.PostgreSQLVersion,
+			PCICompliance:         iPg.PCIComplianceMode,
+			PrivateNetworkCluster: iPg.PrivateNetworkCluster,
+			SLATier:               iPg.SLATier,
+			TwoFactorDelete:       pgs.Cluster.TwoFactorDeleteFromInstAPI(iPg.TwoFactorDelete),
+		},
+		DataCentres:           pgs.DCsFromInstAPI(iPg.DataCentres),
+		SynchronousModeStrict: iPg.SynchronousModeStrict,
+	}
+}
+
+func (pgs *PgSpec) DCsFromInstAPI(iDCs []*models.PGDataCentre) (dcs []*PgDataCentre) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &PgDataCentre{
+			DataCentre:                 pgs.Cluster.DCFromInstAPI(iDC.DataCentre),
+			ClientEncryption:           iDC.ClientToClusterEncryption,
+			InterDataCentreReplication: pgs.InterDCReplicationsFromInstAPI(iDC.InterDataCentreReplication),
+			IntraDataCentreReplication: pgs.IntraDCReplicationsFromInstAPI(iDC.IntraDataCentreReplication),
+			PGBouncer:                  pgs.PGBouncerFromInstAPI(iDC.PGBouncer),
+		})
+	}
+	return
+}
+
+func (pgs *PgSpec) InterDCReplicationsFromInstAPI(iIRs []*models.PGInterDCReplication) (irs []*InterDataCentreReplication) {
+	for _, iIR := range iIRs {
+		ir := &InterDataCentreReplication{
+			IsPrimaryDataCentre: iIR.IsPrimaryDataCentre,
+		}
+		irs = append(irs, ir)
+	}
+	return
+}
+
+func (pgs *PgSpec) IntraDCReplicationsFromInstAPI(iIRs []*models.PGIntraDCReplication) (irs []*IntraDataCentreReplication) {
+	for _, iIR := range iIRs {
+		ir := &IntraDataCentreReplication{
+			ReplicationMode: iIR.ReplicationMode,
+		}
+		irs = append(irs, ir)
+	}
+	return
+}
+
+func (pgs *PgSpec) PGBouncerFromInstAPI(iPgBs []*models.PGBouncer) (pgbs []*PgBouncer) {
+	for _, iPgB := range iPgBs {
+		pgb := &PgBouncer{
+			PGBouncerVersion: iPgB.PGBouncerVersion,
+			PoolMode:         iPgB.PoolMode,
+		}
+		pgbs = append(pgbs, pgb)
+	}
+	return
+}
+
+func (pgs *PgStatus) FromInstAPI(iPg models.PGCluster) PgStatus {
+	return PgStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                            iPg.ID,
+			State:                         iPg.Status,
+			DataCentres:                   pgs.DCsFromInstAPI(iPg.DataCentres),
+			CurrentClusterOperationStatus: iPg.CurrentClusterOperationStatus,
+			MaintenanceEvents:             pgs.MaintenanceEvents,
+		},
+	}
+}
+
+func (pgs *PgStatus) DCsFromInstAPI(iDCs []*models.PGDataCentre) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, pgs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+	}
+	return
 }

@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // NodeReloadSpec defines the desired state of NodeReload
@@ -68,6 +70,19 @@ type NodeReloadList struct {
 func (nr *NodeReload) NewPatch() client.Patch {
 	old := nr.DeepCopy()
 	return client.MergeFrom(old)
+}
+
+func (nrs *NodeReloadStatus) FromInstAPI(iStatus *models.NodeReloadStatusAPIv1) (ops []*Operation) {
+	for _, iOps := range iStatus.Operations {
+		op := &Operation{
+			TimeCreated:  iOps.TimeCreated,
+			TimeModified: iOps.TimeModified,
+			Status:       iOps.Status,
+			Message:      iOps.Message,
+		}
+		ops = append(ops, op)
+	}
+	return
 }
 
 func init() {

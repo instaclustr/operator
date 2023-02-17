@@ -18,7 +18,6 @@ package clusters
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -76,13 +75,13 @@ func (r *CadenceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			logger.Info("Cadence resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return models.ReconcileResult, nil
+			return models.ExitReconcile, nil
 		}
 
 		logger.Error(err, "Unable to fetch Cadence resource",
 			"resource name", req.NamespacedName,
 		)
-		return models.ReconcileResult, nil
+		return models.ReconcileRequeue, nil
 	}
 
 	switch cadenceCluster.Annotations[models.ResourceStateAnnotation] {
@@ -98,43 +97,35 @@ func (r *CadenceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			"event", cadenceCluster.Annotations[models.ResourceStateAnnotation],
 		)
 
-		return models.ReconcileResult, nil
+		return models.ExitReconcile, nil
 	default:
 		logger.Info("Unknown event isn't handled",
 			"request", req,
 			"event", cadenceCluster.Annotations[models.ResourceStateAnnotation],
 		)
 
-		return models.ReconcileResult, nil
+		return models.ExitReconcile, nil
 	}
 }
 
 func (r *CadenceReconciler) HandleCreateCluster(
 	ctx context.Context,
-	cadenceCluster *clustersv1alpha1.Cadence,
+	cadence *clustersv1alpha1.Cadence,
 	logger logr.Logger,
 ) reconcile.Result {
-	if len(cadenceCluster.Spec.DataCentres) < 1 {
-		logger.Error(models.ErrZeroDataCentres, "Cadence cluster spec doesn't have data centres",
-			"resource name", cadenceCluster.Name,
-		)
-
-		return models.ReconcileRequeue
-	}
-
-	if cadenceCluster.Status.ID == "" {
-		if cadenceCluster.Spec.ProvisioningType == models.PackagedProvisioningType {
-			requeueNeeded, err := r.preparePackagedSolution(ctx, cadenceCluster)
+	if cadence.Status.ID == "" {
+		if cadence.Spec.ProvisioningType == models.PackagedProvisioningType {
+			requeueNeeded, err := r.preparePackagedSolution(ctx, cadence)
 			if err != nil {
 				logger.Error(err, "Cannot prepare packaged solution for Cadence cluster",
-					"cluster name", cadenceCluster.Spec.Name,
+					"cluster name", cadence.Spec.Name,
 				)
 				return models.ReconcileRequeue
 			}
 
 			if requeueNeeded {
 				logger.Info("Waiting for bundled clusters to be created",
-					"cadence cluster name", cadenceCluster.Spec.Name,
+					"cadence cluster name", cadence.Spec.Name,
 				)
 				return models.ReconcileRequeue
 			}
@@ -142,14 +133,14 @@ func (r *CadenceReconciler) HandleCreateCluster(
 
 		logger.Info(
 			"Creating Cadence cluster",
-			"cluster name", cadenceCluster.Spec.Name,
-			"data centres", cadenceCluster.Spec.DataCentres,
+			"cluster name", cadence.Spec.Name,
+			"data centres", cadence.Spec.DataCentres,
 		)
 
-		cadenceAPISpec, err := cadenceCluster.Spec.ToInstAPI(ctx, r.Client)
+		cadenceAPISpec, err := cadence.Spec.ToInstAPI(ctx, r.Client)
 		if err != nil {
 			logger.Error(err, "Cannot convert Cadence cluster manifest to API spec",
-				"cluster manifest", cadenceCluster.Spec,
+				"cluster manifest", cadence.Spec,
 			)
 			return models.ReconcileRequeue
 		}
@@ -158,74 +149,74 @@ func (r *CadenceReconciler) HandleCreateCluster(
 		if err != nil {
 			logger.Error(
 				err, "Cannot create Cadence cluster",
-				"cadence manifest", cadenceCluster.Spec,
+				"cadence manifest", cadence.Spec,
 			)
 			return models.ReconcileRequeue
 		}
 
-		if cadenceCluster.Spec.Description != "" {
-			err = r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, id, cadenceCluster.Spec.Description, nil)
+		if cadence.Spec.Description != "" {
+			err = r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, id, cadence.Spec.Description, nil)
 			if err != nil {
 				logger.Error(err, "Cannot update Cadence cluster description and TwoFactorDelete",
-					"cluster name", cadenceCluster.Spec.Name,
-					"description", cadenceCluster.Spec.Description,
-					"twoFactorDelete", cadenceCluster.Spec.TwoFactorDelete,
+					"cluster name", cadence.Spec.Name,
+					"description", cadence.Spec.Description,
+					"twoFactorDelete", cadence.Spec.TwoFactorDelete,
 				)
 			}
 		}
 
-		cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		cadenceCluster.Annotations[models.DeletionConfirmed] = models.False
-		cadenceCluster.Finalizers = append(cadenceCluster.Finalizers, models.DeletionFinalizer)
+		cadence.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		cadence.Annotations[models.DeletionConfirmed] = models.False
+		cadence.Finalizers = append(cadence.Finalizers, models.DeletionFinalizer)
 
-		patch, err := cadenceCluster.NewClusterMetadataPatch()
+		patch, err := cadence.NewClusterMetadataPatch()
 		if err != nil {
 			logger.Error(err, "Cannot create Cadence cluster metadata patch",
-				"cluster name", cadenceCluster.Spec.Name,
-				"cluster metadata", cadenceCluster.ObjectMeta,
+				"cluster name", cadence.Spec.Name,
+				"cluster metadata", cadence.ObjectMeta,
 			)
 			return models.ReconcileRequeue
 		}
 
-		err = r.Client.Patch(ctx, cadenceCluster, patch)
+		err = r.Client.Patch(ctx, cadence, patch)
 		if err != nil {
 			logger.Error(err, "Cannot patch Cadence cluster",
-				"cluster name", cadenceCluster.Spec.Name,
+				"cluster name", cadence.Spec.Name,
 				"patch", patch,
 			)
 			return models.ReconcileRequeue
 		}
 
-		statusPatch := cadenceCluster.NewPatch()
-		cadenceCluster.Status.ID = id
-		err = r.Status().Patch(ctx, cadenceCluster, statusPatch)
+		statusPatch := cadence.NewPatch()
+		cadence.Status.ID = id
+		err = r.Status().Patch(ctx, cadence, statusPatch)
 		if err != nil {
 			logger.Error(err, "Cannot update Cadence cluster status",
-				"cluster name", cadenceCluster.Spec.Name,
-				"cluster status", cadenceCluster.Status,
+				"cluster name", cadence.Spec.Name,
+				"cluster status", cadence.Status,
 			)
 			return models.ReconcileRequeue
 		}
 
 		logger.Info(
 			"Cadence resource has been created",
-			"cluster name", cadenceCluster.Name,
-			"cluster ID", cadenceCluster.Status.ID,
-			"kind", cadenceCluster.Kind,
-			"api version", cadenceCluster.APIVersion,
-			"namespace", cadenceCluster.Namespace,
+			"cluster name", cadence.Name,
+			"cluster ID", cadence.Status.ID,
+			"kind", cadence.Kind,
+			"api version", cadence.APIVersion,
+			"namespace", cadence.Namespace,
 		)
 	}
 
-	err := r.startClusterStatusJob(cadenceCluster)
+	err := r.startClusterStatusJob(cadence)
 	if err != nil {
 		logger.Error(err, "Cannot start cluster status job",
-			"cadence cluster ID", cadenceCluster.Status.ID,
+			"cadence cluster ID", cadence.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *CadenceReconciler) HandleUpdateCluster(
@@ -233,10 +224,10 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 	cadence *clustersv1alpha1.Cadence,
 	logger logr.Logger,
 ) reconcile.Result {
-	cadenceInstClusterStatus, err := r.API.GetCadence(cadence.Status.ID)
+	iData, err := r.API.GetCadence(cadence.Status.ID)
 	if err != nil {
 		logger.Error(
-			err, "Cannot get Cadence cluster status from the Instaclustr API",
+			err, "Cannot get Cadence cluster from the Instaclustr API",
 			"cluster name", cadence.Spec.Name,
 			"cluster ID", cadence.Status.ID,
 		)
@@ -244,19 +235,22 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	if len(cadenceInstClusterStatus.DataCentres) < 1 {
-		logger.Error(models.ErrZeroDataCentres, "Cadence cluster data centres in Instaclustr are empty",
+	iCadence, err := cadence.FromInstAPI(iData)
+	if err != nil {
+		logger.Error(
+			err, "Cannot convert Cadence cluster from the Instaclustr API",
 			"cluster name", cadence.Spec.Name,
-			"cluster status", cadenceInstClusterStatus,
+			"cluster ID", cadence.Status.ID,
 		)
+
 		return models.ReconcileRequeue
 	}
 
-	if cadenceInstClusterStatus.CurrentClusterOperationStatus != models.NoOperation {
+	if iCadence.Status.CurrentClusterOperationStatus != models.NoOperation {
 		logger.Info("Cadence cluster is not ready to update",
-			"cluster name", cadenceInstClusterStatus.Name,
-			"cluster status", cadenceInstClusterStatus.Status,
-			"current operation status", cadenceInstClusterStatus.CurrentClusterOperationStatus,
+			"cluster name", iCadence.Spec.Name,
+			"cluster state", iCadence.Status.State,
+			"current operation status", iCadence.Status.CurrentClusterOperationStatus,
 		)
 
 		return models.ReconcileRequeue
@@ -273,16 +267,11 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	updateReq := struct {
-		DataCentres []*models.CadenceDataCentre `json:"dataCentres"`
-	}{
-		DataCentres: cadence.Spec.DataCentresToInstAPI(),
-	}
-	err = r.API.UpdateCluster(cadence.Status.ID, instaclustr.CadenceEndpoint, updateReq)
+	err = r.API.UpdateCluster(cadence.Status.ID, instaclustr.CadenceEndpoint, cadence.Spec.NewDCsUpdate())
 	if err != nil {
 		logger.Error(err, "Cannot update Cadence cluster",
 			"cluster ID", cadence.Status.ID,
-			"update request", updateReq,
+			"update request", cadence.Spec.NewDCsUpdate(),
 		)
 
 		return models.ReconcileRequeue
@@ -304,113 +293,113 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		"cluster status", cadence.Status,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *CadenceReconciler) HandleDeleteCluster(
 	ctx context.Context,
-	cadenceCluster *clustersv1alpha1.Cadence,
+	cadence *clustersv1alpha1.Cadence,
 	logger logr.Logger,
 ) reconcile.Result {
-	cadenceInstClusterStatus, err := r.API.GetCadence(cadenceCluster.Status.ID)
+	_, err := r.API.GetCadence(cadence.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(
 			err, "Cannot get Cadence cluster status from the Instaclustr API",
-			"cluster name", cadenceCluster.Spec.Name,
-			"cluster ID", cadenceCluster.Status.ID,
+			"cluster name", cadence.Spec.Name,
+			"cluster ID", cadence.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	if cadenceInstClusterStatus != nil {
-		if len(cadenceCluster.Spec.TwoFactorDelete) != 0 &&
-			cadenceCluster.Annotations[models.DeletionConfirmed] != models.True {
-			cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-			patch, err := cadenceCluster.NewClusterMetadataPatch()
+	if !errors.Is(err, instaclustr.NotFound) {
+		if len(cadence.Spec.TwoFactorDelete) != 0 &&
+			cadence.Annotations[models.DeletionConfirmed] != models.True {
+			cadence.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+			patch, err := cadence.NewClusterMetadataPatch()
 			if err != nil {
 				logger.Error(err, "Cannot create Cadence cluster resource metadata patch",
-					"cluster name", cadenceCluster.Spec.Name,
+					"cluster name", cadence.Spec.Name,
 				)
 
 				return models.ReconcileRequeue
 			}
 
-			err = r.Patch(ctx, cadenceCluster, patch)
+			err = r.Patch(ctx, cadence, patch)
 			if err != nil {
 				logger.Error(err, "Cannot patch Cadence cluster resource metadata",
-					"cluster name", cadenceCluster.Spec.Name,
+					"cluster name", cadence.Spec.Name,
 				)
 
 				return models.ReconcileRequeue
 			}
 
 			logger.Info("Cadence cluster deletion is not confirmed",
-				"cluster name", cadenceCluster.Spec.Name,
-				"cluster ID", cadenceCluster.Status.ID,
+				"cluster name", cadence.Spec.Name,
+				"cluster ID", cadence.Status.ID,
 				"confirmation annotation", models.DeletionConfirmed,
-				"annotation value", cadenceCluster.Annotations[models.DeletionConfirmed],
+				"annotation value", cadence.Annotations[models.DeletionConfirmed],
 			)
 
 			return models.ReconcileRequeue
 		}
 
-		err = r.API.DeleteCluster(cadenceCluster.Status.ID, instaclustr.CadenceEndpoint)
+		err = r.API.DeleteCluster(cadence.Status.ID, instaclustr.CadenceEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete Cadence cluster",
-				"cluster name", cadenceCluster.Spec.Name,
-				"cluster status", cadenceInstClusterStatus.Status,
+				"cluster name", cadence.Spec.Name,
+				"cluster status", cadence.Status,
 			)
 			return models.ReconcileRequeue
 		}
 
 		logger.Info("Cadence cluster is being deleted",
-			"cluster name", cadenceCluster.Spec.Name,
-			"cluster status", cadenceInstClusterStatus.Status,
+			"cluster name", cadence.Spec.Name,
+			"cluster status", cadence.Status,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	if cadenceCluster.Spec.ProvisioningType == models.PackagedProvisioningType {
-		err = r.deletePackagedResources(ctx, cadenceCluster)
+	if cadence.Spec.ProvisioningType == models.PackagedProvisioningType {
+		err = r.deletePackagedResources(ctx, cadence)
 		if err != nil {
 			logger.Error(
 				err, "Cannot delete Cadence packaged resources",
-				"cluster name", cadenceCluster.Spec.Name,
-				"cluster ID", cadenceCluster.Status.ID,
+				"cluster name", cadence.Spec.Name,
+				"cluster ID", cadence.Status.ID,
 			)
 			return models.ReconcileRequeue
 		}
 	}
 
-	r.Scheduler.RemoveJob(cadenceCluster.GetJobID(scheduler.StatusChecker))
-	controllerutil.RemoveFinalizer(cadenceCluster, models.DeletionFinalizer)
-	cadenceCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	patch, err := cadenceCluster.NewClusterMetadataPatch()
+	r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
+	controllerutil.RemoveFinalizer(cadence, models.DeletionFinalizer)
+	cadence.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	patch, err := cadence.NewClusterMetadataPatch()
 	if err != nil {
 		logger.Error(err, "Cannot create Cadence cluster metadata patch",
-			"cluster name", cadenceCluster.Spec.Name,
-			"cluster metadata", cadenceCluster.ObjectMeta,
+			"cluster name", cadence.Spec.Name,
+			"cluster metadata", cadence.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	err = r.Client.Patch(ctx, cadenceCluster, patch)
+	err = r.Client.Patch(ctx, cadence, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Cadence cluster",
-			"cluster name", cadenceCluster.Spec.Name,
+			"cluster name", cadence.Spec.Name,
 			"patch", patch,
 		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Cadence cluster was deleted",
-		"cluster name", cadenceCluster.Spec.Name,
-		"cluster ID", cadenceCluster.Status.ID,
+		"cluster name", cadence.Spec.Name,
+		"cluster ID", cadence.Status.ID,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster *clustersv1alpha1.Cadence) (bool, error) {
@@ -534,7 +523,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	var twoFactorDelete []*clustersv1alpha1.TwoFactorDelete
 	if len(cadence.Spec.TwoFactorDelete) > 0 {
 		twoFactorDelete = []*clustersv1alpha1.TwoFactorDelete{
-			&clustersv1alpha1.TwoFactorDelete{
+			{
 				Email: cadence.Spec.TwoFactorDelete[0].Email,
 				Phone: cadence.Spec.TwoFactorDelete[0].Phone,
 			},
@@ -558,14 +547,14 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	cassPasswordAndUserAuth := cadence.Spec.BundledCassandraSpec.PasswordAndUserAuth
 
 	cassandraDataCentres := []*clustersv1alpha1.CassandraDataCentre{
-		&clustersv1alpha1.CassandraDataCentre{
+		{
 			DataCentre: clustersv1alpha1.DataCentre{
 				Name:                dcName,
 				Region:              dcRegion,
 				CloudProvider:       cloudProvider,
 				ProviderAccountName: providerAccountName,
 				NodeSize:            cassNodeSize,
-				NodesNumber:         int32(cassNodesNumber),
+				NodesNumber:         cassNodesNumber,
 				Network:             network,
 			},
 			ReplicationFactor:              cassReplicationFactor,
@@ -627,27 +616,35 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 			return nil
 		}
 
-		instStatus, err := r.API.GetCadence(cadence.Status.ID)
+		iData, err := r.API.GetCadence(cadence.Status.ID)
 		if err != nil {
-			l.Error(err, "Cannot get Cadence cluster status",
+			l.Error(err, "Cannot get Cadence cluster from the Instaclustr API",
 				"clusterID", cadence.Status.ID,
 			)
 			return err
 		}
 
-		if !cadence.Status.AreStatusesEqual(instStatus) {
+		iCadence, err := cadence.FromInstAPI(iData)
+		if err != nil {
+			l.Error(err, "Cannot convert Cadence cluster from the Instaclustr API",
+				"clusterID", cadence.Status.ID,
+			)
+			return err
+		}
+
+		if !areStatusesEqual(&iCadence.Status.ClusterStatus, &cadence.Status.ClusterStatus) {
 			l.Info("Updating Cadence cluster status",
-				"new status", instStatus,
+				"new status", iCadence.Status.ClusterStatus,
 				"old status", cadence.Status.ClusterStatus,
 			)
 
 			patch := cadence.NewPatch()
-			cadence.Status.SetStatusFromInst(instStatus)
+			cadence.Status.ClusterStatus = iCadence.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), cadence, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cadence cluster",
 					"cluster name", cadence.Spec.Name,
-					"status", cadence.Status.Status,
+					"status", cadence.Status.State,
 				)
 				return err
 			}
@@ -730,16 +727,18 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
-	kafkaDataCentres := []*clustersv1alpha1.KafkaDataCentre{{
-		DataCentre: clustersv1alpha1.DataCentre{
-			Name:                dcName,
-			Region:              dcRegion,
-			CloudProvider:       cloudProvider,
-			ProviderAccountName: providerAccountName,
-			NodeSize:            kafkaNodeSize,
-			NodesNumber:         int32(kafkaNodesNumber),
-			Network:             kafkaNetwork,
-		}},
+	kafkaDataCentres := []*clustersv1alpha1.KafkaDataCentre{
+		{
+			DataCentre: clustersv1alpha1.DataCentre{
+				Name:                dcName,
+				Region:              dcRegion,
+				CloudProvider:       cloudProvider,
+				ProviderAccountName: providerAccountName,
+				NodeSize:            kafkaNodeSize,
+				NodesNumber:         kafkaNodesNumber,
+				Network:             kafkaNetwork,
+			},
+		},
 	}
 
 	slaTier := cadence.Spec.SLATier
@@ -756,8 +755,8 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 			PCICompliance:         pciCompliance,
 		},
 		DataCentres:               kafkaDataCentres,
-		ReplicationFactorNumber:   int32(cadence.Spec.BundledKafkaSpec.ReplicationFactor),
-		PartitionsNumber:          int32(cadence.Spec.BundledKafkaSpec.PartitionsNumber),
+		ReplicationFactorNumber:   cadence.Spec.BundledKafkaSpec.ReplicationFactor,
+		PartitionsNumber:          cadence.Spec.BundledKafkaSpec.PartitionsNumber,
 		AllowDeleteTopics:         true,
 		AutoCreateTopics:          true,
 		ClientToClusterEncryption: clientEncryption,
@@ -827,10 +826,10 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 				CloudProvider:       cloudProvider,
 				ProviderAccountName: providerAccountName,
 				NodeSize:            osNodeSize,
-				NodesNumber:         int32(osNodesNumber),
+				NodesNumber:         osNodesNumber,
 				Network:             osNetwork,
 			},
-			RacksNumber: int32(osReplicationFactor),
+			RacksNumber: osReplicationFactor,
 		},
 	}
 	spec := clustersv1alpha1.OpenSearchSpec{
@@ -951,10 +950,6 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 
-				updatedFields := newObj.Spec.GetUpdatedFields(&oldObj.Spec)
-				updatedFieldsJson, _ := json.Marshal(&updatedFields)
-
-				newObj.Annotations[models.UpdatedFieldsAnnotation] = string(updatedFieldsJson)
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				event.ObjectNew.SetAnnotations(newObj.Annotations)
 

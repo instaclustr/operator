@@ -26,13 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 type CadenceDataCentre struct {
 	DataCentre       `json:",inline"`
-	CadenceNodeCount int  `json:"cadenceNodeCount"`
 	ClientEncryption bool `json:"clientEncryption,omitempty"`
 }
 
@@ -64,8 +62,6 @@ type BundledOpenSearchSpec struct {
 type CadenceSpec struct {
 	Cluster                     `json:",inline"`
 	DataCentres                 []*CadenceDataCentre  `json:"dataCentres,omitempty"`
-	ConcurrentResizes           int                   `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts       bool                  `json:"notifySupportContacts,omitempty"`
 	Description                 string                `json:"description,omitempty"`
 	ProvisioningType            string                `json:"provisioningType"`
 	BundledCassandraSpec        BundledCassandraSpec  `json:"bundledCassandraSpec,omitempty"`
@@ -162,27 +158,7 @@ func (c *Cadence) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
-func (cs *CadenceSpec) GetUpdatedFields(oldSpec *CadenceSpec) models.CadenceUpdatedFields {
-	updatedFields := models.CadenceUpdatedFields{}
-
-	if cs.DataCentres[0].NodeSize != oldSpec.DataCentres[0].NodeSize {
-		updatedFields.NodeSizeUpdated = true
-	}
-
-	if cs.Description != oldSpec.Description {
-		updatedFields.DescriptionUpdated = true
-	}
-
-	if len(cs.TwoFactorDelete) != 0 {
-		if cs.TwoFactorDelete[0] != oldSpec.TwoFactorDelete[0] {
-			updatedFields.TwoFactorDeleteUpdated = true
-		}
-	}
-
-	return updatedFields
-}
-
-func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceAPIv2, error) {
+func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceCluster, error) {
 	var AWSArchival []*models.AWSArchival
 	var err error
 	if cs.EnableArchival {
@@ -198,15 +174,12 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 	case models.SharedProvisioningType:
 		sharedProvisioning = cs.SharedProvisioningToInstAPI()
 	case models.StandardProvisioningType, models.PackagedProvisioningType:
-		standardProvisioning, err = cs.StandardProvisioningToInstAPI()
-		if err != nil {
-			return nil, err
-		}
+		standardProvisioning = cs.StandardProvisioningToInstAPI()
 	}
 
-	return &models.CadenceAPIv2{
+	return &models.CadenceCluster{
 		CadenceVersion:        cs.Version,
-		DataCentres:           cs.DataCentresToInstAPI(),
+		DataCentres:           cs.DCsToInstAPI(),
 		Name:                  cs.Name,
 		PCIComplianceMode:     cs.PCICompliance,
 		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
@@ -219,7 +192,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 	}, nil
 }
 
-func (cs *CadenceSpec) StandardProvisioningToInstAPI() ([]*models.CadenceStandardProvisioning, error) {
+func (cs *CadenceSpec) StandardProvisioningToInstAPI() []*models.CadenceStandardProvisioning {
 	stdProvisioning := &models.CadenceStandardProvisioning{
 		TargetCassandra: &models.TargetCassandra{
 			DependencyCDCID:   cs.TargetCassandraCDCID,
@@ -228,13 +201,6 @@ func (cs *CadenceSpec) StandardProvisioningToInstAPI() ([]*models.CadenceStandar
 	}
 
 	if cs.UseAdvancedVisibility {
-		if cs.TargetKafkaVPCType == "" ||
-			cs.TargetKafkaCDCID == "" ||
-			cs.TargetOpenSearchVPCType == "" ||
-			cs.TargetOpenSearchCDCID == "" {
-			return nil, models.ErrEmptyAdvancedVisibility
-		}
-
 		stdProvisioning.AdvancedVisibility = []*models.AdvancedVisibility{
 			{
 				TargetKafka: &models.TargetKafka{
@@ -249,7 +215,7 @@ func (cs *CadenceSpec) StandardProvisioningToInstAPI() ([]*models.CadenceStandar
 		}
 	}
 
-	return []*models.CadenceStandardProvisioning{stdProvisioning}, nil
+	return []*models.CadenceStandardProvisioning{stdProvisioning}
 }
 
 func (cs *CadenceSpec) SharedProvisioningToInstAPI() []*models.CadenceSharedProvisioning {
@@ -296,83 +262,83 @@ func (cs *CadenceSpec) GetSecret(ctx context.Context, k8sClient client.Client) (
 }
 
 func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
-	cadenceDC := &models.CadenceDataCentre{
+	cloudProviderSettings := cdc.CloudProviderSettingsToInstAPI()
+	return &models.CadenceDataCentre{
 		ClientToClusterEncryption: cdc.ClientEncryption,
-		DataCentre: modelsv2.DataCentre{
+		DataCentre: models.DataCentre{
 			CloudProvider:       cdc.CloudProvider,
 			Name:                cdc.Name,
 			Network:             cdc.Network,
 			NodeSize:            cdc.NodeSize,
-			NumberOfNodes:       int32(cdc.CadenceNodeCount),
+			NumberOfNodes:       cdc.NodesNumber,
 			Region:              cdc.Region,
 			ProviderAccountName: cdc.ProviderAccountName,
+			AWSSettings:         cloudProviderSettings.AWSSettings,
+			GCPSettings:         cloudProviderSettings.GCPSettings,
+			AzureSettings:       cloudProviderSettings.AzureSettings,
+			Tags:                cdc.TagsToInstAPI(),
 		},
 	}
-
-	cdc.TagsToInstAPI(&cadenceDC.DataCentre)
-
-	cdc.CloudProviderSettingsToInstAPI(&cadenceDC.DataCentre)
-
-	return cadenceDC
 }
 
-func (cs *CadenceSpec) DataCentresToInstAPI() []*models.CadenceDataCentre {
-	var instDCs []*models.CadenceDataCentre
-	for _, k8sDC := range cs.DataCentres {
-		instDCs = append(instDCs, k8sDC.ToInstAPI())
+func (cs *CadenceSpec) DCsToInstAPI() (iDCs []*models.CadenceDataCentre) {
+	for _, dc := range cs.DataCentres {
+		iDCs = append(iDCs, dc.ToInstAPI())
 	}
-	return instDCs
+	return
 }
 
-func (cst *CadenceStatus) SetStatusFromInst(instStatus *models.CadenceAPIv2) {
-	cst.ID = instStatus.ID
-	cst.Status = instStatus.Status
-	cst.CurrentClusterOperationStatus = instStatus.CurrentClusterOperationStatus
-	cst.SetDCsStatusFromInst(instStatus.DataCentres)
+func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
+	iCad := models.CadenceCluster{}
+	err := json.Unmarshal(iData, &iCad)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Cadence{
+		TypeMeta:   c.TypeMeta,
+		ObjectMeta: c.ObjectMeta,
+		Spec:       c.Spec.FromInstAPI(iCad),
+		Status:     c.Status.FromInstAPI(iCad),
+	}, nil
 }
 
-func (cst *CadenceStatus) SetDCsStatusFromInst(instDCs []*models.CadenceDataCentre) {
-	dcs := []*DataCentreStatus{}
-	for _, instDC := range instDCs {
-		dc := &DataCentreStatus{
-			ID:         instDC.ID,
-			Status:     instDC.Status,
-			NodeNumber: instDC.NumberOfNodes,
-		}
-		dc.SetNodesFromInstAPI(instDC.Nodes)
-		dcs = append(dcs, dc)
-	}
-	cst.DataCentres = dcs
+func (cs *CadenceSpec) FromInstAPI(iCad models.CadenceCluster) (spec CadenceSpec) {
+	spec.DataCentres = cs.DCsFromInstAPI(iCad.DataCentres)
+	return
 }
 
-func (cst *CadenceStatus) AreStatusesEqual(instCadence *models.CadenceAPIv2) bool {
-	if cst.Status != instCadence.Status ||
-		cst.CurrentClusterOperationStatus != instCadence.CurrentClusterOperationStatus ||
-		!cst.AreDCsEqual(instCadence.DataCentres) {
-		return false
+func (cs *CadenceSpec) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*CadenceDataCentre) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &CadenceDataCentre{
+			DataCentre:       cs.Cluster.DCFromInstAPI(iDC.DataCentre),
+			ClientEncryption: iDC.ClientToClusterEncryption,
+		})
 	}
-
-	return true
+	return
 }
 
-func (cst *CadenceStatus) AreDCsEqual(instDCs []*models.CadenceDataCentre) bool {
-	if len(cst.DataCentres) != len(instDCs) {
-		return false
+func (cs *CadenceStatus) FromInstAPI(iCass models.CadenceCluster) CadenceStatus {
+	return CadenceStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                            iCass.ID,
+			State:                         iCass.Status,
+			DataCentres:                   cs.DCsFromInstAPI(iCass.DataCentres),
+			CurrentClusterOperationStatus: iCass.CurrentClusterOperationStatus,
+			MaintenanceEvents:             cs.MaintenanceEvents,
+		},
 	}
+}
 
-	for _, instDC := range instDCs {
-		for _, k8sDC := range cst.DataCentres {
-			if instDC.ID == k8sDC.ID {
-				if instDC.Status != k8sDC.Status ||
-					instDC.NumberOfNodes != k8sDC.NodeNumber ||
-					!k8sDC.AreNodesEqual(instDC.Nodes) {
-					return false
-				}
-
-				break
-			}
-		}
+func (cs *CadenceStatus) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
 	}
+	return
+}
 
-	return true
+func (cs *CadenceSpec) NewDCsUpdate() models.CadenceClusterAPIUpdate {
+	return models.CadenceClusterAPIUpdate{
+		DataCentres: cs.DCsToInstAPI(),
+	}
 }

@@ -106,7 +106,7 @@ func (k *KafkaConnect) ValidateCreate() error {
 			return err
 		}
 
-		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
+		if ((int(dc.NodesNumber)*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
 		}
 	}

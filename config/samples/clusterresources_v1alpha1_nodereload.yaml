@@ -5,8 +5,6 @@ metadata:
 spec:
   nodes:
     - bundle: "POSTGRESQL"
-      nodeID: "ce567c90-3ce4-49e7-9ac9-fc1f3f91e33e"
+      nodeID: "bdc73165-cc6e-47a7-87f4-0d821bc94979"
     - bundle: "POSTGRESQL"
-      nodeID: "e7acd145-8329-4577-9eaf-cc8dce4c54eb"
-    - bundle: "POSTGRESQL"
-      nodeID: "2f94dd6d-3a65-4ad6-81bd-d3db8115ad63"
+      nodeID: "2f2e7374-d178-4be0-830a-14003cf6e224"

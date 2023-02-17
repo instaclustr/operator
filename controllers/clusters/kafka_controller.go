@@ -52,10 +52,6 @@ type KafkaReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Kafka object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -67,11 +63,11 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Info("Kafka custom resource is not found", "namespaced name ", req.NamespacedName)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch Kafka", "request", req)
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch kafka.Annotations[models.ResourceStateAnnotation] {
@@ -87,67 +83,72 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.GenericEvent:
 		l.Info("Event isn't handled", "cluster name", kafka.Spec.Name, "request", req,
 			"event", kafka.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
 	}
 
-	return reconcile.Result{}, nil
+	return models.ExitReconcile, nil
 }
 
 func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
-	l = l.WithName("Creation Event")
+	l = l.WithName("Kafka creation Event")
 
+	var err error
 	if kafka.Status.ID == "" {
-		l.Info("Creating Kafka cluster",
+		l.Info("Creating cluster",
 			"cluster name", kafka.Spec.Name,
 			"data centres", kafka.Spec.DataCentres)
 
 		patch := kafka.NewPatch()
-		var err error
-
 		kafka.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, kafka.Spec.ToInstAPI())
 		if err != nil {
-			l.Error(err, "Cannot create Kafka cluster", "spec", kafka.Spec)
+			l.Error(err, "Cannot create cluster",
+				"spec", kafka.Spec,
+			)
 			return models.ReconcileRequeue
 		}
-		l.Info("Kafka cluster has been created", "cluster ID", kafka.Status.ID)
 
 		err = r.Status().Patch(ctx, kafka, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch Kafka cluster status from the Instaclustr API",
-				"spec", kafka.Spec)
+			l.Error(err, "Cannot patch cluster status",
+				"spec", kafka.Spec,
+			)
 			return models.ReconcileRequeue
 		}
 
 		kafka.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(kafka, models.DeletionFinalizer)
-
 		err = r.Patch(ctx, kafka, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch kafka", "kafka name", kafka.Spec.Name)
+			l.Error(err, "Cannot patch cluster resource",
+				"name", kafka.Spec.Name,
+			)
 			return models.ReconcileRequeue
 		}
 	}
 
-	err := r.startClusterStatusJob(kafka)
+	err = r.startClusterStatusJob(kafka)
 	if err != nil {
 		l.Error(err, "Cannot start cluster status job",
-			"kafka cluster ID", kafka.Status.ID)
+			"cluster ID", kafka.Status.ID)
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	l.Info("Cluster has been created",
+		"cluster ID", kafka.Status.ID)
+
+	return models.ExitReconcile
 }
 
 func (r *KafkaReconciler) handleUpdateCluster(
 	k *clustersv1alpha1.Kafka,
 	l logr.Logger,
 ) reconcile.Result {
-	l = l.WithName("Update Event")
+	l = l.WithName("Kafka update Event")
 
-	if k.Status.ClusterStatus.Status != StatusRUNNING {
+	if k.Status.ClusterStatus.State != StatusRUNNING {
 		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
 			"cluster name", k.Spec.Name,
-			"cluster status", k.Status.ClusterStatus.Status)
+			"cluster state", k.Status.ClusterStatus.State)
 		return models.ReconcileRequeue
 	}
 
@@ -156,9 +157,9 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		instaclustr.KafkaEndpoint,
 		k.Spec.ToInstAPIUpdate())
 	if err != nil {
-		l.Error(err, "Unable to update cluster, got error from Instaclustr",
+		l.Error(err, "Unable to update cluster on Instaclustr",
 			"cluster name", k.Spec.Name,
-			"cluster status", k.Status.ClusterStatus.Status)
+			"cluster state", k.Status.ClusterStatus.State)
 		return models.ReconcileRequeue
 	}
 
@@ -166,40 +167,42 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		"cluster ID", k.Status.ID,
 		"data centres", k.Spec.DataCentres)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
-	l = l.WithName("Deletion Event")
+	l = l.WithName("Kafka deletion Event")
 
-	instaCluster, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
+	_, err := r.API.GetKafka(kafka.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(err, "Cannot get Kafka cluster",
+		l.Error(err, "Cannot get cluster from the Instaclustr API",
 			"cluster name", kafka.Spec.Name,
-			"status", kafka.Status.ClusterStatus.Status)
+			"cluster state", kafka.Status.ClusterStatus.State)
 		return models.ReconcileRequeue
 	}
 
 	patch := kafka.NewPatch()
-
-	if instaCluster.Status != "" {
-		l.Info("Sending cluster deletion to Instaclustr API",
-			"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
+	if !errors.Is(err, instaclustr.NotFound) {
+		l.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", kafka.Spec.Name,
+			"cluster ID", kafka.Status.ID)
 
 		err = r.API.DeleteCluster(kafka.Status.ID, instaclustr.KafkaEndpoint)
 		if err != nil {
-			l.Error(err, "Cannot delete Kafka cluster",
-				"cluster name", kafka.Spec.Name, "cluster status", kafka.Status.ClusterStatus.Status)
+			l.Error(err, "Cannot delete cluster",
+				"cluster name", kafka.Spec.Name,
+				"cluster state", kafka.Status.ClusterStatus.State)
 			return models.ReconcileRequeue
 		}
 
 		if kafka.Spec.TwoFactorDelete != nil {
 			kafka.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 			kafka.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
-			err := r.Patch(ctx, kafka, patch)
+			err = r.Patch(ctx, kafka, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Kafka cluster",
-					"cluster name", kafka.Spec.Name, "status", kafka.Status.Status)
+				l.Error(err, "Cannot patch cluster resource",
+					"cluster name", kafka.Spec.Name,
+					"cluster state", kafka.Status.State)
 				return models.ReconcileRequeue
 			}
 
@@ -208,7 +211,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 				"remove \"triggered\" from Instaclustr.com/ClusterDeletionAnnotation annotation.",
 				"cluster ID", kafka.Status.ID)
 
-			return reconcile.Result{}
+			return models.ExitReconcile
 		}
 	}
 
@@ -217,16 +220,16 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 	kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, kafka, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch kafka remove recourse",
+		l.Error(err, "Cannot patch cluster resource",
 			"cluster name", kafka.Spec.Name)
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Kafka cluster was deleted",
+	l.Info("Cluster was deleted",
 		"cluster name", kafka.Spec.Name,
 		"cluster ID", kafka.Status.ID)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *KafkaReconciler) startClusterStatusJob(kafka *clustersv1alpha1.Kafka) error {
@@ -246,65 +249,73 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 		namespacedName := client.ObjectKeyFromObject(kafka)
 		err := r.Get(context.Background(), namespacedName, kafka)
 		if k8serrors.IsNotFound(err) {
-			l.Info("Kafka resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 		if err != nil {
-			l.Error(err, "Cannot get kafka custom resource",
+			l.Error(err, "Cannot get cluster resource",
 				"resource name", kafka.Name)
 			return err
 		}
 
-		instaclusterStatus, err := r.API.GetClusterStatus(kafka.Status.ID, instaclustr.KafkaEndpoint)
-		if errors.Is(err, instaclustr.NotFound) {
-			patch := kafka.NewPatch()
-			l.Info("Kafka cluster is not found in Instaclustr. Deleting resource.",
-				"cluster ID", kafka.Status.ClusterStatus.ID,
-				"cluster name", kafka.Spec.Name,
-				"namespaced name", namespacedName)
+		iData, err := r.API.GetKafka(kafka.Status.ID)
+		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				patch := kafka.NewPatch()
+				l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+					"cluster ID", kafka.Status.ClusterStatus.ID,
+					"cluster name", kafka.Spec.Name,
+					"namespaced name", namespacedName)
 
-			controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
-			kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-			err = r.Patch(context.Background(), kafka, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch kafka remove recourse",
-					"cluster name", kafka.Spec.Name)
-				return err
+				controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
+				kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+				err = r.Patch(context.Background(), kafka, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch cluster resource",
+						"cluster name", kafka.Spec.Name)
+					return err
+				}
+
+				l.Info("Cluster was deleted",
+					"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
+
+				r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
+
+				return nil
 			}
 
-			l.Info("Kafka was deleted",
-				"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
-
-			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
-
-			return nil
-		}
-		if err != nil {
-			l.Error(err, "Cannot get kafka instaclusterStatus", "cluster ID", kafka.Status.ID)
+			l.Error(err, "Cannot get cluster from the Instaclustr API", "cluster ID", kafka.Status.ID)
 			return err
 		}
 
-		if !areStatusesEqual(instaclusterStatus, &kafka.Status.ClusterStatus) {
-			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instacluster status", instaclusterStatus,
+		iKafka, err := kafka.FromInstAPI(iData)
+		if err != nil {
+			l.Error(err, "Cannot convert cluster from the Instaclustr API",
+				"cluster ID", kafka.Status.ID,
+			)
+			return err
+		}
+
+		if !areStatusesEqual(&kafka.Status.ClusterStatus, &iKafka.Status.ClusterStatus) {
+			l.Info("Updating status",
+				"instacluster status", iKafka.Status,
 				"k8s status", kafka.Status.ClusterStatus)
 
 			patch := kafka.NewPatch()
-			instaclusterStatus.MaintenanceEvents = kafka.Status.MaintenanceEvents
-			kafka.Status.ClusterStatus = *instaclusterStatus
-			err := r.Status().Patch(context.Background(), kafka, patch)
+			kafka.Status.ClusterStatus = iKafka.Status.ClusterStatus
+			err = r.Status().Patch(context.Background(), kafka, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Kafka cluster",
-					"cluster name", kafka.Spec.Name, "status", kafka.Status.Status)
+				l.Error(err, "Cannot patch cluster cluster",
+					"cluster name", kafka.Spec.Name, "cluster state", kafka.Status.State)
 				return err
 			}
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)
 		if err != nil {
-			l.Error(err, "Cannot get Kafka cluster maintenance events",
+			l.Error(err, "Cannot get cluster maintenance events",
 				"cluster name", kafka.Spec.Name,
 				"cluster ID", kafka.Status.ID,
 			)
@@ -317,7 +328,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			kafka.Status.MaintenanceEvents = maintEvents
 			err = r.Status().Patch(context.TODO(), kafka, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Kafka cluster maintenance events",
+				l.Error(err, "Cannot patch cluster maintenance events",
 					"cluster name", kafka.Spec.Name,
 					"cluster ID", kafka.Status.ID,
 				)
@@ -325,7 +336,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 				return err
 			}
 
-			l.Info("Kafka cluster maintenance events were updated",
+			l.Info("Cluster maintenance events were updated",
 				"cluster ID", kafka.Status.ID,
 				"events", kafka.Status.MaintenanceEvents,
 			)

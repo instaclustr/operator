@@ -65,82 +65,83 @@ type RedisReconciler struct {
 func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	redisCluster := &clustersv1alpha1.Redis{}
-	err := r.Client.Get(ctx, req.NamespacedName, redisCluster)
+	redis := &clustersv1alpha1.Redis{}
+	err := r.Client.Get(ctx, req.NamespacedName, redis)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return models.ReconcileResult, nil
+			logger.Info("Redis cluster resource is not found",
+				"resource name", req.NamespacedName,
+			)
+			return models.ExitReconcile, nil
 		}
 
 		logger.Error(err, "Unable to fetch Redis cluster",
 			"resource name", req.NamespacedName,
 		)
-		return models.ReconcileResult, nil
+		return models.ExitReconcile, nil
 	}
 
-	switch redisCluster.Annotations[models.ResourceStateAnnotation] {
+	switch redis.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.HandleCreateCluster(ctx, redisCluster, logger), nil
+		return r.handleCreateCluster(ctx, redis, logger), nil
 	case models.UpdatingEvent:
-		return r.HandleUpdateCluster(ctx, redisCluster, logger), nil
+		return r.handleUpdateCluster(ctx, redis, logger), nil
 	case models.DeletingEvent:
-		return r.HandleDeleteCluster(ctx, redisCluster, logger), err
+		return r.handleDeleteCluster(ctx, redis, logger), nil
 	case models.GenericEvent:
 		logger.Info("Redis generic event isn't handled",
-			"cluster name", redisCluster.Spec.Name,
+			"cluster name", redis.Spec.Name,
 			"request", req,
 		)
-		return models.ReconcileResult, err
+		return models.ExitReconcile, nil
 	default:
 		logger.Info("Unknown event isn't handled",
-			"cluster name", redisCluster.Spec.Name,
+			"cluster name", redis.Spec.Name,
 			"request", req,
 		)
-		return models.ReconcileResult, err
+		return models.ExitReconcile, nil
 	}
 }
 
-func (r *RedisReconciler) HandleCreateCluster(
+func (r *RedisReconciler) handleCreateCluster(
 	ctx context.Context,
-	redisCluster *clustersv1alpha1.Redis,
+	redis *clustersv1alpha1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
 	var err error
-	if redisCluster.Status.ID == "" {
+	if redis.Status.ID == "" {
 		var id string
-		if redisCluster.Spec.HasRestore() {
+		if redis.Spec.HasRestore() {
 			logger.Info(
 				"Creating Redis cluster from backup",
-				"original cluster ID", redisCluster.Spec.RestoreFrom.ClusterID,
+				"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreRedisCluster(redisCluster.Spec.RestoreFrom)
+			id, err = r.API.RestoreRedisCluster(redis.Spec.RestoreFrom)
 			if err != nil {
 				logger.Error(
 					err, "Cannot create Redis cluster from backup",
-					"original cluster ID", redisCluster.Spec.RestoreFrom.ClusterID,
+					"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
 				)
 				return models.ReconcileRequeue
 			}
 
 			logger.Info(
 				"Redis cluster was created from backup",
-				"original cluster ID", redisCluster.Spec.RestoreFrom.ClusterID,
+				"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
 			)
 		} else {
 			logger.Info(
 				"Creating Redis cluster",
-				"cluster name", redisCluster.Spec.Name,
-				"data centres", redisCluster.Spec.DataCentres,
+				"cluster name", redis.Spec.Name,
+				"data centres", redis.Spec.DataCentres,
 			)
 
-			redisSpec := redisCluster.Spec.ToInstAPIv2()
-
-			id, err = r.API.CreateCluster(instaclustr.RedisEndpoint, redisSpec)
+			id, err = r.API.CreateCluster(instaclustr.RedisEndpoint, redis.Spec.ToInstAPI())
 			if err != nil {
 				logger.Error(
 					err, "Cannot create Redis cluster",
-					"cluster manifest", redisCluster.Spec,
+					"cluster manifest", redis.Spec,
 				)
 				return models.ReconcileRequeue
 			}
@@ -148,47 +149,47 @@ func (r *RedisReconciler) HandleCreateCluster(
 			logger.Info(
 				"Redis cluster was created",
 				"cluster ID", id,
-				"cluster name", redisCluster.Spec.Name,
+				"cluster name", redis.Spec.Name,
 			)
 		}
 
-		patch := redisCluster.NewPatch()
-		redisCluster.Status.ID = id
-		err = r.Status().Patch(ctx, redisCluster, patch)
+		patch := redis.NewPatch()
+		redis.Status.ID = id
+		err = r.Status().Patch(ctx, redis, patch)
 		if err != nil {
 			logger.Error(err, "Cannot update Redis cluster status",
-				"cluster name", redisCluster.Spec.Name,
+				"cluster name", redis.Spec.Name,
 			)
 			return models.ReconcileRequeue
 		}
 	}
 
-	patch := redisCluster.NewPatch()
-	controllerutil.AddFinalizer(redisCluster, models.DeletionFinalizer)
-	redisCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-	redisCluster.Annotations[models.DeletionConfirmed] = models.False
-	err = r.Patch(ctx, redisCluster, patch)
+	patch := redis.NewPatch()
+	controllerutil.AddFinalizer(redis, models.DeletionFinalizer)
+	redis.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+	redis.Annotations[models.DeletionConfirmed] = models.False
+	err = r.Patch(ctx, redis, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Redis cluster",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster metadata", redisCluster.ObjectMeta,
+			"cluster name", redis.Spec.Name,
+			"cluster metadata", redis.ObjectMeta,
 		)
 		return models.ReconcileRequeue
 	}
 
-	err = r.startClusterStatusJob(redisCluster)
+	err = r.startClusterStatusJob(redis)
 	if err != nil {
 		logger.Error(err, "Cannot start cluster status job",
-			"redis cluster ID", redisCluster.Status.ID,
+			"redis cluster ID", redis.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	err = r.startClusterBackupsJob(redisCluster)
+	err = r.startClusterBackupsJob(redis)
 	if err != nil {
 		logger.Error(err, "Cannot start Redis cluster backups check job",
-			"cluster ID", redisCluster.Status.ID,
+			"cluster ID", redis.Status.ID,
 		)
 
 		return models.ReconcileRequeue
@@ -196,176 +197,169 @@ func (r *RedisReconciler) HandleCreateCluster(
 
 	logger.Info(
 		"Redis resource has been created",
-		"cluster name", redisCluster.Name,
-		"cluster ID", redisCluster.Status.ID,
-		"kind", redisCluster.Kind,
-		"api version", redisCluster.APIVersion,
-		"namespace", redisCluster.Namespace,
+		"cluster name", redis.Name,
+		"cluster ID", redis.Status.ID,
+		"kind", redis.Kind,
+		"api version", redis.APIVersion,
+		"namespace", redis.Namespace,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
-func (r *RedisReconciler) HandleUpdateCluster(
+func (r *RedisReconciler) handleUpdateCluster(
 	ctx context.Context,
-	redisCluster *clustersv1alpha1.Redis,
+	redis *clustersv1alpha1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
-	instRedis, err := r.API.GetRedis(redisCluster.Status.ID)
+	iData, err := r.API.GetRedis(redis.Status.ID)
 	if err != nil {
 		logger.Error(
-			err, "Cannot get Redis cluster status from the Instaclustr API",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster ID", redisCluster.Status.ID,
+			err, "Cannot get Redis cluster from the Instaclustr API",
+			"cluster name", redis.Spec.Name,
+			"cluster ID", redis.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	if instRedis.Status != models.RunningStatus {
-		logger.Info("Cluster is not ready to update",
-			"cluster ID", redisCluster.Status.ID,
-		)
-
-		return models.ReconcileRequeue
-	}
-
-	err = r.API.UpdateCluster(redisCluster.Status.ID, instaclustr.RedisEndpoint, redisCluster.Spec.DCsToInstAPIUpdate())
+	iRedis, err := redis.FromInstAPI(iData)
 	if err != nil {
-		logger.Error(err, "Cannot update Redis cluster data centres",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster status", redisCluster.Status,
-			"data centres", redisCluster.Spec.DataCentres,
+		logger.Error(
+			err, "Cannot convert Redis cluster from the Instaclustr API",
+			"cluster name", redis.Spec.Name,
+			"cluster ID", redis.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	err = r.updateDescriptionAndTwoFactorDelete(redisCluster)
-	if err != nil {
-		logger.Error(err, "Cannot update description and twoFactorDelete",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster status", redisCluster.Status,
-			"two factor delete", redisCluster.Spec.TwoFactorDelete,
-		)
+	if !redis.Spec.IsEqual(iRedis.Spec) {
+		err = r.API.UpdateCluster(redis.Status.ID, instaclustr.RedisEndpoint, redis.Spec.DCsToInstAPIUpdate())
+		if err != nil {
+			logger.Error(err, "Cannot update Redis cluster data centres",
+				"cluster name", redis.Spec.Name,
+				"cluster status", redis.Status,
+				"data centres", redis.Spec.DataCentres,
+			)
 
-		return models.ReconcileRequeue
+			return models.ReconcileRequeue
+		}
 	}
 
-	patch := redisCluster.NewPatch()
-	redisCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Patch(ctx, redisCluster, patch)
+	patch := redis.NewPatch()
+	redis.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.Patch(ctx, redis, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Redis cluster after update",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster metadata", redisCluster.ObjectMeta,
+			"cluster name", redis.Spec.Name,
+			"cluster metadata", redis.ObjectMeta,
 		)
 
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Redis cluster was updated",
-		"cluster name", redisCluster.Spec.Name,
+		"cluster name", redis.Spec.Name,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
-func (r *RedisReconciler) HandleDeleteCluster(
+func (r *RedisReconciler) handleDeleteCluster(
 	ctx context.Context,
-	redisCluster *clustersv1alpha1.Redis,
+	redis *clustersv1alpha1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
-	status, err := r.API.GetRedis(redisCluster.Status.ID)
+	_, err := r.API.GetRedis(redis.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get Redis cluster status from Instaclustr",
-			"cluster ID", redisCluster.Status.ID,
-			"cluster name", redisCluster.Spec.Name,
+			"cluster ID", redis.Status.ID,
+			"cluster name", redis.Spec.Name,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	if len(redisCluster.Spec.TwoFactorDelete) != 0 &&
-		redisCluster.Annotations[models.DeletionConfirmed] != models.True {
+	if !clusterresourcesv1alpha1.IsClusterBeingDeleted(redis.DeletionTimestamp, len(redis.Spec.TwoFactorDelete), redis.Annotations[models.DeletionConfirmed]) {
 		logger.Info("Redis cluster deletion is not confirmed",
-			"cluster ID", redisCluster.Status.ID,
-			"cluster name", redisCluster.Spec.Name,
+			"cluster ID", redis.Status.ID,
+			"cluster name", redis.Spec.Name,
 		)
 
-		patch := redisCluster.NewPatch()
-		redisCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err = r.Patch(ctx, redisCluster, patch)
+		patch := redis.NewPatch()
+		redis.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+		err = r.Patch(ctx, redis, patch)
 		if err != nil {
 			logger.Error(err, "Cannot patch Redis cluster metadata after finalizer removal",
-				"cluster name", redisCluster.Spec.Name,
-				"cluster ID", redisCluster.Status.ID,
+				"cluster name", redis.Spec.Name,
+				"cluster ID", redis.Status.ID,
 			)
 
 			return models.ReconcileRequeue
 		}
 
-		return models.ReconcileResult
+		return models.ExitReconcile
 	}
 
-	if status != nil {
-		err = r.API.DeleteCluster(redisCluster.Status.ID, instaclustr.RedisEndpoint)
+	if !errors.Is(err, instaclustr.NotFound) {
+		err = r.API.DeleteCluster(redis.Status.ID, instaclustr.RedisEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete Redis cluster",
-				"cluster name", redisCluster.Spec.Name,
-				"cluster status", redisCluster.Status.Status,
+				"cluster name", redis.Spec.Name,
+				"cluster status", redis.Status.State,
 			)
 
 			return models.ReconcileRequeue
 		}
 
 		logger.Info("Redis cluster is being deleted",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster ID", redisCluster.Status.ID,
+			"cluster name", redis.Spec.Name,
+			"cluster ID", redis.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	r.Scheduler.RemoveJob(redisCluster.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
 
 	logger.Info("Deleting cluster backup resources",
-		"cluster ID", redisCluster.Status.ID,
+		"cluster ID", redis.Status.ID,
 	)
 
-	err = r.deleteBackups(ctx, redisCluster.Status.ID, redisCluster.Namespace)
+	err = r.deleteBackups(ctx, redis.Status.ID, redis.Namespace)
 	if err != nil {
 		logger.Error(err, "Cannot delete cluster backup resources",
-			"cluster ID", redisCluster.Status.ID,
+			"cluster ID", redis.Status.ID,
 		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Cluster backup resources were deleted",
-		"cluster ID", redisCluster.Status.ID,
+		"cluster ID", redis.Status.ID,
 	)
 
-	r.Scheduler.RemoveJob(redisCluster.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
 
-	patch := redisCluster.NewPatch()
-	controllerutil.RemoveFinalizer(redisCluster, models.DeletionFinalizer)
-	redisCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.Patch(ctx, redisCluster, patch)
+	patch := redis.NewPatch()
+	controllerutil.RemoveFinalizer(redis, models.DeletionFinalizer)
+	redis.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	err = r.Patch(ctx, redis, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Redis cluster metadata after finalizer removal",
-			"cluster name", redisCluster.Spec.Name,
-			"cluster ID", redisCluster.Status.ID,
+			"cluster name", redis.Spec.Name,
+			"cluster ID", redis.Status.ID,
 		)
 
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Redis cluster was deleted",
-		"cluster name", redisCluster.Spec.Name,
-		"cluster ID", redisCluster.Status.ID,
+		"cluster name", redis.Spec.Name,
+		"cluster ID", redis.Status.ID,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *RedisReconciler) startClusterStatusJob(cluster *clustersv1alpha1.Redis) error {
@@ -390,97 +384,105 @@ func (r *RedisReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Redis
 	return nil
 }
 
-func (r *RedisReconciler) newWatchStatusJob(cluster *clustersv1alpha1.Redis) scheduler.Job {
+func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) scheduler.Job {
 	l := log.Log.WithValues("component", "redisStatusClusterJob")
 	return func() error {
-		err := r.Get(context.TODO(), types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: redis.Name, Namespace: redis.Namespace}, redis)
 		if err != nil {
 			return err
 		}
 
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
+		if clusterresourcesv1alpha1.IsClusterBeingDeleted(redis.DeletionTimestamp, len(redis.Spec.TwoFactorDelete), redis.Annotations[models.DeletionConfirmed]) {
 			l.Info("Redis cluster is being deleted. Status check job skipped",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
+				"cluster name", redis.Spec.Name,
+				"cluster ID", redis.Status.ID,
 			)
 
 			return nil
 		}
 
-		instRedis, err := r.API.GetRedis(cluster.Status.ID)
+		iData, err := r.API.GetRedis(redis.Status.ID)
 		if err != nil {
-			l.Error(err, "Cannot get Redis cluster status",
-				"cluster ID", cluster.Status.ID,
+			l.Error(err, "Cannot get Redis cluster status from Instaclustr",
+				"cluster ID", redis.Status.ID,
 			)
 
 			return err
 		}
 
-		if !cluster.Status.AreEqual(instRedis) {
-			l.Info("Updating Redis cluster status",
-				"new status", instRedis,
-				"old status", cluster.Status,
+		iRedis, err := redis.FromInstAPI(iData)
+		if err != nil {
+			l.Error(err, "Cannot convert Redis cluster status from Instaclustr",
+				"cluster ID", redis.Status.ID,
 			)
 
-			patch := cluster.NewPatch()
-			cluster.Status.SetFromInstAPI(instRedis)
-			err = r.Status().Patch(context.Background(), cluster, patch)
+			return err
+		}
+
+		if !areStatusesEqual(&iRedis.Status.ClusterStatus, &redis.Status.ClusterStatus) {
+			l.Info("Updating Redis cluster status",
+				"new status", iRedis.Status,
+				"old status", redis.Status,
+			)
+
+			patch := redis.NewPatch()
+			redis.Status.ClusterStatus = iRedis.Status.ClusterStatus
+			err = r.Status().Patch(context.Background(), redis, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Redis cluster",
-					"cluster name", cluster.Spec.Name,
-					"status", cluster.Status.Status,
+					"cluster name", redis.Spec.Name,
+					"status", redis.Status.State,
 				)
 
 				return err
 			}
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(cluster.Status.ID)
+		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			!redis.Spec.IsEqual(iRedis.Spec) {
+			patch := redis.NewPatch()
+			redis.Spec = iRedis.Spec
+			err = r.Patch(context.Background(), redis, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Redis cluster spec",
+					"cluster ID", redis.Status.ID,
+				)
+
+				return err
+			}
+
+			l.Info("Redis cluster spec has been updated",
+				"cluster ID", redis.Status.ID,
+			)
+		}
+
+		maintEvents, err := r.API.GetMaintenanceEvents(redis.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get Redis cluster maintenance events",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
+				"cluster name", redis.Spec.Name,
+				"cluster ID", redis.Status.ID,
 			)
 
 			return err
 		}
 
-		if !cluster.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := cluster.NewPatch()
-			cluster.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), cluster, patch)
+		if !redis.Status.AreMaintenanceEventsEqual(maintEvents) {
+			patch := redis.NewPatch()
+			redis.Status.MaintenanceEvents = maintEvents
+			err = r.Status().Patch(context.TODO(), redis, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Redis cluster maintenance events",
-					"cluster name", cluster.Spec.Name,
-					"cluster ID", cluster.Status.ID,
+					"cluster name", redis.Spec.Name,
+					"cluster ID", redis.Status.ID,
 				)
 
 				return err
 			}
 
 			l.Info("Redis cluster maintenance events were updated",
-				"cluster ID", cluster.Status.ID,
-				"events", cluster.Status.MaintenanceEvents,
+				"cluster ID", redis.Status.ID,
+				"events", redis.Status.MaintenanceEvents,
 			)
-		}
-
-		if instRedis.CurrentClusterOperationStatus == models.NoOperation {
-			if !cluster.Spec.IsEqual(instRedis) {
-				patch := cluster.NewPatch()
-				cluster.Spec.SetFromInstAPI(instRedis)
-				err = r.Patch(context.Background(), cluster, patch)
-				if err != nil {
-					l.Error(err, "Cannot patch Redis cluster spec",
-						"cluster ID", cluster.Status.ID,
-					)
-
-					return err
-				}
-
-				l.Info("Redis cluster spec has been updated",
-					"cluster ID", cluster.Status.ID,
-				)
-			}
 		}
 
 		return nil
@@ -636,20 +638,6 @@ func (r *RedisReconciler) deleteBackups(ctx context.Context, clusterID, namespac
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (r *RedisReconciler) updateDescriptionAndTwoFactorDelete(cluster *clustersv1alpha1.Redis) error {
-	var twoFactorDelete *clustersv1alpha1.TwoFactorDelete
-	if len(cluster.Spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = cluster.Spec.TwoFactorDelete[0]
-	}
-
-	err := r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, cluster.Status.ID, cluster.Spec.Description, twoFactorDelete)
-	if err != nil {
-		return err
 	}
 
 	return nil

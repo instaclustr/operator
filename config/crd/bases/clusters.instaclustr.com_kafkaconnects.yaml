@@ -145,12 +145,10 @@ spec:
                     nodeSize:
                       type: string
                     nodesNumber:
-                      format: int32
                       type: integer
                     region:
                       type: string
                     replicationFactor:
-                      format: int32
                       type: integer
                     tags:
                       additionalProperties:
@@ -261,7 +259,6 @@ spec:
                     id:
                       type: string
                     nodeNumber:
-                      format: int32
                       type: integer
                     nodes:
                       items:
@@ -318,7 +315,7 @@ spec:
                   openSearchDashboardsNodeSize:
                     type: string
                 type: object
-              status:
+              state:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

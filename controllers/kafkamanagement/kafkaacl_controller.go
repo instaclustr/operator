@@ -65,11 +65,11 @@ func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Kafka ACL resource is not found", "request", req)
-			return models.ReconcileResult, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch kafka ACL", "request", req)
-		return models.ReconcileResult, nil
+		return models.ExitReconcile, nil
 	}
 
 	switch kafkaACL.Annotations[models.ResourceStateAnnotation] {
@@ -87,7 +87,7 @@ func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			"user query", kafkaACL.Spec.UserQuery,
 			"request", req,
 			"event", kafkaACL.Annotations[models.ResourceStateAnnotation])
-		return models.ReconcileResult, nil
+		return models.ExitReconcile, nil
 	}
 }
 
@@ -139,7 +139,7 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 		)
 	}
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *KafkaACLReconciler) handleUpdateKafkaACL(
@@ -170,7 +170,7 @@ func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 		"cluster ID", kafkaACL.Spec.ClusterID,
 		"user query", kafkaACL.Spec.UserQuery,
 	)
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 func (r *KafkaACLReconciler) handleDeleteKafkaACL(
@@ -225,7 +225,7 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 		"user query", kafkaACL.Spec.UserQuery,
 	)
 
-	return models.ReconcileResult
+	return models.ExitReconcile
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -24,29 +26,14 @@ import (
 )
 
 type ZookeeperDataCentre struct {
-	Name                     string                   `json:"name,omitempty"`
-	Region                   string                   `json:"region"`
-	CloudProvider            string                   `json:"cloudProvider"`
-	ProviderAccountName      string                   `json:"providerAccountName,omitempty"`
-	CloudProviderSettings    []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
-	Network                  string                   `json:"network"`
-	NodeSize                 string                   `json:"nodeSize"`
-	NodesNumber              int32                    `json:"nodesNumber"`
-	Tags                     map[string]string        `json:"tags,omitempty"`
-	ClientToServerEncryption bool                     `json:"clientToServerEncryption"`
+	DataCentre               `json:",inline"`
+	ClientToServerEncryption bool `json:"clientToServerEncryption"`
 }
 
 // ZookeeperSpec defines the desired state of Zookeeper
 type ZookeeperSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	Name                  string                 `json:"name"`
-	Version               string                 `json:"version"`
-	SLATier               string                 `json:"slaTier"`
-	TwoFactorDelete       []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
-	PrivateNetworkCluster bool                   `json:"privateNetworkCluster,omitempty"`
-	DataCentres           []*ZookeeperDataCentre `json:"dataCentres"`
+	Cluster     `json:",inline"`
+	DataCentres []*ZookeeperDataCentre `json:"dataCentres"`
 }
 
 // ZookeeperStatus defines the observed state of Zookeeper
@@ -82,12 +69,94 @@ func init() {
 	SchemeBuilder.Register(&Zookeeper{}, &ZookeeperList{})
 }
 
-func (k *Zookeeper) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(k).String() + "/" + jobName
+func (z *Zookeeper) GetJobID(jobName string) string {
+	return client.ObjectKeyFromObject(z).String() + "/" + jobName
 }
 
-func (k *Zookeeper) NewPatch() client.Patch {
-	old := k.DeepCopy()
+func (z *Zookeeper) NewPatch() client.Patch {
+	old := z.DeepCopy()
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
+}
+
+func (z *Zookeeper) FromInstAPI(iData []byte) (*Zookeeper, error) {
+	iZook := models.ZookeeperCluster{}
+	err := json.Unmarshal(iData, &iZook)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Zookeeper{
+		TypeMeta:   z.TypeMeta,
+		ObjectMeta: z.ObjectMeta,
+		Spec:       z.Spec.FromInstAPI(iZook),
+		Status:     z.Status.FromInstAPI(iZook),
+	}, nil
+}
+
+func (zs *ZookeeperSpec) FromInstAPI(iZook models.ZookeeperCluster) ZookeeperSpec {
+	return ZookeeperSpec{
+		Cluster: Cluster{
+			Name:                  iZook.Name,
+			Version:               iZook.ZookeeperVersion,
+			PrivateNetworkCluster: iZook.PrivateNetworkCluster,
+			SLATier:               iZook.SLATier,
+			TwoFactorDelete:       zs.Cluster.TwoFactorDeleteFromInstAPI(iZook.TwoFactorDelete),
+		},
+		DataCentres: zs.DCsFromInstAPI(iZook.DataCentres),
+	}
+}
+
+func (zs *ZookeeperStatus) FromInstAPI(iZook models.ZookeeperCluster) ZookeeperStatus {
+	return ZookeeperStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                            iZook.ID,
+			State:                         iZook.Status,
+			DataCentres:                   zs.DCsFromInstAPI(iZook.DataCentres),
+			CurrentClusterOperationStatus: iZook.CurrentClusterOperationStatus,
+			MaintenanceEvents:             zs.MaintenanceEvents,
+		},
+	}
+}
+
+func (zs *ZookeeperSpec) DCsFromInstAPI(iDCs []*models.ZookeeperDataCentre) (dcs []*ZookeeperDataCentre) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &ZookeeperDataCentre{
+			DataCentre:               zs.Cluster.DCFromInstAPI(iDC.DataCentre),
+			ClientToServerEncryption: iDC.ClientToServerEncryption,
+		})
+	}
+	return
+}
+
+func (zs *ZookeeperStatus) DCsFromInstAPI(iDCs []*models.ZookeeperDataCentre) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, zs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+	}
+	return
+}
+
+func (zs *ZookeeperSpec) ToInstAPI() *models.ZookeeperCluster {
+	return &models.ZookeeperCluster{
+		Name:                  zs.Name,
+		ZookeeperVersion:      zs.Version,
+		PrivateNetworkCluster: zs.PrivateNetworkCluster,
+		SLATier:               zs.SLATier,
+		TwoFactorDelete:       zs.Cluster.TwoFactorDeletesToInstAPI(),
+		DataCentres:           zs.DCsToInstAPI(),
+	}
+}
+
+func (zs *ZookeeperSpec) DCsToInstAPI() (dcs []*models.ZookeeperDataCentre) {
+	for _, k8sDC := range zs.DataCentres {
+		dcs = append(dcs, k8sDC.ToInstAPI())
+	}
+	return dcs
+}
+
+func (zdc *ZookeeperDataCentre) ToInstAPI() *models.ZookeeperDataCentre {
+	return &models.ZookeeperDataCentre{
+		DataCentre:               zdc.DataCentre.ToInstAPI(),
+		ClientToServerEncryption: zdc.ClientToServerEncryption,
+	}
 }

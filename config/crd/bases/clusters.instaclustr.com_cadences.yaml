@@ -84,15 +84,11 @@ spec:
                   replicationFactor:
                     type: integer
                 type: object
-              concurrentResizes:
-                type: integer
               dataCentres:
                 items:
                   properties:
                     accountName:
                       type: string
-                    cadenceNodeCount:
-                      type: integer
                     clientEncryption:
                       type: boolean
                     cloudProvider:
@@ -115,7 +111,6 @@ spec:
                     nodeSize:
                       type: string
                     nodesNumber:
-                      format: int32
                       type: integer
                     region:
                       type: string
@@ -124,7 +119,6 @@ spec:
                         type: string
                       type: object
                   required:
-                  - cadenceNodeCount
                   - cloudProvider
                   - network
                   - nodeSize
@@ -139,8 +133,6 @@ spec:
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
-              notifySupportContacts:
-                type: boolean
               pciCompliance:
                 description: The PCI compliance standards relate to the security of
                   user data and transactional information. Can only be applied clusters
@@ -206,7 +198,6 @@ spec:
                     id:
                       type: string
                     nodeNumber:
-                      format: int32
                       type: integer
                     nodes:
                       items:
@@ -263,7 +254,7 @@ spec:
                   openSearchDashboardsNodeSize:
                     type: string
                 type: object
-              status:
+              state:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

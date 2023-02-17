@@ -1,17 +1,17 @@
 package models
 
-import (
-	modelsv2 "github.com/instaclustr/operator/pkg/instaclustr/api/v2/models"
-)
-
 type PGCluster struct {
-	Name                  string                      `json:"name"`
-	PostgreSQLVersion     string                      `json:"postgresqlVersion"`
-	DataCentres           []*PGDataCentre             `json:"dataCentres"`
-	SynchronousModeStrict bool                        `json:"synchronousModeStrict"`
-	PrivateNetworkCluster bool                        `json:"privateNetworkCluster"`
-	SLATier               string                      `json:"slaTier"`
-	TwoFactorDelete       []*modelsv2.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	ID                            string             `json:"id,omitempty"`
+	Name                          string             `json:"name"`
+	PostgreSQLVersion             string             `json:"postgresqlVersion"`
+	DataCentres                   []*PGDataCentre    `json:"dataCentres"`
+	SynchronousModeStrict         bool               `json:"synchronousModeStrict"`
+	PrivateNetworkCluster         bool               `json:"privateNetworkCluster"`
+	SLATier                       string             `json:"slaTier"`
+	TwoFactorDelete               []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	PCIComplianceMode             bool               `json:"PCIComplianceMode,omitempty"`
+	CurrentClusterOperationStatus string             `json:"currentClusterOperationStatus,omitempty"`
+	Status                        string             `json:"status,omitempty"`
 }
 
 type PGBouncer struct {
@@ -20,14 +20,11 @@ type PGBouncer struct {
 }
 
 type PGDataCentre struct {
-	modelsv2.DataCentre        `json:",inline"`
+	DataCentre                 `json:",inline"`
 	ClientToClusterEncryption  bool                    `json:"clientToClusterEncryption"`
 	InterDataCentreReplication []*PGInterDCReplication `json:"interDataCentreReplication,omitempty"`
 	IntraDataCentreReplication []*PGIntraDCReplication `json:"intraDataCentreReplication"`
 	PGBouncer                  []*PGBouncer            `json:"pgBouncer,omitempty"`
-	Status                     string                  `json:"status,omitempty"`
-	ID                         string                  `json:"id,omitempty"`
-	Nodes                      []*modelsv2.Node        `json:"nodes,omitempty"`
 }
 
 type PGInterDCReplication struct {
@@ -36,20 +33,6 @@ type PGInterDCReplication struct {
 
 type PGIntraDCReplication struct {
 	ReplicationMode string `json:"replicationMode"`
-}
-
-type PGStatus struct {
-	ID                            string                      `json:"id,omitempty"`
-	Name                          string                      `json:"name"`
-	PostgreSQLVersion             string                      `json:"postgresqlVersion"`
-	PCIComplianceMode             bool                        `json:"PCIComplianceMode,omitempty"`
-	DataCentres                   []*PGDataCentre             `json:"dataCentres"`
-	CurrentClusterOperationStatus string                      `json:"currentClusterOperationStatus,omitempty"`
-	SynchronousModeStrict         bool                        `json:"synchronousModeStrict"`
-	PrivateNetworkCluster         bool                        `json:"privateNetworkCluster"`
-	TwoFactorDelete               []*modelsv2.TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	SLATier                       string                      `json:"slaTier"`
-	Status                        string                      `json:"status,omitempty"`
 }
 
 type PGConfigs struct {
