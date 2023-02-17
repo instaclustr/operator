@@ -1,0 +1,20 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: Redis
+metadata:
+  name: redis-sample
+spec:
+  name: "testRedis"
+  version: "7.0.5"
+  slaTier: "NON_PRODUCTION"
+  concurrentResizes: 1
+  notifySupportContacts: false
+  clientEncryption: false
+  passwordAndUserAuth: false
+  dataCentres:
+    - region: "US_WEST_2"
+      cloudProvider: "AWS_VPC"
+      network: "10.1.0.0/16"
+      nodeSize: "t3.small-20-r"
+      masterNodes: 3
+      nodesNumber: 3
+      name: "testDC2"

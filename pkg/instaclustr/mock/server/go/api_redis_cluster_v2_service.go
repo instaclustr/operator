@@ -11,14 +11,13 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // RedisClusterV2ApiService is a service that implements the logic for the RedisClusterV2ApiServicer
 // This service should implement the business logic for every endpoint for the RedisClusterV2Api API.
 // Include any external packages or services that will be required by this service.
 type RedisClusterV2ApiService struct {
+	MockRedisCluster *RedisClusterV2
 }
 
 // NewRedisClusterV2ApiService creates a default api service
@@ -31,10 +30,8 @@ func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedis
 	// TODO - update ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_redis_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdDelete method not implemented")
+	s.MockRedisCluster = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet - Get Redis cluster details.
@@ -42,10 +39,13 @@ func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedis
 	// TODO - update ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_redis_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, RedisClusterV2{}) or use other options such as http.Ok ...
-	//return Response(200, RedisClusterV2{}), nil
+	if s.MockRedisCluster != nil {
+		s.MockRedisCluster.Status = RUNNING
+	} else {
+		return Response(404, nil), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdGet method not implemented")
+	return Response(200, s.MockRedisCluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut - Update Redis Cluster Details
@@ -53,13 +53,18 @@ func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedis
 	// TODO - update ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_redis_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, RedisClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, RedisClusterV2{}), nil
+	newNode := []NodeDetailsV2{{
+		Rack:          "us-east-1a",
+		NodeSize:      body.DataCentres[0].NodeSize,
+		PublicAddress: "54.146.160.89",
+	}}
+
+	s.MockRedisCluster.DataCentres[0].Nodes = newNode
+
+	return Response(202, nil), nil
 
 	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	//return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsRedisClustersV2ClusterIdPut method not implemented")
 }
 
 // ClusterManagementV2ResourcesApplicationsRedisClustersV2Post - Create a Redis Cluster
@@ -67,8 +72,7 @@ func (s *RedisClusterV2ApiService) ClusterManagementV2ResourcesApplicationsRedis
 	// TODO - update ClusterManagementV2ResourcesApplicationsRedisClustersV2Post with the required logic for this service method.
 	// Add api_redis_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, RedisClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, RedisClusterV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsRedisClustersV2Post method not implemented")
+	s.MockRedisCluster = &body
+	s.MockRedisCluster.Id = CreatedID
+	return Response(202, s.MockRedisCluster), nil
 }
