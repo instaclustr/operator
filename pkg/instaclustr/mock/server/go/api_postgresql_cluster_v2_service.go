@@ -11,14 +11,13 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // PostgresqlClusterV2ApiService is a service that implements the logic for the PostgresqlClusterV2ApiServicer
 // This service should implement the business logic for every endpoint for the PostgresqlClusterV2Api API.
 // Include any external packages or services that will be required by this service.
 type PostgresqlClusterV2ApiService struct {
+	MockPostgresqlCluster *PostgresqlClusterV2
 }
 
 // NewPostgresqlClusterV2ApiService creates a default api service
@@ -31,10 +30,8 @@ func (s *PostgresqlClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_postgresql_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdDelete method not implemented")
+	s.MockPostgresqlCluster = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdGet - Get Postgresql cluster details.
@@ -42,10 +39,14 @@ func (s *PostgresqlClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_postgresql_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, PostgresqlClusterV2{}) or use other options such as http.Ok ...
-	//return Response(200, PostgresqlClusterV2{}), nil
+	if s.MockPostgresqlCluster != nil {
+		s.MockPostgresqlCluster.Status = RUNNING
+		s.MockPostgresqlCluster.CurrentClusterOperationStatus = NO_OPERATION
+	} else {
+		return Response(404, nil), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdGet method not implemented")
+	return Response(200, s.MockPostgresqlCluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut - Update PostgreSQL cluster details
@@ -53,13 +54,18 @@ func (s *PostgresqlClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_postgresql_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, PostgresqlClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, PostgresqlClusterV2{}), nil
+	newNode := []NodeDetailsV2{{
+		Rack:          "us-east-1a",
+		NodeSize:      body.DataCentres[0].NodeSize,
+		PublicAddress: "54.146.160.89",
+	}}
+
+	s.MockPostgresqlCluster.DataCentres[0].Nodes = newNode
+
+	return Response(202, nil), nil
 
 	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	//return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut method not implemented")
 }
 
 // ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post - Create a Postgresql cluster.
@@ -67,8 +73,7 @@ func (s *PostgresqlClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post with the required logic for this service method.
 	// Add api_postgresql_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, PostgresqlClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, PostgresqlClusterV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post method not implemented")
+	s.MockPostgresqlCluster = &body
+	s.MockPostgresqlCluster.Id = CreatedID
+	return Response(202, s.MockPostgresqlCluster), nil
 }
