@@ -53,25 +53,25 @@ func (c *PostgresqlClusterV2ApiController) Routes() Routes {
 		{
 			"ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdDelete",
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/{clusterId}/",
+			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/{clusterId}",
 			c.ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdDelete,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdGet",
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/{clusterId}/",
+			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/{clusterId}",
 			c.ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdGet,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut",
 			strings.ToUpper("Put"),
-			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/{clusterId}/",
+			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/{clusterId}",
 			c.ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post",
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/applications/postgresql/clusters/v2/",
+			"/cluster-management/v2/resources/applications/postgresql/clusters/v2",
 			c.ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post,
 		},
 	}

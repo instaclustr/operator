@@ -1,0 +1,24 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: PostgreSQL
+metadata:
+  name: postgresql-sample
+  annotations:
+    testAnnotation: test
+spec:
+  name: "testPostgre"
+  version: "14.5.0"
+  dataCentres:
+    - region: "US_EAST_1"
+      network: "10.1.0.0/16"
+      cloudProvider: "AWS_VPC"
+      nodeSize: "PGS-DEV-t4g.small-5"
+      nodesNumber: 2
+      clientEncryption: false
+      name: "testDC1"
+      intraDataCentreReplication:
+        - replicationMode: "SYNCHRONOUS"
+      interDataCentreReplication:
+        - isPrimaryDataCentre: true
+  slaTier: "NON_PRODUCTION"
+  privateNetworkCluster: false
+  synchronousModeStrict: false
