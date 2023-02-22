@@ -20,6 +20,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,17 +33,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/instaclustr/mock"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
-	cfg         *rest.Config
-	k8sClient   client.Client
-	testEnv     *envtest.Environment
-	ctx         context.Context
-	cancel      context.CancelFunc
-	MockInstAPI = mock.NewInstAPI()
+	cfg                  *rest.Config
+	k8sClient            client.Client
+	testEnv              *envtest.Environment
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	mockClientForInstAPI = mock.NewInstAPI()
 )
 
 func TestAPIs(t *testing.T) {
@@ -67,6 +69,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
+	clientForMockInstaServer := instaclustr.NewClient("test", "test", "http://localhost:8082", time.Second*10)
+
 	err = kafkamanagementv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -84,7 +88,14 @@ var _ = BeforeSuite(func() {
 	err = (&KafkaACLReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
-		API:    MockInstAPI,
+		API:    mockClientForInstAPI,
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&TopicReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+		API:    clientForMockInstaServer,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

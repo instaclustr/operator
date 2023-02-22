@@ -11,14 +11,13 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // KafkaTopicV2ApiService is a service that implements the logic for the KafkaTopicV2ApiServicer
 // This service should implement the business logic for every endpoint for the KafkaTopicV2Api API.
 // Include any external packages or services that will be required by this service.
 type KafkaTopicV2ApiService struct {
+	MockKafkaTopic *KafkaTopicV2
 }
 
 // NewKafkaTopicV2ApiService creates a default api service
@@ -31,10 +30,17 @@ func (s *KafkaTopicV2ApiService) ClusterManagementV2OperationsApplicationsKafkaT
 	// TODO - update ClusterManagementV2OperationsApplicationsKafkaTopicsV2KafkaTopicIdModifyConfigsV2Put with the required logic for this service method.
 	// Add api_kafka_topic_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaTopicV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaTopicV2{}), nil
+	var newConfigs []KafkaTopicConfigV2
+	for _, c := range body.Configs {
+		newConfigs = append(newConfigs, KafkaTopicConfigV2{
+			Key:   c.Key,
+			Value: c.Value,
+		})
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2OperationsApplicationsKafkaTopicsV2KafkaTopicIdModifyConfigsV2Put method not implemented")
+	s.MockKafkaTopic.Configs = newConfigs
+
+	return Response(202, s.MockKafkaTopic), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdDelete - Delete the kafka topic
@@ -42,10 +48,8 @@ func (s *KafkaTopicV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaTo
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdDelete with the required logic for this service method.
 	// Add api_kafka_topic_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdDelete method not implemented")
+	s.MockKafkaTopic = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdGet - Get Kafka Topic details
@@ -53,10 +57,12 @@ func (s *KafkaTopicV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaTo
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdGet with the required logic for this service method.
 	// Add api_kafka_topic_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaTopicV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaTopicV2{}), nil
+	if s.MockKafkaTopic == nil {
+		return Response(404, nil), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdGet method not implemented")
+	return Response(200, s.MockKafkaTopic), nil
+
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaTopicsV2Post - Create a Kafka Topic
@@ -64,8 +70,7 @@ func (s *KafkaTopicV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaTo
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaTopicsV2Post with the required logic for this service method.
 	// Add api_kafka_topic_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, KafkaTopicV2{}) or use other options such as http.Ok ...
-	//return Response(202, KafkaTopicV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaTopicsV2Post method not implemented")
+	s.MockKafkaTopic = &body
+	s.MockKafkaTopic.Id = CreatedID
+	return Response(202, s.MockKafkaTopic), nil
 }

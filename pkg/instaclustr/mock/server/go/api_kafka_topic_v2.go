@@ -59,19 +59,19 @@ func (c *KafkaTopicV2ApiController) Routes() Routes {
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdDelete",
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/applications/kafka/topics/v2/{kafkaTopicId}/",
+			"/cluster-management/v2/resources/applications/kafka/topics/v2/{kafkaTopicId}",
 			c.ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdDelete,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdGet",
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/applications/kafka/topics/v2/{kafkaTopicId}/",
+			"/cluster-management/v2/resources/applications/kafka/topics/v2/{kafkaTopicId}",
 			c.ClusterManagementV2ResourcesApplicationsKafkaTopicsV2KafkaTopicIdGet,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaTopicsV2Post",
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/applications/kafka/topics/v2/",
+			"/cluster-management/v2/resources/applications/kafka/topics/v2",
 			c.ClusterManagementV2ResourcesApplicationsKafkaTopicsV2Post,
 		},
 	}
