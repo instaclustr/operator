@@ -84,8 +84,11 @@ resources:
   domain: instaclustr.com
   group: clusterresources
   kind: GCPVPCPeering
-  path: github.com/instaclustr/operator/apis/clusterresources/v2alpha1
-  version: v2alpha1
+  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
+  version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -93,8 +96,11 @@ resources:
   domain: instaclustr.com
   group: clusterresources
   kind: AzureVNetPeering
-  path: github.com/instaclustr/operator/apis/clusterresources/v2alpha1
-  version: v2alpha1
+  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
+  version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true

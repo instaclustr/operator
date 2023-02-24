@@ -75,13 +75,13 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	switch gcp.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, l, &gcp), nil
+		return r.handleCreateCluster(ctx, &gcp, l), nil
 
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, l, &gcp), nil
+		return r.handleUpdateCluster(ctx, &gcp, l), nil
 
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, l, &gcp), nil
+		return r.handleDeleteCluster(ctx, &gcp, l), nil
 	default:
 		l.Info("event isn't handled",
 			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
@@ -94,8 +94,8 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 	ctx context.Context,
-	l logr.Logger,
 	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
+	l logr.Logger,
 ) reconcile.Result {
 
 	if gcp.Status.ID == "" {
@@ -157,45 +157,18 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 
 func (r *GCPVPCPeeringReconciler) handleUpdateCluster(
 	ctx context.Context,
-	l logr.Logger,
 	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
+	l logr.Logger,
 ) reconcile.Result {
-	err := r.API.UpdatePeering(gcp.Status.ID, instaclustr.GCPPeeringEndpoint, &gcp.Spec)
-	if err != nil {
-		l.Error(err, "cannot update GCP VPC Peering",
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-			"Subnets", gcp.Spec.PeerSubnets,
-		)
-	}
-
-	patch := gcp.NewPatch()
-	gcp.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Patch(ctx, gcp, patch)
-	if err != nil {
-		l.Error(err, "cannot patch GCP VPC Peering resource metadata",
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-			"GCP VPC Peering metadata", gcp.ObjectMeta,
-		)
-		return models.ReconcileRequeue
-	}
-
-	l.Info("GCP VPC Peering resource has been updated",
-		"GCP VPC Peering ID", gcp.Status.ID,
-		"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-		"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-		"GCP VPC Peering Data Centre ID", gcp.Spec.DataCentreID,
-		"GCP VPC Peering Status", gcp.Status.PeeringStatus,
-	)
+	l.Info("Update is not implemented")
 
 	return reconcile.Result{}
 }
 
 func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	ctx context.Context,
-	l logr.Logger,
 	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
+	l logr.Logger,
 ) reconcile.Result {
 
 	patch := gcp.NewPatch()
@@ -312,10 +285,11 @@ func (r *GCPVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
+
+				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
 				if event.ObjectNew.GetDeletionTimestamp() != nil {
 					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
 				}
-				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {

@@ -169,38 +169,7 @@ func (r *AzureVNetPeeringReconciler) handleUpdateCluster(
 	azure *clusterresourcesv1alpha1.AzureVNetPeering,
 	l *logr.Logger,
 ) reconcile.Result {
-	err := r.API.UpdatePeering(azure.Status.ID, instaclustr.AzurePeeringEndpoint, &azure.Spec)
-	if err != nil {
-		l.Error(err, "cannot update Azure VNet Peering",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
-			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
-			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Subnets", azure.Spec.PeerSubnets,
-		)
-	}
-
-	patch := azure.NewPatch()
-	azure.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Patch(ctx, azure, patch)
-	if err != nil {
-		l.Error(err, "cannot patch Azure VNet Peering resource metadata",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
-			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
-			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-			"Azure VNet Peering metadata", azure.ObjectMeta,
-		)
-		return models.ReconcileRequeue
-	}
-
-	l.Info("Azure VNet Peering resource has been updated",
-		"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
-		"AD Object ID", azure.Spec.PeerADObjectID,
-		"Resource Group", azure.Spec.PeerResourceGroup,
-		"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-		"Azure VNet Peering Status", azure.Status.PeeringStatus,
-	)
+	l.Info("Update is not implemented")
 
 	return reconcile.Result{}
 }

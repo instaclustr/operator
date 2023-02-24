@@ -3,11 +3,10 @@ kind: AzureVNetPeering
 metadata:
   name: azurevnetpeering-sample
 spec:
-  cdcId: f3eab841-6952-430d-ba90-1bfc3f15da10
-  peerAdObjectId: 00000000-0000-0000-0000-000000000000
-  peerResourceGroup: example-resource-group-123
+  cdcId: 8e660e03-151b-48c5-b7c1-ef894d839750
+  peerResourceGroup: rnd
   peerSubnets:
-    - 10.1.0.0/16
-    - 10.2.0.0/16
-  peerSubscriptionId: 00000000-0000-0000-0000-000000000000
-  peerVirtualNetworkName: network-aabb-1122
+    - 192.168.0.0/16
+    - 172.16.0.0/16
+  peerSubscriptionId: 1a2f3ab8-6815-49c5-a47e-b1a354b51240
+  peerVirtualNetworkName: rnd-vm

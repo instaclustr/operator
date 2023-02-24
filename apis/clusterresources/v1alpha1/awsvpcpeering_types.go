@@ -18,11 +18,13 @@ package v1alpha1
 
 import (
 	"fmt"
+	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 // AWSVPCPeeringSpec defines the desired state of AWSVPCPeering
@@ -107,6 +109,38 @@ func (aws *AWSVPCPeeringSpec) ValidateUpdate(oldSpec AWSVPCPeeringSpec) error {
 	if newImmutableFields.peering != oldImmutableFields.peering ||
 		newImmutableFields.specificFields != oldImmutableFields.specificFields {
 		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, aws)
+	}
+
+	return nil
+}
+
+func (aws *AWSVPCPeeringSpec) Validate(availableRegions []string) error {
+	peerAWSAccountIDMatched, err := regexp.Match(models.PeerAWSAccountIDRegExp, []byte(aws.PeerAWSAccountID))
+	if !peerAWSAccountIDMatched || err != nil {
+		return fmt.Errorf("AWS Account ID to peer should contain 12-digit number, that uniquely identifies an "+
+			"AWS account and fit pattern: %s. %s", models.PeerAWSAccountIDRegExp, err.Error())
+	}
+
+	peerAWSVPCIDMatched, err := regexp.Match(models.PeerVPCIDRegExp, []byte(aws.PeerVPCID))
+	if !peerAWSVPCIDMatched || err != nil {
+		return fmt.Errorf("VPC ID must begin with 'vpc-' and fit pattern: %s. %s", models.PeerVPCIDRegExp, err.Error())
+	}
+
+	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(aws.DataCentreID))
+	if !dataCentreIDMatched || err != nil {
+		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s. %s", models.UUIDStringRegExp, err.Error())
+	}
+
+	if !validation.Contains(aws.PeerRegion, availableRegions) {
+		return fmt.Errorf("AWS Region to peer: %s is unavailable, available regions: %v",
+			aws.PeerRegion, availableRegions)
+	}
+
+	for _, subnet := range aws.PeerSubnets {
+		peerSubnetMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(subnet))
+		if !peerSubnetMatched || err != nil {
+			return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %s", subnet, err.Error())
+		}
 	}
 
 	return nil
