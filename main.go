@@ -335,6 +335,14 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "MaintenanceEvents")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcesv1alpha1.AzureVNetPeering{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "AzureVNetPeering")
+		os.Exit(1)
+	}
+	if err = (&clusterresourcesv1alpha1.GCPVPCPeering{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "GCPVPCPeering")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

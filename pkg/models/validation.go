@@ -26,7 +26,7 @@ var (
 		"SPARK_JOBSERVER", "SHOTOVER_PROXY"}
 	PeerAWSAccountIDRegExp = "^[0-9]{12}$"
 	PeerVPCIDRegExp        = "^vpc-[0-9a-f]{8}$"
-	PeerSubnetsRegExp      = "^((10|172|192))\\.([^0]{1,2}|[^0]\\d|0{1}|1\\d\\d|2[0-4]\\d|25[0-5])\\.([^0]{1,2}|[^0]\\d|0{1}|1\\d\\d|2[0-4]\\d|25[0-5])\\.(0)(\\/1[6-9]|\\/2[0-8])$"
+	PeerSubnetsRegExp      = "^((10|172|192))\\.([^0,^a-zA-z]{1,2}|[^0]\\d|0{1}|1\\d\\d|2[0-4]\\d|25[0-5])\\.([^0,^a-zA-z]{1,2}|[^0]\\d|0{1}|1\\d\\d|2[0-4]\\d|25[0-5])\\.(0)(\\/1[6-9]|\\/2[0-8])$"
 	UUIDStringRegExp       = "^[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12}$"
 	AWSRegions             = []string{"AF_SOUTH_1", "AP_EAST_1", "AP_NORTHEAST_1", "AP_NORTHEAST_2", "AP_SOUTHEAST_1",
 		"AP_SOUTHEAST_2", "AP_SOUTH_1", "CA_CENTRAL_1", "CN_NORTHWEST_1", "CN_NORTH_1", "EU_CENTRAL_1", "EU_NORTH_1",

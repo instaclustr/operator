@@ -158,6 +158,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-clusterresources-instaclustr-com-v1alpha1-azurevnetpeering
+  failurePolicy: Fail
+  name: vazurevnetpeering.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - azurevnetpeerings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-clusterresources-instaclustr-com-v1alpha1-clusternetworkfirewallrule
   failurePolicy: Fail
   name: vclusternetworkfirewallrule.kb.io
@@ -171,6 +191,26 @@ webhooks:
     - UPDATE
     resources:
     - clusternetworkfirewallrules
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-clusterresources-instaclustr-com-v1alpha1-gcpvpcpeering
+  failurePolicy: Fail
+  name: vgcpvpcpeering.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gcpvpcpeerings
   sideEffects: None
 - admissionReviewVersions:
   - v1
