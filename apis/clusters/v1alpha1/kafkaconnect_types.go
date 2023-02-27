@@ -79,10 +79,10 @@ type AWSConnectorSettings struct {
 	S3RoleArn string `json:"s3RoleArn"`
 
 	// AWS Secret Key associated with the Access Key id that can access your specified S3 bucket for Kafka Connect custom connector.
-	SecretKey string `json:"secretKey"`
+	SecretKey string `json:"secretKey,omitempty"`
 
 	// AWS Access Key id that can access your specified S3 bucket for Kafka Connect custom connector.
-	AccessKey string `json:"accessKey"`
+	AccessKey string `json:"accessKey,omitempty"`
 
 	// S3 bucket name for Kafka Connect custom connector.
 	S3BucketName string `json:"s3BucketName"`

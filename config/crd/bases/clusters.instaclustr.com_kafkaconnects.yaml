@@ -63,10 +63,8 @@ spec:
                               Kafka Connect custom connector.
                             type: string
                         required:
-                        - accessKey
                         - s3BucketName
                         - s3RoleArn
-                        - secretKey
                         type: object
                       type: array
                     azureConnectorSettings:

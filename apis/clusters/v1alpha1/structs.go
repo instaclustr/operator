@@ -105,6 +105,10 @@ type PatchRequest struct {
 }
 
 type PrivateLink struct {
+	AdvertisedHostname string `json:"advertisedHostname"`
+}
+
+type PrivateLinkV1 struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
 

@@ -15,19 +15,40 @@ metadata:
     app.kubernetes.io/part-of: operator
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
-  name: cadence-sample
+  name: cadence-sample-3
   annotations:
     test.annotation/first: testAnnotation
 #    test.annotation/second: testAnnotation
 spec:
   name: "operatorCadence"
   version: "0.24.0"
-  concurrentResizes: 1
-  notifySupportContacts: false
-  targetCassandraVpcType: "TARGET_VPC"
-  targetCassandraCdcId: "4d83d76d-fc41-4507-abd4-734ae2768b47"
+  standardProvisioning:
+    - targetCassandra:
+        dependencyCdcId: "66abf438-0020-4e2d-a39b-78706b7de064"
+        dependencyVpcType: "VPC_PEERED"
+#  packagedProvisioning:
+#    - bundledCassandraSpec:
+#        nodeSize: "CAS-DEV-t4g.small-5"
+#        network: "10.1.0.0/16"
+#        replicationFactor: 3
+#        nodesNumber: 3
+#        privateIPBroadcastForDiscovery: false
+#        passwordAndUserAuth: true
+#        useAdvancedVisibility: true
+#      bundledKafkaSpec:
+#        nodeSize: "KFK-DEV-t4g.small-5"
+#        nodesNumber: 3
+#        network: "10.2.0.0/16"
+#        replicationFactor: 3
+#        partitionsNumber: 3
+#      bundledOpenSearchSpec:
+#        nodeSize: "SRH-DEV-t4g.small-5"
+#        replicationFactor: 3
+#        nodesPerReplicationFactor: 1
+#        network: "10.4.0.0/16"
 #  twoFactorDelete:
 #  - email: "rostyslp@netapp.com"
+  privateNetworkCluster: false
   dataCentres:
   - region: "US_EAST_1"
     network: "10.3.0.0/16"
@@ -36,34 +57,11 @@ spec:
     name: "testdc"
 #    nodeSize: "CAD-DEV-t3.medium-30"
     nodeSize: "CAD-DEV-t3.small-5"
-    nodesNumber: 3
+    nodesNumber: 1
+#    privateLink:
+#    - advertisedHostname: "cadence.test.com"
+    clientEncryption: false
   description: "test 222"
   slaTier: "NON_PRODUCTION"
-  provisioningType: "PACKAGED"
-#  provisioningType: "SHARED"
-#  provisioningType: "STANDARD"
-#  enableArchival: true
-#  archivalS3Uri: "s3://k8s-operator-insta-test/cadence-archival-test"
-#  archivalS3Region: "us-east-1"
-#  awsAccessKeySecretName: "inst-test-aws-cred-secret"
-#  awsAccessKeySecretNamespace: "default"
-  bundledCassandraSpec:
-    nodeSize: "CAS-DEV-t4g.small-5"
-    network: "10.1.0.0/16"
-    replicationFactor: 3
-    nodesNumber: 3
-    privateIPBroadcastForDiscovery: false
-    passwordAndUserAuth: true
-  useAdvancedVisibility: false
-#  useAdvancedVisibility: true
-  bundledKafkaSpec:
-    nodeSize: "KFK-DEV-t4g.small-5"
-    nodesNumber: 3
-    network: "10.2.0.0/16"
-    replicationFactor: 3
-    partitionsNumber: 3
-  bundledOpenSearchSpec:
-    nodeSize: "SRH-DEV-t4g.small-5"
-    replicationFactor: 3
-    nodesPerReplicationFactor: 1
-    network: "10.4.0.0/16"
+  useCadenceWebAuth: true
+

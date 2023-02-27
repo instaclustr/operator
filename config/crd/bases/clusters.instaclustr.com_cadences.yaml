@@ -35,55 +35,22 @@ spec:
           spec:
             description: CadenceSpec defines the desired state of Cadence
             properties:
-              archivalS3Region:
-                type: string
-              archivalS3Uri:
-                type: string
-              awsAccessKeySecretName:
-                type: string
-              awsAccessKeySecretNamespace:
-                type: string
-              bundledCassandraSpec:
-                properties:
-                  network:
-                    type: string
-                  nodeSize:
-                    type: string
-                  nodesNumber:
-                    type: integer
-                  passwordAndUserAuth:
-                    type: boolean
-                  privateIPBroadcastForDiscovery:
-                    type: boolean
-                  replicationFactor:
-                    type: integer
-                type: object
-              bundledKafkaSpec:
-                properties:
-                  network:
-                    type: string
-                  nodeSize:
-                    type: string
-                  nodesNumber:
-                    type: integer
-                  partitionsNumber:
-                    type: integer
-                  replicationFactor:
-                    type: integer
-                required:
-                - network
-                type: object
-              bundledOpenSearchSpec:
-                properties:
-                  network:
-                    type: string
-                  nodeSize:
-                    type: string
-                  nodesPerReplicationFactor:
-                    type: integer
-                  replicationFactor:
-                    type: integer
-                type: object
+              awsArchival:
+                items:
+                  properties:
+                    archivalS3Region:
+                      type: string
+                    archivalS3Uri:
+                      type: string
+                    awsAccessKeySecretName:
+                      type: string
+                    awsAccessKeySecretNamespace:
+                      type: string
+                  required:
+                  - archivalS3Region
+                  - archivalS3Uri
+                  type: object
+                type: array
               dataCentres:
                 items:
                   properties:
@@ -112,6 +79,15 @@ spec:
                       type: string
                     nodesNumber:
                       type: integer
+                    privateLink:
+                      items:
+                        properties:
+                          advertisedHostname:
+                            type: string
+                        required:
+                        - advertisedHostname
+                        type: object
+                      type: array
                     region:
                       type: string
                     tags:
@@ -128,11 +104,59 @@ spec:
                 type: array
               description:
                 type: string
-              enableArchival:
-                type: boolean
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
+              packagedProvisioning:
+                items:
+                  properties:
+                    bundledCassandraSpec:
+                      properties:
+                        network:
+                          type: string
+                        nodeSize:
+                          type: string
+                        nodesNumber:
+                          type: integer
+                        passwordAndUserAuth:
+                          type: boolean
+                        privateIPBroadcastForDiscovery:
+                          type: boolean
+                        replicationFactor:
+                          type: integer
+                      type: object
+                    bundledKafkaSpec:
+                      properties:
+                        network:
+                          type: string
+                        nodeSize:
+                          type: string
+                        nodesNumber:
+                          type: integer
+                        partitionsNumber:
+                          type: integer
+                        replicationFactor:
+                          type: integer
+                      required:
+                      - network
+                      type: object
+                    bundledOpenSearchSpec:
+                      properties:
+                        network:
+                          type: string
+                        nodeSize:
+                          type: string
+                        nodesPerReplicationFactor:
+                          type: integer
+                        replicationFactor:
+                          type: integer
+                      type: object
+                    useAdvancedVisibility:
+                      type: boolean
+                  required:
+                  - useAdvancedVisibility
+                  type: object
+                type: array
               pciCompliance:
                 description: The PCI compliance standards relate to the security of
                   user data and transactional information. Can only be applied clusters
@@ -141,26 +165,66 @@ spec:
                 type: boolean
               privateNetworkCluster:
                 type: boolean
-              provisioningType:
-                type: string
+              sharedProvisioning:
+                items:
+                  properties:
+                    useAdvancedVisibility:
+                      type: boolean
+                  required:
+                  - useAdvancedVisibility
+                  type: object
+                type: array
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
                   and reduced SLAs. Production tier is not available when using Developer
                   class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
                   "NON_PRODUCTION".'
                 type: string
-              targetCassandraCdcId:
-                type: string
-              targetCassandraVpcType:
-                type: string
-              targetKafkaCdcId:
-                type: string
-              targetKafkaVpcType:
-                type: string
-              targetOpenSearchCdcId:
-                type: string
-              targetOpenSearchVpcType:
-                type: string
+              standardProvisioning:
+                items:
+                  properties:
+                    advancedVisibility:
+                      items:
+                        properties:
+                          targetKafka:
+                            properties:
+                              dependencyCdcId:
+                                type: string
+                              dependencyVpcType:
+                                type: string
+                            required:
+                            - dependencyCdcId
+                            - dependencyVpcType
+                            type: object
+                          targetOpenSearch:
+                            properties:
+                              dependencyCdcId:
+                                type: string
+                              dependencyVpcType:
+                                type: string
+                            required:
+                            - dependencyCdcId
+                            - dependencyVpcType
+                            type: object
+                        required:
+                        - targetKafka
+                        - targetOpenSearch
+                        type: object
+                      type: array
+                    targetCassandra:
+                      properties:
+                        dependencyCdcId:
+                          type: string
+                        dependencyVpcType:
+                          type: string
+                      required:
+                      - dependencyCdcId
+                      - dependencyVpcType
+                      type: object
+                  required:
+                  - targetCassandra
+                  type: object
+                type: array
               twoFactorDelete:
                 items:
                   properties:
@@ -174,17 +238,15 @@ spec:
                   - email
                   type: object
                 type: array
-              useAdvancedVisibility:
-                type: boolean
               useCadenceWebAuth:
                 type: boolean
               version:
                 type: string
             required:
-            - provisioningType
+            - useCadenceWebAuth
             type: object
           status:
-            description: CadenceSpec defines the observed state of Cadence
+            description: CadenceStatus defines the observed state of Cadence
             properties:
               cdcid:
                 type: string
