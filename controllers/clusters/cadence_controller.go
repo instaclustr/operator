@@ -114,8 +114,8 @@ func (r *CadenceReconciler) HandleCreateCluster(
 	logger logr.Logger,
 ) reconcile.Result {
 	if cadence.Status.ID == "" {
-		if cadence.Spec.ProvisioningType == models.PackagedProvisioningType {
-			requeueNeeded, err := r.preparePackagedSolution(ctx, cadence)
+		for _, packagedProvisioning := range cadence.Spec.PackagedProvisioning {
+			requeueNeeded, err := r.preparePackagedSolution(ctx, cadence, packagedProvisioning)
 			if err != nil {
 				logger.Error(err, "Cannot prepare packaged solution for Cadence cluster",
 					"cluster name", cadence.Spec.Name,
@@ -361,8 +361,8 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
-	if cadence.Spec.ProvisioningType == models.PackagedProvisioningType {
-		err = r.deletePackagedResources(ctx, cadence)
+	for _, packagedProvisioning := range cadence.Spec.PackagedProvisioning {
+		err = r.deletePackagedResources(ctx, cadence, packagedProvisioning)
 		if err != nil {
 			logger.Error(
 				err, "Cannot delete Cadence packaged resources",
@@ -402,7 +402,11 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster *clustersv1alpha1.Cadence) (bool, error) {
+func (r *CadenceReconciler) preparePackagedSolution(
+	ctx context.Context,
+	cluster *clustersv1alpha1.Cadence,
+	packagedProvisioning *clustersv1alpha1.PackagedProvisioning,
+) (bool, error) {
 	if len(cluster.Spec.DataCentres) < 1 {
 		return false, models.ErrZeroDataCentres
 	}
@@ -434,7 +438,7 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster
 
 	kafkaList := &clustersv1alpha1.KafkaList{}
 	osList := &clustersv1alpha1.OpenSearchList{}
-	if cluster.Spec.UseAdvancedVisibility {
+	if packagedProvisioning.UseAdvancedVisibility {
 		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
 			return false, err
@@ -457,8 +461,9 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster
 			return true, nil
 		}
 
-		cluster.Spec.TargetKafkaCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
-		cluster.Spec.TargetKafkaVPCType = models.VPCPeered
+		advancedVisibility := cluster.Spec.StandardProvisioning[0].AdvancedVisibility[0]
+		advancedVisibility.TargetKafka.DependencyCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
+		advancedVisibility.TargetKafka.DependencyVPCType = models.VPCPeered
 
 		err = r.Client.List(ctx, osList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
@@ -482,16 +487,17 @@ func (r *CadenceReconciler) preparePackagedSolution(ctx context.Context, cluster
 			return true, nil
 		}
 
-		cluster.Spec.TargetOpenSearchCDCID = osList.Items[0].Status.DataCentres[0].ID
-		cluster.Spec.TargetOpenSearchVPCType = models.VPCPeered
+		advancedVisibility.TargetOpenSearch.DependencyCDCID = osList.Items[0].Status.DataCentres[0].ID
+		advancedVisibility.TargetOpenSearch.DependencyVPCType = models.VPCPeered
 	}
 
 	if len(cassandraList.Items[0].Status.DataCentres) == 0 {
 		return true, nil
 	}
 
-	cluster.Spec.TargetCassandraCDCID = cassandraList.Items[0].Status.DataCentres[0].ID
-	cluster.Spec.TargetCassandraVPCType = models.VPCPeered
+	targetCassandra := cluster.Spec.StandardProvisioning[0].TargetCassandra
+	targetCassandra.DependencyCDCID = cassandraList.Items[0].Status.DataCentres[0].ID
+	targetCassandra.DependencyVPCType = models.VPCPeered
 
 	return false, nil
 }
@@ -513,9 +519,11 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	if len(cadence.Spec.DataCentres) < 1 {
 		return nil, models.ErrZeroDataCentres
 	}
-	cassNodeSize := cadence.Spec.BundledCassandraSpec.NodeSize
-	cassNodesNumber := cadence.Spec.BundledCassandraSpec.NodesNumber
-	cassReplicationFactor := cadence.Spec.BundledCassandraSpec.ReplicationFactor
+	packagedProvisioning := cadence.Spec.PackagedProvisioning[0]
+
+	cassNodeSize := packagedProvisioning.BundledCassandraSpec.NodeSize
+	cassNodesNumber := packagedProvisioning.BundledCassandraSpec.NodesNumber
+	cassReplicationFactor := packagedProvisioning.BundledCassandraSpec.ReplicationFactor
 	slaTier := cadence.Spec.SLATier
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
@@ -530,7 +538,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		}
 	}
 
-	isCassNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(cadence.Spec.BundledCassandraSpec.Network)
+	isCassNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(packagedProvisioning.BundledCassandraSpec.Network)
 	if err != nil {
 		return nil, err
 	}
@@ -541,10 +549,10 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	dcName := models.CassandraChildDCName
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
-	network := cadence.Spec.BundledCassandraSpec.Network
+	network := packagedProvisioning.BundledCassandraSpec.Network
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
-	cassPrivateIPBroadcastForDiscovery := cadence.Spec.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
-	cassPasswordAndUserAuth := cadence.Spec.BundledCassandraSpec.PasswordAndUserAuth
+	cassPrivateIPBroadcastForDiscovery := packagedProvisioning.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
+	cassPasswordAndUserAuth := packagedProvisioning.BundledCassandraSpec.PasswordAndUserAuth
 
 	cassandraDataCentres := []*clustersv1alpha1.CassandraDataCentre{
 		{
@@ -709,8 +717,9 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 		}
 		kafkaTFD = append(kafkaTFD, twoFactorDelete)
 	}
+	bundledKafkaSpec := cadence.Spec.PackagedProvisioning[0].BundledKafkaSpec
 
-	kafkaNetwork := cadence.Spec.BundledKafkaSpec.Network
+	kafkaNetwork := bundledKafkaSpec.Network
 	for _, cadenceDC := range cadence.Spec.DataCentres {
 		isKafkaNetworkOverlaps, err := cadenceDC.IsNetworkOverlaps(kafkaNetwork)
 		if err != nil {
@@ -721,8 +730,8 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 		}
 	}
 
-	kafkaNodeSize := cadence.Spec.BundledKafkaSpec.NodeSize
-	kafkaNodesNumber := cadence.Spec.BundledKafkaSpec.NodesNumber
+	kafkaNodeSize := bundledKafkaSpec.NodeSize
+	kafkaNodesNumber := bundledKafkaSpec.NodesNumber
 	dcName := models.KafkaChildDCName
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
@@ -755,8 +764,8 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 			PCICompliance:         pciCompliance,
 		},
 		DataCentres:               kafkaDataCentres,
-		ReplicationFactorNumber:   cadence.Spec.BundledKafkaSpec.ReplicationFactor,
-		PartitionsNumber:          cadence.Spec.BundledKafkaSpec.PartitionsNumber,
+		ReplicationFactorNumber:   bundledKafkaSpec.ReplicationFactor,
+		PartitionsNumber:          bundledKafkaSpec.PartitionsNumber,
 		AllowDeleteTopics:         true,
 		AutoCreateTopics:          true,
 		ClientToClusterEncryption: clientEncryption,
@@ -787,9 +796,11 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 		return nil, models.ErrZeroDataCentres
 	}
 
-	osNodeSize := cadence.Spec.BundledOpenSearchSpec.NodeSize
-	osReplicationFactor := cadence.Spec.BundledOpenSearchSpec.ReplicationFactor
-	osNodesNumber := cadence.Spec.BundledOpenSearchSpec.NodesPerReplicationFactor
+	bundledOpenSearchSpec := cadence.Spec.PackagedProvisioning[0].BundledOpenSearchSpec
+
+	osNodeSize := bundledOpenSearchSpec.NodeSize
+	osReplicationFactor := bundledOpenSearchSpec.ReplicationFactor
+	osNodesNumber := bundledOpenSearchSpec.NodesPerReplicationFactor
 	slaTier := cadence.Spec.SLATier
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
@@ -804,7 +815,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 		}
 	}
 
-	osNetwork := cadence.Spec.BundledOpenSearchSpec.Network
+	osNetwork := bundledOpenSearchSpec.Network
 	isOsNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(osNetwork)
 	if err != nil {
 		return nil, err
@@ -851,7 +862,11 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 	}, nil
 }
 
-func (r *CadenceReconciler) deletePackagedResources(ctx context.Context, cadence *clustersv1alpha1.Cadence) error {
+func (r *CadenceReconciler) deletePackagedResources(
+	ctx context.Context,
+	cadence *clustersv1alpha1.Cadence,
+	packagedProvisioning *clustersv1alpha1.PackagedProvisioning,
+) error {
 	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, cadence.Name)
 	selector, err := labels.Parse(labelsToQuery)
 	if err != nil {
@@ -873,7 +888,7 @@ func (r *CadenceReconciler) deletePackagedResources(ctx context.Context, cadence
 		}
 	}
 
-	if cadence.Spec.UseAdvancedVisibility {
+	if packagedProvisioning.UseAdvancedVisibility {
 		kafkaList := &clustersv1alpha1.KafkaList{}
 		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {

@@ -80,7 +80,7 @@ type OpenSearchSpec struct {
 	ConcurrentResizes     int                     `json:"concurrentResizes,omitempty"`
 	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
 	Description           string                  `json:"description,omitempty"`
-	PrivateLink           *PrivateLink            `json:"privateLink,omitempty"`
+	PrivateLink           *PrivateLinkV1          `json:"privateLink,omitempty"`
 	BundledUseOnly        bool                    `json:"bundleUseOnly,omitempty"`
 }
 
@@ -202,7 +202,7 @@ func (oss *OpenSearchSpec) FromInstAPIv1(iOs models.OpenSearchClusterV1) OpenSea
 	}
 	if len(iOs.DataCentre) != 0 &&
 		iOs.DataCentres[0].PrivateLink != nil {
-		os.PrivateLink = &PrivateLink{
+		os.PrivateLink = &PrivateLinkV1{
 			IAMPrincipalARNs: iOs.DataCentres[0].PrivateLink.IAMPrincipalARNs,
 		}
 	}
@@ -311,7 +311,7 @@ func (oss *OpenSearchSpec) AreDCsEqual(dcs []*OpenSearchDataCentre) bool {
 	return true
 }
 
-func (oss *OpenSearchSpec) IsPrivateLinkEqual(iLink *PrivateLink) bool {
+func (oss *OpenSearchSpec) IsPrivateLinkEqual(iLink *PrivateLinkV1) bool {
 	if oss.PrivateLink == iLink {
 		return true
 	}

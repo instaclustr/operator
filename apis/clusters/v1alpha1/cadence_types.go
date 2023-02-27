@@ -31,7 +31,8 @@ import (
 
 type CadenceDataCentre struct {
 	DataCentre       `json:",inline"`
-	ClientEncryption bool `json:"clientEncryption,omitempty"`
+	ClientEncryption bool           `json:"clientEncryption,omitempty"`
+	PrivateLink      []*PrivateLink `json:"privateLink,omitempty"`
 }
 
 type BundledCassandraSpec struct {
@@ -60,29 +61,60 @@ type BundledOpenSearchSpec struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster                     `json:",inline"`
-	DataCentres                 []*CadenceDataCentre  `json:"dataCentres,omitempty"`
-	Description                 string                `json:"description,omitempty"`
-	ProvisioningType            string                `json:"provisioningType"`
-	BundledCassandraSpec        BundledCassandraSpec  `json:"bundledCassandraSpec,omitempty"`
-	UseAdvancedVisibility       bool                  `json:"useAdvancedVisibility,omitempty"`
-	BundledKafkaSpec            BundledKafkaSpec      `json:"bundledKafkaSpec,omitempty"`
-	BundledOpenSearchSpec       BundledOpenSearchSpec `json:"bundledOpenSearchSpec,omitempty"`
-	UseCadenceWebAuth           bool                  `json:"useCadenceWebAuth,omitempty"`
-	ArchivalS3URI               string                `json:"archivalS3Uri,omitempty"`
-	ArchivalS3Region            string                `json:"archivalS3Region,omitempty"`
-	AWSAccessKeySecretNamespace string                `json:"awsAccessKeySecretNamespace,omitempty"`
-	AWSAccessKeySecretName      string                `json:"awsAccessKeySecretName,omitempty"`
-	EnableArchival              bool                  `json:"enableArchival,omitempty"`
-	TargetCassandraCDCID        string                `json:"targetCassandraCdcId,omitempty"`
-	TargetCassandraVPCType      string                `json:"targetCassandraVpcType,omitempty"`
-	TargetKafkaCDCID            string                `json:"targetKafkaCdcId,omitempty"`
-	TargetKafkaVPCType          string                `json:"targetKafkaVpcType,omitempty"`
-	TargetOpenSearchCDCID       string                `json:"targetOpenSearchCdcId,omitempty"`
-	TargetOpenSearchVPCType     string                `json:"targetOpenSearchVpcType,omitempty"`
+	Cluster              `json:",inline"`
+	DataCentres          []*CadenceDataCentre    `json:"dataCentres,omitempty"`
+	Description          string                  `json:"description,omitempty"`
+	UseCadenceWebAuth    bool                    `json:"useCadenceWebAuth"`
+	AWSArchival          []*AWSArchival          `json:"awsArchival,omitempty"`
+	StandardProvisioning []*StandardProvisioning `json:"standardProvisioning,omitempty"`
+	SharedProvisioning   []*SharedProvisioning   `json:"sharedProvisioning,omitempty"`
+	PackagedProvisioning []*PackagedProvisioning `json:"packagedProvisioning,omitempty"`
 }
 
-// CadenceSpec defines the observed state of Cadence
+type AWSArchival struct {
+	ArchivalS3URI            string `json:"archivalS3Uri"`
+	ArchivalS3Region         string `json:"archivalS3Region"`
+	AccessKeySecretNamespace string `json:"awsAccessKeySecretNamespace,omitempty"`
+	AccessKeySecretName      string `json:"awsAccessKeySecretName,omitempty"`
+}
+
+type PackagedProvisioning struct {
+	UseAdvancedVisibility bool                  `json:"useAdvancedVisibility"`
+	BundledKafkaSpec      BundledKafkaSpec      `json:"bundledKafkaSpec,omitempty"`
+	BundledOpenSearchSpec BundledOpenSearchSpec `json:"bundledOpenSearchSpec,omitempty"`
+	BundledCassandraSpec  BundledCassandraSpec  `json:"bundledCassandraSpec,omitempty"`
+}
+
+type SharedProvisioning struct {
+	UseAdvancedVisibility bool `json:"useAdvancedVisibility"`
+}
+
+type StandardProvisioning struct {
+	AdvancedVisibility []*AdvancedVisibility `json:"advancedVisibility,omitempty"`
+	TargetCassandra    TargetCassandra       `json:"targetCassandra"`
+}
+
+type TargetCassandra struct {
+	DependencyCDCID   string `json:"dependencyCdcId"`
+	DependencyVPCType string `json:"dependencyVpcType"`
+}
+
+type TargetKafka struct {
+	DependencyCDCID   string `json:"dependencyCdcId"`
+	DependencyVPCType string `json:"dependencyVpcType"`
+}
+
+type TargetOpenSearch struct {
+	DependencyCDCID   string `json:"dependencyCdcId"`
+	DependencyVPCType string `json:"dependencyVpcType"`
+}
+
+type AdvancedVisibility struct {
+	TargetKafka      TargetKafka      `json:"targetKafka"`
+	TargetOpenSearch TargetOpenSearch `json:"targetOpenSearch"`
+}
+
+// CadenceStatus defines the observed state of Cadence
 type CadenceStatus struct {
 	ClusterStatus `json:",inline"`
 }
@@ -159,21 +191,15 @@ func (c *Cadence) NewPatch() client.Patch {
 }
 
 func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceCluster, error) {
-	var AWSArchival []*models.AWSArchival
-	var err error
-	if cs.EnableArchival {
-		AWSArchival, err = cs.ArchivalToInstAPI(ctx, k8sClient)
-		if err != nil {
-			return nil, fmt.Errorf("cannot convert archival data to APIv2 format: %v", err)
-		}
+	awsArchival, err := cs.ArchivalToInstAPI(ctx, k8sClient)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert archival data to APIv2 format: %v", err)
 	}
 
-	var sharedProvisioning []*models.CadenceSharedProvisioning
+	sharedProvisioning := cs.SharedProvisioningToInstAPI()
+
 	var standardProvisioning []*models.CadenceStandardProvisioning
-	switch cs.ProvisioningType {
-	case models.SharedProvisioningType:
-		sharedProvisioning = cs.SharedProvisioningToInstAPI()
-	case models.StandardProvisioningType, models.PackagedProvisioningType:
+	if len(cs.StandardProvisioning) != 0 || len(cs.PackagedProvisioning) != 0 {
 		standardProvisioning = cs.StandardProvisioningToInstAPI()
 	}
 
@@ -186,66 +212,88 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 		UseCadenceWebAuth:     cs.UseCadenceWebAuth,
 		PrivateNetworkCluster: cs.PrivateNetworkCluster,
 		SLATier:               cs.SLATier,
-		AWSArchival:           AWSArchival,
+		AWSArchival:           awsArchival,
 		SharedProvisioning:    sharedProvisioning,
 		StandardProvisioning:  standardProvisioning,
 	}, nil
 }
 
 func (cs *CadenceSpec) StandardProvisioningToInstAPI() []*models.CadenceStandardProvisioning {
-	stdProvisioning := &models.CadenceStandardProvisioning{
-		TargetCassandra: &models.TargetCassandra{
-			DependencyCDCID:   cs.TargetCassandraCDCID,
-			DependencyVPCType: cs.TargetCassandraVPCType,
-		},
-	}
+	cadenceStandardProvisioning := []*models.CadenceStandardProvisioning{}
 
-	if cs.UseAdvancedVisibility {
-		stdProvisioning.AdvancedVisibility = []*models.AdvancedVisibility{
-			{
-				TargetKafka: &models.TargetKafka{
-					DependencyCDCID:   cs.TargetKafkaCDCID,
-					DependencyVPCType: cs.TargetKafkaVPCType,
-				},
-				TargetOpenSearch: &models.TargetOpenSearch{
-					DependencyCDCID:   cs.TargetOpenSearchCDCID,
-					DependencyVPCType: cs.TargetOpenSearchVPCType,
-				},
+	for _, standardProvisioning := range cs.StandardProvisioning {
+		targetCassandra := standardProvisioning.TargetCassandra
+
+		stdProvisioning := &models.CadenceStandardProvisioning{
+			TargetCassandra: &models.TargetCassandra{
+				DependencyCDCID:   targetCassandra.DependencyCDCID,
+				DependencyVPCType: targetCassandra.DependencyVPCType,
 			},
 		}
+
+		for _, advancedVisibility := range standardProvisioning.AdvancedVisibility {
+			targetKafka := advancedVisibility.TargetKafka
+			targetOpenSearch := advancedVisibility.TargetOpenSearch
+
+			stdProvisioning.AdvancedVisibility = []*models.AdvancedVisibility{
+				{
+					TargetKafka: &models.TargetKafka{
+						DependencyCDCID:   targetKafka.DependencyCDCID,
+						DependencyVPCType: targetKafka.DependencyVPCType,
+					},
+					TargetOpenSearch: &models.TargetOpenSearch{
+						DependencyCDCID:   targetOpenSearch.DependencyCDCID,
+						DependencyVPCType: targetOpenSearch.DependencyVPCType,
+					},
+				},
+			}
+		}
+
+		cadenceStandardProvisioning = append(cadenceStandardProvisioning, stdProvisioning)
 	}
 
-	return []*models.CadenceStandardProvisioning{stdProvisioning}
+	return cadenceStandardProvisioning
 }
 
 func (cs *CadenceSpec) SharedProvisioningToInstAPI() []*models.CadenceSharedProvisioning {
-	return []*models.CadenceSharedProvisioning{
-		{
-			UseAdvancedVisibility: cs.UseAdvancedVisibility,
-		},
+	sharedProvisioning := []*models.CadenceSharedProvisioning{}
+
+	for _, sp := range cs.SharedProvisioning {
+		sharedProvisioning = append(sharedProvisioning, &models.CadenceSharedProvisioning{
+			UseAdvancedVisibility: sp.UseAdvancedVisibility,
+		})
 	}
+
+	return sharedProvisioning
 }
 
 func (cs *CadenceSpec) ArchivalToInstAPI(ctx context.Context, k8sClient client.Client) ([]*models.AWSArchival, error) {
-	AWSAccessKeyID, AWSSecretAccessKey, err := cs.GetSecret(ctx, k8sClient)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get aws creds secret: %v", err)
-	}
+	awsArchival := []*models.AWSArchival{}
 
-	return []*models.AWSArchival{
-		{
-			ArchivalS3Region:   cs.ArchivalS3Region,
-			ArchivalS3URI:      cs.ArchivalS3URI,
+	for _, aws := range cs.AWSArchival {
+		AWSAccessKeyID, AWSSecretAccessKey, err := getSecret(ctx, k8sClient, aws)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get aws creds secret: %v", err)
+		}
+
+		awsArchival = append(awsArchival, &models.AWSArchival{
+			ArchivalS3Region:   aws.ArchivalS3Region,
+			ArchivalS3URI:      aws.ArchivalS3URI,
 			AWSAccessKeyID:     AWSAccessKeyID,
 			AWSSecretAccessKey: AWSSecretAccessKey,
-		},
-	}, nil
+		})
+	}
+
+	return awsArchival, nil
 }
 
-func (cs *CadenceSpec) GetSecret(ctx context.Context, k8sClient client.Client) (string, string, error) {
+func getSecret(ctx context.Context, k8sClient client.Client, aws *AWSArchival) (string, string, error) {
 	var err error
 	awsCredsSecret := &v1.Secret{}
-	awsSecretNamespacedName := types.NamespacedName{Name: cs.AWSAccessKeySecretName, Namespace: cs.AWSAccessKeySecretNamespace}
+	awsSecretNamespacedName := types.NamespacedName{
+		Name:      aws.AccessKeySecretName,
+		Namespace: aws.AccessKeySecretNamespace,
+	}
 	err = k8sClient.Get(ctx, awsSecretNamespacedName, awsCredsSecret)
 	if err != nil {
 		return "", "", err
