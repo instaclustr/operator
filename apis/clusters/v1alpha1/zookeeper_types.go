@@ -80,8 +80,8 @@ func (z *Zookeeper) NewPatch() client.Patch {
 }
 
 func (z *Zookeeper) FromInstAPI(iData []byte) (*Zookeeper, error) {
-	iZook := models.ZookeeperCluster{}
-	err := json.Unmarshal(iData, &iZook)
+	iZook := &models.ZookeeperCluster{}
+	err := json.Unmarshal(iData, iZook)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (z *Zookeeper) FromInstAPI(iData []byte) (*Zookeeper, error) {
 	}, nil
 }
 
-func (zs *ZookeeperSpec) FromInstAPI(iZook models.ZookeeperCluster) ZookeeperSpec {
+func (zs *ZookeeperSpec) FromInstAPI(iZook *models.ZookeeperCluster) ZookeeperSpec {
 	return ZookeeperSpec{
 		Cluster: Cluster{
 			Name:                  iZook.Name,
@@ -107,7 +107,7 @@ func (zs *ZookeeperSpec) FromInstAPI(iZook models.ZookeeperCluster) ZookeeperSpe
 	}
 }
 
-func (zs *ZookeeperStatus) FromInstAPI(iZook models.ZookeeperCluster) ZookeeperStatus {
+func (zs *ZookeeperStatus) FromInstAPI(iZook *models.ZookeeperCluster) ZookeeperStatus {
 	return ZookeeperStatus{
 		ClusterStatus: ClusterStatus{
 			ID:                            iZook.ID,

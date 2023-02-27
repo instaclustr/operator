@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,6 +97,20 @@ type RedisList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Redis `json:"items"`
+}
+
+type immutableRedisFields struct {
+	specificRedisFields
+	immutableCluster
+}
+
+type specificRedisFields struct {
+	ClientEncryption    bool
+	PasswordAndUserAuth bool
+}
+
+type immutableRedisDCFields struct {
+	immutableDC
 }
 
 func (r *Redis) GetJobID(jobName string) string {
@@ -204,8 +219,8 @@ func (rs *RedisSpec) AreDCsEqual(iDCs []*RedisDataCentre) bool {
 }
 
 func (r *Redis) FromInstAPI(iData []byte) (*Redis, error) {
-	iRedis := models.RedisCluster{}
-	err := json.Unmarshal(iData, &iRedis)
+	iRedis := &models.RedisCluster{}
+	err := json.Unmarshal(iData, iRedis)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +233,7 @@ func (r *Redis) FromInstAPI(iData []byte) (*Redis, error) {
 	}, nil
 }
 
-func (rs *RedisSpec) FromInstAPI(iRedis models.RedisCluster) RedisSpec {
+func (rs *RedisSpec) FromInstAPI(iRedis *models.RedisCluster) RedisSpec {
 	return RedisSpec{
 		Cluster: Cluster{
 			Name:                  iRedis.Name,
@@ -246,7 +261,7 @@ func (rs *RedisSpec) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*Redi
 	return
 }
 
-func (rs *RedisStatus) FromInstAPI(iRedis models.RedisCluster) RedisStatus {
+func (rs *RedisStatus) FromInstAPI(iRedis *models.RedisCluster) RedisStatus {
 	return RedisStatus{
 		ClusterStatus{
 			ID:                            iRedis.ID,
@@ -263,6 +278,135 @@ func (rs *RedisStatus) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*Da
 		dcs = append(dcs, rs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
 	}
 	return
+}
+
+func (rs *RedisSpec) ValidateCreate() error {
+	err := rs.Cluster.ValidateCreation(models.RedisVersions)
+	if err != nil {
+		return err
+	}
+
+	if len(rs.DataCentres) == 0 {
+		return fmt.Errorf("data centres field is empty")
+	}
+
+	for _, dc := range rs.DataCentres {
+		err = dc.ValidateCreate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) ValidateUpdate(oldSpec RedisSpec) error {
+	newImmutableFields := rs.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v",
+			oldImmutableFields, newImmutableFields)
+	}
+
+	err := validateTwoFactorDelete(rs.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	err = rs.validateDCsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
+	if len(rs.DataCentres) < len(oldSpec.DataCentres) {
+		return models.ErrDecreasedDataCentresNumber
+	}
+
+	for i, oldDC := range oldSpec.DataCentres {
+		newDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := len(oldSpec.DataCentres); i < len(rs.DataCentres); i++ {
+		err := rs.DataCentres[i].ValidateCreate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) newImmutableFields() *immutableRedisFields {
+	return &immutableRedisFields{
+		specificRedisFields: specificRedisFields{
+			ClientEncryption:    rs.ClientEncryption,
+			PasswordAndUserAuth: rs.PasswordAndUserAuth,
+		},
+		immutableCluster: rs.Cluster.newImmutableFields(),
+	}
+}
+
+func (rdc *RedisDataCentre) newImmutableFields() *immutableRedisDCFields {
+	return &immutableRedisDCFields{
+		immutableDC: immutableDC{
+			Name:                rdc.Name,
+			Region:              rdc.Region,
+			CloudProvider:       rdc.CloudProvider,
+			ProviderAccountName: rdc.ProviderAccountName,
+			Network:             rdc.Network,
+		},
+	}
+}
+
+func (rdc *RedisDataCentre) ValidateUpdate() error {
+	err := rdc.ValidateNodesNumber()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rdc *RedisDataCentre) ValidateCreate() error {
+	err := rdc.DataCentre.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	err = rdc.ValidateNodesNumber()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rdc *RedisDataCentre) ValidateNodesNumber() error {
+	if rdc.NodesNumber < 0 || rdc.NodesNumber > 100 {
+		return fmt.Errorf("replica nodes number should not be less than 0 or more than 100")
+	}
+
+	if rdc.MasterNodes < 3 || rdc.MasterNodes > 100 {
+		return fmt.Errorf("master nodes should not be less than 3 or more than 100")
+	}
+
+	return nil
 }
 
 func init() {

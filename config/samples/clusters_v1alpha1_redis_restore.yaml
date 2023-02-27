@@ -10,7 +10,7 @@ metadata:
   name: redis-sample
 spec:
   restoreFrom:
-    clusterId: "3e5f1e73-5f6e-4b72-a78b-73f194735471"
+    clusterId: "f6d083ea-eeee-4773-b7f7-6aaf0f9cd543"
     clusterNameOverride: "redisRESTORED"
-    pointInTime: 1676370398898
+    pointInTime: 1677505625158
     clusterNetwork: "10.13.0.0/16"

@@ -72,17 +72,9 @@ func (r *Redis) ValidateCreate() error {
 	}
 
 	for _, dc := range r.Spec.DataCentres {
-		err = dc.DataCentre.ValidateCreation()
+		err = dc.ValidateCreate()
 		if err != nil {
 			return err
-		}
-
-		if dc.NodesNumber < 0 || dc.NodesNumber > 100 {
-			return fmt.Errorf("replica nodes number should not be less than 0 or more than 100")
-		}
-
-		if dc.MasterNodes < 3 || dc.MasterNodes > 100 {
-			return fmt.Errorf("master nodes should not be less than 3 or more than 100")
 		}
 	}
 
@@ -93,7 +85,30 @@ func (r *Redis) ValidateCreate() error {
 func (r *Redis) ValidateUpdate(old runtime.Object) error {
 	redislog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	oldRedis, ok := old.(*Redis)
+	if !ok {
+		return models.ErrTypeAssertion
+	}
+
+	if r.DeletionTimestamp != nil &&
+		(len(r.Spec.TwoFactorDelete) != 0 &&
+			r.Annotations[models.DeletionConfirmed] != models.True) {
+		return nil
+	}
+
+	if r.Status.ID == "" {
+		return r.ValidateCreate()
+	}
+
+	if oldRedis.Spec.RestoreFrom != nil {
+		return nil
+	}
+
+	err := r.Spec.ValidateUpdate(oldRedis.Spec)
+	if err != nil {
+		return fmt.Errorf("update validation error: %v", err)
+	}
+
 	return nil
 }
 

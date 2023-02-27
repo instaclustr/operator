@@ -505,8 +505,8 @@ func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
 }
 
 func (pg *PostgreSQL) FromInstAPI(iData []byte) (*PostgreSQL, error) {
-	iPg := models.PGCluster{}
-	err := json.Unmarshal(iData, &iPg)
+	iPg := &models.PGCluster{}
+	err := json.Unmarshal(iData, iPg)
 	if err != nil {
 		return nil, err
 	}
@@ -519,7 +519,7 @@ func (pg *PostgreSQL) FromInstAPI(iData []byte) (*PostgreSQL, error) {
 	}, nil
 }
 
-func (pgs *PgSpec) FromInstAPI(iPg models.PGCluster) PgSpec {
+func (pgs *PgSpec) FromInstAPI(iPg *models.PGCluster) PgSpec {
 	return PgSpec{
 		Cluster: Cluster{
 			Name:                  iPg.Name,
@@ -578,7 +578,7 @@ func (pgs *PgSpec) PGBouncerFromInstAPI(iPgBs []*models.PGBouncer) (pgbs []*PgBo
 	return
 }
 
-func (pgs *PgStatus) FromInstAPI(iPg models.PGCluster) PgStatus {
+func (pgs *PgStatus) FromInstAPI(iPg *models.PGCluster) PgStatus {
 	return PgStatus{
 		ClusterStatus: ClusterStatus{
 			ID:                            iPg.ID,

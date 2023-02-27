@@ -337,8 +337,8 @@ func (cs *CadenceSpec) DCsToInstAPI() (iDCs []*models.CadenceDataCentre) {
 }
 
 func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
-	iCad := models.CadenceCluster{}
-	err := json.Unmarshal(iData, &iCad)
+	iCad := &models.CadenceCluster{}
+	err := json.Unmarshal(iData, iCad)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +351,7 @@ func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
 	}, nil
 }
 
-func (cs *CadenceSpec) FromInstAPI(iCad models.CadenceCluster) (spec CadenceSpec) {
+func (cs *CadenceSpec) FromInstAPI(iCad *models.CadenceCluster) (spec CadenceSpec) {
 	spec.DataCentres = cs.DCsFromInstAPI(iCad.DataCentres)
 	return
 }
@@ -366,13 +366,13 @@ func (cs *CadenceSpec) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*
 	return
 }
 
-func (cs *CadenceStatus) FromInstAPI(iCass models.CadenceCluster) CadenceStatus {
+func (cs *CadenceStatus) FromInstAPI(iCad *models.CadenceCluster) CadenceStatus {
 	return CadenceStatus{
 		ClusterStatus: ClusterStatus{
-			ID:                            iCass.ID,
-			State:                         iCass.Status,
-			DataCentres:                   cs.DCsFromInstAPI(iCass.DataCentres),
-			CurrentClusterOperationStatus: iCass.CurrentClusterOperationStatus,
+			ID:                            iCad.ID,
+			State:                         iCad.Status,
+			DataCentres:                   cs.DCsFromInstAPI(iCad.DataCentres),
+			CurrentClusterOperationStatus: iCad.CurrentClusterOperationStatus,
 			MaintenanceEvents:             cs.MaintenanceEvents,
 		},
 	}

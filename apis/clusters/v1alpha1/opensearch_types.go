@@ -171,8 +171,8 @@ func (oss *OpenSearchSpec) HasRestore() bool {
 }
 
 func (os *OpenSearch) FromInstAPIv1(iData []byte) (*OpenSearch, error) {
-	iOs := models.OpenSearchClusterV1{}
-	err := json.Unmarshal(iData, &iOs)
+	iOs := &models.OpenSearchClusterV1{}
+	err := json.Unmarshal(iData, iOs)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (os *OpenSearch) FromInstAPIv1(iData []byte) (*OpenSearch, error) {
 	}, nil
 }
 
-func (oss *OpenSearchSpec) FromInstAPIv1(iOs models.OpenSearchClusterV1) OpenSearchSpec {
+func (oss *OpenSearchSpec) FromInstAPIv1(iOs *models.OpenSearchClusterV1) OpenSearchSpec {
 	os := OpenSearchSpec{
 		Cluster: Cluster{
 			Name:                  iOs.ClusterName,
@@ -209,7 +209,7 @@ func (oss *OpenSearchSpec) FromInstAPIv1(iOs models.OpenSearchClusterV1) OpenSea
 	return os
 }
 
-func (oss *OpenSearchSpec) DCsFromInstAPIv1(iOs models.OpenSearchClusterV1) (dcs []*OpenSearchDataCentre) {
+func (oss *OpenSearchSpec) DCsFromInstAPIv1(iOs *models.OpenSearchClusterV1) (dcs []*OpenSearchDataCentre) {
 	for _, iDC := range iOs.DataCentres {
 		var provider *models.ClusterProviderV1
 		for _, iProvider := range iOs.ClusterProvider {
@@ -256,7 +256,7 @@ func (oss *OpenSearchSpec) DCsFromInstAPIv1(iOs models.OpenSearchClusterV1) (dcs
 	return
 }
 
-func (oss *OpenSearchStatus) FromInstAPIv1(iOs models.OpenSearchClusterV1) OpenSearchStatus {
+func (oss *OpenSearchStatus) FromInstAPIv1(iOs *models.OpenSearchClusterV1) OpenSearchStatus {
 	return OpenSearchStatus{
 		ClusterStatus: ClusterStatus{
 			ID:                iOs.ID,

@@ -286,8 +286,8 @@ func validateImmutableManagedClusterFields(new, old *TargetCluster) error {
 }
 
 func (k *KafkaConnect) FromInst(iKCData []byte) (*KafkaConnect, error) {
-	iKC := models.KafkaConnectCluster{}
-	err := json.Unmarshal(iKCData, &iKC)
+	iKC := &models.KafkaConnectCluster{}
+	err := json.Unmarshal(iKCData, iKC)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +300,7 @@ func (k *KafkaConnect) FromInst(iKCData []byte) (*KafkaConnect, error) {
 	}, nil
 }
 
-func (ks *KafkaConnectSpec) FromInstAPI(iKC models.KafkaConnectCluster) KafkaConnectSpec {
+func (ks *KafkaConnectSpec) FromInstAPI(iKC *models.KafkaConnectCluster) KafkaConnectSpec {
 	return KafkaConnectSpec{
 		Cluster: Cluster{
 			Name:                  iKC.Name,
@@ -315,7 +315,7 @@ func (ks *KafkaConnectSpec) FromInstAPI(iKC models.KafkaConnectCluster) KafkaCon
 	}
 }
 
-func (ks *KafkaConnectStatus) FromInstAPI(iKC models.KafkaConnectCluster) KafkaConnectStatus {
+func (ks *KafkaConnectStatus) FromInstAPI(iKC *models.KafkaConnectCluster) KafkaConnectStatus {
 	return KafkaConnectStatus{
 		ClusterStatus: ClusterStatus{
 			ID:                            iKC.ID,

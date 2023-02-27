@@ -158,8 +158,8 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.
 }
 
 func (c *Cassandra) FromInstAPI(iData []byte) (*Cassandra, error) {
-	iCass := models.CassandraCluster{}
-	err := json.Unmarshal(iData, &iCass)
+	iCass := &models.CassandraCluster{}
+	err := json.Unmarshal(iData, iCass)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Cassan
 	return nil
 }
 
-func (cs *CassandraSpec) FromInstAPI(iCass models.CassandraCluster) CassandraSpec {
+func (cs *CassandraSpec) FromInstAPI(iCass *models.CassandraCluster) CassandraSpec {
 	return CassandraSpec{
 		Cluster: Cluster{
 			Name:                  iCass.Name,
@@ -366,7 +366,7 @@ func (cs *CassandraSpec) IsSparkEqual(sparks []*Spark) bool {
 	return true
 }
 
-func (cs *CassandraStatus) FromInstAPI(iCass models.CassandraCluster) CassandraStatus {
+func (cs *CassandraStatus) FromInstAPI(iCass *models.CassandraCluster) CassandraStatus {
 	return CassandraStatus{
 		ClusterStatus: ClusterStatus{
 			ID:                            iCass.ID,
