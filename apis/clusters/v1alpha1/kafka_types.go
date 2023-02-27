@@ -253,8 +253,8 @@ func (k *KafkaSpec) dedicatedZookeeperToInstAPIUpdate() (iZookeepers []*models.D
 }
 
 func (k *Kafka) FromInstAPI(iData []byte) (*Kafka, error) {
-	iKafka := models.KafkaCluster{}
-	err := json.Unmarshal(iData, &iKafka)
+	iKafka := &models.KafkaCluster{}
+	err := json.Unmarshal(iData, iKafka)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func (k *Kafka) FromInstAPI(iData []byte) (*Kafka, error) {
 	}, nil
 }
 
-func (ks *KafkaSpec) FromInstAPI(iKafka models.KafkaCluster) KafkaSpec {
+func (ks *KafkaSpec) FromInstAPI(iKafka *models.KafkaCluster) KafkaSpec {
 	return KafkaSpec{
 		Cluster: Cluster{
 			Name:                  iKafka.Name,
@@ -295,7 +295,7 @@ func (ks *KafkaSpec) FromInstAPI(iKafka models.KafkaCluster) KafkaSpec {
 	}
 }
 
-func (ks *KafkaStatus) FromInstAPI(iKafka models.KafkaCluster) KafkaStatus {
+func (ks *KafkaStatus) FromInstAPI(iKafka *models.KafkaCluster) KafkaStatus {
 	return KafkaStatus{
 		ClusterStatus: ClusterStatus{
 			ID:                            iKafka.ID,
