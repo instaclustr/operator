@@ -1370,16 +1370,14 @@ func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceE
 	return response, nil
 }
 
-func (c *Client) CreateNodeReload(bundle,
-	nodeID string,
-	nr *models.NodeReloadV1,
-) error {
+func (c *Client) CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error {
+	url := fmt.Sprintf(NodeReloadEndpoint, c.serverHostname, nr.ID)
+
 	data, err := json.Marshal(nr)
 	if err != nil {
 		return err
 	}
 
-	url := fmt.Sprintf(c.serverHostname+NodeReloadEndpoint, bundle, nodeID)
 	resp, err := c.DoRequest(url, http.MethodPost, data)
 	if err != nil {
 		return err
@@ -1398,11 +1396,8 @@ func (c *Client) CreateNodeReload(bundle,
 	return nil
 }
 
-func (c *Client) GetNodeReloadStatus(
-	bundle,
-	nodeID string,
-) (*models.NodeReloadStatusAPIv1, error) {
-	url := fmt.Sprintf(c.serverHostname+NodeReloadEndpoint, bundle, nodeID)
+func (c *Client) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error) {
+	url := fmt.Sprintf(NodeReloadEndpoint, c.serverHostname, nodeID)
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -1422,7 +1417,7 @@ func (c *Client) GetNodeReloadStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var nodeReload *models.NodeReloadStatusAPIv1
+	var nodeReload *models.NodeReloadStatus
 	err = json.Unmarshal(body, &nodeReload)
 	if err != nil {
 		return nil, err

@@ -76,3 +76,12 @@ type TwoFactorDelete struct {
 	ConfirmationPhoneNumber string `json:"confirmationPhoneNumber,omitempty"`
 	ConfirmationEmail       string `json:"confirmationEmail"`
 }
+
+type NodeReloadStatus struct {
+	NodeID       string `json:"nodeId,omitempty"`
+	OperationID  string `json:"operationId,omitempty"`
+	TimeCreated  string `json:"timeCreated,omitempty"`
+	TimeModified string `json:"timeModified,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Message      string `json:"message,omitempty"`
+}

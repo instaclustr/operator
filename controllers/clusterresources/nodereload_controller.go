@@ -85,22 +85,17 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 	patch := nrs.NewPatch()
 
-	if nrs.Status.NodeInProgress.NodeID == "" && nrs.Status.NodeInProgress.Bundle == "" {
-		nodeInProgress := &models.NodeReloadV1{
-			Bundle: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].Bundle,
-			NodeID: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].NodeID,
+	if nrs.Status.NodeInProgress.ID == "" {
+		nodeInProgress := &clusterresourcesv1alpha1.Node{
+			ID: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].ID,
 		}
-		nrs.Status.NodeInProgress = clusterresourcesv1alpha1.Node{
-			NodeID: nodeInProgress.NodeID,
-			Bundle: nodeInProgress.Bundle,
-		}
+		nrs.Status.NodeInProgress.ID = nodeInProgress.ID
 
-		err = r.API.CreateNodeReload(nodeInProgress.Bundle, nodeInProgress.NodeID, nodeInProgress)
+		err = r.API.CreateNodeReload(nodeInProgress)
 		if err != nil {
 			l.Error(err,
 				"Cannot start Node Reload process",
-				"bundle", nodeInProgress.Bundle,
-				"nodeID", nodeInProgress.NodeID,
+				"nodeID", nodeInProgress.ID,
 			)
 			return models.ReconcileRequeue, nil
 		}
@@ -109,52 +104,45 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if err != nil {
 			l.Error(err,
 				"Cannot patch Node Reload status",
-				"bundle", nrs.Status.NodeInProgress.Bundle,
-				"nodeID", nrs.Status.NodeInProgress.NodeID,
+				"nodeID", nrs.Status.NodeInProgress,
 			)
 			return models.ReconcileRequeue, nil
 		}
 	}
 
-	nodeReloadStatus, err := r.API.GetNodeReloadStatus(nrs.Status.NodeInProgress.Bundle, nrs.Status.NodeInProgress.NodeID)
+	nodeReloadStatus, err := r.API.GetNodeReloadStatus(nrs.Status.NodeInProgress.ID)
 	if err != nil {
 		l.Error(err,
 			"Cannot get Node Reload status",
-			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"nodeID", nrs.Status.NodeInProgress,
 		)
 		return models.ReconcileRequeue, nil
 	}
 
-	nrs.Status.CurrentOperationStatus = nrs.Status.FromInstAPI(nodeReloadStatus)
+	nrs.Status = *nrs.Status.FromInstAPI(nodeReloadStatus)
 	err = r.Status().Patch(ctx, &nrs, patch)
 	if err != nil {
 		l.Error(err,
 			"Cannot patch Node Reload status",
-			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"nodeID", nrs.Status.NodeInProgress,
 		)
 		return models.ReconcileRequeue, nil
 	}
 
-	if nrs.Status.CurrentOperationStatus[0].Status != "COMPLETED" {
+	if nrs.Status.CurrentOperationStatus.Status != "COMPLETED" {
 		l.Info("Node Reload operation is not completed yet, please wait a few minutes",
-			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
-			"status", nrs.Status.CurrentOperationStatus,
+			"nodeID", nrs.Status.NodeInProgress,
+			"status", nrs.Status,
 		)
 		return models.ReconcileRequeue, nil
 	}
-	nrs.Status.NodeInProgress = clusterresourcesv1alpha1.Node{
-		NodeID: "",
-		Bundle: "",
-	}
+
+	nrs.Status.NodeInProgress.ID = ""
 	err = r.Status().Patch(ctx, &nrs, patch)
 	if err != nil {
 		l.Error(err,
 			"Cannot patch Node Reload status",
-			"bundle", nrs.Status.NodeInProgress.Bundle,
-			"nodeID", nrs.Status.NodeInProgress.NodeID,
+			"nodeID", nrs.Status.NodeInProgress,
 		)
 		return models.ReconcileRequeue, nil
 	}

@@ -29,6 +29,7 @@ const (
 	PGSQLConfigEndpoint                    = "%s/cluster-management/v2/data-sources/postgresql_cluster/%s/configurations"
 	PGSQLConfigManagementEndpoint          = "%s/cluster-management/v2/resources/applications/postgresql/configurations/v2/"
 	PGSQLUpdateDefaultUserPasswordEndpoint = "%s/cluster-management/v2/operations/applications/postgresql/clusters/v2/%s/update-default-user-password"
+	NodeReloadEndpoint                     = "%s/cluster-management/v2/operations/applications/postgresql/nodes/v2/%s/reload"
 )
 
 // constants for API v1
@@ -40,7 +41,6 @@ const (
 	TerraformDescription                   = "/terraform-description"
 	ClustersCreationEndpoint               = "/provisioning/v1/extended/"
 	BackupsEndpoint                        = "/backups"
-	NodeReloadEndpoint                     = "/provisioning/v1/%s/node/%s/reload"
 
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
 	ClustersEndpointV1 = "/provisioning/v1/"

@@ -113,6 +113,9 @@ var _ = BeforeSuite(func() {
 	err = (&GCPVPCPeering{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&NodeReload{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {

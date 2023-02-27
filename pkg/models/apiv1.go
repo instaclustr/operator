@@ -134,22 +134,6 @@ type AddonBundle struct {
 	Options *BundleOptions `json:"options"`
 }
 
-type NodeReloadV1 struct {
-	Bundle string `json:"bundle"`
-	NodeID string `json:"nodeId"`
-}
-
-type NodeReloadStatusAPIv1 struct {
-	Operations []*OperationV1 `json:"operations"`
-}
-
-type OperationV1 struct {
-	TimeCreated  int64  `json:"timeCreated"`
-	TimeModified int64  `json:"timeModified"`
-	Status       string `json:"status"`
-	Message      string `json:"message"`
-}
-
 func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEvent {
 	var eventType string
 

@@ -4,7 +4,6 @@ metadata:
   name: nodereload-sample
 spec:
   nodes:
-    - bundle: "POSTGRESQL"
-      nodeID: "bdc73165-cc6e-47a7-87f4-0d821bc94979"
-    - bundle: "POSTGRESQL"
-      nodeID: "2f2e7374-d178-4be0-830a-14003cf6e224"
+    - nodeID: "cadd9bee-e119-4753-855c-77f253547b1f"
+    - nodeID: "3d9d606b-8372-45e9-95f9-0037b8584f95"
+    - nodeID: "dc9231c7-b3fd-4750-befc-68a716e98aeb"

@@ -30,18 +30,18 @@ type NodeReloadSpec struct {
 
 // NodeReloadStatus defines the observed state of NodeReload
 type NodeReloadStatus struct {
-	NodeInProgress         Node         `json:"nodeInProgress,omitempty"`
-	CurrentOperationStatus []*Operation `json:"currentOperationStatus,omitempty"`
+	NodeInProgress         Node       `json:"nodeInProgress,omitempty"`
+	CurrentOperationStatus *Operation `json:"currentOperationStatus,omitempty"`
 }
 
 type Node struct {
-	Bundle string `json:"bundle"`
-	NodeID string `json:"nodeID"`
+	ID string `json:"nodeID"`
 }
 
 type Operation struct {
-	TimeCreated  int64  `json:"timeCreated"`
-	TimeModified int64  `json:"timeModified"`
+	OperationID  string `json:"operationId,omitempty"`
+	TimeCreated  string `json:"timeCreated"`
+	TimeModified string `json:"timeModified"`
 	Status       string `json:"status"`
 	Message      string `json:"message"`
 }
@@ -72,19 +72,23 @@ func (nr *NodeReload) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
-func (nrs *NodeReloadStatus) FromInstAPI(iStatus *models.NodeReloadStatusAPIv1) (ops []*Operation) {
-	for _, iOps := range iStatus.Operations {
-		op := &Operation{
-			TimeCreated:  iOps.TimeCreated,
-			TimeModified: iOps.TimeModified,
-			Status:       iOps.Status,
-			Message:      iOps.Message,
-		}
-		ops = append(ops, op)
-	}
-	return
-}
-
 func init() {
 	SchemeBuilder.Register(&NodeReload{}, &NodeReloadList{})
+}
+
+func (nr *NodeReloadStatus) FromInstAPI(status *models.NodeReloadStatus) *NodeReloadStatus {
+	var nrStatus = &NodeReloadStatus{
+		NodeInProgress: Node{
+			ID: status.NodeID,
+		},
+		CurrentOperationStatus: &Operation{
+			OperationID:  status.OperationID,
+			TimeCreated:  status.TimeCreated,
+			TimeModified: status.TimeModified,
+			Status:       status.Status,
+			Message:      status.Message,
+		},
+	}
+
+	return nrStatus
 }
