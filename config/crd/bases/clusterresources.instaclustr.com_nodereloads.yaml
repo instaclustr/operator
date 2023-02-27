@@ -38,12 +38,9 @@ spec:
               nodes:
                 items:
                   properties:
-                    bundle:
-                      type: string
                     nodeID:
                       type: string
                   required:
-                  - bundle
                   - nodeID
                   type: object
                 type: array
@@ -54,33 +51,28 @@ spec:
             description: NodeReloadStatus defines the observed state of NodeReload
             properties:
               currentOperationStatus:
-                items:
-                  properties:
-                    message:
-                      type: string
-                    status:
-                      type: string
-                    timeCreated:
-                      format: int64
-                      type: integer
-                    timeModified:
-                      format: int64
-                      type: integer
-                  required:
-                  - message
-                  - status
-                  - timeCreated
-                  - timeModified
-                  type: object
-                type: array
+                properties:
+                  message:
+                    type: string
+                  operationId:
+                    type: string
+                  status:
+                    type: string
+                  timeCreated:
+                    type: string
+                  timeModified:
+                    type: string
+                required:
+                - message
+                - status
+                - timeCreated
+                - timeModified
+                type: object
               nodeInProgress:
                 properties:
-                  bundle:
-                    type: string
                   nodeID:
                     type: string
                 required:
-                - bundle
                 - nodeID
                 type: object
             type: object

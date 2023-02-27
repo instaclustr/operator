@@ -900,14 +900,8 @@ func (in *NodeReloadStatus) DeepCopyInto(out *NodeReloadStatus) {
 	out.NodeInProgress = in.NodeInProgress
 	if in.CurrentOperationStatus != nil {
 		in, out := &in.CurrentOperationStatus, &out.CurrentOperationStatus
-		*out = make([]*Operation, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(Operation)
-				**out = **in
-			}
-		}
+		*out = new(Operation)
+		**out = **in
 	}
 }
 

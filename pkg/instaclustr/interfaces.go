@@ -52,8 +52,8 @@ type API interface {
 	RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error)
 	RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error)
 	RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error)
-	CreateNodeReload(bundle, nodeID string, nr *models.NodeReloadV1) error
-	GetNodeReloadStatus(bundle, nodeID string) (*models.NodeReloadStatusAPIv1, error)
+	CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error
+	GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error)
 	GetRedis(id string) ([]byte, error)
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)

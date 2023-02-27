@@ -165,20 +165,12 @@ func (c *mockClient) TriggerClusterBackup(url, clusterID string) error {
 	panic("TriggerClusterBackup: is not implemented")
 }
 
-func (c *mockClient) CreateNodeReload(bundle, nodeID string, nr *models.NodeReloadV1) error {
+func (c *mockClient) CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error {
 	return nil
 }
 
-func (c *mockClient) GetNodeReloadStatus(bundle, nodeID string) (*models.NodeReloadStatusAPIv1, error) {
-	nrs := &models.NodeReloadStatusAPIv1{
-		Operations: []*models.OperationV1{{
-			TimeCreated:  1232132,
-			TimeModified: 143432,
-			Status:       StatusID,
-			Message:      "message",
-		}},
-	}
-	return nrs, nil
+func (c *mockClient) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error) {
+	return nil, nil
 }
 
 func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
