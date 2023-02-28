@@ -68,6 +68,7 @@ type CassandraSpec struct {
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	Spark               []*Spark               `json:"spark,omitempty"`
+	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
@@ -266,6 +267,7 @@ func (cs *CassandraSpec) FromInstAPI(iCass models.CassandraCluster) CassandraSpe
 		LuceneEnabled:       iCass.LuceneEnabled,
 		PasswordAndUserAuth: iCass.PasswordAndUserAuth,
 		Spark:               cs.SparkFromInstAPI(iCass.Spark),
+		BundledUseOnly:      iCass.BundledUseOnly,
 	}
 }
 
@@ -310,6 +312,7 @@ func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 		PrivateNetworkCluster: cs.PrivateNetworkCluster,
 		PCIComplianceMode:     cs.PCICompliance,
 		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
+		BundledUseOnly:        cs.BundledUseOnly,
 	}
 }
 

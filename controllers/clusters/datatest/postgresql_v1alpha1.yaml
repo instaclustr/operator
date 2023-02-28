@@ -6,6 +6,8 @@ metadata:
     testAnnotation: test
 spec:
   name: "testPostgre"
+  clusterConfigurations:
+    idle_in_transaction_session_timeout: "1"
   version: "14.5.0"
   dataCentres:
     - region: "US_EAST_1"
@@ -13,12 +15,24 @@ spec:
       cloudProvider: "AWS_VPC"
       nodeSize: "PGS-DEV-t4g.small-5"
       nodesNumber: 2
-      clientEncryption: false
+      accountName: "accountNameTEST"
+#      cloudProviderSettings:
+#        - customVirtualNetworkId: "vpc-12345678"
+#          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
+#          resourceGroup: "asdfadfsdfas"
+      clientEncryption: true
       name: "testDC1"
+      pgBouncer:
+        - pgBouncerVersion: "pgBouncerVersionTest"
+          poolMode: "poolModeTest"
       intraDataCentreReplication:
         - replicationMode: "SYNCHRONOUS"
       interDataCentreReplication:
         - isPrimaryDataCentre: true
   slaTier: "NON_PRODUCTION"
-  privateNetworkCluster: false
-  synchronousModeStrict: false
+  privateNetworkCluster: true
+  pciCompliance: true
+  synchronousModeStrict: true
+#  twoFactorDelete:
+#    - email: "emailTEST"
+#      phone: "phoneTEST"

@@ -35,7 +35,7 @@ type DataCentre struct {
 type DataCentreStatus struct {
 	ID     string  `json:"id,omitempty"`
 	Status string  `json:"status,omitempty"`
-	Nodes  []*Node `json:"nodes"`
+	Nodes  []*Node `json:"nodes,omitempty"`
 }
 
 type CloudProviderSettings struct {

@@ -35,6 +35,8 @@ spec:
           spec:
             description: CassandraSpec defines the desired state of Cassandra
             properties:
+              bundledUseOnly:
+                type: boolean
               dataCentres:
                 items:
                   properties:

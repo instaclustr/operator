@@ -12,6 +12,7 @@ type CassandraCluster struct {
 	PrivateNetworkCluster bool                   `json:"privateNetworkCluster"`
 	PCIComplianceMode     bool                   `json:"pciComplianceMode"`
 	TwoFactorDelete       []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
+	BundledUseOnly        bool                   `json:"bundledUseOnly,omitempty"`
 }
 
 type CassandraDataCentre struct {

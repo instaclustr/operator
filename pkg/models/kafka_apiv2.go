@@ -20,7 +20,7 @@ type KafkaCluster struct {
 	DefaultReplicationFactor          int                       `json:"defaultReplicationFactor"`
 	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy"`
 	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry"`
-	PCIComplianceMode                 bool                      `json:"PCIComplianceMode"`
+	PCIComplianceMode                 bool                      `json:"pciComplianceMode"`
 	RestProxy                         []*RestProxy              `json:"restProxy"`
 	SchemaRegistry                    []*SchemaRegistry         `json:"schemaRegistry"`
 }
