@@ -9,7 +9,7 @@ type PGCluster struct {
 	PrivateNetworkCluster         bool               `json:"privateNetworkCluster"`
 	SLATier                       string             `json:"slaTier"`
 	TwoFactorDelete               []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	PCIComplianceMode             bool               `json:"PCIComplianceMode,omitempty"`
+	PCIComplianceMode             bool               `json:"pciComplianceMode,omitempty"`
 	CurrentClusterOperationStatus string             `json:"currentClusterOperationStatus,omitempty"`
 	Status                        string             `json:"status,omitempty"`
 }

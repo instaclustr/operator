@@ -11,7 +11,15 @@ spec:
       nodeSize: "zookeeper-developer-t3.small-20"
       nodesNumber: 3
       region: "US_EAST_1"
+#      accountName: "Custrom"
+#      cloudProviderSettings:
+#        - customVirtualNetworkId: "vpc-12345678"
+#          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
+#          resourceGroup: "asdfadfsdfas"
   name: "OperatorZookeeper"
-  privateNetworkCluster: false
+  privateNetworkCluster: true
+#  twoFactorDelete:
+#    - email: "emailTEST"
+#      phone: "phoneTEST"
   slaTier: "NON_PRODUCTION"
   version: "3.6.3"

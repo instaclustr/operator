@@ -6,16 +6,54 @@ spec:
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"
       nodesNumber: 3
+#      accountName: "TestAccName"
       cloudProvider: "AWS_VPC"
       replicationFactor: 3
       nodeSize: "KCN-DEV-t4g.medium-30"
       network: "10.3.0.0/16"
       region: "US_EAST_1"
+      tags:
+        tag: "oneTag"
+        tag2: "twoTags"
+#      cloudProviderSettings:
+#        - customVirtualNetworkId: "vpc-12345678"
+#          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
+#          resourceGroup: "asdfadfsdfas"
   name: "kafkaConnectOperator"
   version: "3.1.2"
-  privateNetworkCluster: false
+  privateNetworkCluster: true
+  pciCompliance: true
+  #  twoFactorDelete:
+  #    - email: "emailTEST"
+  #      phone: "phoneTEST"
   slaTier: "NON_PRODUCTION"
   targetCluster:
+#    - externalCluster:
+#        - bootstrapServers: "bootstrapServersTEST"
+#          saslJaasConfig: "saslJaasConfigTEST"
+#          saslMechanism: "saslMechanismTEST"
+#          securityProtocol: "securityProtocolTEST"
+#          sslEnabledProtocols: "sslEnabledProtocolsTEST"
+#          sslProtocol: "sslProtocolTEST"
+#          sslTruststorePassword: "sslTruststorePasswordTEST"
+#          truststore: "truststoreTEST"
     - managedCluster:
         - targetKafkaClusterId: "c38ce872-ebf3-49f5-ae9b-f20fccac527e"
           kafkaConnectVpcType: "KAFKA_VPC"
+  customConnectors:
+    - awsConnectorSettings:
+        - accessKey: "accessKeyTEST"
+          s3BucketName: "s3BucketNameTEST"
+          s3RoleArn: "s3RoleArnTEST"
+          secretKey: "secretKeyTEST"
+#    - azureConnectorSettings:
+#        - storageAccountKey: "storageAccountKeyTEST"
+#          storageAccountName: "storageAccountNameTEST"
+#          storageContainerName: "storageContainerNameTEST"
+#    - gcpConnectorSettings:
+#        - clientEmail: "clientEmailTEST"
+#          clientId: "clientIdTEST"
+#          privateKey: "privateKeyTEST"
+#          privateKeyId: "privateKeyIdTEST"
+#          projectId: "projectIdTEST"
+#          storageBucketName: "storageBucketNameTEST"

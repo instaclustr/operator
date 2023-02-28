@@ -47,7 +47,7 @@ type Bundle struct {
 type DataCentreV1 struct {
 	ID                            string          `json:"id,omitempty"`
 	Name                          string          `json:"name"`
-	CDCName                       string          `json:"CDCName"`
+	CDCName                       string          `json:"cdcName"`
 	Provider                      string          `json:"provider"`
 	CDCNetwork                    string          `json:"cdcNetwork"`
 	ClientEncryption              bool            `json:"clientEncryption"`
