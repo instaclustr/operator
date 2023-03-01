@@ -147,7 +147,7 @@ func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 	kafkaACL *kafkamanagementv1alpha1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
-	err := r.API.UpdatePeering(kafkaACL.Status.ID, instaclustr.KafkaACLEndpoint, &kafkaACL.Spec)
+	err := r.API.UpdateKafkaACL(kafkaACL.Status.ID, instaclustr.KafkaACLEndpoint, &kafkaACL.Spec)
 	if err != nil {
 		l.Error(err, "Cannot update kafka ACL",
 			"cluster ID", kafkaACL.Spec.ClusterID,

@@ -21,6 +21,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 var kafkaacllog = logf.Log.WithName("kafkaacl-resource")
@@ -40,7 +42,7 @@ var _ webhook.Validator = &KafkaACL{}
 func (kacl *KafkaACL) ValidateCreate() error {
 	kafkaacllog.Info("validate create", "name", kacl.Name)
 
-	err := kacl.validate()
+	err := kacl.validateCreate()
 	if err != nil {
 		return err
 	}
@@ -53,10 +55,15 @@ func (kacl *KafkaACL) ValidateUpdate(old runtime.Object) error {
 	kafkaacllog.Info("validate update", "name", kacl.Name)
 
 	if kacl.Status.ID == "" {
-		return kacl.ValidateCreate()
+		return kacl.validateCreate()
 	}
 
-	err := kacl.validate()
+	oldKafkaACL, ok := old.(*KafkaACL)
+	if !ok {
+		return models.ErrTypeAssertion
+	}
+
+	err := kacl.validateUpdate(oldKafkaACL)
 	if err != nil {
 		return err
 	}
