@@ -25,6 +25,7 @@ const (
 	KafkaACLEndpoint                       = "/cluster-management/v2/resources/applications/kafka/acls/v2/"
 	CadenceEndpoint                        = "/cluster-management/v2/resources/applications/cadence/clusters/v2/"
 	RedisEndpoint                          = "/cluster-management/v2/resources/applications/redis/clusters/v2/"
+	RedisUserEndpoint                      = "/cluster-management/v2/resources/applications/redis/users/v2/"
 	PGSQLEndpoint                          = "/cluster-management/v2/resources/applications/postgresql/clusters/v2/"
 	PGSQLConfigEndpoint                    = "%s/cluster-management/v2/data-sources/postgresql_cluster/%s/configurations"
 	PGSQLConfigManagementEndpoint          = "%s/cluster-management/v2/resources/applications/postgresql/configurations/v2/"

@@ -295,3 +295,15 @@ func (c *mockClient) UpdateCassandra(id string, cassandra models.CassandraCluste
 func (c *mockClient) UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) error {
 	panic("UpdateKafkaConnect: is not implemented")
 }
+
+func (c *mockClient) CreateRedisUser(user *models.RedisUser) (string, error) {
+	panic("CreateRedisUser: is not implemented")
+}
+
+func (c *mockClient) UpdateRedisUser(user *models.RedisUserUpdate) error {
+	panic("UpdateRedisUser: is not implemented")
+}
+
+func (c *mockClient) DeleteRedisUser(id string) error {
+	panic("DeleteRedisUser: is not implemented")
+}

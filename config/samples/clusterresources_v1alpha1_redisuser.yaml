@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-user-test
+data:
+  Password: VGVzdDEyMzQhCg==
+---
+apiVersion: clusterresources.instaclustr.com/v1alpha1
+kind: RedisUser
+metadata:
+  name: redisuser-sample
+spec:
+  clusterId: "ad430197-6896-4afe-a229-eb7c84f4f8a9"
+  username: "testRedis"
+  passwordSecretName: "redis-user-test"
+  passwordSecretNamespace: "default"
+  initialPermissions: "none"

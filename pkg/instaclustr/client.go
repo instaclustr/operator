@@ -136,6 +136,93 @@ func (c *Client) GetRedis(id string) ([]byte, error) {
 	return body, nil
 }
 
+func (c *Client) CreateRedisUser(user *models.RedisUser) (string, error) {
+	data, err := json.Marshal(user)
+	if err != nil {
+		return "", err
+	}
+
+	url := c.serverHostname + RedisUserEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	response := &struct {
+		ID string `json:"id"`
+	}{}
+
+	err = json.Unmarshal(body, response)
+	if err != nil {
+		return "", err
+	}
+
+	return response.ID, nil
+}
+
+func (c *Client) UpdateRedisUser(user *models.RedisUserUpdate) error {
+	url := c.serverHostname + RedisUserEndpoint + user.ID
+	data, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteRedisUser(id string) error {
+	url := c.serverHostname + RedisUserEndpoint + id
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
 func (c *Client) GetCassandra(id string) ([]byte, error) {
 	url := c.serverHostname + CassandraEndpoint + id
 
