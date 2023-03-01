@@ -6,7 +6,7 @@
 |------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------------------------------------------------|
 | kafkaUserSecretName                            | string <br /> **required** <br /> _mutable_            | Name of the secret in which Kafka User password and Kafka User username are stored.               |
 | kafkaUserSecretNamespace                       | string <br /> **required** <br /> _mutable_            | Namespace of the secret in which Kafka User password and Kafka User username are stored.          |
-| clusterId                                      | string `<uuid>` <br /> **required**   | ID of the Kafka cluster.                                                                          |
+| clusterId                                      | string `<uuid>` <br /> **required**                    | ID of the Kafka cluster.                                                                          |
 | initialPermissions                             | string <br /> **required** <br /> _mutable_            | Permissions initially granted to Kafka user upon creation. Enum: `standard`, `read-only`, `none`. |
 | options                                        | Object ([Options](#OptionsObject)) <br /> **required** | Initial options used when creating Kafka User.                                                    |
 
