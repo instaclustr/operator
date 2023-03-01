@@ -17,6 +17,7 @@ const (
 	ClusterIDLabel                     = "instaclustr.com/clusterID"
 	ClustersV1alpha1APIVersion         = "clusters.instaclustr.com/v1alpha1"
 	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
+	RedisUserNamespaceLabel            = "instaclustr.com/redisUserNamespace"
 
 	CassandraKind        = "Cassandra"
 	CassandraChildPrefix = "cassandra-"

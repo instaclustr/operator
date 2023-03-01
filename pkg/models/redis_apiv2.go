@@ -22,3 +22,16 @@ type RedisDataCentre struct {
 type RedisDataCentreUpdate struct {
 	DataCentres []*RedisDataCentre `json:"dataCentres"`
 }
+
+type RedisUser struct {
+	ID                 string `json:"ID,omitempty"`
+	ClusterID          string `json:"clusterId"`
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	InitialPermissions string `json:"initialPermissions"`
+}
+
+type RedisUserUpdate struct {
+	ID       string
+	Password string `json:"password"`
+}

@@ -997,7 +997,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findSecretObject),
 			builder.WithPredicates(predicate.Funcs{
 				CreateFunc: func(createEvent event.CreateEvent) bool {
-					return createEvent.Object.GetGeneration() == 1
+					return createEvent.Object.GetGeneration() == 0
 				},
 			}),
 		).

@@ -227,6 +227,32 @@ rules:
   - patch
   - update
 - apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - redisusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - redisusers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - redisusers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - clusters.instaclustr.com
   resources:
   - cadences

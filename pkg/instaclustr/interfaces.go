@@ -55,6 +55,9 @@ type API interface {
 	CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error
 	GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error)
 	GetRedis(id string) ([]byte, error)
+	CreateRedisUser(user *models.RedisUser) (string, error)
+	UpdateRedisUser(user *models.RedisUserUpdate) error
+	DeleteRedisUser(id string) error
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error)
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
