@@ -556,6 +556,48 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 
 		iData, err := r.API.GetCassandra(cassandra.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(cassandra.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", cassandra.Status.ClusterStatus.ID,
+						"cluster name", cassandra.Spec.Name,
+					)
+
+					patch := cassandra.NewPatch()
+					cassandra.Annotations[models.DeletionConfirmed] = models.True
+					cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), cassandra, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch Cassandra cluster resource",
+							"cluster ID", cassandra.Status.ID,
+							"cluster name", cassandra.Spec.Name,
+							"resource name", cassandra.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), cassandra)
+					if err != nil {
+						l.Error(err, "Cannot delete Cassandra cluster resource",
+							"cluster ID", cassandra.Status.ID,
+							"cluster name", cassandra.Spec.Name,
+							"resource name", cassandra.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get cluster from the Instaclustr API",
 				"clusterID", cassandra.Status.ID)
 			return err

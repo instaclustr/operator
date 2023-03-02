@@ -626,6 +626,48 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 
 		iData, err := r.API.GetCadence(cadence.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(cadence.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", cadence.Status.ClusterStatus.ID,
+						"cluster name", cadence.Spec.Name,
+					)
+
+					patch := cadence.NewPatch()
+					cadence.Annotations[models.DeletionConfirmed] = models.True
+					cadence.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), cadence, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch Cadence cluster resource",
+							"cluster ID", cadence.Status.ID,
+							"cluster name", cadence.Spec.Name,
+							"resource name", cadence.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), cadence)
+					if err != nil {
+						l.Error(err, "Cannot delete Cadence cluster resource",
+							"cluster ID", cadence.Status.ID,
+							"cluster name", cadence.Spec.Name,
+							"resource name", cadence.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get Cadence cluster from the Instaclustr API",
 				"clusterID", cadence.Status.ID,
 			)

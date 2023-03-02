@@ -77,4 +77,5 @@ type API interface {
 	ResetPostgreSQLConfiguration(id, name string) error
 	GetCadence(id string) ([]byte, error)
 	UpdatePostgreSQLDefaultUserPassword(id, password string) error
+	ListClusters() ([]*models.ActiveClusters, error)
 }

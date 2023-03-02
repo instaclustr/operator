@@ -296,6 +296,10 @@ func (c *mockClient) UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpda
 	panic("UpdateKafkaConnect: is not implemented")
 }
 
+func (c *mockClient) ListClusters() ([]*models.ActiveClusters, error) {
+	panic("ListClusters: is not implemented")
+}
+
 func (c *mockClient) CreateRedisUser(user *models.RedisUser) (string, error) {
 	panic("CreateRedisUser: is not implemented")
 }

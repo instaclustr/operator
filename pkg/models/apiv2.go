@@ -85,3 +85,13 @@ type NodeReloadStatus struct {
 	Status       string `json:"status,omitempty"`
 	Message      string `json:"message,omitempty"`
 }
+
+type ActiveClusters struct {
+	AccountID string           `json:"accountId,omitempty"`
+	Clusters  []*ActiveCluster `json:"clusters,omitempty"`
+}
+
+type ActiveCluster struct {
+	Application string `json:"application,omitempty"`
+	ID          string `json:"id,omitempty"`
+}

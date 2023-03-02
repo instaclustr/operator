@@ -2071,3 +2071,29 @@ func (c *Client) UpdatePostgreSQLDefaultUserPassword(id, password string) error 
 
 	return nil
 }
+
+func (c *Client) ListClusters() ([]*models.ActiveClusters, error) {
+	url := c.serverHostname + ClustersEndpoint
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	response := []*models.ActiveClusters{}
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}

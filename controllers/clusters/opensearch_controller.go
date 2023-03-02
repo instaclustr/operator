@@ -481,6 +481,48 @@ func (r *OpenSearchReconciler) newWatchStatusJob(openSearch *clustersv1alpha1.Op
 
 		iData, err := r.API.GetOpenSearch(openSearch.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(openSearch.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", openSearch.Status.ClusterStatus.ID,
+						"cluster name", openSearch.Spec.Name,
+					)
+
+					patch := openSearch.NewPatch()
+					openSearch.Annotations[models.DeletionConfirmed] = models.True
+					openSearch.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), openSearch, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch OpenSearch cluster resource",
+							"cluster ID", openSearch.Status.ID,
+							"cluster name", openSearch.Spec.Name,
+							"resource name", openSearch.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), openSearch)
+					if err != nil {
+						l.Error(err, "Cannot delete OpenSearch cluster resource",
+							"cluster ID", openSearch.Status.ID,
+							"cluster name", openSearch.Spec.Name,
+							"resource name", openSearch.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
 				"cluster ID", openSearch.Status.ID)
 

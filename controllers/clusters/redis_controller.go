@@ -513,6 +513,48 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 
 		iData, err := r.API.GetRedis(redis.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(redis.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", redis.Status.ClusterStatus.ID,
+						"cluster name", redis.Spec.Name,
+					)
+
+					patch := redis.NewPatch()
+					redis.Annotations[models.DeletionConfirmed] = models.True
+					redis.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), redis, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch Redis cluster resource",
+							"cluster ID", redis.Status.ID,
+							"cluster name", redis.Spec.Name,
+							"resource name", redis.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), redis)
+					if err != nil {
+						l.Error(err, "Cannot delete Redis cluster resource",
+							"cluster ID", redis.Status.ID,
+							"cluster name", redis.Spec.Name,
+							"resource name", redis.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get Redis cluster status from Instaclustr",
 				"cluster ID", redis.Status.ID,
 			)
