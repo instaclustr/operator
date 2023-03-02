@@ -263,27 +263,45 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 		iData, err := r.API.GetKafka(kafka.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				patch := kafka.NewPatch()
-				l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-					"cluster ID", kafka.Status.ClusterStatus.ID,
-					"cluster name", kafka.Spec.Name,
-					"namespaced name", namespacedName)
-
-				controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
-				kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-				err = r.Patch(context.Background(), kafka, patch)
+				activeClusters, err := r.API.ListClusters()
 				if err != nil {
-					l.Error(err, "Cannot patch cluster resource",
-						"cluster name", kafka.Spec.Name)
+					l.Error(err, "Cannot list account active clusters")
 					return err
 				}
 
-				l.Info("Cluster was deleted",
-					"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
+				if !isClusterActive(kafka.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", kafka.Status.ClusterStatus.ID,
+						"cluster name", kafka.Spec.Name,
+						"namespaced name", namespacedName)
 
-				r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
+					patch := kafka.NewPatch()
+					kafka.Annotations[models.ClusterDeletionAnnotation] = ""
+					kafka.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), kafka, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch Kafka cluster resource",
+							"cluster ID", kafka.Status.ID,
+							"cluster name", kafka.Spec.Name,
+							"resource name", kafka.Name,
+						)
 
-				return nil
+						return err
+					}
+
+					err = r.Delete(context.TODO(), kafka)
+					if err != nil {
+						l.Error(err, "Cannot delete Kafka cluster resource",
+							"cluster ID", kafka.Status.ID,
+							"cluster name", kafka.Spec.Name,
+							"resource name", kafka.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
 			}
 
 			l.Error(err, "Cannot get cluster from the Instaclustr API", "cluster ID", kafka.Status.ID)

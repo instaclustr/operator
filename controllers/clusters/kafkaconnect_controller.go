@@ -238,6 +238,48 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 	return func() error {
 		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(kc.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", kc.Status.ClusterStatus.ID,
+						"cluster name", kc.Spec.Name,
+					)
+
+					patch := kc.NewPatch()
+					kc.Annotations[models.DeletionConfirmed] = models.True
+					kc.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), kc, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch KafkaConnect cluster resource",
+							"cluster ID", kc.Status.ID,
+							"cluster name", kc.Spec.Name,
+							"resource name", kc.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), kc)
+					if err != nil {
+						l.Error(err, "Cannot delete KafkaConnect cluster resource",
+							"cluster ID", kc.Status.ID,
+							"cluster name", kc.Spec.Name,
+							"resource name", kc.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get Kafka Connect from Instaclustr",
 				"cluster ID", kc.Status.ID)
 			return err

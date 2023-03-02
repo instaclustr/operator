@@ -225,6 +225,48 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 	return func() error {
 		iData, err := r.API.GetZookeeper(zook.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(zook.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", zook.Status.ClusterStatus.ID,
+						"cluster name", zook.Spec.Name,
+					)
+
+					patch := zook.NewPatch()
+					zook.Annotations[models.DeletionConfirmed] = models.True
+					zook.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), zook, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch Zookeeper cluster resource",
+							"cluster ID", zook.Status.ID,
+							"cluster name", zook.Spec.Name,
+							"resource name", zook.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), zook)
+					if err != nil {
+						l.Error(err, "Cannot delete Zookeeper cluster resource",
+							"cluster ID", zook.Status.ID,
+							"cluster name", zook.Spec.Name,
+							"resource name", zook.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get Zookeeper cluster status from Instaclustr",
 				"cluster ID", zook.Status.ID)
 			return err

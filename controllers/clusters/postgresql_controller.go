@@ -728,6 +728,48 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 
 		instPGData, err := r.API.GetPostgreSQL(pg.Status.ID)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				activeClusters, err := r.API.ListClusters()
+				if err != nil {
+					l.Error(err, "Cannot list account active clusters")
+					return err
+				}
+
+				if !isClusterActive(pg.Status.ID, activeClusters) {
+					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
+						"cluster ID", pg.Status.ClusterStatus.ID,
+						"cluster name", pg.Spec.Name,
+					)
+
+					patch := pg.NewPatch()
+					pg.Annotations[models.DeletionConfirmed] = models.True
+					pg.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					err = r.Patch(context.TODO(), pg, patch)
+					if err != nil {
+						l.Error(err, "Cannot patch PostgreSQL cluster resource",
+							"cluster ID", pg.Status.ID,
+							"cluster name", pg.Spec.Name,
+							"resource name", pg.Name,
+						)
+
+						return err
+					}
+
+					err = r.Delete(context.TODO(), pg)
+					if err != nil {
+						l.Error(err, "Cannot delete PostgreSQL cluster resource",
+							"cluster ID", pg.Status.ID,
+							"cluster name", pg.Spec.Name,
+							"resource name", pg.Name,
+						)
+
+						return err
+					}
+
+					return nil
+				}
+			}
+
 			l.Error(err, "Cannot get PostgreSQL cluster status",
 				"cluster name", pg.Spec.Name,
 				"clusterID", pg.Status.ID,

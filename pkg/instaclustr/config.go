@@ -9,6 +9,7 @@ const (
 
 // constants for API v2
 const (
+	ClustersEndpoint                       = "/cluster-management/v2/data-sources/clusters/v2/"
 	CassandraEndpoint                      = "/cluster-management/v2/resources/applications/cassandra/clusters/v2/"
 	KafkaEndpoint                          = "/cluster-management/v2/resources/applications/kafka/clusters/v2/"
 	KafkaConnectEndpoint                   = "/cluster-management/v2/resources/applications/kafka-connect/clusters/v2/"
