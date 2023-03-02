@@ -19,6 +19,7 @@ import (
 // This service should implement the business logic for every endpoint for the KafkaACLV2Api API.
 // Include any external packages or services that will be required by this service.
 type KafkaACLV2ApiService struct {
+	MockKafkaACL *KafkaAclListV2
 }
 
 // NewKafkaACLV2ApiService creates a default api service
@@ -42,10 +43,8 @@ func (s *KafkaACLV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaAcls
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdDelete with the required logic for this service method.
 	// Add api_kafka_aclv2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdDelete method not implemented")
+	s.MockKafkaACL = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdGet - Get list of Kafka ACLs for a given principal.
@@ -53,10 +52,11 @@ func (s *KafkaACLV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaAcls
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdGet with the required logic for this service method.
 	// Add api_kafka_aclv2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaAclListV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaAclListV2{}), nil
+	if s.MockKafkaACL == nil {
+		return Response(404, nil), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdGet method not implemented")
+	return Response(200, s.MockKafkaACL), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdPut - Update ACL list for a principal.
@@ -64,10 +64,9 @@ func (s *KafkaACLV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaAcls
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdPut with the required logic for this service method.
 	// Add api_kafka_aclv2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaAclListV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaAclListV2{}), nil
+	s.MockKafkaACL = &body
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdPut method not implemented")
+	return Response(202, s.MockKafkaACL), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaAclsV2Post - Create a Kafka ACL.
@@ -75,8 +74,7 @@ func (s *KafkaACLV2ApiService) ClusterManagementV2ResourcesApplicationsKafkaAcls
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaAclsV2Post with the required logic for this service method.
 	// Add api_kafka_aclv2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, KafkaAclListV2{}) or use other options such as http.Ok ...
-	//return Response(202, KafkaAclListV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaAclsV2Post method not implemented")
+	s.MockKafkaACL = &body
+	s.MockKafkaACL.Id = CreatedID
+	return Response(202, s.MockKafkaACL), nil
 }

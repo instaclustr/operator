@@ -34,17 +34,15 @@ import (
 
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
-	"github.com/instaclustr/operator/pkg/instaclustr/mock"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
-	cfg                  *rest.Config
-	k8sClient            client.Client
-	testEnv              *envtest.Environment
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	mockClientForInstAPI = mock.NewInstAPI()
+	cfg       *rest.Config
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+	ctx       context.Context
+	cancel    context.CancelFunc
 )
 
 func TestAPIs(t *testing.T) {
@@ -88,7 +86,7 @@ var _ = BeforeSuite(func() {
 	err = (&KafkaACLReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
-		API:    mockClientForInstAPI,
+		API:    clientForMockInstaServer,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -104,7 +102,6 @@ var _ = BeforeSuite(func() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
-
 })
 
 var _ = AfterSuite(func() {
