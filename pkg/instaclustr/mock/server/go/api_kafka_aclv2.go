@@ -65,19 +65,19 @@ func (c *KafkaACLV2ApiController) Routes() Routes {
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdGet",
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/applications/kafka/acls/v2/{kafkaAclId}/",
+			"/cluster-management/v2/resources/applications/kafka/acls/v2/{kafkaAclId}",
 			c.ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdGet,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdPut",
 			strings.ToUpper("Put"),
-			"/cluster-management/v2/resources/applications/kafka/acls/v2/{kafkaAclId}/",
+			"/cluster-management/v2/resources/applications/kafka/acls/v2/{kafkaAclId}",
 			c.ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdPut,
 		},
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaAclsV2Post",
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/applications/kafka/acls/v2/",
+			"/cluster-management/v2/resources/applications/kafka/acls/v2",
 			c.ClusterManagementV2ResourcesApplicationsKafkaAclsV2Post,
 		},
 	}
