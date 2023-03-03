@@ -846,6 +846,11 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
 				if event.ObjectOld.GetGeneration() == newObj.Generation {
 					return false
 				}

@@ -105,14 +105,23 @@ func (pg *PostgreSQL) ValidateCreate() error {
 func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 	postgresqllog.Info("validate update", "name", r.Name)
 
+	if r.DeletionTimestamp != nil &&
+		(len(r.Spec.TwoFactorDelete) != 0 &&
+			r.Annotations[models.DeletionConfirmed] != models.True) {
+		return nil
+	}
+
 	oldCluster, ok := old.(*PostgreSQL)
 	if !ok {
 		return models.ErrTypeAssertion
 	}
 
-	if oldCluster.Spec.PgRestoreFrom != nil ||
-		r.Status.ID == "" {
+	if oldCluster.Spec.PgRestoreFrom != nil {
 		return nil
+	}
+
+	if r.Status.ID == "" {
+		return r.ValidateCreate()
 	}
 
 	err := r.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)

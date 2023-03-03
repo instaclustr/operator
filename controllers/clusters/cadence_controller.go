@@ -961,6 +961,11 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
 				if oldObj.Generation == newObj.Generation {
 					return false
 				}

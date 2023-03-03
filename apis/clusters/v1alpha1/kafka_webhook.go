@@ -73,6 +73,10 @@ func (k *Kafka) ValidateCreate() error {
 func (k *Kafka) ValidateUpdate(old runtime.Object) error {
 	kafkalog.Info("validate update", "name", k.Name)
 
+	if k.Status.ID == "" {
+		return k.ValidateCreate()
+	}
+
 	oldKafka, ok := old.(*Kafka)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to Kafka", old.GetObjectKind())

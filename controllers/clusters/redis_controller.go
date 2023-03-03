@@ -660,14 +660,15 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*clustersv1alpha1.Redis)
-				if newObj.Status.ID == "" {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
-					return true
-				}
 
 				if newObj.DeletionTimestamp != nil &&
 					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					return true
+				}
+
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
 					return true
 				}
 

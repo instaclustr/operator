@@ -118,6 +118,16 @@ func (k *KafkaConnect) ValidateCreate() error {
 func (k *KafkaConnect) ValidateUpdate(old runtime.Object) error {
 	kafkaconnectlog.Info("validate update", "name", k.Name)
 
+	if k.DeletionTimestamp != nil &&
+		(len(k.Spec.TwoFactorDelete) != 0 &&
+			k.Annotations[models.DeletionConfirmed] != models.True) {
+		return nil
+	}
+
+	if k.Status.ID == "" {
+		return k.ValidateCreate()
+	}
+
 	oldCluster, ok := old.(*KafkaConnect)
 	if !ok {
 		return models.ErrTypeAssertion
