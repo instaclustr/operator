@@ -57,6 +57,10 @@ func (fr *ClusterNetworkFirewallRule) ValidateCreate() error {
 func (fr *ClusterNetworkFirewallRule) ValidateUpdate(old runtime.Object) error {
 	clusternetworkfirewallrulelog.Info("validate update", "name", fr.Name)
 
+	if fr.Status.ID == "" {
+		return fr.ValidateCreate()
+	}
+
 	oldRule, ok := old.(*ClusterNetworkFirewallRule)
 	if !ok {
 		return models.ErrTypeAssertion

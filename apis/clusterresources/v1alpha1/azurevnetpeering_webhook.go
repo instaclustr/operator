@@ -76,7 +76,10 @@ func (r *AzureVNetPeering) ValidateCreate() error {
 func (r *AzureVNetPeering) ValidateUpdate(old runtime.Object) error {
 	azurevnetpeeringlog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	if r.Status.ID == "" {
+		return r.ValidateCreate()
+	}
+
 	return nil
 }
 

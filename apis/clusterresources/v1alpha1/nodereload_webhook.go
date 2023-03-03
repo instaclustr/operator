@@ -65,7 +65,10 @@ func (nr *NodeReload) ValidateCreate() error {
 func (nr *NodeReload) ValidateUpdate(old runtime.Object) error {
 	nodereloadlog.Info("validate update", "name", nr.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	if nr.Status.NodeInProgress.ID == "" {
+		return nr.ValidateCreate()
+	}
+
 	return nil
 }
 

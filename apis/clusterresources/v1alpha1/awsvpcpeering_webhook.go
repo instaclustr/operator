@@ -72,6 +72,10 @@ func (r *AWSVPCPeering) ValidateCreate() error {
 func (r *AWSVPCPeering) ValidateUpdate(old runtime.Object) error {
 	awsvpcpeeringlog.Info("validate update", "name", r.Name)
 
+	if r.Status.ID == "" {
+		return r.ValidateCreate()
+	}
+
 	err := r.Spec.ValidateUpdate(old.(*AWSVPCPeering).Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)

@@ -57,6 +57,10 @@ func (r *AWSSecurityGroupFirewallRule) ValidateCreate() error {
 func (r *AWSSecurityGroupFirewallRule) ValidateUpdate(old runtime.Object) error {
 	awssecuritygroupfirewallrulelog.Info("validate update", "name", r.Name)
 
+	if r.Status.ID == "" {
+		return r.ValidateCreate()
+	}
+
 	oldRule, ok := old.(*AWSSecurityGroupFirewallRule)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to AWSSecurityGroupFirewallRule", old.GetObjectKind())

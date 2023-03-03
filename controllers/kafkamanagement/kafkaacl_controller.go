@@ -242,16 +242,22 @@ func (r *KafkaACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectOld.GetGeneration() == event.ObjectNew.GetGeneration() {
-					return false
-				}
-
-				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
+				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.KafkaACL)
+				if newObj.DeletionTimestamp != nil {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
 				}
 
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				if event.ObjectOld.GetGeneration() == newObj.Generation {
+					return false
+				}
+
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
