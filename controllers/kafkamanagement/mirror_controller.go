@@ -326,11 +326,18 @@ func (r *MirrorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.Mirror)
+
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
 
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				confirmDeletion(event.ObjectNew)
 				return true
 			},

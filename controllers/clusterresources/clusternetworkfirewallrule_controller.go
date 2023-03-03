@@ -285,16 +285,22 @@ func (r *ClusterNetworkFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
-					return false
-				}
-
-				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
+				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.ClusterNetworkFirewallRule)
+				if newObj.DeletionTimestamp != nil {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
 				}
 
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
+					return false
+				}
+
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {

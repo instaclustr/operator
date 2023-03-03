@@ -325,14 +325,22 @@ func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.AWSVPCPeering)
+				if newObj.DeletionTimestamp != nil {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+					return true
+				}
+
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
 
-				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
-				if event.ObjectNew.GetDeletionTimestamp() != nil {
-					event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-				}
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {

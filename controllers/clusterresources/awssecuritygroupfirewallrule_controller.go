@@ -288,16 +288,22 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manag
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule)
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
 
-				if event.ObjectNew.GetDeletionTimestamp() != nil {
+				if newObj.DeletionTimestamp != nil {
 					event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
 				}
 
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {

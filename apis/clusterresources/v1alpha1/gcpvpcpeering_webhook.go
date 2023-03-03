@@ -72,7 +72,10 @@ func (r *GCPVPCPeering) ValidateCreate() error {
 func (r *GCPVPCPeering) ValidateUpdate(old runtime.Object) error {
 	gcpvpcpeeringlog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
+	if r.Status.ID == "" {
+		return r.ValidateCreate()
+	}
+
 	return nil
 }
 

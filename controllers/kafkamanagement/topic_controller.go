@@ -220,16 +220,23 @@ func (r *TopicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kafkamanagementv1alpha1.Topic{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				confirmDeletion(event.Object)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.Topic)
+
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
 
-				event.ObjectNew.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent})
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				confirmDeletion(event.ObjectNew)
 				return true
 			},
@@ -237,7 +244,7 @@ func (r *TopicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return false
 			},
 			GenericFunc: func(event event.GenericEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.GenericEvent
 				return true
 			},
 		})).Complete(r)
