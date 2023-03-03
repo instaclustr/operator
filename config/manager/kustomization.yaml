@@ -13,5 +13,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: ribaraka/io
-  newTag: "249"
+  newName: rostislavporohnya/instaclustr-operator
+  newTag: icop361

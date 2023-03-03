@@ -368,11 +368,17 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				newObj := event.ObjectNew.(*clustersv1alpha1.Kafka)
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
 
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {

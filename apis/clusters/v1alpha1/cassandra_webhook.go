@@ -99,6 +99,12 @@ func (c *Cassandra) ValidateCreate() error {
 func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 	cassandralog.Info("validate update", "name", c.Name)
 
+	if c.DeletionTimestamp != nil &&
+		(len(c.Spec.TwoFactorDelete) != 0 &&
+			c.Annotations[models.DeletionConfirmed] != models.True) {
+		return nil
+	}
+
 	oldCluster, ok := old.(*Cassandra)
 	if !ok {
 		return models.ErrTypeAssertion
@@ -106,6 +112,10 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 
 	if oldCluster.Spec.RestoreFrom != nil {
 		return nil
+	}
+
+	if c.Status.ID == "" {
+		return c.ValidateCreate()
 	}
 
 	err := c.Spec.validateUpdate(oldCluster.Spec)

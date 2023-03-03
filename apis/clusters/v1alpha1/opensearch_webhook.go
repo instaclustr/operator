@@ -98,9 +98,19 @@ func (os *OpenSearch) ValidateCreate() error {
 func (os *OpenSearch) ValidateUpdate(old runtime.Object) error {
 	opensearchlog.Info("validate update", "name", os.Name)
 
+	if os.DeletionTimestamp != nil &&
+		(len(os.Spec.TwoFactorDelete) != 0 &&
+			os.Annotations[models.DeletionConfirmed] != models.True) {
+		return nil
+	}
+
 	oldCluster := old.(*OpenSearch)
 	if oldCluster.Spec.RestoreFrom != nil {
 		return nil
+	}
+
+	if os.Status.ID == "" {
+		return os.ValidateCreate()
 	}
 
 	err := os.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)

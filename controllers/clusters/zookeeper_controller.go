@@ -295,12 +295,20 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
+				newObj := event.ObjectNew.(*clustersv1alpha1.Zookeeper)
+
+				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
 
-				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				confirmDeletion(event.ObjectNew)
+
+				if newObj.Status.ID == "" {
+					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+					return true
+				}
+
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
