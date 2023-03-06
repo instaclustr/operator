@@ -62,8 +62,8 @@ func (k *Kafka) ValidateCreate() error {
 		return err
 	}
 
-	if len(k.Spec.DataCentres) != 1 {
-		return models.ErrMultipleDataCentres
+	if len(k.Spec.DataCentres) == 0 {
+		return models.ErrZeroDataCentres
 	}
 
 	return nil

@@ -4,7 +4,7 @@ type KafkaConnectCluster struct {
 	ClusterStatus         `json:",inline"`
 	Name                  string                    `json:"name,omitempty"`
 	KafkaConnectVersion   string                    `json:"kafkaConnectVersion,omitempty"`
-	PrivateNetworkCluster bool                      `json:"privateNetworkCluster,omitempty"`
+	PrivateNetworkCluster bool                      `json:"privateNetworkCluster"`
 	SLATier               string                    `json:"slaTier,omitempty"`
 	TwoFactorDelete       []*TwoFactorDelete        `json:"twoFactorDelete,omitempty"`
 	CustomConnectors      []*CustomConnectors       `json:"customConnectors,omitempty"`
