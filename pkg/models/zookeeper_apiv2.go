@@ -6,7 +6,7 @@ type ZookeeperCluster struct {
 	ZookeeperVersion              string                 `json:"zookeeperVersion,omitempty"`
 	CurrentClusterOperationStatus string                 `json:"currentClusterOperationStatus,omitempty"`
 	Status                        string                 `json:"status,omitempty"`
-	PrivateNetworkCluster         bool                   `json:"privateNetworkCluster,omitempty"`
+	PrivateNetworkCluster         bool                   `json:"privateNetworkCluster"`
 	SLATier                       string                 `json:"slaTier,omitempty"`
 	TwoFactorDelete               []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
 	DataCentres                   []*ZookeeperDataCentre `json:"dataCentres,omitempty"`

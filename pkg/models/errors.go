@@ -4,7 +4,6 @@ import "errors"
 
 var (
 	ErrZeroDataCentres                       = errors.New("cluster spec doesn't have data centres")
-	ErrMultipleDataCentres                   = errors.New("cluster spec cannot have more than one data centre")
 	ErrEmptyAdvancedVisibility               = errors.New("advanced visibility fields are empty")
 	ErrNetworkOverlaps                       = errors.New("cluster network overlaps")
 	ErrImmutableTwoFactorDelete              = errors.New("twoFactorDelete field is immutable")
