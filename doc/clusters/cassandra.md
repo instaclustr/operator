@@ -95,15 +95,11 @@ spec:
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
-      nodeSize: "CAS-DEV-t4g.small-30"
+      nodeSize: "CAS-DEV-t4g.medium-30"
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: false
   slaTier: "NON_PRODUCTION"
-  twoFactorDelete:
-    - email: "rostyslp@netapp.com"
-  spark:
-    - version: "2.3.2"         # 3.0.1 for 4.0.4 version of Cassandra | 2.3.2 for 3.11.13 version of Cassandra
 ```
 
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
