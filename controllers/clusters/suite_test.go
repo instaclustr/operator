@@ -91,6 +91,8 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	eRecorder := k8sManager.GetEventRecorderFor("instaclustr-operator-tests")
+
 	scheduler.ClusterStatusInterval = 1 * time.Second
 	scheduler.ClusterBackupsInterval = 30 * time.Second
 	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 3}
@@ -136,10 +138,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&PostgreSQLReconciler{
-		Client:    k8sManager.GetClient(),
-		Scheme:    k8sManager.GetScheme(),
-		API:       instaClient,
-		Scheduler: scheduler.NewScheduler(logf.Log),
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		API:           instaClient,
+		Scheduler:     scheduler.NewScheduler(logf.Log),
+		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

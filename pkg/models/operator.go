@@ -66,6 +66,21 @@ const (
 )
 
 const (
+	Normal            = "Normal"
+	Error             = "Error"
+	Created           = "Created"
+	PatchFailed       = "PatchFailed"
+	CreationFailed    = "CreationFailed"
+	FetchFailed       = "FetchFailed"
+	FetchSecretFailed = "FetchSecretFailed"
+	ConvertionFailed  = "ConvertionFailed"
+	UpdateFailed      = "UpdateFailed"
+	DeletionStarted   = "DeletionStarted"
+	DeletionFailed    = "DeletionFailed"
+	Deleted           = "Deleted"
+)
+
+const (
 	ReplaceOperation    = "replace"
 	AnnotationsPath     = "/metadata/annotations"
 	FinalizersPath      = "/metadata/finalizers"
