@@ -98,7 +98,7 @@ spec:
       nodeSize: "CAS-DEV-t4g.medium-30"
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
-  passwordAndUserAuth: false
+  passwordAndUserAuth: true
   slaTier: "NON_PRODUCTION"
 ```
 
