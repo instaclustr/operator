@@ -27,6 +27,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,9 +49,10 @@ import (
 // PostgreSQLReconciler reconciles a PostgreSQL object
 type PostgreSQLReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -58,13 +60,10 @@ type PostgreSQLReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls/finalizers,verbs=update
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups,verbs=get;list;create;update;patch;deletecollection;delete
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;watch;create;delete;update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the PostgreSQL object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
@@ -84,6 +83,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		logger.Error(err, "Unable to fetch PostgreSQL cluster",
 			"resource name", req.NamespacedName,
 		)
+
 		return models.ExitReconcile, err
 	}
 
@@ -128,6 +128,12 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				"cluster ID", pgCluster.Status.ID,
 			)
 
+			r.EventRecorder.Eventf(
+				pgCluster, models.Error, models.FetchSecretFailed,
+				"Default user secret fetch is failed. Reason: %v",
+				err,
+			)
+
 			return models.ReconcileRequeue
 		}
 
@@ -141,6 +147,12 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 					"cluster ID", pgCluster.Status.ID,
 				)
 
+				r.EventRecorder.Eventf(
+					pgCluster, models.Error, models.CreationFailed,
+					"Default user secret creation is failed. Reason: %v",
+					err,
+				)
+
 				return models.ReconcileRequeue
 			}
 
@@ -149,6 +161,12 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			logger.Info("PostgreSQL default user secret was created",
 				"secret name", secret.Name,
 				"cluster ID", pgCluster.Status.ID,
+			)
+
+			r.EventRecorder.Eventf(
+				pgCluster, models.Normal, models.Created,
+				"Default user secret is created. Secret name: %s",
+				pgCluster.Status.DefaultUserSecretName,
 			)
 		}
 	}
@@ -166,11 +184,24 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 					"original cluster ID", pgCluster.Spec.PgRestoreFrom.ClusterID,
 				)
 
+				r.EventRecorder.Eventf(
+					pgCluster, models.Error, models.CreationFailed,
+					"Cluster restoration from backup on Instaclustr cloud is failed. Reason: %v",
+					err,
+				)
+
 				return models.ReconcileRequeue
 			}
 
 			pgCluster.Status.ID = id
 			pgCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+
+			r.EventRecorder.Eventf(
+				pgCluster, models.Normal, models.Created,
+				"Cluster is restored from backup. Original cluster ID: %s, new cluster ID: %s",
+				pgCluster.Spec.PgRestoreFrom.ClusterID,
+				pgCluster.Status.ID,
+			)
 		} else {
 			logger.Info(
 				"Creating PostgreSQL cluster",
@@ -186,11 +217,24 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 					err, "Cannot create PostgreSQL cluster",
 					"spec", pgCluster.Spec,
 				)
+
+				r.EventRecorder.Eventf(
+					pgCluster, models.Error, models.CreationFailed,
+					"Cluster creation failed on Instaclustr cloud is failed. Reason: %v",
+					err,
+				)
+
 				return models.ReconcileRequeue
 			}
 
 			pgCluster.Status.ID = id
 			pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+
+			r.EventRecorder.Eventf(
+				pgCluster, models.Normal, models.Created,
+				"Cluster is created. Cluster ID: %s",
+				pgCluster.Status.ID,
+			)
 		}
 
 		logger.Info(
@@ -210,6 +254,12 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			"status", pgCluster.Status,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.PatchFailed,
+			"Cluster resource status patch is failed. Reason: %v",
+			err,
+		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -223,6 +273,12 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			"status", pgCluster.Status,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -232,8 +288,18 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.CreationFailed,
+			"Cluster status check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		pgCluster, models.Normal, models.Created,
+		"Cluster status check job is started",
+	)
 
 	err = r.startClusterBackupsJob(pgCluster)
 	if err != nil {
@@ -241,8 +307,18 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.CreationFailed,
+			"Cluster backups check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		pgCluster, models.Normal, models.Created,
+		"Cluster backups check job is started",
+	)
 
 	if pgCluster.Annotations[models.ResourceStateAnnotation] == models.UpdatingEvent {
 		return reconcile.Result{Requeue: true}
@@ -256,7 +332,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	pgCluster *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
-	instPgData, err := r.API.GetPostgreSQL(pgCluster.Status.ID)
+	iData, err := r.API.GetPostgreSQL(pgCluster.Status.ID)
 	if err != nil {
 		logger.Error(
 			err, "Cannot get PostgreSQL cluster status from the Instaclustr API",
@@ -264,10 +340,15 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	instPg, err := pgCluster.FromInstAPI(instPgData)
+	iPg, err := pgCluster.FromInstAPI(iData)
 	if err != nil {
 		logger.Error(
 			err, "Cannot convert PostgreSQL cluster status from the Instaclustr API",
@@ -275,26 +356,36 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.ConvertionFailed,
+			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	if instPg.Status.CurrentClusterOperationStatus != models.NoOperation {
+	if iPg.Status.CurrentClusterOperationStatus != models.NoOperation {
 		logger.Info("PostgreSQL cluster is not ready to update",
 			"cluster name", pgCluster.Spec.Name,
-			"cluster status", instPg.Status.State,
-			"current operation status", instPg.Status.CurrentClusterOperationStatus,
+			"cluster status", iPg.Status.State,
+			"current operation status", iPg.Status.CurrentClusterOperationStatus,
 		)
 
 		return models.ReconcileRequeue
 	}
 
-	if !pgCluster.Spec.AreDCsEqual(instPg.Spec.DataCentres) {
+	if !pgCluster.Spec.AreDCsEqual(iPg.Spec.DataCentres) {
 		err = r.updateDataCentres(pgCluster)
 		if err != nil {
 			logger.Error(err, "Cannot update Data Centres",
 				"cluster name", pgCluster.Spec.Name,
 			)
 
+			r.EventRecorder.Eventf(
+				pgCluster, models.Error, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
@@ -303,29 +394,39 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 	}
 
-	instConfigs, err := r.API.GetPostgreSQLConfigs(pgCluster.Status.ID)
+	iConfigs, err := r.API.GetPostgreSQLConfigs(pgCluster.Status.ID)
 	if err != nil {
 		logger.Error(err, "Cannot get PostgreSQL cluster configs",
 			"cluster name", pgCluster.Spec.Name,
 			"clusterID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.FetchFailed,
+			"Cluster configs fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	for _, instConfig := range instConfigs {
+	for _, iConfig := range iConfigs {
 		err = r.reconcileClusterConfigurations(
 			pgCluster.Status.ID,
 			pgCluster.Spec.ClusterConfigurations,
-			instConfig.ConfigurationProperties)
+			iConfig.ConfigurationProperties)
 		if err != nil {
 			logger.Error(err, "Cannot reconcile PostgreSQL cluster configs",
 				"cluster name", pgCluster.Spec.Name,
 				"clusterID", pgCluster.Status.ID,
 				"configs", pgCluster.Spec.ClusterConfigurations,
-				"inst configs", instConfig,
+				"inst configs", iConfig,
 			)
 
+			r.EventRecorder.Eventf(
+				pgCluster, models.Error, models.UpdateFailed,
+				"Cluster configs fetch from the Instaclustr API is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
@@ -342,6 +443,11 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			"description", pgCluster.Spec.Description,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.UpdateFailed,
+			"Cluster description and TwoFactoDelete update is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -352,6 +458,11 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			"secret name", pgCluster.Status.DefaultUserSecretName,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.UpdateFailed,
+			"Default user password update is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -363,6 +474,11 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			"cluster metadata", pgCluster.ObjectMeta,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -386,6 +502,11 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.FetchFailed,
+			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -398,6 +519,11 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 					"cluster name", pgCluster.Spec.Name,
 				)
 
+				r.EventRecorder.Eventf(
+					pgCluster, models.Error, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err,
+				)
 				return models.ReconcileRequeue
 			}
 
@@ -427,6 +553,11 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			"status", pgCluster.Status.State,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.",
+		)
+
 		return models.ReconcileRequeue
 	}
 
@@ -440,11 +571,24 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		logger.Error(err, "Cannot delete PostgreSQL default user secret",
 			"cluster ID", pgCluster.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.DeletionFailed,
+			"Default user secret deletion is failed. Secret name: %s. Reason: %v",
+			pgCluster.Status.DefaultUserSecretName,
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Cluster PostgreSQL default user secret was deleted",
 		"cluster ID", pgCluster.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		pgCluster, models.Normal, models.Deleted,
+		"Default user secret is deleted. Secret name: %s",
+		pgCluster.Status.DefaultUserSecretName,
 	)
 
 	logger.Info("Deleting cluster backup resources",
@@ -456,11 +600,22 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		logger.Error(err, "Cannot delete PostgreSQL backup resources",
 			"cluster ID", pgCluster.Status.ID,
 		)
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.DeletionFailed,
+			"Cluster backups deletion is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Cluster backup resources were deleted",
 		"cluster ID", pgCluster.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		pgCluster, models.Normal, models.Deleted,
+		"Cluster backup resources are deleted. Secret name: %s",
+		pgCluster.Status.DefaultUserSecretName,
 	)
 
 	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.BackupsChecker))
@@ -475,12 +630,22 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			pgCluster, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("PostgreSQL cluster was deleted",
 		"cluster name", pgCluster.Spec.Name,
 		"cluster ID", pgCluster.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		pgCluster, models.Normal, models.Deleted,
+		"Cluster resource is deleted",
 	)
 
 	return models.ExitReconcile

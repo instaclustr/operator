@@ -116,6 +116,8 @@ func main() {
 
 	s := scheduler.NewScheduler(log.Log.WithValues("component", "scheduler"))
 
+	eventRecorder := mgr.GetEventRecorderFor("instaclustr-operator")
+
 	if err = (&clusterscontrollers.CassandraReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
@@ -126,10 +128,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterscontrollers.PostgreSQLReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		API:       instaClient,
-		Scheduler: s,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		Scheduler:     s,
+		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQL")
 		os.Exit(1)
