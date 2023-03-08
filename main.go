@@ -148,10 +148,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterscontrollers.RedisReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		API:       instaClient,
-		Scheduler: s,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		Scheduler:     s,
+		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
