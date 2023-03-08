@@ -120,6 +120,9 @@ kubectl describe opensearches.clusters.instaclustr.com opensearch-sample
 
 Cluster was created on Instaclustr premise if the instance has an id in the status section.
 
+You can check access to the created cluster from your kubernetes cluster and run some simple command to check that it is working with a lot of tools.
+All available tools you can find in the Instaclustr console -> Choose your cluster -> Connection Info -> Examples section.
+
 ## Cluster update example
 
 To update a cluster you can apply an updated cluster manifest or edit the custom resource instance in kubernetes cluster:

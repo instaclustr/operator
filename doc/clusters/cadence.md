@@ -195,6 +195,9 @@ kubectl describe cadences.clusters.instaclustr.com cadence-sample
 
 After you have applied the entity, the Instaclustr operator will create it on your K8s cluster and send a request to the Instaclustr API. You can be sure, that the resource creation call was sent if the instance has an id field filled in the status section.
 
+You can check access to the created cluster from your kubernetes cluster and run some simple command to check that it is working with a lot of tools.
+All available tools you can find in the Instaclustr console -> Choose your cluster -> Connection Info -> Examples section.
+
 ## Cluster update flow
 To update a cluster you can apply an updated cluster manifest or edit the custom resource instance in kubernetes cluster:
 * Apply an updated cluster manifest:
