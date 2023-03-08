@@ -872,6 +872,7 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
+
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},

@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -165,18 +164,10 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			}
 		}
 
+		patch := cadence.NewPatch()
 		cadence.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		cadence.Annotations[models.DeletionConfirmed] = models.False
 		cadence.Finalizers = append(cadence.Finalizers, models.DeletionFinalizer)
-
-		patch, err := cadence.NewClusterMetadataPatch()
-		if err != nil {
-			logger.Error(err, "Cannot create Cadence cluster metadata patch",
-				"cluster name", cadence.Spec.Name,
-				"cluster metadata", cadence.ObjectMeta,
-			)
-			return models.ReconcileRequeue
-		}
 
 		err = r.Client.Patch(ctx, cadence, patch)
 		if err != nil {
@@ -187,9 +178,8 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			return models.ReconcileRequeue
 		}
 
-		statusPatch := cadence.NewPatch()
 		cadence.Status.ID = id
-		err = r.Status().Patch(ctx, cadence, statusPatch)
+		err = r.Status().Patch(ctx, cadence, patch)
 		if err != nil {
 			logger.Error(err, "Cannot update Cadence cluster status",
 				"cluster name", cadence.Spec.Name,
@@ -316,7 +306,7 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 		if len(cadence.Spec.TwoFactorDelete) != 0 &&
 			cadence.Annotations[models.DeletionConfirmed] != models.True {
 			cadence.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-			patch, err := cadence.NewClusterMetadataPatch()
+			patch := cadence.NewPatch()
 			if err != nil {
 				logger.Error(err, "Cannot create Cadence cluster resource metadata patch",
 					"cluster name", cadence.Spec.Name,
@@ -374,16 +364,9 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	}
 
 	r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
+	patch := cadence.NewPatch()
 	controllerutil.RemoveFinalizer(cadence, models.DeletionFinalizer)
 	cadence.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	patch, err := cadence.NewClusterMetadataPatch()
-	if err != nil {
-		logger.Error(err, "Cannot create Cadence cluster metadata patch",
-			"cluster name", cadence.Spec.Name,
-			"cluster metadata", cadence.ObjectMeta,
-		)
-		return models.ReconcileRequeue
-	}
 
 	err = r.Client.Patch(ctx, cadence, patch)
 	if err != nil {
@@ -422,7 +405,7 @@ func (r *CadenceReconciler) preparePackagedSolution(
 	if err != nil {
 		return false, err
 	}
-	if len(cassandraList.Items) < 1 {
+	if len(cassandraList.Items) == 0 {
 		cassandraSpec, err := r.newCassandraSpec(cluster)
 		if err != nil {
 			return false, err
@@ -438,6 +421,11 @@ func (r *CadenceReconciler) preparePackagedSolution(
 
 	kafkaList := &clustersv1alpha1.KafkaList{}
 	osList := &clustersv1alpha1.OpenSearchList{}
+	advancedVisibility := &clustersv1alpha1.AdvancedVisibility{
+		TargetKafka:      &clustersv1alpha1.TargetKafka{},
+		TargetOpenSearch: &clustersv1alpha1.TargetOpenSearch{},
+	}
+	var advancedVisibilities []*clustersv1alpha1.AdvancedVisibility
 	if packagedProvisioning.UseAdvancedVisibility {
 		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
@@ -461,7 +449,6 @@ func (r *CadenceReconciler) preparePackagedSolution(
 			return true, nil
 		}
 
-		advancedVisibility := cluster.Spec.StandardProvisioning[0].AdvancedVisibility[0]
 		advancedVisibility.TargetKafka.DependencyCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
 		advancedVisibility.TargetKafka.DependencyVPCType = models.VPCPeered
 
@@ -489,15 +476,20 @@ func (r *CadenceReconciler) preparePackagedSolution(
 
 		advancedVisibility.TargetOpenSearch.DependencyCDCID = osList.Items[0].Status.DataCentres[0].ID
 		advancedVisibility.TargetOpenSearch.DependencyVPCType = models.VPCPeered
+		advancedVisibilities = append(advancedVisibilities, advancedVisibility)
 	}
 
 	if len(cassandraList.Items[0].Status.DataCentres) == 0 {
 		return true, nil
 	}
 
-	targetCassandra := cluster.Spec.StandardProvisioning[0].TargetCassandra
-	targetCassandra.DependencyCDCID = cassandraList.Items[0].Status.DataCentres[0].ID
-	targetCassandra.DependencyVPCType = models.VPCPeered
+	cluster.Spec.StandardProvisioning = append(cluster.Spec.StandardProvisioning, &clustersv1alpha1.StandardProvisioning{
+		AdvancedVisibility: advancedVisibilities,
+		TargetCassandra: &clustersv1alpha1.TargetCassandra{
+			DependencyCDCID:   cassandraList.Items[0].Status.DataCentres[0].ID,
+			DependencyVPCType: models.VPCPeered,
+		},
+	})
 
 	return false, nil
 }
@@ -516,14 +508,10 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		Finalizers:  []string{},
 	}
 
-	if len(cadence.Spec.DataCentres) < 1 {
+	if len(cadence.Spec.DataCentres) == 0 {
 		return nil, models.ErrZeroDataCentres
 	}
-	packagedProvisioning := cadence.Spec.PackagedProvisioning[0]
 
-	cassNodeSize := packagedProvisioning.BundledCassandraSpec.NodeSize
-	cassNodesNumber := packagedProvisioning.BundledCassandraSpec.NodesNumber
-	cassReplicationFactor := packagedProvisioning.BundledCassandraSpec.ReplicationFactor
 	slaTier := cadence.Spec.SLATier
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
@@ -537,22 +525,32 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 			},
 		}
 	}
+	var cassNodeSize, network string
+	var cassNodesNumber, cassReplicationFactor int
+	var cassPrivateIPBroadcastForDiscovery, cassPasswordAndUserAuth bool
+	for _, dc := range cadence.Spec.DataCentres {
+		for _, pp := range cadence.Spec.PackagedProvisioning {
+			cassNodeSize = pp.BundledCassandraSpec.NodeSize
+			network = pp.BundledCassandraSpec.Network
+			cassNodesNumber = pp.BundledCassandraSpec.NodesNumber
+			cassReplicationFactor = pp.BundledCassandraSpec.ReplicationFactor
+			cassPrivateIPBroadcastForDiscovery = pp.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
+			cassPasswordAndUserAuth = pp.BundledCassandraSpec.PasswordAndUserAuth
 
-	isCassNetworkOverlaps, err := cadence.Spec.DataCentres[0].IsNetworkOverlaps(packagedProvisioning.BundledCassandraSpec.Network)
-	if err != nil {
-		return nil, err
-	}
-	if isCassNetworkOverlaps {
-		return nil, models.ErrNetworkOverlaps
+			isCassNetworkOverlaps, err := dc.IsNetworkOverlaps(network)
+			if err != nil {
+				return nil, err
+			}
+			if isCassNetworkOverlaps {
+				return nil, models.ErrNetworkOverlaps
+			}
+		}
 	}
 
 	dcName := models.CassandraChildDCName
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
-	network := packagedProvisioning.BundledCassandraSpec.Network
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
-	cassPrivateIPBroadcastForDiscovery := packagedProvisioning.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
-	cassPasswordAndUserAuth := packagedProvisioning.BundledCassandraSpec.PasswordAndUserAuth
 
 	cassandraDataCentres := []*clustersv1alpha1.CassandraDataCentre{
 		{
@@ -747,7 +745,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 		Finalizers:  []string{},
 	}
 
-	if len(cadence.Spec.DataCentres) < 1 {
+	if len(cadence.Spec.DataCentres) == 0 {
 		return nil, models.ErrZeroDataCentres
 	}
 
@@ -799,7 +797,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	spec := clustersv1alpha1.KafkaSpec{
 		Cluster: clustersv1alpha1.Cluster{
 			Name:                  models.KafkaChildPrefix + cadence.Name,
-			Version:               models.KafkaV2_8_2,
+			Version:               models.KafkaV3_1_2,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       kafkaTFD,

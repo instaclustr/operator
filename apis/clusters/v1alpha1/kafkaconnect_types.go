@@ -217,7 +217,7 @@ func (kc *KafkaConnectSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Kaf
 			return err
 		}
 
-		if ((int(newDC.NodesNumber)*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+		if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
 		}
 	}

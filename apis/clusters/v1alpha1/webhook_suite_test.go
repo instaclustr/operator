@@ -114,6 +114,9 @@ var _ = BeforeSuite(func() {
 	err = (&KafkaConnect{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&Cadence{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	err = (&Zookeeper{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 

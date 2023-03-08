@@ -49,6 +49,8 @@ spec:
                   required:
                   - archivalS3Region
                   - archivalS3Uri
+                  - awsAccessKeySecretName
+                  - awsAccessKeySecretNamespace
                   type: object
                 type: array
               dataCentres:
@@ -124,6 +126,13 @@ spec:
                           type: boolean
                         replicationFactor:
                           type: integer
+                      required:
+                      - network
+                      - nodeSize
+                      - nodesNumber
+                      - passwordAndUserAuth
+                      - privateIPBroadcastForDiscovery
+                      - replicationFactor
                       type: object
                     bundledKafkaSpec:
                       properties:
@@ -139,6 +148,10 @@ spec:
                           type: integer
                       required:
                       - network
+                      - nodeSize
+                      - nodesNumber
+                      - partitionsNumber
+                      - replicationFactor
                       type: object
                     bundledOpenSearchSpec:
                       properties:
@@ -150,10 +163,16 @@ spec:
                           type: integer
                         replicationFactor:
                           type: integer
+                      required:
+                      - network
+                      - nodeSize
+                      - nodesPerReplicationFactor
+                      - replicationFactor
                       type: object
                     useAdvancedVisibility:
                       type: boolean
                   required:
+                  - bundledCassandraSpec
                   - useAdvancedVisibility
                   type: object
                 type: array
@@ -243,6 +262,7 @@ spec:
               version:
                 type: string
             required:
+            - dataCentres
             - useCadenceWebAuth
             type: object
           status:

@@ -11,6 +11,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-clusters-instaclustr-com-v1alpha1-cadence
+  failurePolicy: Fail
+  name: mcadence.kb.io
+  rules:
+  - apiGroups:
+    - clusters.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cadences
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-clusters-instaclustr-com-v1alpha1-cassandra
   failurePolicy: Fail
   name: vcassandra.kb.io
@@ -271,6 +291,26 @@ webhooks:
     - UPDATE
     resources:
     - nodereloads
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-clusters-instaclustr-com-v1alpha1-cadence
+  failurePolicy: Fail
+  name: vcadence.kb.io
+  rules:
+  - apiGroups:
+    - clusters.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cadences
   sideEffects: None
 - admissionReviewVersions:
   - v1
