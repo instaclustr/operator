@@ -25,6 +25,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,21 +45,19 @@ import (
 // RedisReconciler reconciles a Redis object
 type RedisReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Redis object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
@@ -120,8 +119,13 @@ func (r *RedisReconciler) handleCreateCluster(
 			id, err = r.API.RestoreRedisCluster(redis.Spec.RestoreFrom)
 			if err != nil {
 				logger.Error(
-					err, "Cannot create Redis cluster from backup",
+					err, "Cannot restore Redis cluster from backup",
 					"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
+				)
+				r.EventRecorder.Eventf(
+					redis, models.Error, models.CreationFailed,
+					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
+					err,
 				)
 				return models.ReconcileRequeue
 			}
@@ -129,6 +133,13 @@ func (r *RedisReconciler) handleCreateCluster(
 			logger.Info(
 				"Redis cluster was created from backup",
 				"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
+			)
+
+			r.EventRecorder.Eventf(
+				redis, models.Normal, models.Created,
+				"Cluster is restored from backup. Original cluster ID: %s, new cluster ID: %s",
+				redis.Spec.RestoreFrom.ClusterID,
+				id,
 			)
 		} else {
 			logger.Info(
@@ -143,6 +154,11 @@ func (r *RedisReconciler) handleCreateCluster(
 					err, "Cannot create Redis cluster",
 					"cluster manifest", redis.Spec,
 				)
+				r.EventRecorder.Eventf(
+					redis, models.Error, models.CreationFailed,
+					"Cluster creation on the Instaclustr is failed. Reason: %v",
+					err,
+				)
 				return models.ReconcileRequeue
 			}
 
@@ -150,6 +166,10 @@ func (r *RedisReconciler) handleCreateCluster(
 				"Redis cluster was created",
 				"cluster ID", id,
 				"cluster name", redis.Spec.Name,
+			)
+			r.EventRecorder.Eventf(
+				redis, models.Normal, models.Created,
+				"Cluster is created on the Instaclustr.",
 			)
 		}
 
@@ -159,6 +179,11 @@ func (r *RedisReconciler) handleCreateCluster(
 		if err != nil {
 			logger.Error(err, "Cannot update Redis cluster status",
 				"cluster name", redis.Spec.Name,
+			)
+			r.EventRecorder.Eventf(
+				redis, models.Error, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -174,6 +199,11 @@ func (r *RedisReconciler) handleCreateCluster(
 			"cluster name", redis.Spec.Name,
 			"cluster metadata", redis.ObjectMeta,
 		)
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -183,8 +213,18 @@ func (r *RedisReconciler) handleCreateCluster(
 			"redis cluster ID", redis.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.CreationFailed,
+			"Cluster status job creation is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Created,
+		"Cluster status check job is started",
+	)
 
 	err = r.startClusterBackupsJob(redis)
 	if err != nil {
@@ -192,8 +232,18 @@ func (r *RedisReconciler) handleCreateCluster(
 			"cluster ID", redis.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.CreationFailed,
+			"Cluster backups job creation is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Created,
+		"Cluster backups check job is started",
+	)
 
 	logger.Info(
 		"Redis resource has been created",
@@ -220,6 +270,11 @@ func (r *RedisReconciler) handleUpdateCluster(
 			"cluster ID", redis.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.FetchFailed,
+			"Fetch cluster from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -231,6 +286,11 @@ func (r *RedisReconciler) handleUpdateCluster(
 			"cluster ID", redis.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.ConvertionFailed,
+			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -243,6 +303,11 @@ func (r *RedisReconciler) handleUpdateCluster(
 				"data centres", redis.Spec.DataCentres,
 			)
 
+			r.EventRecorder.Eventf(
+				redis, models.Error, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 	}
@@ -256,6 +321,11 @@ func (r *RedisReconciler) handleUpdateCluster(
 			"cluster metadata", redis.ObjectMeta,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -278,6 +348,11 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"cluster name", redis.Spec.Name,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.FetchFailed,
+			"Fetch cluster from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -296,6 +371,11 @@ func (r *RedisReconciler) handleDeleteCluster(
 				"cluster ID", redis.Status.ID,
 			)
 
+			r.EventRecorder.Eventf(
+				redis, models.Error, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
@@ -310,8 +390,18 @@ func (r *RedisReconciler) handleDeleteCluster(
 				"cluster status", redis.Status.State,
 			)
 
+			r.EventRecorder.Eventf(
+				redis, models.Error, models.DeletionFailed,
+				"Cluster deletion on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			redis, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.",
+		)
 
 		logger.Info("Redis cluster is being deleted",
 			"cluster name", redis.Spec.Name,
@@ -332,10 +422,20 @@ func (r *RedisReconciler) handleDeleteCluster(
 		logger.Error(err, "Cannot delete cluster backup resources",
 			"cluster ID", redis.Status.ID,
 		)
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.DeletionFailed,
+			"Cluster backups deletion is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	logger.Info("Cluster backup resources were deleted",
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Deleted,
+		"Cluster backup resources are deleted",
+	)
+
+	logger.Info("Cluster backup resources are deleted",
 		"cluster ID", redis.Status.ID,
 	)
 
@@ -351,12 +451,22 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"cluster ID", redis.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			redis, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Redis cluster was deleted",
 		"cluster name", redis.Spec.Name,
 		"cluster ID", redis.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Deleted,
+		"Cluster resource is deleted",
 	)
 
 	return models.ExitReconcile

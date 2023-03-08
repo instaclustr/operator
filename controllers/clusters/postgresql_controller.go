@@ -614,8 +614,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 
 	r.EventRecorder.Eventf(
 		pgCluster, models.Normal, models.Deleted,
-		"Cluster backup resources are deleted. Secret name: %s",
-		pgCluster.Status.DefaultUserSecretName,
+		"Cluster backup resources are deleted",
 	)
 
 	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.BackupsChecker))
