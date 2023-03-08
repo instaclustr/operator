@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 type CadenceDataCentre struct {
@@ -36,33 +38,33 @@ type CadenceDataCentre struct {
 }
 
 type BundledCassandraSpec struct {
-	NodeSize                       string `json:"nodeSize,omitempty"`
-	NodesNumber                    int    `json:"nodesNumber,omitempty"`
-	ReplicationFactor              int    `json:"replicationFactor,omitempty"`
-	Network                        string `json:"network,omitempty"`
-	PrivateIPBroadcastForDiscovery bool   `json:"privateIPBroadcastForDiscovery,omitempty"`
-	PasswordAndUserAuth            bool   `json:"passwordAndUserAuth,omitempty"`
+	NodeSize                       string `json:"nodeSize"`
+	NodesNumber                    int    `json:"nodesNumber"`
+	ReplicationFactor              int    `json:"replicationFactor"`
+	Network                        string `json:"network"`
+	PrivateIPBroadcastForDiscovery bool   `json:"privateIPBroadcastForDiscovery"`
+	PasswordAndUserAuth            bool   `json:"passwordAndUserAuth"`
 }
 
 type BundledKafkaSpec struct {
-	NodeSize          string `json:"nodeSize,omitempty"`
-	NodesNumber       int    `json:"nodesNumber,omitempty"`
+	NodeSize          string `json:"nodeSize"`
+	NodesNumber       int    `json:"nodesNumber"`
 	Network           string `json:"network"`
-	ReplicationFactor int    `json:"replicationFactor,omitempty"`
-	PartitionsNumber  int    `json:"partitionsNumber,omitempty"`
+	ReplicationFactor int    `json:"replicationFactor"`
+	PartitionsNumber  int    `json:"partitionsNumber"`
 }
 
 type BundledOpenSearchSpec struct {
-	NodeSize                  string `json:"nodeSize,omitempty"`
-	ReplicationFactor         int    `json:"replicationFactor,omitempty"`
-	NodesPerReplicationFactor int    `json:"nodesPerReplicationFactor,omitempty"`
-	Network                   string `json:"network,omitempty"`
+	NodeSize                  string `json:"nodeSize"`
+	ReplicationFactor         int    `json:"replicationFactor"`
+	NodesPerReplicationFactor int    `json:"nodesPerReplicationFactor"`
+	Network                   string `json:"network"`
 }
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
 	Cluster              `json:",inline"`
-	DataCentres          []*CadenceDataCentre    `json:"dataCentres,omitempty"`
+	DataCentres          []*CadenceDataCentre    `json:"dataCentres"`
 	Description          string                  `json:"description,omitempty"`
 	UseCadenceWebAuth    bool                    `json:"useCadenceWebAuth"`
 	AWSArchival          []*AWSArchival          `json:"awsArchival,omitempty"`
@@ -74,15 +76,15 @@ type CadenceSpec struct {
 type AWSArchival struct {
 	ArchivalS3URI            string `json:"archivalS3Uri"`
 	ArchivalS3Region         string `json:"archivalS3Region"`
-	AccessKeySecretNamespace string `json:"awsAccessKeySecretNamespace,omitempty"`
-	AccessKeySecretName      string `json:"awsAccessKeySecretName,omitempty"`
+	AccessKeySecretNamespace string `json:"awsAccessKeySecretNamespace"`
+	AccessKeySecretName      string `json:"awsAccessKeySecretName"`
 }
 
 type PackagedProvisioning struct {
-	UseAdvancedVisibility bool                  `json:"useAdvancedVisibility"`
-	BundledKafkaSpec      BundledKafkaSpec      `json:"bundledKafkaSpec,omitempty"`
-	BundledOpenSearchSpec BundledOpenSearchSpec `json:"bundledOpenSearchSpec,omitempty"`
-	BundledCassandraSpec  BundledCassandraSpec  `json:"bundledCassandraSpec,omitempty"`
+	UseAdvancedVisibility bool                   `json:"useAdvancedVisibility"`
+	BundledKafkaSpec      *BundledKafkaSpec      `json:"bundledKafkaSpec,omitempty"`
+	BundledOpenSearchSpec *BundledOpenSearchSpec `json:"bundledOpenSearchSpec,omitempty"`
+	BundledCassandraSpec  *BundledCassandraSpec  `json:"bundledCassandraSpec"`
 }
 
 type SharedProvisioning struct {
@@ -91,7 +93,7 @@ type SharedProvisioning struct {
 
 type StandardProvisioning struct {
 	AdvancedVisibility []*AdvancedVisibility `json:"advancedVisibility,omitempty"`
-	TargetCassandra    TargetCassandra       `json:"targetCassandra"`
+	TargetCassandra    *TargetCassandra      `json:"targetCassandra"`
 }
 
 type TargetCassandra struct {
@@ -110,8 +112,8 @@ type TargetOpenSearch struct {
 }
 
 type AdvancedVisibility struct {
-	TargetKafka      TargetKafka      `json:"targetKafka"`
-	TargetOpenSearch TargetOpenSearch `json:"targetOpenSearch"`
+	TargetKafka      *TargetKafka      `json:"targetKafka"`
+	TargetOpenSearch *TargetOpenSearch `json:"targetOpenSearch"`
 }
 
 // CadenceStatus defines the observed state of Cadence
@@ -144,49 +146,13 @@ func init() {
 	SchemeBuilder.Register(&Cadence{}, &CadenceList{})
 }
 
-func (c *Cadence) NewClusterMetadataPatch() (client.Patch, error) {
-	patchRequest := []*PatchRequest{}
-
-	annotationsPayload, err := json.Marshal(c.Annotations)
-	if err != nil {
-		return nil, err
-	}
-
-	annotationsPatch := &PatchRequest{
-		Operation: models.ReplaceOperation,
-		Path:      models.AnnotationsPath,
-		Value:     json.RawMessage(annotationsPayload),
-	}
-	patchRequest = append(patchRequest, annotationsPatch)
-
-	finalizersPayload, err := json.Marshal(c.Finalizers)
-	if err != nil {
-		return nil, err
-	}
-
-	finzlizersPatch := &PatchRequest{
-		Operation: models.ReplaceOperation,
-		Path:      models.FinalizersPath,
-		Value:     json.RawMessage(finalizersPayload),
-	}
-	patchRequest = append(patchRequest, finzlizersPatch)
-
-	patchPayload, err := json.Marshal(patchRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	patch := client.RawPatch(types.JSONPatchType, patchPayload)
-
-	return patch, nil
-}
-
 func (c *Cadence) GetJobID(jobName string) string {
 	return client.ObjectKeyFromObject(c).String() + "/" + jobName
 }
 
 func (c *Cadence) NewPatch() client.Patch {
 	old := c.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 
@@ -219,7 +185,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 }
 
 func (cs *CadenceSpec) StandardProvisioningToInstAPI() []*models.CadenceStandardProvisioning {
-	cadenceStandardProvisioning := []*models.CadenceStandardProvisioning{}
+	var cadenceStandardProvisioning []*models.CadenceStandardProvisioning
 
 	for _, standardProvisioning := range cs.StandardProvisioning {
 		targetCassandra := standardProvisioning.TargetCassandra
@@ -256,7 +222,7 @@ func (cs *CadenceSpec) StandardProvisioningToInstAPI() []*models.CadenceStandard
 }
 
 func (cs *CadenceSpec) SharedProvisioningToInstAPI() []*models.CadenceSharedProvisioning {
-	sharedProvisioning := []*models.CadenceSharedProvisioning{}
+	var sharedProvisioning []*models.CadenceSharedProvisioning
 
 	for _, sp := range cs.SharedProvisioning {
 		sharedProvisioning = append(sharedProvisioning, &models.CadenceSharedProvisioning{
@@ -389,4 +355,300 @@ func (cs *CadenceSpec) NewDCsUpdate() models.CadenceClusterAPIUpdate {
 	return models.CadenceClusterAPIUpdate{
 		DataCentres: cs.DCsToInstAPI(),
 	}
+}
+
+type immutableCadenceFields struct {
+	immutableCluster
+	UseCadenceWebAuth bool
+}
+
+type immutableCadenceDCFields struct {
+	immutableDC      immutableDC
+	ClientEncryption bool
+}
+
+func (c *CadenceSpec) newImmutableFields() *immutableCadenceFields {
+	return &immutableCadenceFields{
+		immutableCluster:  c.Cluster.newImmutableFields(),
+		UseCadenceWebAuth: c.UseCadenceWebAuth,
+	}
+}
+
+func (c *CadenceSpec) validateUpdate(oldSpec CadenceSpec) error {
+	newImmutableFields := c.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, c)
+	}
+
+	err := c.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	err = validateTwoFactorDelete(c.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	err = c.validateAWSArchival(oldSpec.AWSArchival)
+	if err != nil {
+		return err
+	}
+
+	err = c.validateStandardProvisioning(oldSpec.StandardProvisioning)
+	if err != nil {
+		return err
+	}
+
+	err = c.validateSharedProvisioning(oldSpec.SharedProvisioning)
+	if err != nil {
+		return err
+	}
+
+	err = c.validatePackagedProvisioning(oldSpec.PackagedProvisioning)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *CadenceSpec) validateAWSArchival(old []*AWSArchival) error {
+	if len(c.AWSArchival) != len(old) {
+		return models.ErrImmutableAWSArchival
+	}
+
+	for i, arch := range c.AWSArchival {
+		if *arch != *old[i] {
+			return models.ErrImmutableAWSArchival
+		}
+	}
+
+	return nil
+}
+
+func (c *CadenceSpec) validateStandardProvisioning(old []*StandardProvisioning) error {
+	if len(c.StandardProvisioning) != len(old) {
+		return models.ErrImmutableStandardProvisioning
+	}
+
+	for i, sp := range c.StandardProvisioning {
+		if *sp.TargetCassandra != *old[i].TargetCassandra {
+			return models.ErrImmutableStandardProvisioning
+		}
+
+		err := sp.validateAdvancedVisibility(sp.AdvancedVisibility, old[i].AdvancedVisibility)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return nil
+}
+
+func (sp *StandardProvisioning) validateAdvancedVisibility(new, old []*AdvancedVisibility) error {
+	if len(old) != len(new) {
+		return models.ErrImmutableAdvancedVisibility
+	}
+
+	for i, av := range new {
+		if *old[i].TargetKafka != *av.TargetKafka ||
+			*old[i].TargetOpenSearch != *av.TargetOpenSearch {
+			return models.ErrImmutableAdvancedVisibility
+		}
+	}
+
+	return nil
+}
+
+func (c *CadenceSpec) validateSharedProvisioning(old []*SharedProvisioning) error {
+	if len(c.SharedProvisioning) != len(old) {
+		return models.ErrImmutableSharedProvisioning
+	}
+
+	for i, sp := range c.SharedProvisioning {
+		if *sp != *old[i] {
+			return models.ErrImmutableSharedProvisioning
+		}
+	}
+
+	return nil
+}
+
+func (c *CadenceSpec) validatePackagedProvisioning(old []*PackagedProvisioning) error {
+	if len(c.PackagedProvisioning) != len(old) {
+		return models.ErrImmutablePackagedProvisioning
+	}
+
+	for i, pp := range c.PackagedProvisioning {
+		if *pp.BundledCassandraSpec != *old[i].BundledCassandraSpec ||
+			pp.UseAdvancedVisibility != old[i].UseAdvancedVisibility {
+			return models.ErrImmutablePackagedProvisioning
+		}
+		if pp.BundledKafkaSpec != nil && old[i].BundledKafkaSpec != nil {
+			if *pp.BundledKafkaSpec != *old[i].BundledKafkaSpec {
+				return models.ErrImmutablePackagedProvisioning
+			}
+		}
+		if pp.BundledOpenSearchSpec != nil && old[i].BundledOpenSearchSpec != nil {
+			if *pp.BundledOpenSearchSpec != *old[i].BundledOpenSearchSpec {
+				return models.ErrImmutablePackagedProvisioning
+			}
+		}
+	}
+
+	return nil
+}
+
+func (cdc *CadenceDataCentre) newImmutableFields() *immutableCadenceDCFields {
+	return &immutableCadenceDCFields{
+		immutableDC: immutableDC{
+			Name:                cdc.Name,
+			Region:              cdc.Region,
+			CloudProvider:       cdc.CloudProvider,
+			ProviderAccountName: cdc.ProviderAccountName,
+			Network:             cdc.Network,
+		},
+		ClientEncryption: cdc.ClientEncryption,
+	}
+}
+
+func (c *CadenceSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CadenceSpec) error {
+	if len(c.DataCentres) != len(oldSpec.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for i, newDC := range c.DataCentres {
+		oldDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+
+		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
+		}
+
+		err = newDC.validatePrivateLink(oldDC.PrivateLink)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return nil
+}
+
+func (cdc *CadenceDataCentre) validatePrivateLink(old []*PrivateLink) error {
+	if len(cdc.PrivateLink) != len(old) {
+		return models.ErrImmutablePrivateLink
+	}
+
+	for i, pl := range cdc.PrivateLink {
+		if *pl != *old[i] {
+			return models.ErrImmutablePrivateLink
+		}
+	}
+
+	return nil
+}
+
+func (aws *AWSArchival) validate() error {
+	if !validation.Contains(aws.ArchivalS3Region, models.AWSRegions) {
+		return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
+			aws.ArchivalS3Region, models.AWSRegions)
+	}
+
+	s3URIMatched, err := regexp.Match(models.S3URIRegExp, []byte(aws.ArchivalS3URI))
+	if !s3URIMatched || err != nil {
+		return fmt.Errorf("the provided S3 URI: %s is not correct and must fit the pattern: %s. %v",
+			aws.ArchivalS3URI, models.S3URIRegExp, err)
+	}
+
+	return nil
+}
+
+func (sp *StandardProvisioning) validate() error {
+	for _, av := range sp.AdvancedVisibility {
+		if !validation.Contains(av.TargetOpenSearch.DependencyVPCType, models.DependencyVPCs) {
+			return fmt.Errorf("target OpenSearch Dependency VPC Type: %s is unavailable, available options: %v",
+				av.TargetOpenSearch.DependencyVPCType, models.DependencyVPCs)
+		}
+
+		osDependencyCDCIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(av.TargetOpenSearch.DependencyCDCID))
+		if !osDependencyCDCIDMatched || err != nil {
+			return fmt.Errorf("target OpenSearch Dependency CDCID: %s is not a UUID formated string. It must fit the pattern: %s. %v",
+				av.TargetOpenSearch.DependencyCDCID, models.UUIDStringRegExp, err)
+		}
+
+		if !validation.Contains(av.TargetKafka.DependencyVPCType, models.DependencyVPCs) {
+			return fmt.Errorf("target Kafka Dependency VPC Type: %s is unavailable, available options: %v",
+				av.TargetKafka.DependencyVPCType, models.DependencyVPCs)
+		}
+
+		kafkaDependencyCDCIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(av.TargetKafka.DependencyCDCID))
+		if !kafkaDependencyCDCIDMatched || err != nil {
+			return fmt.Errorf("target Kafka Dependency CDCID: %s is not a UUID formated string. It must fit the pattern: %s. %v",
+				av.TargetKafka.DependencyCDCID, models.UUIDStringRegExp, err)
+		}
+
+		if !validation.Contains(sp.TargetCassandra.DependencyVPCType, models.DependencyVPCs) {
+			return fmt.Errorf("target Kafka Dependency VPC Type: %s is unavailable, available options: %v",
+				sp.TargetCassandra.DependencyVPCType, models.DependencyVPCs)
+		}
+
+		cassandraDependencyCDCIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(sp.TargetCassandra.DependencyCDCID))
+		if !cassandraDependencyCDCIDMatched || err != nil {
+			return fmt.Errorf("target Kafka Dependency CDCID: %s is not a UUID formated string. It must fit the pattern: %s. %v",
+				sp.TargetCassandra.DependencyCDCID, models.UUIDStringRegExp, err)
+		}
+
+	}
+	return nil
+}
+
+func (b *BundledKafkaSpec) validate() error {
+	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(b.Network))
+	if !networkMatched || err != nil {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", b.Network, err)
+	}
+
+	if ((b.NodesNumber*b.ReplicationFactor)/b.ReplicationFactor)%b.ReplicationFactor != 0 {
+		return fmt.Errorf("kafka: number of nodes must be a multiple of replication factor: %v", b.ReplicationFactor)
+	}
+
+	return nil
+}
+
+func (c *BundledCassandraSpec) validate() error {
+	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(c.Network))
+	if !networkMatched || err != nil {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", c.Network, err)
+	}
+
+	if ((c.NodesNumber*c.ReplicationFactor)/c.ReplicationFactor)%c.ReplicationFactor != 0 {
+		return fmt.Errorf("cassandra: number of nodes must be a multiple of replication factor: %v", c.ReplicationFactor)
+	}
+
+	return nil
+}
+
+func (o *BundledOpenSearchSpec) validate() error {
+	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(o.Network))
+	if !networkMatched || err != nil {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", o.Network, err)
+	}
+
+	return nil
 }

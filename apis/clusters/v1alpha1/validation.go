@@ -58,15 +58,15 @@ func (dc *DataCentre) ValidateCreation() error {
 
 	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
 	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %s", dc.Network, err.Error())
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", dc.Network, err)
 	}
 
 	if len(dc.CloudProviderSettings) > 1 {
 		return fmt.Errorf("cloud provider settings should not have more than 1 item")
 	}
 
-	if len(dc.CloudProviderSettings) == 1 {
-		err := dc.CloudProviderSettings[0].ValidateCreation()
+	for _, cp := range dc.CloudProviderSettings {
+		err := cp.ValidateCreation()
 		if err != nil {
 			return err
 		}

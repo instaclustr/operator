@@ -9,38 +9,27 @@
 apiVersion: clusters.instaclustr.com/v1alpha1
 kind: Cadence
 metadata:
-  labels:
-    app.kubernetes.io/name: cadence
-    app.kubernetes.io/instance: cadence-sample
-    app.kubernetes.io/part-of: operator
-    app.kuberentes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: operator
-  name: cadence-sample-3
-  annotations:
-    test.annotation/first: testAnnotation
-#    test.annotation/second: testAnnotation
+  name: cadence-sample
 spec:
   name: "operatorCadence"
   version: "0.24.0"
-  sharedProvisioning:
-    - useAdvancedVisibility: false
-#  standardProvisioning:
-#    - targetCassandra:
-#        dependencyCdcId: "66abf438-0020-4e2d-a39b-78706b7de064"
-#        dependencyVpcType: "VPC_PEERED"
+  standardProvisioning:
+    - targetCassandra:
+        dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
+        dependencyVpcType: "VPC_PEERED"
 #  packagedProvisioning:
 #    - bundledCassandraSpec:
 #        nodeSize: "CAS-DEV-t4g.small-5"
-#        network: "10.1.0.0/16"
+#        network: "10.2.0.0/16"
 #        replicationFactor: 3
 #        nodesNumber: 3
 #        privateIPBroadcastForDiscovery: false
 #        passwordAndUserAuth: true
-#        useAdvancedVisibility: true
+#      useAdvancedVisibility: true
 #      bundledKafkaSpec:
 #        nodeSize: "KFK-DEV-t4g.small-5"
 #        nodesNumber: 3
-#        network: "10.2.0.0/16"
+#        network: "10.3.0.0/16"
 #        replicationFactor: 3
 #        partitionsNumber: 3
 #      bundledOpenSearchSpec:
@@ -53,17 +42,12 @@ spec:
   privateNetworkCluster: false
   dataCentres:
   - region: "US_EAST_1"
-    network: "10.3.0.0/16"
+    network: "10.12.0.0/16"
     cloudProvider: "AWS_VPC"
     name: "testdc"
-    nodeSize: "CAD-SI-DEV-t3.small-5"
-#    nodeSize: "CAD-DEV-t3.medium-30"
-#    nodeSize: "CAD-DEV-t3.small-5"
-    nodesNumber: 1
-#    privateLink:
-#    - advertisedHostname: "cadence.test.com"
+    nodeSize: "CAD-DEV-t3.small-5"
+    nodesNumber: 2
     clientEncryption: false
-  description: "test 222"
   slaTier: "NON_PRODUCTION"
-  useCadenceWebAuth: false
+  useCadenceWebAuth: true
 

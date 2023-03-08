@@ -86,7 +86,7 @@ func (k *KafkaConnect) ValidateCreate() error {
 		for _, mc := range tc.ManagedCluster {
 			clusterIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(mc.TargetKafkaClusterID))
 			if !clusterIDMatched || err != nil {
-				return fmt.Errorf("cluster ID is a UUID formated string. It must fit the pattern: %s, %s", models.UUIDStringRegExp, err.Error())
+				return fmt.Errorf("cluster ID is a UUID formated string. It must fit the pattern: %s, %v", models.UUIDStringRegExp, err)
 			}
 
 			if !validation.Contains(mc.KafkaConnectVPCType, models.KafkaConnectVPCTypes) {
@@ -106,7 +106,7 @@ func (k *KafkaConnect) ValidateCreate() error {
 			return err
 		}
 
-		if ((int(dc.NodesNumber)*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
+		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
 		}
 	}

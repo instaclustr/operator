@@ -54,7 +54,7 @@ func (nr *NodeReload) ValidateCreate() error {
 	for _, node := range nr.Spec.Nodes {
 		nodeIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(node.ID))
 		if !nodeIDMatched || err != nil {
-			return fmt.Errorf("node ID is a UUID formated string. It must fit the pattern: %s. %s", models.UUIDStringRegExp, err.Error())
+			return fmt.Errorf("node ID is a UUID formated string. It must fit the pattern: %s. %v", models.UUIDStringRegExp, err)
 		}
 	}
 

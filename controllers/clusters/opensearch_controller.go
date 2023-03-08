@@ -415,7 +415,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
-	logger.Info("Opensearch cluster backup resources were deleted",
+	logger.Info("OpenSearch cluster backup resources were deleted",
 		"cluster ID", openSearch.Status.ID,
 	)
 
@@ -538,7 +538,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(openSearch *clustersv1alpha1.Op
 		}
 
 		if !areStatusesEqual(&iOpenSearch.Status.ClusterStatus, &openSearch.Status.ClusterStatus) {
-			l.Info("Updating Opensearch cluster status",
+			l.Info("Updating OpenSearch cluster status",
 				"new status", iOpenSearch.Status.ClusterStatus,
 				"old status", openSearch.Status.ClusterStatus,
 			)
