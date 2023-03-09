@@ -7,3 +7,4 @@
    * Manually start the release CI (Actions -> release -> Run workflow -> Specify new tag -> Run workflow)
    * Go to the Releases on the main page of the repository.
    * Choose the release and check the formatting.
+5. Update instaclustr [operator-helm](https://github.com/instaclustr/operator-helm) repository. Update default tag, templates and values. 
