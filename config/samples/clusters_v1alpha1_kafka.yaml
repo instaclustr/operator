@@ -43,9 +43,9 @@ spec:
       tags:
         tag: "oneTag"
         tag2: "twoTags"
-#      nodeSize: "KFK-DEV-t4g.small-5"
+      nodeSize: "KFK-DEV-t4g.small-5"
       #      nodeSize: "KFK-PRD-r6g.large-250"
-      nodeSize: "KFK-DEV-t4g.medium-80"
+#      nodeSize: "KFK-DEV-t4g.medium-80"
       network: "10.0.0.0/16"
       region: "US_EAST_1"
 #      accountName: "Custrom"
