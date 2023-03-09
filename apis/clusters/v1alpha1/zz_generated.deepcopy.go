@@ -23,7 +23,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
