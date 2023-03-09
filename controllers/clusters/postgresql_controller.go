@@ -220,7 +220,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 				r.EventRecorder.Eventf(
 					pgCluster, models.Error, models.CreationFailed,
-					"Cluster creation failed on Instaclustr cloud is failed. Reason: %v",
+					"Cluster creation on the Instaclustr cloud is failed. Reason: %v",
 					err,
 				)
 
@@ -542,6 +542,11 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			logger.Error(err, "Cannot delete PostgreSQL cluster",
 				"cluster name", pgCluster.Spec.Name,
 				"cluster status", pgCluster.Status.State,
+			)
+			r.EventRecorder.Eventf(
+				pgCluster, models.Error, models.DeletionFailed,
+				"Cluster deletion is failed on the Instaclustr. Reason: %v",
+				err,
 			)
 
 			return models.ReconcileRequeue

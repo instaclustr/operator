@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,14 +42,16 @@ import (
 // KafkaReconciler reconciles a Kafka object
 type KafkaReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -104,13 +107,29 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 			l.Error(err, "Cannot create cluster",
 				"spec", kafka.Spec,
 			)
+			r.EventRecorder.Eventf(
+				kafka, models.Error, models.CreationFailed,
+				"Cluster creation on the Instaclustr cloud is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			kafka, models.Normal, models.Created,
+			"Cluster creation request is sent. Cluster ID: %s",
+			kafka.Status.ID,
+		)
 
 		err = r.Status().Patch(ctx, kafka, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster status",
 				"spec", kafka.Spec,
+			)
+			r.EventRecorder.Eventf(
+				kafka, models.Error, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -122,6 +141,11 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 			l.Error(err, "Cannot patch cluster resource",
 				"name", kafka.Spec.Name,
 			)
+			r.EventRecorder.Eventf(
+				kafka, models.Error, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 	}
@@ -130,8 +154,18 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 	if err != nil {
 		l.Error(err, "Cannot start cluster status job",
 			"cluster ID", kafka.Status.ID)
+		r.EventRecorder.Eventf(
+			kafka, models.Error, models.CreationFailed,
+			"Cluster status check job creation is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		kafka, models.Normal, models.Created,
+		"Cluster status check job is started",
+	)
 
 	l.Info("Cluster has been created",
 		"cluster ID", kafka.Status.ID)
@@ -160,6 +194,11 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		l.Error(err, "Unable to update cluster on Instaclustr",
 			"cluster name", k.Spec.Name,
 			"cluster state", k.Status.ClusterStatus.State)
+		r.EventRecorder.Eventf(
+			k, models.Error, models.UpdateFailed,
+			"Cluster update on the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -178,6 +217,11 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 		l.Error(err, "Cannot get cluster from the Instaclustr API",
 			"cluster name", kafka.Spec.Name,
 			"cluster state", kafka.Status.ClusterStatus.State)
+		r.EventRecorder.Eventf(
+			kafka, models.Error, models.FetchFailed,
+			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -192,8 +236,18 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 			l.Error(err, "Cannot delete cluster",
 				"cluster name", kafka.Spec.Name,
 				"cluster state", kafka.Status.ClusterStatus.State)
+			r.EventRecorder.Eventf(
+				kafka, models.Error, models.DeletionFailed,
+				"Cluster deletion is failed on the Instaclustr. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			kafka, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.",
+		)
 
 		if kafka.Spec.TwoFactorDelete != nil {
 			kafka.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
@@ -203,6 +257,11 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 				l.Error(err, "Cannot patch cluster resource",
 					"cluster name", kafka.Spec.Name,
 					"cluster state", kafka.Status.State)
+				r.EventRecorder.Eventf(
+					kafka, models.Error, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err,
+				)
 				return models.ReconcileRequeue
 			}
 
@@ -222,12 +281,22 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
 			"cluster name", kafka.Spec.Name)
+		r.EventRecorder.Eventf(
+			kafka, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Cluster was deleted",
 		"cluster name", kafka.Spec.Name,
 		"cluster ID", kafka.Status.ID)
+
+	r.EventRecorder.Eventf(
+		kafka, models.Normal, models.Deleted,
+		"Cluster resource is deleted",
+	)
 
 	return models.ExitReconcile
 }
