@@ -25,6 +25,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,14 +49,16 @@ const (
 // CassandraReconciler reconciles a Cassandra object
 type CassandraReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -123,8 +126,21 @@ func (r *CassandraReconciler) handleCreateCluster(
 					"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
 				)
 
+				r.EventRecorder.Eventf(
+					cassandra, models.Error, models.CreationFailed,
+					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
+					err,
+				)
+
 				return models.ReconcileRequeue
 			}
+
+			r.EventRecorder.Eventf(
+				cassandra, models.Normal, models.Created,
+				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
+				cassandra.Spec.RestoreFrom.ClusterID,
+				id,
+			)
 		} else {
 			l.Info(
 				"Creating cluster",
@@ -138,8 +154,19 @@ func (r *CassandraReconciler) handleCreateCluster(
 					err, "Cannot create cluster",
 					"cluster spec", cassandra.Spec,
 				)
+				r.EventRecorder.Eventf(
+					cassandra, models.Error, models.CreationFailed,
+					"Cluster creation on the Instaclustr is failed. Reason: %v",
+					err,
+				)
 				return models.ReconcileRequeue
 			}
+
+			r.EventRecorder.Eventf(
+				cassandra, models.Normal, models.Created,
+				"Cluster creation request is sent. Cluster ID: %s",
+				id,
+			)
 		}
 
 		cassandra.Status.ID = id
@@ -152,6 +179,11 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"api Version", cassandra.APIVersion,
 				"namespace", cassandra.Namespace,
 				"cluster metadata", cassandra.ObjectMeta,
+			)
+			r.EventRecorder.Eventf(
+				cassandra, models.Error, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -168,6 +200,11 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"api Version", cassandra.APIVersion,
 				"namespace", cassandra.Namespace,
 				"cluster metadata", cassandra.ObjectMeta,
+			)
+			r.EventRecorder.Eventf(
+				cassandra, models.Error, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -186,8 +223,19 @@ func (r *CassandraReconciler) handleCreateCluster(
 	if err != nil {
 		l.Error(err, "Cannot start cluster status job",
 			"cassandra cluster ID", cassandra.Status.ID)
+
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.CreationFailed,
+			"Cluster status check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		cassandra, models.Normal, models.Created,
+		"Cluster status check job is started",
+	)
 
 	err = r.startClusterBackupsJob(cassandra)
 	if err != nil {
@@ -195,8 +243,18 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"cluster ID", cassandra.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.CreationFailed,
+			"Cluster backups check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		cassandra, models.Normal, models.Created,
+		"Cluster backups check job is started",
+	)
 
 	return models.ExitReconcile
 }
@@ -214,6 +272,12 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -223,6 +287,12 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			err, "Cannot convert cluster from the Instaclustr API",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.ConvertionFailed,
+			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
@@ -235,6 +305,12 @@ func (r *CassandraReconciler) handleUpdateCluster(
 				"cluster name", cassandra.Spec.Name,
 				"cluster spec", cassandra.Spec,
 				"cluster state", cassandra.Status.State,
+			)
+
+			r.EventRecorder.Eventf(
+				cassandra, models.Error, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -251,6 +327,11 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"api Version", cassandra.APIVersion,
 			"namespace", cassandra.Namespace,
 			"cluster metadata", cassandra.ObjectMeta,
+		)
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
@@ -284,6 +365,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"namespace", cassandra.Namespace,
 			"cluster metadata", cassandra.ObjectMeta,
 		)
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -303,6 +389,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 				"cluster ID", cassandra.Status.ID,
 			)
 
+			r.EventRecorder.Eventf(
+				cassandra, models.Error, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
@@ -319,6 +410,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"api Version", cassandra.APIVersion,
 			"namespace", cassandra.Namespace,
 		)
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -334,6 +430,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			cassandra, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent",
+		)
 
 		l.Info("Cluster is being deleted",
 			"cluster ID", cassandra.Status.ID,
@@ -354,11 +455,21 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		l.Error(err, "Cannot delete cluster backup resources",
 			"cluster ID", cassandra.Status.ID,
 		)
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.DeletionFailed,
+			"Cluster backups deletion is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Cluster backup resources were deleted",
 		"cluster ID", cassandra.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		cassandra, models.Normal, models.Deleted,
+		"Cluster backup resources are deleted",
 	)
 
 	controllerutil.RemoveFinalizer(cassandra, models.DeletionFinalizer)
@@ -373,6 +484,12 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"namespace", cassandra.Namespace,
 			"cluster metadata", cassandra.ObjectMeta,
 		)
+
+		r.EventRecorder.Eventf(
+			cassandra, models.Error, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -382,6 +499,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		"kind", cassandra.Kind,
 		"api Version", cassandra.APIVersion,
 		"namespace", cassandra.Namespace,
+	)
+
+	r.EventRecorder.Eventf(
+		cassandra, models.Normal, models.Deleted,
+		"Cluster resource is deleted",
 	)
 
 	return models.ExitReconcile

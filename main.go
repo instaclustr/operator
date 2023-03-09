@@ -119,10 +119,11 @@ func main() {
 	eventRecorder := mgr.GetEventRecorderFor("instaclustr-operator")
 
 	if err = (&clusterscontrollers.CassandraReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		API:       instaClient,
-		Scheduler: s,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		Scheduler:     s,
+		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cassandra")
 		os.Exit(1)
