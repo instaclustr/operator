@@ -38,8 +38,6 @@ func (r *KafkaConnect) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-kafkaconnect,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=kafkaconnects,verbs=create;update,versions=v1alpha1,name=mkafkaconnect.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &KafkaConnect{}

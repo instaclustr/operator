@@ -367,47 +367,47 @@ type immutableCadenceDCFields struct {
 	ClientEncryption bool
 }
 
-func (c *CadenceSpec) newImmutableFields() *immutableCadenceFields {
+func (cs *CadenceSpec) newImmutableFields() *immutableCadenceFields {
 	return &immutableCadenceFields{
-		immutableCluster:  c.Cluster.newImmutableFields(),
-		UseCadenceWebAuth: c.UseCadenceWebAuth,
+		immutableCluster:  cs.Cluster.newImmutableFields(),
+		UseCadenceWebAuth: cs.UseCadenceWebAuth,
 	}
 }
 
-func (c *CadenceSpec) validateUpdate(oldSpec CadenceSpec) error {
-	newImmutableFields := c.newImmutableFields()
+func (cs *CadenceSpec) validateUpdate(oldSpec CadenceSpec) error {
+	newImmutableFields := cs.newImmutableFields()
 	oldImmutableFields := oldSpec.newImmutableFields()
 
 	if *newImmutableFields != *oldImmutableFields {
-		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, c)
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, cs)
 	}
 
-	err := c.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	err := cs.validateImmutableDataCentresFieldsUpdate(oldSpec)
 	if err != nil {
 		return err
 	}
 
-	err = validateTwoFactorDelete(c.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	err = validateTwoFactorDelete(cs.TwoFactorDelete, oldSpec.TwoFactorDelete)
 	if err != nil {
 		return err
 	}
 
-	err = c.validateAWSArchival(oldSpec.AWSArchival)
+	err = cs.validateAWSArchival(oldSpec.AWSArchival)
 	if err != nil {
 		return err
 	}
 
-	err = c.validateStandardProvisioning(oldSpec.StandardProvisioning)
+	err = cs.validateStandardProvisioning(oldSpec.StandardProvisioning)
 	if err != nil {
 		return err
 	}
 
-	err = c.validateSharedProvisioning(oldSpec.SharedProvisioning)
+	err = cs.validateSharedProvisioning(oldSpec.SharedProvisioning)
 	if err != nil {
 		return err
 	}
 
-	err = c.validatePackagedProvisioning(oldSpec.PackagedProvisioning)
+	err = cs.validatePackagedProvisioning(oldSpec.PackagedProvisioning)
 	if err != nil {
 		return err
 	}
@@ -415,12 +415,12 @@ func (c *CadenceSpec) validateUpdate(oldSpec CadenceSpec) error {
 	return nil
 }
 
-func (c *CadenceSpec) validateAWSArchival(old []*AWSArchival) error {
-	if len(c.AWSArchival) != len(old) {
+func (cs *CadenceSpec) validateAWSArchival(old []*AWSArchival) error {
+	if len(cs.AWSArchival) != len(old) {
 		return models.ErrImmutableAWSArchival
 	}
 
-	for i, arch := range c.AWSArchival {
+	for i, arch := range cs.AWSArchival {
 		if *arch != *old[i] {
 			return models.ErrImmutableAWSArchival
 		}
@@ -429,12 +429,12 @@ func (c *CadenceSpec) validateAWSArchival(old []*AWSArchival) error {
 	return nil
 }
 
-func (c *CadenceSpec) validateStandardProvisioning(old []*StandardProvisioning) error {
-	if len(c.StandardProvisioning) != len(old) {
+func (cs *CadenceSpec) validateStandardProvisioning(old []*StandardProvisioning) error {
+	if len(cs.StandardProvisioning) != len(old) {
 		return models.ErrImmutableStandardProvisioning
 	}
 
-	for i, sp := range c.StandardProvisioning {
+	for i, sp := range cs.StandardProvisioning {
 		if *sp.TargetCassandra != *old[i].TargetCassandra {
 			return models.ErrImmutableStandardProvisioning
 		}
@@ -464,12 +464,12 @@ func (sp *StandardProvisioning) validateAdvancedVisibility(new, old []*AdvancedV
 	return nil
 }
 
-func (c *CadenceSpec) validateSharedProvisioning(old []*SharedProvisioning) error {
-	if len(c.SharedProvisioning) != len(old) {
+func (cs *CadenceSpec) validateSharedProvisioning(old []*SharedProvisioning) error {
+	if len(cs.SharedProvisioning) != len(old) {
 		return models.ErrImmutableSharedProvisioning
 	}
 
-	for i, sp := range c.SharedProvisioning {
+	for i, sp := range cs.SharedProvisioning {
 		if *sp != *old[i] {
 			return models.ErrImmutableSharedProvisioning
 		}
@@ -478,25 +478,31 @@ func (c *CadenceSpec) validateSharedProvisioning(old []*SharedProvisioning) erro
 	return nil
 }
 
-func (c *CadenceSpec) validatePackagedProvisioning(old []*PackagedProvisioning) error {
-	if len(c.PackagedProvisioning) != len(old) {
+func (cs *CadenceSpec) validatePackagedProvisioning(old []*PackagedProvisioning) error {
+	if len(cs.PackagedProvisioning) != len(old) {
 		return models.ErrImmutablePackagedProvisioning
 	}
 
-	for i, pp := range c.PackagedProvisioning {
-		if *pp.BundledCassandraSpec != *old[i].BundledCassandraSpec ||
-			pp.UseAdvancedVisibility != old[i].UseAdvancedVisibility {
-			return models.ErrImmutablePackagedProvisioning
-		}
-		if pp.BundledKafkaSpec != nil && old[i].BundledKafkaSpec != nil {
+	for i, pp := range cs.PackagedProvisioning {
+		if pp.UseAdvancedVisibility {
+			if pp.BundledKafkaSpec == nil || pp.BundledOpenSearchSpec == nil {
+				return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must not be empty because UseAdvancedVisibility is set to true")
+			}
 			if *pp.BundledKafkaSpec != *old[i].BundledKafkaSpec {
 				return models.ErrImmutablePackagedProvisioning
 			}
-		}
-		if pp.BundledOpenSearchSpec != nil && old[i].BundledOpenSearchSpec != nil {
 			if *pp.BundledOpenSearchSpec != *old[i].BundledOpenSearchSpec {
 				return models.ErrImmutablePackagedProvisioning
 			}
+		}
+
+		if pp.BundledKafkaSpec != nil || pp.BundledOpenSearchSpec != nil {
+			return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must be empty because UseAdvancedVisibility is set to false")
+		}
+
+		if *pp.BundledCassandraSpec != *old[i].BundledCassandraSpec ||
+			pp.UseAdvancedVisibility != old[i].UseAdvancedVisibility {
+			return models.ErrImmutablePackagedProvisioning
 		}
 	}
 
@@ -516,12 +522,12 @@ func (cdc *CadenceDataCentre) newImmutableFields() *immutableCadenceDCFields {
 	}
 }
 
-func (c *CadenceSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CadenceSpec) error {
-	if len(c.DataCentres) != len(oldSpec.DataCentres) {
+func (cs *CadenceSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CadenceSpec) error {
+	if len(cs.DataCentres) != len(oldSpec.DataCentres) {
 		return models.ErrImmutableDataCentresNumber
 	}
 
-	for i, newDC := range c.DataCentres {
+	for i, newDC := range cs.DataCentres {
 		oldDC := oldSpec.DataCentres[i]
 		newDCImmutableFields := newDC.newImmutableFields()
 		oldDCImmutableFields := oldDC.newImmutableFields()
@@ -544,7 +550,6 @@ func (c *CadenceSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CadenceSp
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
@@ -613,8 +618,8 @@ func (sp *StandardProvisioning) validate() error {
 			return fmt.Errorf("target Kafka Dependency CDCID: %s is not a UUID formated string. It must fit the pattern: %s. %v",
 				sp.TargetCassandra.DependencyCDCID, models.UUIDStringRegExp, err)
 		}
-
 	}
+
 	return nil
 }
 

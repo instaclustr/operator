@@ -34,8 +34,6 @@ func (r *AzureVNetPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1alpha1-azurevnetpeering,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=azurevnetpeerings,verbs=create;update,versions=v1alpha1,name=vazurevnetpeering.kb.io,admissionReviewVersions=v1
 
