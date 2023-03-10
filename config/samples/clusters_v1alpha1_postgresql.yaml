@@ -11,8 +11,8 @@ spec:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
       cloudProvider: "AWS_VPC"
-#      nodeSize: "PGS-DEV-t4g.medium-30"
-      nodeSize: "PGS-DEV-t4g.small-5"
+      nodeSize: "PGS-DEV-t4g.medium-30"
+#      nodeSize: "PGS-DEV-t4g.small-5"
       nodesNumber: 2
       clientEncryption: false
       name: "testDC1"
@@ -37,8 +37,8 @@ spec:
 #  clusterConfigurations:
 #    idle_in_transaction_session_timeout: "2"
 #    statement_timeout: "1"
-  #  twoFactorDelete:
-#    - email: "rostyslp@netapp.com"
+#  twoFactorDelete:
+#  - email: "rostyslp@netapp.com"
 #  description: "test 222"
   slaTier: "NON_PRODUCTION"
   privateNetworkCluster: false

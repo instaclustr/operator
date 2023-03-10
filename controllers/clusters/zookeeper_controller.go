@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,21 +42,19 @@ import (
 // ZookeeperReconciler reconciles a Zookeeper object
 type ZookeeperReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=zookeepers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=zookeepers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=zookeepers/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Zookeeper object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -115,13 +114,29 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 		zook.Status.ID, err = r.API.CreateCluster(instaclustr.ZookeeperEndpoint, zook.Spec.ToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot create zookeeper cluster", "spec", zook.Spec)
+			r.EventRecorder.Eventf(
+				zook, models.Warning, models.CreationFailed,
+				"Cluster creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			zook, models.Normal, models.Created,
+			"Cluster creation request is sent. Cluster ID: %s",
+			zook.Status.ID,
+		)
 
 		err = r.Status().Patch(ctx, zook, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch zookeeper cluster status from the Instaclustr API",
 				"spec", zook.Spec)
+			r.EventRecorder.Eventf(
+				zook, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
@@ -130,6 +145,11 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 		err = r.Patch(ctx, zook, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch zookeeper", "zookeeper name", zook.Spec.Name)
+			r.EventRecorder.Eventf(
+				zook, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 	}
@@ -138,8 +158,18 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 	if err != nil {
 		l.Error(err, "Cannot start cluster status job",
 			"zookeeper cluster ID", zook.Status.ID)
+		r.EventRecorder.Eventf(
+			zook, models.Warning, models.CreationFailed,
+			"Cluster status check job creation is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		zook, models.Normal, models.Created,
+		"Cluster status check job is started",
+	)
 
 	l.Info("Zookeeper cluster has been created", "cluster ID", zook.Status.ID)
 
@@ -169,6 +199,11 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 	if err != nil {
 		l.Error(err, "Cannot patch Zookeeper cluster",
 			"cluster name", zook.Spec.Name, "status", zook.Status.State)
+		r.EventRecorder.Eventf(
+			zook, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -177,6 +212,11 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 		l.Error(err, "Cannot get zookeeper cluster",
 			"cluster name", zook.Spec.Name,
 			"status", zook.Status.ClusterStatus.State)
+		r.EventRecorder.Eventf(
+			zook, models.Warning, models.FetchFailed,
+			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -186,9 +226,18 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 			l.Error(err, "Cannot delete zookeeper cluster",
 				"cluster name", zook.Spec.Name,
 				"cluster status", zook.Status.State)
+			r.EventRecorder.Eventf(
+				zook, models.Warning, models.DeletionFailed,
+				"Cluster deletion is failed on the Instaclustr. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
+		r.EventRecorder.Eventf(
+			zook, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.",
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -199,11 +248,21 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 	if err != nil {
 		l.Error(err, "Cannot patch remove finalizer from zookeeper",
 			"cluster name", zook.Spec.Name)
+		r.EventRecorder.Eventf(
+			zook, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Zookeeper cluster was deleted",
 		"cluster ID", zook.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		zook, models.Normal, models.Deleted,
+		"Cluster resource is deleted",
 	)
 
 	return models.ExitReconcile

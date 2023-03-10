@@ -51,7 +51,7 @@ type KafkaReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=events,verbs=create
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -109,7 +109,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 			)
 			r.EventRecorder.Eventf(
 				kafka, models.Warning, models.CreationFailed,
-				"Cluster creation on the Instaclustr cloud is failed. Reason: %v",
+				"Cluster creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
 			return models.ReconcileRequeue

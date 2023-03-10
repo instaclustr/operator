@@ -60,7 +60,7 @@ type PostgreSQLReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls/finalizers,verbs=update
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups,verbs=get;list;create;update;patch;deletecollection;delete
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;watch;create;delete;update
-//+kubebuilder:rbac:groups="",resources=events,verbs=create
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -198,7 +198,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 			r.EventRecorder.Eventf(
 				pgCluster, models.Normal, models.Created,
-				"Cluster is restored from backup. Original cluster ID: %s, new cluster ID: %s",
+				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
 				pgCluster.Spec.PgRestoreFrom.ClusterID,
 				pgCluster.Status.ID,
 			)
@@ -220,7 +220,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 				r.EventRecorder.Eventf(
 					pgCluster, models.Warning, models.CreationFailed,
-					"Cluster creation on the Instaclustr cloud is failed. Reason: %v",
+					"Cluster creation on the Instaclustr is failed. Reason: %v",
 					err,
 				)
 
@@ -232,7 +232,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 			r.EventRecorder.Eventf(
 				pgCluster, models.Normal, models.Created,
-				"Cluster is created. Cluster ID: %s",
+				"Cluster creation request is sent. Cluster ID: %s",
 				pgCluster.Status.ID,
 			)
 		}
