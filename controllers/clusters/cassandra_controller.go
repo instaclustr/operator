@@ -127,7 +127,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				)
 
 				r.EventRecorder.Eventf(
-					cassandra, models.Error, models.CreationFailed,
+					cassandra, models.Warning, models.CreationFailed,
 					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -155,7 +155,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 					"cluster spec", cassandra.Spec,
 				)
 				r.EventRecorder.Eventf(
-					cassandra, models.Error, models.CreationFailed,
+					cassandra, models.Warning, models.CreationFailed,
 					"Cluster creation on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -181,7 +181,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"cluster metadata", cassandra.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
-				cassandra, models.Error, models.PatchFailed,
+				cassandra, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
@@ -202,7 +202,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"cluster metadata", cassandra.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
-				cassandra, models.Error, models.PatchFailed,
+				cassandra, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
@@ -225,7 +225,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"cassandra cluster ID", cassandra.Status.ID)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.CreationFailed,
+			cassandra, models.Warning, models.CreationFailed,
 			"Cluster status check job is failed. Reason: %v",
 			err,
 		)
@@ -244,7 +244,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.CreationFailed,
+			cassandra, models.Warning, models.CreationFailed,
 			"Cluster backups check job is failed. Reason: %v",
 			err,
 		)
@@ -274,7 +274,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.FetchFailed,
+			cassandra, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -290,7 +290,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.ConvertionFailed,
+			cassandra, models.Warning, models.ConvertionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
@@ -308,7 +308,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				cassandra, models.Error, models.UpdateFailed,
+				cassandra, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
@@ -329,7 +329,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 			"cluster metadata", cassandra.ObjectMeta,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.PatchFailed,
+			cassandra, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -366,7 +366,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"cluster metadata", cassandra.ObjectMeta,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.PatchFailed,
+			cassandra, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -390,7 +390,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				cassandra, models.Error, models.PatchFailed,
+				cassandra, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
@@ -411,7 +411,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"namespace", cassandra.Namespace,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.FetchFailed,
+			cassandra, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -427,6 +427,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 				"kind", cassandra.Kind,
 				"api Version", cassandra.APIVersion,
 				"namespace", cassandra.Namespace,
+			)
+			r.EventRecorder.Eventf(
+				cassandra, models.Warning, models.DeletionFailed,
+				"Cluster deletion on the Instaclustr API is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -456,7 +461,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			"cluster ID", cassandra.Status.ID,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.DeletionFailed,
+			cassandra, models.Warning, models.DeletionFailed,
 			"Cluster backups deletion is failed. Reason: %v",
 			err,
 		)
@@ -486,7 +491,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Error, models.PatchFailed,
+			cassandra, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)

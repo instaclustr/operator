@@ -123,7 +123,7 @@ func (r *RedisReconciler) handleCreateCluster(
 					"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
 				)
 				r.EventRecorder.Eventf(
-					redis, models.Error, models.CreationFailed,
+					redis, models.Warning, models.CreationFailed,
 					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -155,7 +155,7 @@ func (r *RedisReconciler) handleCreateCluster(
 					"cluster manifest", redis.Spec,
 				)
 				r.EventRecorder.Eventf(
-					redis, models.Error, models.CreationFailed,
+					redis, models.Warning, models.CreationFailed,
 					"Cluster creation on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -181,7 +181,7 @@ func (r *RedisReconciler) handleCreateCluster(
 				"cluster name", redis.Spec.Name,
 			)
 			r.EventRecorder.Eventf(
-				redis, models.Error, models.PatchFailed,
+				redis, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
@@ -200,7 +200,7 @@ func (r *RedisReconciler) handleCreateCluster(
 			"cluster metadata", redis.ObjectMeta,
 		)
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.PatchFailed,
+			redis, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -214,7 +214,7 @@ func (r *RedisReconciler) handleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.CreationFailed,
+			redis, models.Warning, models.CreationFailed,
 			"Cluster status job creation is failed. Reason: %v",
 			err,
 		)
@@ -233,7 +233,7 @@ func (r *RedisReconciler) handleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.CreationFailed,
+			redis, models.Warning, models.CreationFailed,
 			"Cluster backups job creation is failed. Reason: %v",
 			err,
 		)
@@ -271,7 +271,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.FetchFailed,
+			redis, models.Warning, models.FetchFailed,
 			"Fetch cluster from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -287,7 +287,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.ConvertionFailed,
+			redis, models.Warning, models.ConvertionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
@@ -304,7 +304,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				redis, models.Error, models.UpdateFailed,
+				redis, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
@@ -322,7 +322,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.PatchFailed,
+			redis, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -349,7 +349,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.FetchFailed,
+			redis, models.Warning, models.FetchFailed,
 			"Fetch cluster from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -372,7 +372,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				redis, models.Error, models.PatchFailed,
+				redis, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
@@ -391,7 +391,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				redis, models.Error, models.DeletionFailed,
+				redis, models.Warning, models.DeletionFailed,
 				"Cluster deletion on the Instaclustr is failed. Reason: %v",
 				err,
 			)
@@ -423,7 +423,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"cluster ID", redis.Status.ID,
 		)
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.DeletionFailed,
+			redis, models.Warning, models.DeletionFailed,
 			"Cluster backups deletion is failed. Reason: %v",
 			err,
 		)
@@ -452,7 +452,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Error, models.PatchFailed,
+			redis, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)

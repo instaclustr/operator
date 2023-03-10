@@ -68,7 +68,7 @@ const (
 
 const (
 	Normal            = "Normal"
-	Error             = "Error"
+	Warning           = "Warning"
 	Created           = "Created"
 	PatchFailed       = "PatchFailed"
 	CreationFailed    = "CreationFailed"

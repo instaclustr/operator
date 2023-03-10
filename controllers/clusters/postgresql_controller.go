@@ -129,7 +129,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Error, models.FetchSecretFailed,
+				pgCluster, models.Warning, models.FetchSecretFailed,
 				"Default user secret fetch is failed. Reason: %v",
 				err,
 			)
@@ -148,7 +148,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Error, models.CreationFailed,
+					pgCluster, models.Warning, models.CreationFailed,
 					"Default user secret creation is failed. Reason: %v",
 					err,
 				)
@@ -185,7 +185,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Error, models.CreationFailed,
+					pgCluster, models.Warning, models.CreationFailed,
 					"Cluster restoration from backup on Instaclustr cloud is failed. Reason: %v",
 					err,
 				)
@@ -219,7 +219,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Error, models.CreationFailed,
+					pgCluster, models.Warning, models.CreationFailed,
 					"Cluster creation on the Instaclustr cloud is failed. Reason: %v",
 					err,
 				)
@@ -255,7 +255,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.PatchFailed,
+			pgCluster, models.Warning, models.PatchFailed,
 			"Cluster resource status patch is failed. Reason: %v",
 			err,
 		)
@@ -274,7 +274,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.PatchFailed,
+			pgCluster, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -289,7 +289,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.CreationFailed,
+			pgCluster, models.Warning, models.CreationFailed,
 			"Cluster status check job is failed. Reason: %v",
 			err,
 		)
@@ -308,7 +308,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.CreationFailed,
+			pgCluster, models.Warning, models.CreationFailed,
 			"Cluster backups check job is failed. Reason: %v",
 			err,
 		)
@@ -341,7 +341,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.FetchFailed,
+			pgCluster, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -357,7 +357,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.ConvertionFailed,
+			pgCluster, models.Warning, models.ConvertionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
@@ -382,7 +382,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Error, models.UpdateFailed,
+				pgCluster, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
@@ -402,7 +402,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.FetchFailed,
+			pgCluster, models.Warning, models.FetchFailed,
 			"Cluster configs fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -423,7 +423,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Error, models.UpdateFailed,
+				pgCluster, models.Warning, models.UpdateFailed,
 				"Cluster configs fetch from the Instaclustr API is failed. Reason: %v",
 				err,
 			)
@@ -444,7 +444,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.UpdateFailed,
+			pgCluster, models.Warning, models.UpdateFailed,
 			"Cluster description and TwoFactoDelete update is failed. Reason: %v",
 			err,
 		)
@@ -459,7 +459,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.UpdateFailed,
+			pgCluster, models.Warning, models.UpdateFailed,
 			"Default user password update is failed. Reason: %v",
 			err,
 		)
@@ -475,7 +475,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.PatchFailed,
+			pgCluster, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -503,7 +503,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.FetchFailed,
+			pgCluster, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -520,7 +520,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Error, models.PatchFailed,
+					pgCluster, models.Warning, models.PatchFailed,
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
@@ -544,7 +544,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 				"cluster status", pgCluster.Status.State,
 			)
 			r.EventRecorder.Eventf(
-				pgCluster, models.Error, models.DeletionFailed,
+				pgCluster, models.Warning, models.DeletionFailed,
 				"Cluster deletion is failed on the Instaclustr. Reason: %v",
 				err,
 			)
@@ -578,7 +578,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.DeletionFailed,
+			pgCluster, models.Warning, models.DeletionFailed,
 			"Default user secret deletion is failed. Secret name: %s. Reason: %v",
 			pgCluster.Status.DefaultUserSecretName,
 			err,
@@ -606,7 +606,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			"cluster ID", pgCluster.Status.ID,
 		)
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.DeletionFailed,
+			pgCluster, models.Warning, models.DeletionFailed,
 			"Cluster backups deletion is failed. Reason: %v",
 			err,
 		)
@@ -635,7 +635,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Error, models.PatchFailed,
+			pgCluster, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
