@@ -54,7 +54,7 @@ type RedisReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=events,verbs=create
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -137,7 +137,7 @@ func (r *RedisReconciler) handleCreateCluster(
 
 			r.EventRecorder.Eventf(
 				redis, models.Normal, models.Created,
-				"Cluster is restored from backup. Original cluster ID: %s, new cluster ID: %s",
+				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
 				redis.Spec.RestoreFrom.ClusterID,
 				id,
 			)
@@ -169,7 +169,8 @@ func (r *RedisReconciler) handleCreateCluster(
 			)
 			r.EventRecorder.Eventf(
 				redis, models.Normal, models.Created,
-				"Cluster is created on the Instaclustr.",
+				"Cluster creation request is sent. Cluster ID: %s",
+				id,
 			)
 		}
 
