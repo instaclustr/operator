@@ -30,7 +30,7 @@ type TargetCluster struct {
 	// Details to connect to a Non-Instaclustr managed cluster. Cannot be provided if targeting an Instaclustr managed cluster.
 	ExternalCluster []*ExternalCluster `json:"externalCluster,omitempty"`
 
-	// Details to connect to a Instaclustr managed cluster. Cannot be provided if targeting an external cluster.
+	// Details to connect to an Instaclustr managed cluster. Cannot be provided if targeting an external cluster.
 	ManagedCluster []*ManagedCluster `json:"managedCluster,omitempty"`
 }
 

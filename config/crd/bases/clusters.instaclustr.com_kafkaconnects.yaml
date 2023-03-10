@@ -206,7 +206,7 @@ spec:
                         type: object
                       type: array
                     managedCluster:
-                      description: Details to connect to a Instaclustr managed cluster.
+                      description: Details to connect to an Instaclustr managed cluster.
                         Cannot be provided if targeting an external cluster.
                       items:
                         properties:

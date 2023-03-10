@@ -108,7 +108,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 				"spec", kafka.Spec,
 			)
 			r.EventRecorder.Eventf(
-				kafka, models.Error, models.CreationFailed,
+				kafka, models.Warning, models.CreationFailed,
 				"Cluster creation on the Instaclustr cloud is failed. Reason: %v",
 				err,
 			)
@@ -127,7 +127,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 				"spec", kafka.Spec,
 			)
 			r.EventRecorder.Eventf(
-				kafka, models.Error, models.PatchFailed,
+				kafka, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
@@ -142,7 +142,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 				"name", kafka.Spec.Name,
 			)
 			r.EventRecorder.Eventf(
-				kafka, models.Error, models.PatchFailed,
+				kafka, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
@@ -155,7 +155,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 		l.Error(err, "Cannot start cluster status job",
 			"cluster ID", kafka.Status.ID)
 		r.EventRecorder.Eventf(
-			kafka, models.Error, models.CreationFailed,
+			kafka, models.Warning, models.CreationFailed,
 			"Cluster status check job creation is failed. Reason: %v",
 			err,
 		)
@@ -195,7 +195,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 			"cluster name", k.Spec.Name,
 			"cluster state", k.Status.ClusterStatus.State)
 		r.EventRecorder.Eventf(
-			k, models.Error, models.UpdateFailed,
+			k, models.Warning, models.UpdateFailed,
 			"Cluster update on the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -218,7 +218,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 			"cluster name", kafka.Spec.Name,
 			"cluster state", kafka.Status.ClusterStatus.State)
 		r.EventRecorder.Eventf(
-			kafka, models.Error, models.FetchFailed,
+			kafka, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -237,7 +237,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 				"cluster name", kafka.Spec.Name,
 				"cluster state", kafka.Status.ClusterStatus.State)
 			r.EventRecorder.Eventf(
-				kafka, models.Error, models.DeletionFailed,
+				kafka, models.Warning, models.DeletionFailed,
 				"Cluster deletion is failed on the Instaclustr. Reason: %v",
 				err,
 			)
@@ -258,7 +258,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 					"cluster name", kafka.Spec.Name,
 					"cluster state", kafka.Status.State)
 				r.EventRecorder.Eventf(
-					kafka, models.Error, models.PatchFailed,
+					kafka, models.Warning, models.PatchFailed,
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
@@ -282,7 +282,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 		l.Error(err, "Cannot patch cluster resource",
 			"cluster name", kafka.Spec.Name)
 		r.EventRecorder.Eventf(
-			kafka, models.Error, models.PatchFailed,
+			kafka, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
