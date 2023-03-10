@@ -34,8 +34,6 @@ func (r *GCPVPCPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1alpha1-gcpvpcpeering,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=gcpvpcpeerings,verbs=create;update,versions=v1alpha1,name=vgcpvpcpeering.kb.io,admissionReviewVersions=v1
 

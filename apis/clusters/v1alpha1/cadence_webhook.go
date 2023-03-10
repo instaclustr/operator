@@ -30,13 +30,11 @@ import (
 // log is for logging in this package.
 var cadencelog = logf.Log.WithName("cadence-resource")
 
-func (r *Cadence) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (c *Cadence) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(c).
 		Complete()
 }
-
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-cadence,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cadences,verbs=create;update,versions=v1alpha1,name=mcadence.kb.io,admissionReviewVersions=v1
 
@@ -108,8 +106,7 @@ func (c *Cadence) ValidateCreate() error {
 	}
 
 	for _, pp := range c.Spec.PackagedProvisioning {
-		if (pp.UseAdvancedVisibility && pp.BundledKafkaSpec == nil) || (pp.UseAdvancedVisibility && pp.BundledOpenSearchSpec == nil) ||
-			(pp.UseAdvancedVisibility && pp.BundledKafkaSpec == nil && pp.BundledOpenSearchSpec == nil) {
+		if (pp.UseAdvancedVisibility && pp.BundledKafkaSpec == nil) || (pp.UseAdvancedVisibility && pp.BundledOpenSearchSpec == nil) {
 			return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must not be empty because UseAdvancedVisibility is set to true")
 		}
 
@@ -144,8 +141,8 @@ func (c *Cadence) ValidateCreate() error {
 		if err != nil {
 			return err
 		}
-
 	}
+
 	return nil
 }
 
@@ -167,9 +164,8 @@ func (c *Cadence) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Cadence) ValidateDelete() error {
-	cadencelog.Info("validate delete", "name", r.Name)
+func (c *Cadence) ValidateDelete() error {
+	cadencelog.Info("validate delete", "name", c.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
