@@ -2,9 +2,14 @@
 
 ## Available spec fields
 
-| Field                             | Type                          | Description                                        |
-|-----------------------------------|-------------------------------|----------------------------------------------------|
-| nodeID                            | string <br /> **required**    | ID of the Node to be reloaded.                     |
+| Field | Type                                                          | Description                             |
+|-------|---------------------------------------------------------------|-----------------------------------------|
+| nodes |  Array of objects ([Nodes](#NodesObject)) <br /> **required** | Array with IDs of Nodes to be reloaded. |
+
+### NodesObject
+| Field  | Type                         | Description                     |
+|--------|------------------------------|---------------------------------|
+| nodeID | string <br /> **required**   | ID of the Node to be reloaded.  |
 
 ## Resource create flow
 To create a Node Reload resource you need to prepare the yaml manifest. Here is an example:
