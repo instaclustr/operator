@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,21 +42,19 @@ import (
 // AzureVNetPeeringReconciler reconciles a AzureVNetPeering object
 type AzureVNetPeeringReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=azurevnetpeerings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=azurevnetpeerings/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=azurevnetpeerings/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the AzureVNetPeering object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -67,21 +66,21 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Azure VNet Peering resource is not found", "request", req)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 		l.Error(err, "unable to fetch Azure VNet Peering", "request", req)
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch azure.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, &azure, l), nil
+		return r.handleCreatePeering(ctx, &azure, l), nil
 
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &azure, &l), nil
+		return r.handleUpdatePeering(ctx, &azure, &l), nil
 
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, &azure, &l), nil
+		return r.handleDeletePeering(ctx, &azure, &l), nil
 	default:
 		l.Info("event isn't handled",
 			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
@@ -90,16 +89,15 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 			"Request", req,
 			"event", azure.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
 	}
 }
 
-func (r *AzureVNetPeeringReconciler) handleCreateCluster(
+func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 	ctx context.Context,
 	azure *clusterresourcesv1alpha1.AzureVNetPeering,
 	l logr.Logger,
 ) reconcile.Result {
-
 	if azure.Status.ID == "" {
 		l.Info(
 			"Creating Azure VNet Peering resource",
@@ -115,8 +113,19 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 				err, "cannot create Azure VNet Peering resource",
 				"Azure VNet Peering resource spec", azure.Spec,
 			)
+			r.EventRecorder.Eventf(
+				azure, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			azure, models.Normal, models.Created,
+			"Resource creation request is sent. Resource ID: %s",
+			azureStatus.ID,
+		)
 
 		patch := azure.NewPatch()
 		azure.Status.PeeringStatus = *azureStatus
@@ -127,6 +136,11 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 				"AD Object ID", azure.Spec.PeerADObjectID,
 				"Resource Group", azure.Spec.PeerResourceGroup,
 				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
+			)
+			r.EventRecorder.Eventf(
+				azure, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -141,6 +155,11 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 				"Resource Group", azure.Spec.PeerResourceGroup,
 				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 				"Azure VNet Peering metadata", azure.ObjectMeta,
+			)
+			r.EventRecorder.Eventf(
+				azure, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -158,28 +177,37 @@ func (r *AzureVNetPeeringReconciler) handleCreateCluster(
 	if err != nil {
 		l.Error(err, "cannot start Azure VNet Peering checker status job",
 			"Azure VNet Peering ID", azure.Status.ID)
+		r.EventRecorder.Eventf(
+			azure, models.Warning, models.CreationFailed,
+			"Resource status check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	r.EventRecorder.Eventf(
+		azure, models.Normal, models.Created,
+		"Resource status check job is started",
+	)
+
+	return models.ExitReconcile
 }
 
-func (r *AzureVNetPeeringReconciler) handleUpdateCluster(
+func (r *AzureVNetPeeringReconciler) handleUpdatePeering(
 	ctx context.Context,
 	azure *clusterresourcesv1alpha1.AzureVNetPeering,
 	l *logr.Logger,
 ) reconcile.Result {
 	l.Info("Update is not implemented")
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
-func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
+func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 	ctx context.Context,
 	azure *clusterresourcesv1alpha1.AzureVNetPeering,
 	l *logr.Logger,
 ) reconcile.Result {
-
 	patch := azure.NewPatch()
 	err := r.Patch(ctx, azure, patch)
 	if err != nil {
@@ -189,6 +217,11 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 			"Resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 			"Azure VNet Peering metadata", azure.ObjectMeta,
+		)
+		r.EventRecorder.Eventf(
+			azure, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
@@ -201,6 +234,11 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 			"AD Object ID", azure.Spec.PeerADObjectID,
 			"Resource Group", azure.Spec.PeerResourceGroup,
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
+		)
+		r.EventRecorder.Eventf(
+			azure, models.Warning, models.FetchFailed,
+			"Resource fetch from the Instaclustr API is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
@@ -216,9 +254,18 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 				"Azure VNet Peering metadata", azure.ObjectMeta,
 			)
+			r.EventRecorder.Eventf(
+				azure, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr API is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
-
 		}
+
+		r.EventRecorder.Eventf(
+			azure, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent",
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -233,6 +280,11 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 			"Azure VNet Peering metadata", azure.ObjectMeta,
 		)
+		r.EventRecorder.Eventf(
+			azure, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -245,7 +297,12 @@ func (r *AzureVNetPeeringReconciler) handleDeleteCluster(
 		"Azure VNet Peering Status", azure.Status.PeeringStatus,
 	)
 
-	return reconcile.Result{}
+	r.EventRecorder.Eventf(
+		azure, models.Normal, models.Deleted,
+		"Resource is deleted",
+	)
+
+	return models.ExitReconcile
 }
 
 func (r *AzureVNetPeeringReconciler) startAzureVNetPeeringStatusJob(azurePeering *clusterresourcesv1alpha1.AzureVNetPeering,
