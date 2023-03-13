@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,21 +42,19 @@ import (
 // AWSSecurityGroupFirewallRuleReconciler reconciles a AWSSecurityGroupFirewallRule object
 type AWSSecurityGroupFirewallRuleReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the AWSSecurityGroupFirewallRule object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
@@ -77,13 +76,13 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 
 	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.HandleCreateFirewallRule(ctx, firewallRule, &l)
+		reconcileResult := r.handleCreateFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
 	case models.UpdatingEvent:
-		reconcileResult := r.HandleUpdateFirewallRule(ctx, firewallRule, &l)
+		reconcileResult := r.handleUpdateFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
 	case models.DeletingEvent:
-		reconcileResult := r.HandleDeleteFirewallRule(ctx, firewallRule, &l)
+		reconcileResult := r.handleDeleteFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
 	case models.GenericEvent:
 		l.Info("AWS security group firewall rule event isn't handled",
@@ -97,7 +96,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 	return reconcile.Result{}, nil
 }
 
-func (r *AWSSecurityGroupFirewallRuleReconciler) HandleCreateFirewallRule(
+func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 	ctx context.Context,
 	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
@@ -117,25 +116,43 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleCreateFirewallRule(
 				err, "Cannot create AWS security group firewall rule",
 				"spec", firewallRule.Spec,
 			)
+			r.EventRecorder.Eventf(
+				firewallRule, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
-		firewallRule.Status.FirewallRuleStatus = *firewallRuleStatus
+		r.EventRecorder.Eventf(
+			firewallRule, models.Normal, models.Created,
+			"Resource creation request is sent",
+		)
 
+		firewallRule.Status.FirewallRuleStatus = *firewallRuleStatus
 		err = r.Status().Patch(ctx, firewallRule, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch AWS security group firewall rule status ", "ID", firewallRule.Status.ID)
+			r.EventRecorder.Eventf(
+				firewallRule, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
 		firewallRule.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(firewallRule, models.DeletionFinalizer)
-
 		err = r.Patch(ctx, firewallRule, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch AWS security group firewall rule",
 				"cluster ID", firewallRule.Spec.ClusterID,
 				"type", firewallRule.Spec.Type,
+			)
+			r.EventRecorder.Eventf(
+				firewallRule, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -151,13 +168,23 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleCreateFirewallRule(
 	if err != nil {
 		l.Error(err, "Cannot start AWS security group firewall rule status checker job",
 			"firewall rule ID", firewallRule.Status.ID)
+		r.EventRecorder.Eventf(
+			firewallRule, models.Warning, models.CreationFailed,
+			"Resource status job creation is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	r.EventRecorder.Eventf(
+		firewallRule, models.Normal, models.Created,
+		"Resource status check job is started",
+	)
+
+	return models.ExitReconcile
 }
 
-func (r *AWSSecurityGroupFirewallRuleReconciler) HandleUpdateFirewallRule(
+func (r *AWSSecurityGroupFirewallRuleReconciler) handleUpdateFirewallRule(
 	ctx context.Context,
 	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
@@ -167,10 +194,10 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleUpdateFirewallRule(
 		"type", firewallRule.Spec.Type,
 	)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
-func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
+func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	ctx context.Context,
 	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
@@ -183,6 +210,11 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"type", firewallRule.Spec.Type,
 		)
 
+		r.EventRecorder.Eventf(
+			firewallRule, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -194,6 +226,11 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"type", firewallRule.Spec.Type,
 		)
 
+		r.EventRecorder.Eventf(
+			firewallRule, models.Warning, models.FetchFailed,
+			"Fetch resource from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -206,14 +243,22 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 				"type", firewallRule.Spec.Type,
 			)
 
+			r.EventRecorder.Eventf(
+				firewallRule, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+		r.EventRecorder.Eventf(
+			firewallRule, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent to the Instaclustr API.",
+		)
 	}
 
 	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
 	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-
 	err = r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
@@ -222,6 +267,11 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"status", firewallRule.Status,
 		)
 
+		r.EventRecorder.Eventf(
+			firewallRule, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -229,6 +279,11 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) HandleDeleteFirewallRule(
 		"cluster ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
 		"status", firewallRule.Status,
+	)
+
+	r.EventRecorder.Eventf(
+		firewallRule, models.Normal, models.Deleted,
+		"Resource is deleted",
 	)
 
 	return models.ExitReconcile
