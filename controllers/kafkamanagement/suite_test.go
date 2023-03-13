@@ -31,9 +31,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -83,6 +86,9 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	scheduler.ClusterStatusInterval = 1 * time.Second
+	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 2}
+
 	err = (&KafkaACLReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
@@ -94,6 +100,14 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		API:    clientForMockInstaServer,
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&MirrorReconciler{
+		Client:    k8sManager.GetClient(),
+		Scheme:    k8sManager.GetScheme(),
+		API:       clientForMockInstaServer,
+		Scheduler: scheduler.NewScheduler(logf.Log),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

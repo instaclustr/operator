@@ -145,15 +145,15 @@ func (c *mockClient) UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1
 	panic("UpdateKafkaTopic: is not implemented")
 }
 
-func (c *mockClient) CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error {
+func (c *mockClient) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafkamanagementv1alpha1.MirrorStatus, error) {
 	panic("CreateKafkaMirror: is not implemented")
 }
 
-func (c *mockClient) DeleteKafkaMirror(url, id string) error {
+func (c *mockClient) DeleteKafkaMirror(id string) error {
 	panic("DeleteKafkaMirror: is not implemented")
 }
 
-func (c *mockClient) UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error {
+func (c *mockClient) UpdateKafkaMirror(id string, latency int32) error {
 	panic("UpdateKafkaMirror: is not implemented")
 }
 
@@ -192,7 +192,7 @@ func (c *mockClient) UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaAC
 	panic("UpdateKafkaACL: is not implemented")
 }
 
-func (c *mockClient) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+func (c *mockClient) GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
 	panic("GetMirrorStatus: is not implemented")
 }
 
