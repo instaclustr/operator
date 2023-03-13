@@ -59,7 +59,7 @@ func (c *KafkaACLV2ApiController) Routes() Routes {
 		{
 			"ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdDelete",
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/applications/kafka/acls/v2/{kafkaAclId}/",
+			"/cluster-management/v2/resources/applications/kafka/acls/v2/{kafkaAclId}",
 			c.ClusterManagementV2ResourcesApplicationsKafkaAclsV2KafkaAclIdDelete,
 		},
 		{

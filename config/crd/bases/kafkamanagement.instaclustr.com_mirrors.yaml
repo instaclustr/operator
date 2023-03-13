@@ -172,12 +172,11 @@ spec:
               status:
                 description: The overall status of this mirror.
                 type: string
-            required:
-            - connectorName
-            - connectors
-            - id
-            - mirroredTopics
-            - status
+              targetLatency:
+                description: The latency in milliseconds above which this mirror will
+                  be considered out of sync.
+                format: int32
+                type: integer
             type: object
         type: object
     served: true

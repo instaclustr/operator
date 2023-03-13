@@ -3,6 +3,7 @@ package kafkamanagement
 import (
 	"context"
 	"os"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -21,13 +22,15 @@ var newTopicConfig = map[string]string{
 	"retention.ms":        "603800000",
 }
 
-var _ = Describe("Kafka Controller", func() {
+var _ = Describe("Kafka Topic Controller", func() {
 	var (
 		topicResource v1alpha1.Topic
 		topicYAML     v1alpha1.Topic
 		t             = "topic"
 		ns            = "default"
 		topicNS       = types.NamespacedName{Name: t, Namespace: ns}
+		timeout       = time.Second * 15
+		interval      = time.Second * 2
 	)
 
 	yfile, err := os.ReadFile("datatest/topic_v1alpha1.yaml")
@@ -87,7 +90,7 @@ var _ = Describe("Kafka Controller", func() {
 					}
 				}
 				return true
-			}).Should(BeTrue())
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 

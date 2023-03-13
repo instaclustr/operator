@@ -874,14 +874,13 @@ func (c *Client) GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus
 		return nil, NotFound
 	}
 
-	clusterStatus := &kafkamanagementv1alpha1.TopicStatus{}
-
-	err = json.Unmarshal(body, &clusterStatus)
+	topic := kafkamanagementv1alpha1.TopicStatus{}
+	topic, err = topic.FromInstAPI(body)
 	if err != nil {
 		return nil, err
 	}
 
-	return clusterStatus, nil
+	return &topic, nil
 }
 
 func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
@@ -1084,38 +1083,40 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 	return nil
 }
 
-func (c *Client) CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error {
-	data, err := json.Marshal(m.Spec)
+func (c *Client) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+	data, err := json.Marshal(m)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	url = c.serverHostname + url
+	url := c.serverHostname + KafkaMirrorEndpoint
 	resp, err := c.DoRequest(url, http.MethodPost, data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	err = json.Unmarshal(body, &m.Status)
+	status := &kafkamanagementv1alpha1.MirrorStatus{}
+
+	err = json.Unmarshal(body, status)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return status, nil
 }
 
-func (c *Client) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
-	url := c.serverHostname + mirrorEndpoint + id
+func (c *Client) GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+	url := c.serverHostname + KafkaMirrorEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -1132,18 +1133,18 @@ func (c *Client) GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1a
 		return nil, NotFound
 	}
 
-	clusterStatus := &kafkamanagementv1alpha1.MirrorStatus{}
+	m := &kafkamanagementv1alpha1.MirrorStatus{}
 
-	err = json.Unmarshal(body, &clusterStatus)
+	err = json.Unmarshal(body, &m)
 	if err != nil {
 		return nil, err
 	}
 
-	return clusterStatus, nil
+	return m, nil
 }
 
-func (c *Client) DeleteKafkaMirror(url, id string) error {
-	url = c.serverHostname + url + id
+func (c *Client) DeleteKafkaMirror(id string) error {
+	url := c.serverHostname + KafkaMirrorEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodDelete, nil)
 	if err != nil {
@@ -1163,17 +1164,17 @@ func (c *Client) DeleteKafkaMirror(url, id string) error {
 	return nil
 }
 
-func (c *Client) UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error {
+func (c *Client) UpdateKafkaMirror(id string, latency int32) error {
 	updateTargetLatency := &struct {
 		TargetLatency int32 `json:"targetLatency"`
-	}{TargetLatency: m.Spec.TargetLatency}
+	}{TargetLatency: latency}
 
 	data, err := json.Marshal(updateTargetLatency)
 	if err != nil {
 		return err
 	}
 
-	url = c.serverHostname + url + m.Status.ID
+	url := c.serverHostname + KafkaMirrorEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodPut, data)
 	if err != nil {
@@ -1188,11 +1189,6 @@ func (c *Client) UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	err = json.Unmarshal(body, &m.Status)
-	if err != nil {
-		return err
 	}
 
 	return nil

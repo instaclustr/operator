@@ -101,19 +101,22 @@ type MirrorStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Detailed list of Connectors for the mirror.
-	Connectors []*Connector `json:"connectors"`
+	Connectors []*Connector `json:"connectors,omitempty"`
 
 	// Name of the mirror connector. The value of this property has the form: [source-cluster].[target-cluster].[random-string]
-	ConnectorName string `json:"connectorName"`
+	ConnectorName string `json:"connectorName,omitempty"`
 
 	// ID of the mirror
-	ID string `json:"id"`
+	ID string `json:"id,omitempty"`
 
 	// Detailed list of Mirrored topics.
-	MirroredTopics []*MirroredTopic `json:"mirroredTopics"`
+	MirroredTopics []*MirroredTopic `json:"mirroredTopics,omitempty"`
+
+	// The latency in milliseconds above which this mirror will be considered out of sync.
+	TargetLatency int32 `json:"targetLatency,omitempty"`
 
 	// The overall status of this mirror.
-	Status string `json:"status"`
+	Status string `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -145,6 +148,63 @@ func (m *Mirror) NewPatch() client.Patch {
 
 func (m *Mirror) GetJobID(jobName string) string {
 	return client.ObjectKeyFromObject(m).String() + "/" + jobName
+}
+
+func (a *MirrorStatus) IsEqual(b *MirrorStatus) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil ||
+		a.ConnectorName != b.ConnectorName ||
+		a.Status != b.Status ||
+		a.TargetLatency != b.TargetLatency ||
+		!isConnectorsEqual(a.Connectors, b.Connectors) ||
+		!isMirroredTopicEqual(a.MirroredTopics, b.MirroredTopics) {
+		return false
+	}
+
+	return true
+}
+
+func isMirroredTopicEqual(a, b []*MirroredTopic) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i].AverageLatency != b[i].AverageLatency ||
+			a[i].AverageRate != b[i].AverageRate ||
+			a[i].Name != b[i].Name {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isConnectorsEqual(a, b []*Connector) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i].Name != b[i].Name ||
+			a[i].Config != b[i].Config ||
+			a[i].Status != b[i].Status {
+			return false
+		}
+	}
+
+	return true
 }
 
 func init() {

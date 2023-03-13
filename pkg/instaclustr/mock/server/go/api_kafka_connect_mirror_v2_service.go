@@ -19,6 +19,7 @@ import (
 // This service should implement the business logic for every endpoint for the KafkaConnectMirrorV2Api API.
 // Include any external packages or services that will be required by this service.
 type KafkaConnectMirrorV2ApiService struct {
+	MockKafkaMirror *KafkaConnectMirrorV2
 }
 
 // NewKafkaConnectMirrorV2ApiService creates a default api service
@@ -42,10 +43,8 @@ func (s *KafkaConnectMirrorV2ApiService) ClusterManagementV2ResourcesApplication
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdDelete with the required logic for this service method.
 	// Add api_kafka_connect_mirror_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdDelete method not implemented")
+	s.MockKafkaMirror = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdGet - Get the details of a kafka connect mirror
@@ -53,10 +52,13 @@ func (s *KafkaConnectMirrorV2ApiService) ClusterManagementV2ResourcesApplication
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdGet with the required logic for this service method.
 	// Add api_kafka_connect_mirror_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaConnectMirrorV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaConnectMirrorV2{}), nil
+	if s.MockKafkaMirror != nil {
+		s.MockKafkaMirror.Status = RUNNING
+	} else {
+		return Response(404, nil), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdGet method not implemented")
+	return Response(200, s.MockKafkaMirror), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdPut - Update a Kafka Connect mirror.
@@ -64,10 +66,9 @@ func (s *KafkaConnectMirrorV2ApiService) ClusterManagementV2ResourcesApplication
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdPut with the required logic for this service method.
 	// Add api_kafka_connect_mirror_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, KafkaConnectMirrorV2{}) or use other options such as http.Ok ...
-	//return Response(200, KafkaConnectMirrorV2{}), nil
+	s.MockKafkaMirror.TargetLatency = body.TargetLatency
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2MirrorIdPut method not implemented")
+	return Response(202, s.MockKafkaMirror), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2Post - Create a Kafka Connect mirror
@@ -75,8 +76,7 @@ func (s *KafkaConnectMirrorV2ApiService) ClusterManagementV2ResourcesApplication
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2Post with the required logic for this service method.
 	// Add api_kafka_connect_mirror_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, KafkaConnectMirrorV2{}) or use other options such as http.Ok ...
-	//return Response(202, KafkaConnectMirrorV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsKafkaConnectMirrorsV2Post method not implemented")
+	s.MockKafkaMirror = &body
+	s.MockKafkaMirror.Id = CreatedID
+	return Response(202, s.MockKafkaMirror), nil
 }

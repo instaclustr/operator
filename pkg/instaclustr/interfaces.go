@@ -37,10 +37,10 @@ type API interface {
 	CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
 	DeleteKafkaTopic(url, id string) error
 	UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
-	CreateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
-	GetMirrorStatus(id, mirrorEndpoint string) (*kafkamanagementv1alpha1.MirrorStatus, error)
-	DeleteKafkaMirror(url, id string) error
-	UpdateKafkaMirror(url string, m *kafkamanagementv1alpha1.Mirror) error
+	CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafkamanagementv1alpha1.MirrorStatus, error)
+	GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStatus, error)
+	DeleteKafkaMirror(id string) error
+	UpdateKafkaMirror(id string, latency int32) error
 	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
 	TriggerClusterBackup(url, clusterID string) error
 	CreateExclusionWindow(clusterID string, window clusterresourcesv1alpha1.ExclusionWindowSpec) (string, error)

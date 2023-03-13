@@ -3,6 +3,7 @@ package kafkamanagement
 import (
 	"context"
 	"os"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,6 +26,8 @@ var _ = Describe("Kafka ACL Controller", func() {
 		a           = "acl"
 		ns          = "default"
 		aclNS       = types.NamespacedName{Name: a, Namespace: ns}
+		timeout     = time.Second * 15
+		interval    = time.Second * 2
 	)
 
 	yfile, err := os.ReadFile("datatest/kafkaacl_v1alpha1.yaml")
@@ -79,7 +82,7 @@ var _ = Describe("Kafka ACL Controller", func() {
 				}
 
 				return aclResource.GetAnnotations()[models.ResourceStateAnnotation] == models.UpdatedEvent
-			}).Should(BeTrue())
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 
@@ -99,7 +102,7 @@ var _ = Describe("Kafka ACL Controller", func() {
 				}
 
 				return true
-			}).Should(BeTrue())
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })

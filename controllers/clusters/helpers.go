@@ -28,7 +28,12 @@ func convertAPIv2ConfigToMap(instConfigs []*models.ConfigurationProperties) map[
 	return newConfigs
 }
 func areStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
-	if a.ID != b.ID ||
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil ||
+		a.ID != b.ID ||
 		a.State != b.State ||
 		a.CDCID != b.CDCID ||
 		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
