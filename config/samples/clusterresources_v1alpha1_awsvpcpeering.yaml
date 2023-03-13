@@ -15,4 +15,4 @@ spec:
     - "192.168.0.0/16"
   peerVpcId: "vpc-87241ae1"
   peerRegion: "US_EAST_1"
-  cdcId: "b8c01eca-a01e-4469-8d2b-705192b35eef"
+  cdcId: "f2db4ff2-ff1c-43c5-8730-d90201e150ef"
