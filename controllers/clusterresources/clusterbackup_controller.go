@@ -22,6 +22,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,20 +39,18 @@ import (
 // ClusterBackupReconciler reconciles a ClusterBackup object
 type ClusterBackupReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=clusterbackups/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ClusterBackup object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -90,21 +89,14 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"backup name", backup.Name,
 			)
 
+			r.EventRecorder.Eventf(
+				backup, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 	}
-
-	instBackup, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
-	if err != nil {
-		logger.Error(err, "Cannot get cluster backups from Instaclustr",
-			"backup name", backup.Name,
-			"cluster ID", backup.Spec.ClusterID,
-		)
-
-		return models.ReconcileRequeue, nil
-	}
-
-	instBackupEvents := instBackup.GetBackupEvents(backup.Spec.ClusterKind)
 
 	backupsList, err := r.listClusterBackups(ctx, backup.Spec.ClusterID, backup.Namespace)
 	if err != nil {
@@ -113,10 +105,32 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"cluster ID", backup.Spec.ClusterID,
 		)
 
+		r.EventRecorder.Eventf(
+			backup, models.Warning, models.FetchFailed,
+			"Fetch resource from the k8s cluster is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
-	if len(instBackupEvents) < len(backupsList.Items) {
+	iBackup, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
+	if err != nil {
+		logger.Error(err, "Cannot get cluster backups from Instaclustr",
+			"backup name", backup.Name,
+			"cluster ID", backup.Spec.ClusterID,
+		)
+
+		r.EventRecorder.Eventf(
+			backup, models.Warning, models.FetchFailed,
+			"Fetch resource from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue, nil
+	}
+
+	iBackupEvents := iBackup.GetBackupEvents(backup.Spec.ClusterKind)
+
+	if len(iBackupEvents) < len(backupsList.Items) {
 		err = r.API.TriggerClusterBackup(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
 		if err != nil {
 			logger.Error(err, "Cannot trigger cluster backup",
@@ -124,9 +138,18 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"cluster ID", backup.Spec.ClusterID,
 			)
 
+			r.EventRecorder.Eventf(
+				backup, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
+		r.EventRecorder.Eventf(
+			backup, models.Normal, models.Created,
+			"Resource creation request is sent",
+		)
 		logger.Info("New cluster backup request was sent",
 			"cluster ID", backup.Spec.ClusterID,
 		)
@@ -136,11 +159,16 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		backup.Status.Start == 0 {
 		backup.Status.Start, err = strconv.Atoi(backup.Annotations[models.StartTimestampAnnotation])
 		if err != nil {
-			logger.Error(err, "Cannot convert backup start timestamp to string",
+			logger.Error(err, "Cannot convert backup start timestamp to int",
 				"backup name", backup.Name,
 				"annotations", backup.Annotations,
 			)
 
+			r.EventRecorder.Eventf(
+				backup, models.Warning, models.ConvertionFailed,
+				"Start timestamp annotation convertion to int is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
@@ -150,8 +178,18 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"backup name", backup.Name,
 			)
 
+			r.EventRecorder.Eventf(
+				backup, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
+
+		r.EventRecorder.Eventf(
+			backup, models.Normal, models.Created,
+			"Start timestamp is set",
+		)
 	}
 
 	controllerutil.AddFinalizer(backup, models.DeletionFinalizer)
@@ -161,6 +199,11 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"backup name", backup.Name,
 		)
 
+		r.EventRecorder.Eventf(
+			backup, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
