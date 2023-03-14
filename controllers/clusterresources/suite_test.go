@@ -134,6 +134,14 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&ClusterBackupReconciler{
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		API:           MockInstAPI,
+		EventRecorder: eRecorder,
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)

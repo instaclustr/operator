@@ -3,5 +3,5 @@ kind: ClusterBackup
 metadata:
   name: clusterbackup-sample
 spec:
-  clusterId: 996ac19b-2c88-446e-b5ce-1a8c2b7c8bcf
-  clusterKind: OpenSearch
+  clusterId: b3eb2b51-1b89-45a1-906d-10cf340c7bd7
+  clusterKind: PostgreSQl
