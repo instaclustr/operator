@@ -4,6 +4,5 @@ metadata:
   name: nodereload-sample
 spec:
   nodes:
-    - nodeID: "cadd9bee-e119-4753-855c-77f253547b1f"
-    - nodeID: "3d9d606b-8372-45e9-95f9-0037b8584f95"
-    - nodeID: "dc9231c7-b3fd-4750-befc-68a716e98aeb"
+    - nodeID: "ac3c5fbd-ffa1-4a73-8b7a-74b68b464a1b"
+    - nodeID: "4234f82b-aef0-46f1-b52c-d4f4a1139268"
