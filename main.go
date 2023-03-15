@@ -247,9 +247,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&kafkamanagementcontrollers.KafkaUserReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		API:    instaClient,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KafkaUser")
 		os.Exit(1)

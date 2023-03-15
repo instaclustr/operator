@@ -13,7 +13,7 @@ metadata:
 spec:
   kafkaUserSecretName: "secret-test"
   kafkaUserSecretNamespace: "default"
-  clusterId: "cc762648-6bc1-470c-8856-20e02f5ebbc2"
+  clusterId: "dcb8e03f-8bac-4f4b-83bc-34b6e7f3cb29"
   initialPermissions: "standard"
   options:
     overrideExistingUser: true

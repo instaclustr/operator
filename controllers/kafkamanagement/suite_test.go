@@ -89,6 +89,8 @@ var _ = BeforeSuite(func() {
 	scheduler.ClusterStatusInterval = 1 * time.Second
 	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 2}
 
+	eRecorder := k8sManager.GetEventRecorderFor("instaclustr-operator-tests")
+
 	err = (&KafkaACLReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
@@ -108,6 +110,14 @@ var _ = BeforeSuite(func() {
 		Scheme:    k8sManager.GetScheme(),
 		API:       clientForMockInstaServer,
 		Scheduler: scheduler.NewScheduler(logf.Log),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&KafkaUserReconciler{
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		API:           clientForMockInstaServer,
+		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
