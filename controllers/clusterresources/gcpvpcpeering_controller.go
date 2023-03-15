@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,21 +42,19 @@ import (
 // GCPVPCPeeringReconciler reconciles a GCPVPCPeering object
 type GCPVPCPeeringReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=gcpvpcpeerings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=gcpvpcpeerings/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=gcpvpcpeerings/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the GCPVPCPeering object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -69,7 +68,7 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			l.Error(err, "GCP VPC Peering resource is not found", "request", req)
 			return models.ExitReconcile, nil
 		}
-		l.Error(err, "unable to fetch GCP VPC Peering", "request", req)
+		l.Error(err, "Unable to fetch GCP VPC Peering", "request", req)
 		return models.ReconcileRequeue, err
 	}
 
@@ -83,10 +82,10 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, &gcp, l), nil
 	default:
-		l.Info("event isn't handled",
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-			"Request", req,
+		l.Info("Event isn't handled",
+			"project ID", gcp.Spec.PeerProjectID,
+			"network name", gcp.Spec.PeerVPCNetworkName,
+			"request", req,
 			"event", gcp.Annotations[models.ResourceStateAnnotation])
 		return models.ExitReconcile, nil
 	}
@@ -97,31 +96,46 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
-
 	if gcp.Status.ID == "" {
 		l.Info(
 			"Creating GCP VPC Peering resource",
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
+			"project ID", gcp.Spec.PeerProjectID,
+			"network name", gcp.Spec.PeerVPCNetworkName,
 		)
 
 		gcpStatus, err := r.API.CreatePeering(instaclustr.GCPPeeringEndpoint, &gcp.Spec)
 		if err != nil {
 			l.Error(
-				err, "cannot create GCP VPC Peering resource",
-				"GCP VPC Peering resource spec", gcp.Spec,
+				err, "Cannot create GCP VPC Peering resource",
+				"resource spec", gcp.Spec,
+			)
+			r.EventRecorder.Eventf(
+				gcp, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Eventf(
+			gcp, models.Normal, models.Created,
+			"Resource creation request is sent. Resource ID: %s",
+			gcpStatus.ID,
+		)
 
 		patch := gcp.NewPatch()
 		gcp.Status.PeeringStatus = *gcpStatus
 		err = r.Status().Patch(ctx, gcp, patch)
 		if err != nil {
-			l.Error(err, "cannot patch GCP VPC Peering resource status",
-				"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-				"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-				"GCP VPC Peering metadata", gcp.ObjectMeta,
+			l.Error(err, "Cannot patch GCP VPC Peering resource status",
+				"project ID", gcp.Spec.PeerProjectID,
+				"network name", gcp.Spec.PeerVPCNetworkName,
+				"metadata", gcp.ObjectMeta,
+			)
+			r.EventRecorder.Eventf(
+				gcp, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
@@ -130,27 +144,42 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 		gcp.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, gcp, patch)
 		if err != nil {
-			l.Error(err, "cannot patch GCP VPC Peering resource metadata",
-				"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-				"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-				"GCP VPC Peering metadata", gcp.ObjectMeta,
+			l.Error(err, "Cannot patch GCP VPC Peering resource metadata",
+				"project ID", gcp.Spec.PeerProjectID,
+				"network name", gcp.Spec.PeerVPCNetworkName,
+				"metadata", gcp.ObjectMeta,
+			)
+			r.EventRecorder.Eventf(
+				gcp, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
 
 		l.Info(
 			"GCP VPC Peering resource was created",
-			"GCP Peering ID", gcpStatus.ID,
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
+			"id", gcpStatus.ID,
+			"project ID", gcp.Spec.PeerProjectID,
+			"network name", gcp.Spec.PeerVPCNetworkName,
 		)
 	}
 	err := r.startGCPVPCPeeringStatusJob(gcp)
 	if err != nil {
-		l.Error(err, "cannot start GCP VPC Peering checker status job",
-			"GCP VPC Peering ID", gcp.Status.ID)
+		l.Error(err, "Cannot start GCP VPC Peering checker status job",
+			"id", gcp.Status.ID)
+		r.EventRecorder.Eventf(
+			gcp, models.Warning, models.CreationFailed,
+			"Resource status check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Eventf(
+		gcp, models.Normal, models.Created,
+		"Resource status check job is started",
+	)
 
 	return models.ExitReconcile
 }
@@ -170,14 +199,18 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
-
 	patch := gcp.NewPatch()
 	err := r.Patch(ctx, gcp, patch)
 	if err != nil {
-		l.Error(err, "cannot patch GCP VPC Peering resource metadata",
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-			"GCP VPC Peering metadata", gcp.ObjectMeta,
+		l.Error(err, "Cannot patch GCP VPC Peering resource metadata",
+			"project ID", gcp.Spec.PeerProjectID,
+			"network name", gcp.Spec.PeerVPCNetworkName,
+			"metadata", gcp.ObjectMeta,
+		)
+		r.EventRecorder.Eventf(
+			gcp, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
@@ -185,49 +218,71 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	status, err := r.API.GetPeeringStatus(gcp.Status.ID, instaclustr.GCPPeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "cannot get GCP VPC Peering status from the Instaclustr API",
-			"GCP Peering ID", status.ID,
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
+			err, "Cannot get GCP VPC Peering status from the Instaclustr API",
+			"id", status.ID,
+			"project ID", gcp.Spec.PeerProjectID,
+			"network name", gcp.Spec.PeerVPCNetworkName,
+		)
+		r.EventRecorder.Eventf(
+			gcp, models.Warning, models.FetchFailed,
+			"Resource fetch from the Instaclustr API is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
 
 	if status != nil {
-		r.Scheduler.RemoveJob(gcp.GetJobID(scheduler.StatusChecker))
 		err = r.API.DeletePeering(gcp.Status.ID, instaclustr.GCPPeeringEndpoint)
 		if err != nil {
-			l.Error(err, "cannot update GCP VPC Peering resource statuss",
-				"GCP VPC Peering ID", gcp.Status.ID,
-				"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-				"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-				"GCP VPC Peering metadata", gcp.ObjectMeta,
+			l.Error(err, "Cannot update GCP VPC Peering resource statuss",
+				"id", gcp.Status.ID,
+				"project ID", gcp.Spec.PeerProjectID,
+				"network ame", gcp.Spec.PeerVPCNetworkName,
+				"metadata", gcp.ObjectMeta,
+			)
+			r.EventRecorder.Eventf(
+				gcp, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr API is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
-
 		}
-		return models.ReconcileRequeue
+		r.EventRecorder.Eventf(
+			gcp, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent",
+		)
 	}
 
+	r.Scheduler.RemoveJob(gcp.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(gcp, models.DeletionFinalizer)
 	gcp.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, gcp, patch)
 	if err != nil {
-		l.Error(err, "cannot patch GCP VPC Peering resource metadata",
-			"GCP Peering ID", gcp.Status.ID,
-			"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-			"GCP VPC Peering metadata", gcp.ObjectMeta,
+		l.Error(err, "Cannot patch GCP VPC Peering resource metadata",
+			"id", gcp.Status.ID,
+			"project ID", gcp.Spec.PeerProjectID,
+			"network ame", gcp.Spec.PeerVPCNetworkName,
+			"metadata", gcp.ObjectMeta,
+		)
+		r.EventRecorder.Eventf(
+			gcp, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("GCP VPC Peering has been deleted",
-		"GCP VPC Peering ID", gcp.Status.ID,
-		"GCP VPC Peering Project ID", gcp.Spec.PeerProjectID,
-		"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
-		"GCP VPC Peering Data Centre ID", gcp.Spec.DataCentreID,
-		"GCP VPC Peering Status", gcp.Status.PeeringStatus,
+		"id", gcp.Status.ID,
+		"project ID", gcp.Spec.PeerProjectID,
+		"network name", gcp.Spec.PeerVPCNetworkName,
+		"data centre ID", gcp.Spec.DataCentreID,
+		"status", gcp.Status.PeeringStatus,
+	)
+
+	r.EventRecorder.Eventf(
+		gcp, models.Normal, models.Deleted,
+		"Resource is deleted",
 	)
 
 	return models.ExitReconcile
@@ -249,14 +304,14 @@ func (r *GCPVPCPeeringReconciler) newWatchStatusJob(gcpPeering *clusterresources
 	return func() error {
 		instaPeeringStatus, err := r.API.GetPeeringStatus(gcpPeering.Status.ID, instaclustr.GCPPeeringEndpoint)
 		if err != nil {
-			l.Error(err, "cannot get GCP VPC Peering Status from Inst API", "GCP VPC Peering ID", gcpPeering.Status.ID)
+			l.Error(err, "Cannot get GCP VPC Peering Status from Inst API", "id", gcpPeering.Status.ID)
 			return err
 		}
 
 		if !arePeeringStatusesEqual(instaPeeringStatus, &gcpPeering.Status.PeeringStatus) {
 			l.Info("GCP VPC Peering status of k8s is different from Instaclustr. Reconcile statuses..",
-				"GCP VPC Peering Status from Inst API", instaPeeringStatus,
-				"GCP VPC Peering Status", gcpPeering.Status)
+				"status from Inst API", instaPeeringStatus,
+				"status", gcpPeering.Status)
 
 			patch := gcpPeering.NewPatch()
 			gcpPeering.Status.PeeringStatus = *instaPeeringStatus

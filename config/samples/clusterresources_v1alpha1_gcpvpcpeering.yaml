@@ -3,7 +3,7 @@ kind: GCPVPCPeering
 metadata:
   name: gcpvpcpeering-sample
 spec:
-  cdcId: ac3e6fea-da06-42cf-9b08-b3b29f518331
+  cdcId: ab974700-1ba9-4fcd-8399-3dc83fc2a3c3
   peerProjectId: netapp-hcl-seclab
   peerSubnets:
     - 192.168.0.0/16
