@@ -92,9 +92,10 @@ var _ = BeforeSuite(func() {
 	eRecorder := k8sManager.GetEventRecorderFor("instaclustr-operator-tests")
 
 	err = (&KafkaACLReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
-		API:    clientForMockInstaServer,
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		API:           clientForMockInstaServer,
+		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
