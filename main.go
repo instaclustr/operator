@@ -217,10 +217,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterresourcescontrollers.ClusterNetworkFirewallRuleReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		API:       instaClient,
-		Scheduler: s,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		Scheduler:     s,
+		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterNetworkFirewallRule")
 		os.Exit(1)
