@@ -24,6 +24,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,20 +44,18 @@ import (
 // RedisUserReconciler reconciles a RedisUser object
 type RedisUserReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=redisusers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=redisusers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=redisusers/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the RedisUser object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -94,6 +93,12 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"user ID", user.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.FetchFailed,
+			"Fetch default user password secret is failed. Reason: %v",
+			err,
+		)
+
 		return models.ReconcileRequeue, nil
 	}
 
@@ -105,8 +110,18 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"cluster ID", user.Spec.ClusterID,
 				"user ID", user.Status.ID,
 			)
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
+
+		r.EventRecorder.Eventf(
+			user, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent to the Instaclustr API.",
+		)
 
 		patch := user.NewPatch()
 		controllerutil.RemoveFinalizer(user, models.DeletionFinalizer)
@@ -122,6 +137,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"status", user.Status,
 			)
 
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
@@ -131,6 +151,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"username", user.Spec.Username,
 			"cluster ID", user.Spec.ClusterID,
 			"user ID", user.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			user, models.Normal, models.Deleted,
+			"Resource is deleted",
 		)
 
 		return models.ExitReconcile, nil
@@ -153,6 +178,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"cluster ID", user.Spec.ClusterID,
 				"user ID", user.Status.ID,
 			)
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.UpdateFailed,
+				"Resource update is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
@@ -165,8 +195,19 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"cluster ID", user.Spec.ClusterID,
 			)
 
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
+
+		r.EventRecorder.Eventf(
+			user, models.Normal, models.Created,
+			"Resource creation request is sent. User ID: %s",
+			user.Status.ID,
+		)
 
 		err = r.Status().Patch(ctx, user, patch)
 		if err != nil {
@@ -178,6 +219,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"status", user.Status,
 			)
 
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
@@ -192,6 +238,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"status", user.Status,
 			)
 
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
@@ -215,6 +266,14 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"cluster ID", user.Spec.ClusterID,
 			"user ID", user.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.UpdateFailed,
+			"Resource update on the Instacluter is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue, nil
 	}
 
 	l.Info("Redis user is updated",
