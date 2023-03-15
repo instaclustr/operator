@@ -10,7 +10,7 @@ kind: RedisUser
 metadata:
   name: redisuser-sample
 spec:
-  clusterId: "ad430197-6896-4afe-a229-eb7c84f4f8a9"
+  clusterId: "259807aa-02a2-4511-bdcd-e03961ae1a01"
   username: "testRedis"
   passwordSecretName: "redis-user-test"
   passwordSecretNamespace: "default"
