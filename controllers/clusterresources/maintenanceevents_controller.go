@@ -22,6 +22,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,9 +40,10 @@ import (
 // MaintenanceEventsReconciler reconciles a MaintenanceEvents object
 type MaintenanceEventsReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=maintenanceevents,verbs=get;list;watch;create;update;patch;delete
@@ -86,8 +88,18 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				"resource", me,
 			)
 
+			r.EventRecorder.Eventf(
+				me, models.Warning, models.DeletionFailed,
+				"Exclusion windows deletion on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
+
+		r.EventRecorder.Eventf(
+			me, models.Normal, models.DeletionStarted,
+			"Exclusion windows deletion request is sent to the Instaclustr API.",
+		)
 
 		r.Scheduler.RemoveJob(me.GetJobID(scheduler.StatusChecker))
 		controllerutil.RemoveFinalizer(me, models.DeletionFinalizer)
@@ -97,6 +109,11 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				"resource", me,
 			)
 
+			r.EventRecorder.Eventf(
+				me, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
@@ -109,6 +126,11 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"spec", me.Spec,
 		)
 
+		r.EventRecorder.Eventf(
+			me, models.Warning, models.UpdateFailed,
+			"Maintenance events update is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
@@ -118,6 +140,11 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"spec", me.Spec,
 		)
 
+		r.EventRecorder.Eventf(
+			me, models.Warning, models.UpdateFailed,
+			"Exclusion windows update is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
@@ -127,6 +154,11 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"status", me.Status,
 		)
 
+		r.EventRecorder.Eventf(
+			me, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
@@ -137,6 +169,11 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"status", me.Status,
 		)
 
+		r.EventRecorder.Eventf(
+			me, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
@@ -146,8 +183,18 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"spec", me.Spec,
 		)
 
+		r.EventRecorder.Eventf(
+			me, models.Warning, models.CreationFailed,
+			"Resource status check job is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
+
+	r.EventRecorder.Eventf(
+		me, models.Normal, models.Created,
+		"Cluster backups check job is started",
+	)
 
 	l.Info("Maintenance Event resource was reconciled",
 		"spec", me.Spec,
