@@ -21,6 +21,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,28 +37,26 @@ import (
 // NodeReloadReconciler reconciles a NodeReload object
 type NodeReloadReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=nodereloads,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=nodereloads/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=nodereloads/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the NodeReload object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var nrs clusterresourcesv1alpha1.NodeReload
-	err := r.Client.Get(ctx, req.NamespacedName, &nrs)
+	nrs := &clusterresourcesv1alpha1.NodeReload{}
+	err := r.Client.Get(ctx, req.NamespacedName, nrs)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Node Reload resource is not found", "request", req)
@@ -68,14 +67,23 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	if len(nrs.Spec.Nodes) == 0 {
-		err = r.Client.Delete(ctx, &nrs)
+		err = r.Client.Delete(ctx, nrs)
 		if err != nil {
 			l.Error(err,
 				"Cannot delete Node Reload resource from K8s cluster",
 				"Node Reload spec", nrs.Spec,
 			)
+			r.EventRecorder.Eventf(
+				nrs, models.Warning, models.DeletionFailed,
+				"Resource deletion is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
+		r.EventRecorder.Eventf(
+			nrs, models.Normal, models.DeletionStarted,
+			"Resource is deleted.",
+		)
 		l.Info(
 			"Nodes were reloaded, resource was deleted",
 			"Node Reload spec", nrs.Spec,
@@ -96,14 +104,30 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				"Cannot start Node Reload process",
 				"nodeID", nodeInProgress.ID,
 			)
+			r.EventRecorder.Eventf(
+				nrs, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue, nil
 		}
 
-		err = r.Status().Patch(ctx, &nrs, patch)
+		r.EventRecorder.Eventf(
+			nrs, models.Normal, models.Created,
+			"Resource creation request is sent. Node ID: %s",
+			nrs.Status.NodeInProgress.ID,
+		)
+
+		err = r.Status().Patch(ctx, nrs, patch)
 		if err != nil {
 			l.Error(err,
 				"Cannot patch Node Reload status",
 				"nodeID", nrs.Status.NodeInProgress,
+			)
+			r.EventRecorder.Eventf(
+				nrs, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue, nil
 		}
@@ -115,15 +139,25 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Cannot get Node Reload status",
 			"nodeID", nrs.Status.NodeInProgress,
 		)
+		r.EventRecorder.Eventf(
+			nrs, models.Warning, models.FetchFailed,
+			"Fetch resource from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
 	nrs.Status = *nrs.Status.FromInstAPI(nodeReloadStatus)
-	err = r.Status().Patch(ctx, &nrs, patch)
+	err = r.Status().Patch(ctx, nrs, patch)
 	if err != nil {
 		l.Error(err,
 			"Cannot patch Node Reload status",
 			"nodeID", nrs.Status.NodeInProgress,
+		)
+		r.EventRecorder.Eventf(
+			nrs, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue, nil
 	}
@@ -137,20 +171,30 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	nrs.Status.NodeInProgress.ID = ""
-	err = r.Status().Patch(ctx, &nrs, patch)
+	err = r.Status().Patch(ctx, nrs, patch)
 	if err != nil {
 		l.Error(err,
 			"Cannot patch Node Reload status",
 			"nodeID", nrs.Status.NodeInProgress,
 		)
+		r.EventRecorder.Eventf(
+			nrs, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue, nil
 	}
 
 	nrs.Spec.Nodes = nrs.Spec.Nodes[:len(nrs.Spec.Nodes)-1]
-	err = r.Patch(ctx, &nrs, patch)
+	err = r.Patch(ctx, nrs, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch Node Reload cluster",
 			"spec", nrs.Spec,
+		)
+		r.EventRecorder.Eventf(
+			nrs, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue, nil
 	}
