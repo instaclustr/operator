@@ -4,7 +4,7 @@ replicaCount: 1
 image:
   repository: doodgematvey/dm5
   pullPolicy: IfNotPresent
-  tag: test31
+  tag: test82
 
 port: 8080
 
@@ -25,17 +25,41 @@ deployment:
 service:
   type: ClusterIP
 
+kubeRBACProxy:
+  enabled: true
+  image:
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    tag: v0.13.0
+  ports:
+    proxyPort: 8443
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 5m
+      memory: 64Mi
+
 rbac:
   type: ClusterRole
   rules:
     - apiGroups:
         - ""
       resources:
+        - events
+      verbs:
+        - create
+    - apiGroups:
+        - ""
+      resources:
         - secrets
       verbs:
+        - create
+        - delete
         - get
         - list
         - patch
+        - update
         - watch
     - apiGroups:
         - clusterresources.instaclustr.com
@@ -242,6 +266,32 @@ rbac:
         - clusterresources.instaclustr.com
       resources:
         - nodereloads/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - redisusers
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - redisusers/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - clusterresources.instaclustr.com
+      resources:
+        - redisusers/status
       verbs:
         - get
         - patch
@@ -569,38 +619,6 @@ rbac:
         - get
         - patch
         - update
-    # leader-election-role
-    - apiGroups:
-        - ""
-      resources:
-        - configmaps
-      verbs:
-        - get
-        - list
-        - watch
-        - create
-        - update
-        - patch
-        - delete
-    - apiGroups:
-        - coordination.k8s.io
-      resources:
-        - leases
-      verbs:
-        - get
-        - list
-        - watch
-        - create
-        - update
-        - patch
-        - delete
-    - apiGroups:
-        - ""
-      resources:
-        - events
-      verbs:
-        - create
-        - patch
 
 initContainers: {}
 
