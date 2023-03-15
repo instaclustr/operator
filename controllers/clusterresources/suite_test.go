@@ -127,10 +127,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&ClusterNetworkFirewallRuleReconciler{
-		Client:    k8sManager.GetClient(),
-		Scheme:    k8sManager.GetScheme(),
-		API:       MockInstAPI,
-		Scheduler: scheduler.NewScheduler(logf.Log),
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		API:           MockInstAPI,
+		Scheduler:     scheduler.NewScheduler(logf.Log),
+		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
