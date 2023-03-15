@@ -17,6 +17,6 @@ spec:
         principal: User:test
         resourceName: kafka-cluster
         resourceType: CLUSTER
-  clusterId: 4025d080-d7f9-4df8-837c-0b40a239f3b3
+  clusterId: dcb8e03f-8bac-4f4b-83bc-34b6e7f3cb29
   userQuery: test
 

@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,20 +41,18 @@ import (
 // KafkaACLReconciler reconciles a KafkaACL object
 type KafkaACLReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=kafkaacls,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=kafkaacls/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=kafkaacls/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the KafkaACL object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
@@ -69,7 +68,7 @@ func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 
 		l.Error(err, "Unable to fetch kafka ACL", "request", req)
-		return models.ExitReconcile, nil
+		return models.ReconcileRequeue, nil
 	}
 
 	switch kafkaACL.Annotations[models.ResourceStateAnnotation] {
@@ -93,49 +92,70 @@ func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 func (r *KafkaACLReconciler) handleCreateKafkaACL(
 	ctx context.Context,
-	kafkaACL *kafkamanagementv1alpha1.KafkaACL,
+	acl *kafkamanagementv1alpha1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
-	if kafkaACL.Status.ID == "" {
+	if acl.Status.ID == "" {
 		l.Info("Creating kafka ACL",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
 		)
 
-		kafkaACLStatus, err := r.API.CreateKafkaACL(instaclustr.KafkaACLEndpoint, &kafkaACL.Spec)
+		kafkaACLStatus, err := r.API.CreateKafkaACL(instaclustr.KafkaACLEndpoint, &acl.Spec)
 		if err != nil {
 			l.Error(err, "Cannot create kafka ACL",
-				"kafka ACL resource spec", kafkaACL.Spec,
+				"kafka ACL resource spec", acl.Spec,
+			)
+			r.EventRecorder.Eventf(
+				acl, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
 
-		patch := kafkaACL.NewPatch()
-		kafkaACL.Status = *kafkaACLStatus
-		err = r.Status().Patch(ctx, kafkaACL, patch)
+		r.EventRecorder.Eventf(
+			acl, models.Normal, models.Created,
+			"Resource creation request is sent. Resource ID: %s",
+			kafkaACLStatus.ID,
+		)
+
+		patch := acl.NewPatch()
+		acl.Status = *kafkaACLStatus
+		err = r.Status().Patch(ctx, acl, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch kafka ACL status",
-				"cluster ID", kafkaACL.Spec.ClusterID,
-				"user query", kafkaACL.Spec.UserQuery,
+				"cluster ID", acl.Spec.ClusterID,
+				"user query", acl.Spec.UserQuery,
+			)
+			r.EventRecorder.Eventf(
+				acl, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
 
-		controllerutil.AddFinalizer(kafkaACL, models.DeletionFinalizer)
-		kafkaACL.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		err = r.Patch(ctx, kafkaACL, patch)
+		controllerutil.AddFinalizer(acl, models.DeletionFinalizer)
+		acl.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		err = r.Patch(ctx, acl, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch kafka ACL metadata",
-				"cluster ID", kafkaACL.Spec.ClusterID,
-				"user query", kafkaACL.Spec.UserQuery,
+				"cluster ID", acl.Spec.ClusterID,
+				"user query", acl.Spec.UserQuery,
+			)
+			r.EventRecorder.Eventf(
+				acl, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
 
 		l.Info(
 			"Kafka ACL was created",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
 		)
 	}
 
@@ -144,85 +164,125 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 
 func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 	ctx context.Context,
-	kafkaACL *kafkamanagementv1alpha1.KafkaACL,
+	acl *kafkamanagementv1alpha1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
-	err := r.API.UpdateKafkaACL(kafkaACL.Status.ID, instaclustr.KafkaACLEndpoint, &kafkaACL.Spec)
+	err := r.API.UpdateKafkaACL(acl.Status.ID, instaclustr.KafkaACLEndpoint, &acl.Spec)
 	if err != nil {
 		l.Error(err, "Cannot update kafka ACL",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
 		)
+		r.EventRecorder.Eventf(
+			acl, models.Warning, models.UpdateFailed,
+			"Resource update on the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue
 	}
 
-	patch := kafkaACL.NewPatch()
-	kafkaACL.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Patch(ctx, kafkaACL, patch)
+	patch := acl.NewPatch()
+	acl.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.Patch(ctx, acl, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch kafka ACL metadata",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
+		)
+		r.EventRecorder.Eventf(
+			acl, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Kafka ACL has been updated",
-		"cluster ID", kafkaACL.Spec.ClusterID,
-		"user query", kafkaACL.Spec.UserQuery,
+		"cluster ID", acl.Spec.ClusterID,
+		"user query", acl.Spec.UserQuery,
 	)
 	return models.ExitReconcile
 }
 
 func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 	ctx context.Context,
-	kafkaACL *kafkamanagementv1alpha1.KafkaACL,
+	acl *kafkamanagementv1alpha1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
-	patch := kafkaACL.NewPatch()
-	err := r.Patch(ctx, kafkaACL, patch)
+	patch := acl.NewPatch()
+	err := r.Patch(ctx, acl, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch kafka ACL metadata",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
+		)
+		r.EventRecorder.Eventf(
+			acl, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
 
-	status, err := r.API.GetKafkaACLStatus(kafkaACL.Status.ID, instaclustr.KafkaACLEndpoint)
+	status, err := r.API.GetKafkaACLStatus(acl.Status.ID, instaclustr.KafkaACLEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get kafka ACL status from the Instaclustr API",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
+		)
+		r.EventRecorder.Eventf(
+			acl, models.Warning, models.FetchFailed,
+			"Resource fetch from the Instaclustr API is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
 
 	if status != nil {
-		err = r.API.DeleteKafkaACL(kafkaACL.Status.ID, instaclustr.KafkaACLEndpoint)
+		err = r.API.DeleteKafkaACL(acl.Status.ID, instaclustr.KafkaACLEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot update kafka ACL status",
-				"cluster ID", kafkaACL.Spec.ClusterID,
-				"user query", kafkaACL.Spec.UserQuery,
+				"cluster ID", acl.Spec.ClusterID,
+				"user query", acl.Spec.UserQuery,
+			)
+			r.EventRecorder.Eventf(
+				acl, models.Warning, models.DeletionFailed,
+				"Resource deletion is failed on the Instaclustr. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
 		}
+		r.EventRecorder.Eventf(
+			acl, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent to the Instaclustr API.",
+		)
 	}
 
-	controllerutil.RemoveFinalizer(kafkaACL, models.DeletionFinalizer)
-	kafkaACL.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.Patch(ctx, kafkaACL, patch)
+	controllerutil.RemoveFinalizer(acl, models.DeletionFinalizer)
+	acl.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	err = r.Patch(ctx, acl, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch kafka ACL metadata",
-			"cluster ID", kafkaACL.Spec.ClusterID,
-			"user query", kafkaACL.Spec.UserQuery,
+			"cluster ID", acl.Spec.ClusterID,
+			"user query", acl.Spec.UserQuery,
+		)
+		r.EventRecorder.Eventf(
+			acl, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
 		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Kafka ACL has been deleted",
-		"cluster ID", kafkaACL.Spec.ClusterID,
-		"user query", kafkaACL.Spec.UserQuery,
+		"cluster ID", acl.Spec.ClusterID,
+		"user query", acl.Spec.UserQuery,
+	)
+
+	r.EventRecorder.Eventf(
+		acl, models.Normal, models.Deleted,
+		"Resource is deleted",
 	)
 
 	return models.ExitReconcile
