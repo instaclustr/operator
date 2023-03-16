@@ -24,6 +24,7 @@ import (
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,20 +42,18 @@ import (
 // TopicReconciler reconciles a TopicName object
 type TopicReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	API    instaclustr.API
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=topics,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=topics/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kafkamanagement.instaclustr.com,resources=topics/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the TopicName object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
@@ -109,14 +108,30 @@ func (r *TopicReconciler) handleCreateCluster(
 		err = r.API.CreateKafkaTopic(instaclustr.KafkaTopicEndpoint, topic)
 		if err != nil {
 			l.Error(err, "Cannot create Kafka topic", "spec", topic.Spec)
+			r.EventRecorder.Eventf(
+				topic, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 		l.Info("Kafka topic has been created", "cluster ID", topic.Status.ID)
+
+		r.EventRecorder.Eventf(
+			topic, models.Normal, models.Created,
+			"Resource creation request is sent. Topic ID: %s",
+			topic.Status.ID,
+		)
 
 		err = r.Status().Patch(ctx, topic, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch Kafka topic from the Instaclustr API",
 				"spec", topic.Spec)
+			r.EventRecorder.Eventf(
+				topic, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
@@ -126,6 +141,11 @@ func (r *TopicReconciler) handleCreateCluster(
 		err = r.Patch(ctx, topic, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch kafka topic after create op", "kafka topic name", topic.Spec.TopicName)
+			r.EventRecorder.Eventf(
+				topic, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 	}
@@ -149,6 +169,11 @@ func (r *TopicReconciler) handleUpdateCluster(
 			"cluster name", t.Spec.TopicName,
 			"cluster status", t.Status,
 		)
+		r.EventRecorder.Eventf(
+			t, models.Warning, models.UpdateFailed,
+			"Resource update on the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -160,6 +185,11 @@ func (r *TopicReconciler) handleUpdateCluster(
 	if err != nil {
 		l.Error(err, "Cannot patch Kafka topic management after update op",
 			"spec", t.Spec)
+		r.EventRecorder.Eventf(
+			t, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
@@ -173,22 +203,36 @@ func (r *TopicReconciler) handleDeleteCluster(
 ) reconcile.Result {
 	l = l.WithName("Deletion Event")
 
-	status, err := r.API.GetTopicStatus(topic.Status.ID)
+	_, err := r.API.GetTopicStatus(topic.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get Kafka topic",
 			"topic name", topic.Spec.TopicName,
 			"topic id", topic.Status.ID)
+		r.EventRecorder.Eventf(
+			topic, models.Warning, models.FetchFailed,
+			"Fetch resource from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
-	if status != nil {
+	if !errors.Is(err, instaclustr.NotFound) {
 		err = r.API.DeleteKafkaTopic(instaclustr.KafkaTopicEndpoint, topic.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot delete kafka topic",
 				"topic name", topic.Spec.TopicName,
 				"topic ID", topic.Status.ID)
+			r.EventRecorder.Eventf(
+				topic, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
+		r.EventRecorder.Eventf(
+			topic, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent to the Instaclustr API.",
+		)
 	}
 
 	patch := topic.NewPatch()
@@ -198,11 +242,21 @@ func (r *TopicReconciler) handleDeleteCluster(
 	if err != nil {
 		l.Error(err, "Cannot patch remove finalizer from kafka",
 			"cluster name", topic.Spec.TopicName)
+		r.EventRecorder.Eventf(
+			topic, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
 		return models.ReconcileRequeue
 	}
 
 	l.Info("Kafka topic has been deleted",
 		"topic name", topic.Spec.TopicName)
+
+	r.EventRecorder.Eventf(
+		topic, models.Normal, models.Deleted,
+		"Cluster resource is deleted",
+	)
 
 	return models.ExitReconcile
 }

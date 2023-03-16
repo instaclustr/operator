@@ -856,7 +856,7 @@ func (c *Client) DeleteFirewallRule(
 	return nil
 }
 
-func (c *Client) GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus, error) {
+func (c *Client) GetTopicStatus(id string) ([]byte, error) {
 	url := c.serverHostname + KafkaTopicEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -874,13 +874,11 @@ func (c *Client) GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus
 		return nil, NotFound
 	}
 
-	topic := kafkamanagementv1alpha1.TopicStatus{}
-	topic, err = topic.FromInstAPI(body)
-	if err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return &topic, nil
+	return body, nil
 }
 
 func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
