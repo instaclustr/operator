@@ -33,7 +33,7 @@ type API interface {
 	CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*kafkamanagementv1alpha1.KafkaUserStatus, error)
 	UpdateKafkaUser(kafkaUserID string, kafkaUserSpec *models.KafkaUser) error
 	DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error
-	GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus, error)
+	GetTopicStatus(id string) ([]byte, error)
 	CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error
 	DeleteKafkaTopic(url, id string) error
 	UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error

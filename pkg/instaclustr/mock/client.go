@@ -129,7 +129,7 @@ func (c *mockClient) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) erro
 	panic("DeleteKafkaUser: is not implemented")
 }
 
-func (c *mockClient) GetTopicStatus(id string) (*kafkamanagementv1alpha1.TopicStatus, error) {
+func (c *mockClient) GetTopicStatus(id string) ([]byte, error) {
 	panic("GetTopicStatus: is not implemented")
 }
 

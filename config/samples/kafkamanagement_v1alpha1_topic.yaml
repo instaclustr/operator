@@ -5,8 +5,8 @@ metadata:
 spec:
   partitions: 3
   replicationFactor: 3
-  topic: "operator-topic-test"
-  clusterId: "9fcd9820-96dc-49fe-9b58-e9a75fcdd6fc"
+  topic: "operator-topic-test2"
+  clusterId: "dcb8e03f-8bac-4f4b-83bc-34b6e7f3cb29"
 #  configs:
 #    min.insync.replicas: "2"
 #    retention.ms: "603800000"

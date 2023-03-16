@@ -27,9 +27,6 @@ import (
 
 // TopicSpec defines the desired state of Topic
 type TopicSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Partitions        int32             `json:"partitions"`
 	ReplicationFactor int32             `json:"replicationFactor"`
 	TopicName         string            `json:"topic"`
