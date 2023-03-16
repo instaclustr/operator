@@ -619,7 +619,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 
 		if !areStatusesEqual(&iCassandra.Status.ClusterStatus, &cassandra.Status.ClusterStatus) {
 			l.Info("Updating cluster status",
-				"status from insta", iCassandra.Status.ClusterStatus,
+				"status from Instaclustr", iCassandra.Status.ClusterStatus,
 				"status from k8s", cassandra.Status.ClusterStatus)
 
 			patch := cassandra.NewPatch()
@@ -638,7 +638,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 			if err != nil {
 				l.Error(err, "Cannot patch cluster resource",
 					"cluster ID", cassandra.Status.ID,
-					"spec from insta", iCassandra.Spec,
+					"spec from Instaclustr", iCassandra.Spec,
 				)
 
 				return err

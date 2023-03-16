@@ -698,6 +698,25 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 			}
 		}
 
+		if iCadence.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			!cadence.Spec.IsEqual(iCadence.Spec) {
+			patch := cadence.NewPatch()
+			cadence.Spec = iCadence.Spec
+			err = r.Patch(context.Background(), cadence, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch cluster resource",
+					"cluster ID", cadence.Status.ID,
+					"spec from Instaclustr", iCadence.Spec,
+				)
+
+				return err
+			}
+
+			l.Info("Cluster spec has been updated",
+				"cluster ID", cadence.Status.ID,
+			)
+		}
+
 		maintEvents, err := r.API.GetMaintenanceEvents(cadence.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get Cadence cluster maintenance events",

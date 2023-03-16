@@ -299,6 +299,7 @@ func (cs *CadenceSpec) DCsToInstAPI() (iDCs []*models.CadenceDataCentre) {
 	for _, dc := range cs.DataCentres {
 		iDCs = append(iDCs, dc.ToInstAPI())
 	}
+
 	return
 }
 
@@ -319,6 +320,7 @@ func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
 
 func (cs *CadenceSpec) FromInstAPI(iCad *models.CadenceCluster) (spec CadenceSpec) {
 	spec.DataCentres = cs.DCsFromInstAPI(iCad.DataCentres)
+
 	return
 }
 
@@ -329,7 +331,31 @@ func (cs *CadenceSpec) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*
 			ClientEncryption: iDC.ClientToClusterEncryption,
 		})
 	}
+
 	return
+}
+
+func (cs *CadenceSpec) IsEqual(spec CadenceSpec) bool {
+	return cs.Cluster.IsEqual(spec.Cluster) &&
+		cs.AreDCsEqual(spec.DataCentres) &&
+		cs.UseCadenceWebAuth == spec.UseCadenceWebAuth
+}
+
+func (cs *CadenceSpec) AreDCsEqual(dcs []*CadenceDataCentre) bool {
+	if len(cs.DataCentres) != len(dcs) {
+		return false
+	}
+
+	for i, iDC := range dcs {
+		dataCentre := cs.DataCentres[i]
+		if !dataCentre.IsEqual(iDC.DataCentre) ||
+			iDC.ClientEncryption != dataCentre.ClientEncryption ||
+			!arePrivateLinksEqual(dataCentre.PrivateLink, iDC.PrivateLink) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (cs *CadenceStatus) FromInstAPI(iCad *models.CadenceCluster) CadenceStatus {
@@ -348,6 +374,7 @@ func (cs *CadenceStatus) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs [
 	for _, iDC := range iDCs {
 		dcs = append(dcs, cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
 	}
+
 	return
 }
 
