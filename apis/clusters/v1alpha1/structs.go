@@ -467,3 +467,17 @@ func (cs *ClusterStatus) NodesFromInstAPIv1(iNodes []*models.NodeStatusV1) (node
 	}
 	return nodes
 }
+
+func arePrivateLinksEqual(a, b []*PrivateLink) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i, privateLink := range a {
+		if *b[i] != *privateLink {
+			return false
+		}
+	}
+
+	return true
+}
