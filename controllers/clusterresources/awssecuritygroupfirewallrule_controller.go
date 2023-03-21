@@ -78,9 +78,6 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 	case models.CreatingEvent:
 		reconcileResult := r.handleCreateFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
-	case models.UpdatingEvent:
-		reconcileResult := r.handleUpdateFirewallRule(ctx, firewallRule, &l)
-		return reconcileResult, nil
 	case models.DeletingEvent:
 		reconcileResult := r.handleDeleteFirewallRule(ctx, firewallRule, &l)
 		return reconcileResult, nil
@@ -179,19 +176,6 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 	r.EventRecorder.Eventf(
 		firewallRule, models.Normal, models.Created,
 		"Resource status check job is started",
-	)
-
-	return models.ExitReconcile
-}
-
-func (r *AWSSecurityGroupFirewallRuleReconciler) handleUpdateFirewallRule(
-	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
-	l *logr.Logger,
-) reconcile.Result {
-	l.Info("AWS security group firewall rule update is not implemented",
-		"firewall rule ID", firewallRule.Spec.ClusterID,
-		"type", firewallRule.Spec.Type,
 	)
 
 	return models.ExitReconcile
@@ -309,7 +293,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 			return err
 		}
 
-		if !isFirewallRuleStatusesEqual(instaFirewallRuleStatus, &firewallRule.Status.FirewallRuleStatus) {
+		if !areFirewallRuleStatusesEqual(instaFirewallRuleStatus, &firewallRule.Status.FirewallRuleStatus) {
 			l.Info("AWS security group firewall rule status of k8s is different from Instaclustr. Reconcile statuses..",
 				"firewall rule Status from Inst API", instaFirewallRuleStatus,
 				"firewall rule status", firewallRule.Status)

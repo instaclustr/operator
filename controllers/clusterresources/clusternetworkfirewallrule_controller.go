@@ -256,7 +256,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *c
 			return err
 		}
 
-		if !isFirewallRuleStatusesEqual(instaFirewallRuleStatus, &firewallRule.Status.FirewallRuleStatus) {
+		if !areFirewallRuleStatusesEqual(instaFirewallRuleStatus, &firewallRule.Status.FirewallRuleStatus) {
 			l.Info("Cluster network firewall rule status of k8s is different from Instaclustr. Reconcile statuses..",
 				"firewall rule Status from Inst API", instaFirewallRuleStatus,
 				"firewall rule status", firewallRule.Status)

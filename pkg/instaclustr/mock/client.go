@@ -311,3 +311,19 @@ func (c *mockClient) UpdateRedisUser(user *models.RedisUserUpdate) error {
 func (c *mockClient) DeleteRedisUser(id string) error {
 	panic("DeleteRedisUser: is not implemented")
 }
+
+func (c *mockClient) CreateEncryptionKey(encryptionKeySpec any) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
+	encryptionKey := &clusterresourcesv1alpha1.AWSEncryptionKeyStatus{
+		ID:    StatusID,
+		InUse: false,
+	}
+	return encryptionKey, nil
+}
+
+func (c *mockClient) GetEncryptionKeyStatus(encryptionKeyID string, encryptionKeyEndpoint string) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
+	encryptionKey := &clusterresourcesv1alpha1.AWSEncryptionKeyStatus{
+		ID:    StatusID,
+		InUse: false,
+	}
+	return encryptionKey, nil
+}

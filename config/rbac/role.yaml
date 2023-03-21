@@ -27,6 +27,32 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - awsencryptionkeys
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - awsencryptionkeys/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - awsencryptionkeys/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - awssecuritygroupfirewallrules
   verbs:
   - create
