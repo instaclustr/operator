@@ -361,7 +361,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *clusterresources
 			return err
 		}
 
-		if !isPeeringStatusesEqual(instaPeeringStatus, &awsPeering.Status.PeeringStatus) {
+		if !arePeeringStatusesEqual(instaPeeringStatus, &awsPeering.Status.PeeringStatus) {
 			l.Info("AWS VPC Peering status of k8s is different from Instaclustr. Reconcile statuses..",
 				"AWS VPC Peering Status from Inst API", instaPeeringStatus,
 				"AWS VPC Peering Status", awsPeering.Status)

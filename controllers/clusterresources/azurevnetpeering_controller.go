@@ -327,7 +327,7 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *cluster
 			return err
 		}
 
-		if !isPeeringStatusesEqual(instaPeeringStatus, &azureVNetPeering.Status.PeeringStatus) {
+		if !arePeeringStatusesEqual(instaPeeringStatus, &azureVNetPeering.Status.PeeringStatus) {
 			l.Info("Azure VNet Peering status of k8s is different from Instaclustr. Reconcile statuses..",
 				"Azure VNet Peering Status from Inst API", instaPeeringStatus,
 				"Azure VNet Peering Status", azureVNetPeering.Status)

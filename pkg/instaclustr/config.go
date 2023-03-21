@@ -32,6 +32,7 @@ const (
 	PGSQLConfigManagementEndpoint          = "%s/cluster-management/v2/resources/applications/postgresql/configurations/v2/"
 	PGSQLUpdateDefaultUserPasswordEndpoint = "%s/cluster-management/v2/operations/applications/postgresql/clusters/v2/%s/update-default-user-password"
 	NodeReloadEndpoint                     = "%s/cluster-management/v2/operations/applications/postgresql/nodes/v2/%s/reload"
+	AWSEncryptionKeyEndpoint               = "/cluster-management/v2/resources/providers/aws/encryption-keys/v2/"
 )
 
 // constants for API v1

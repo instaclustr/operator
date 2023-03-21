@@ -2093,3 +2093,69 @@ func (c *Client) ListClusters() ([]*models.ActiveClusters, error) {
 
 	return response, nil
 }
+
+func (c *Client) CreateEncryptionKey(
+	encryptionKeySpec any,
+) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
+	jsonEncryptionKey, err := json.Marshal(encryptionKeySpec)
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.serverHostname + AWSEncryptionKeyEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, jsonEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1alpha1.AWSEncryptionKeyStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) GetEncryptionKeyStatus(
+	encryptionKeyID string,
+	encryptionKeyEndpoint string,
+) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
+	url := c.serverHostname + encryptionKeyEndpoint + encryptionKeyID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var encryptionKeyStatus *clusterresourcesv1alpha1.AWSEncryptionKeyStatus
+	err = json.Unmarshal(body, &encryptionKeyStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return encryptionKeyStatus, nil
+}

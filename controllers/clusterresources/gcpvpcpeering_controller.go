@@ -253,7 +253,7 @@ func (r *GCPVPCPeeringReconciler) newWatchStatusJob(gcpPeering *clusterresources
 			return err
 		}
 
-		if !isPeeringStatusesEqual(instaPeeringStatus, &gcpPeering.Status.PeeringStatus) {
+		if !arePeeringStatusesEqual(instaPeeringStatus, &gcpPeering.Status.PeeringStatus) {
 			l.Info("GCP VPC Peering status of k8s is different from Instaclustr. Reconcile statuses..",
 				"GCP VPC Peering Status from Inst API", instaPeeringStatus,
 				"GCP VPC Peering Status", gcpPeering.Status)

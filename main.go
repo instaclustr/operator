@@ -374,6 +374,16 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Cadence")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcescontrollers.AWSEncryptionKeyReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		Scheduler:     s,
+		EventRecorder: eventRecorder,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSEncryptionKey")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
