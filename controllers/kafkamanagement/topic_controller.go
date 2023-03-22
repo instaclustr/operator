@@ -66,11 +66,11 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Kafka topic is not found", "request", req)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch Kafka topic", "request", req)
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch topic.Annotations[models.ResourceStateAnnotation] {
@@ -86,10 +86,10 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.GenericEvent:
 		l.Info("Event isn't handled", "topic name", topic.Spec.TopicName, "request", req,
 			"event", topic.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
 	}
 
-	return reconcile.Result{}, nil
+	return models.ExitReconcile, nil
 }
 
 func (r *TopicReconciler) handleCreateCluster(
@@ -130,7 +130,7 @@ func (r *TopicReconciler) handleCreateCluster(
 		}
 	}
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *TopicReconciler) handleUpdateCluster(
@@ -163,7 +163,7 @@ func (r *TopicReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *TopicReconciler) handleDeleteCluster(
@@ -204,7 +204,7 @@ func (r *TopicReconciler) handleDeleteCluster(
 	l.Info("Kafka topic has been deleted",
 		"topic name", topic.Spec.TopicName)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 // confirmDeletion confirms if resource is deleting and set appropriate annotation.

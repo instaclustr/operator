@@ -67,11 +67,11 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 			l.Info("AWS security group firewall rule resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch AWS security group firewall rule")
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
@@ -87,10 +87,10 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
 	}
 
-	return reconcile.Result{}, nil
+	return models.ExitReconcile, nil
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(

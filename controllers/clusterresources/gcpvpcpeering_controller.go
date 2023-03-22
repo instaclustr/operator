@@ -67,10 +67,10 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "GCP VPC Peering resource is not found", "request", req)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 		l.Error(err, "unable to fetch GCP VPC Peering", "request", req)
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch gcp.Annotations[models.ResourceStateAnnotation] {
@@ -88,7 +88,7 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"GCP VPC Peering Network Name", gcp.Spec.PeerVPCNetworkName,
 			"Request", req,
 			"event", gcp.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
 	}
 }
 
@@ -152,7 +152,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *GCPVPCPeeringReconciler) handleUpdateCluster(
@@ -162,7 +162,7 @@ func (r *GCPVPCPeeringReconciler) handleUpdateCluster(
 ) reconcile.Result {
 	l.Info("Update is not implemented")
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
@@ -230,7 +230,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 		"GCP VPC Peering Status", gcp.Status.PeeringStatus,
 	)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *GCPVPCPeeringReconciler) startGCPVPCPeeringStatusJob(gcpPeering *clusterresourcesv1alpha1.GCPVPCPeering) error {

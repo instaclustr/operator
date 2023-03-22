@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -62,10 +61,10 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Node Reload resource is not found", "request", req)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 		l.Error(err, "Unable to fetch Node Reload", "request", req)
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	if len(nrs.Spec.Nodes) == 0 {

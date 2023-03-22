@@ -80,4 +80,5 @@ type API interface {
 	ListClusters() ([]*models.ActiveClusters, error)
 	CreateEncryptionKey(encryptionKeySpec any) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error)
 	GetEncryptionKeyStatus(encryptionKeyID string, encryptionKeyEndpoint string) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error)
+	DeleteEncryptionKey(encryptionKeyID string) error
 }

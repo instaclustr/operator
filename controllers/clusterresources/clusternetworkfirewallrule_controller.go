@@ -72,11 +72,11 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 			l.Info("Cluster network firewall rule resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return reconcile.Result{}, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch cluster network firewall rule")
-		return reconcile.Result{}, err
+		return models.ReconcileRequeue, err
 	}
 
 	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
@@ -95,10 +95,10 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
-		return reconcile.Result{}, nil
+		return models.ExitReconcile, nil
 	}
 
-	return reconcile.Result{}, nil
+	return models.ExitReconcile, nil
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
@@ -158,7 +158,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		return models.ReconcileRequeue
 	}
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
@@ -171,7 +171,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 		"type", firewallRule.Spec.Type,
 	)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
@@ -233,7 +233,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 		"status", firewallRule.Status,
 	)
 
-	return reconcile.Result{}
+	return models.ExitReconcile
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule) error {
