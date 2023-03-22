@@ -327,3 +327,7 @@ func (c *mockClient) GetEncryptionKeyStatus(encryptionKeyID string, encryptionKe
 	}
 	return encryptionKey, nil
 }
+
+func (c *mockClient) DeleteEncryptionKey(encryptionKeyID string) error {
+	return nil
+}

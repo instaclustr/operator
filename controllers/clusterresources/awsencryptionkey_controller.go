@@ -18,6 +18,7 @@ package clusterresources
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -69,7 +70,7 @@ func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			l.Info("AWS encryption key resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return models.ReconcileRequeue, nil
+			return models.ExitReconcile, nil
 		}
 
 		l.Error(err, "Unable to fetch AWS encryption key")
@@ -78,11 +79,9 @@ func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	switch encryptionKey.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.handleCreate(ctx, encryptionKey, &l)
-		return reconcileResult, nil
+		return r.handleCreate(ctx, encryptionKey, &l), nil
 	case models.DeletingEvent:
-		//reconcileResult := r.handleDelete(ctx, encryptionKey, &l)
-		//return reconcileResult, nil
+		return r.handleDelete(ctx, encryptionKey, &l), nil
 	case models.GenericEvent:
 		l.Info("AWS encryption key event isn't handled",
 			"alias", encryptionKey.Spec.Alias,
@@ -90,10 +89,10 @@ func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			"provider account name", encryptionKey.Spec.ProviderAccountName,
 			"request", req,
 			"event", encryptionKey.Annotations[models.ResourceStateAnnotation])
-		return models.ReconcileRequeue, nil
+		return models.ExitReconcile, nil
 	}
 
-	return reconcile.Result{}, nil
+	return models.ExitReconcile, nil
 }
 
 func (r *AWSEncryptionKeyReconciler) handleCreate(
@@ -179,6 +178,83 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 	r.EventRecorder.Eventf(
 		encryptionKey, models.Normal, models.Created,
 		"Resource status check job is started",
+	)
+
+	return models.ExitReconcile
+}
+
+func (r *AWSEncryptionKeyReconciler) handleDelete(
+	ctx context.Context,
+	encryptionKey *clusterresourcesv1alpha1.AWSEncryptionKey,
+	l *logr.Logger,
+) reconcile.Result {
+	status, err := r.API.GetEncryptionKeyStatus(encryptionKey.Status.ID, instaclustr.AWSEncryptionKeyEndpoint)
+	if err != nil && !errors.Is(err, instaclustr.NotFound) {
+		l.Error(
+			err, "Cannot get AWS encryption key status from the Instaclustr API",
+			"alias", encryptionKey.Spec.Alias,
+			"arn", encryptionKey.Spec.ARN,
+		)
+
+		r.EventRecorder.Eventf(
+			encryptionKey, models.Warning, models.FetchFailed,
+			"Fetch resource from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue
+	}
+
+	if status != nil {
+		err = r.API.DeleteEncryptionKey(encryptionKey.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot delete AWS encryption key",
+				"encryption key ID", encryptionKey.Status.ID,
+				"alias", encryptionKey.Spec.Alias,
+				"arn", encryptionKey.Spec.ARN,
+			)
+
+			r.EventRecorder.Eventf(
+				encryptionKey, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
+		r.EventRecorder.Eventf(
+			encryptionKey, models.Normal, models.DeletionStarted,
+			"Resource deletion request is sent to the Instaclustr API.",
+		)
+	}
+
+	r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.StatusChecker))
+	controllerutil.RemoveFinalizer(encryptionKey, models.DeletionFinalizer)
+	encryptionKey.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	patch := encryptionKey.NewPatch()
+	err = r.Patch(ctx, encryptionKey, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch AWS encryption key metadata",
+			"alias", encryptionKey.Spec.Alias,
+			"arn", encryptionKey.Spec.ARN,
+			"status", encryptionKey.Status,
+		)
+
+		r.EventRecorder.Eventf(
+			encryptionKey, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue
+	}
+
+	l.Info("AWS encryption key has been deleted",
+		"alias", encryptionKey.Spec.Alias,
+		"arn", encryptionKey.Spec.ARN,
+		"status", encryptionKey.Status,
+	)
+
+	r.EventRecorder.Eventf(
+		encryptionKey, models.Normal, models.Deleted,
+		"Resource is deleted",
 	)
 
 	return models.ExitReconcile

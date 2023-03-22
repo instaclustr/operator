@@ -2159,3 +2159,29 @@ func (c *Client) GetEncryptionKeyStatus(
 
 	return encryptionKeyStatus, nil
 }
+
+func (c *Client) DeleteEncryptionKey(
+	encryptionKeyID string,
+) error {
+	url := c.serverHostname + AWSEncryptionKeyEndpoint + encryptionKeyID
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
