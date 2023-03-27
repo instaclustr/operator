@@ -21,16 +21,16 @@
 
 ### ExternalClusterObject
 
-| Field                                                    | Type                        | Description                                                                   |
-|----------------------------------------------------------|-----------------------------|-------------------------------------------------------------------------------|
-| sourceConnectionProperties                                                    | string <br /> **required**  | Kafka connection properties string used to connect to external kafka cluster. |
+| Field                                                              | Type                        | Description                                                                   |
+|--------------------------------------------------------------------|-----------------------------|-------------------------------------------------------------------------------|
+| sourceConnectionProperties                                         | string <br /> **required**  | Kafka connection properties string used to connect to external kafka cluster. |
 
 ### ManagedClusterObject
 
-| Field                                                    | Type                       | Description                                                                   |
-|----------------------------------------------------------|----------------------------|-------------------------------------------------------------------------------|
-| usePrivateIps                                                    | bool <br /> **required**   | Whether or not to connect to source cluster's private IP addresses. |
-| sourceKafkaClusterId                                                    | string <br /> **required** | Source kafka cluster id. |
+| Field                                                         | Type                       | Description                                                         |
+|---------------------------------------------------------------|----------------------------|---------------------------------------------------------------------|
+| usePrivateIps                                                 | bool <br /> **required**   | Whether or not to connect to source cluster's private IP addresses. |
+| sourceKafkaClusterId                                          | string <br /> **required** | Source kafka cluster id.                                            |
 
 ## Resource create flow
 To create a Kafka Connect Mirror resource you need to prepare the yaml manifest. Here is an example:

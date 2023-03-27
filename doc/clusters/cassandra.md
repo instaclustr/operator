@@ -17,15 +17,15 @@
 | dataCentres           | Array of objects ([CassandraDataCentre](#CassandraDataCentreObject)) <br /> **required** | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                        |
 
 ### TwoFactorDeleteObject
-| Field                   | Type                                       | Description                                                                            |
-|-------------------------|--------------------------------------------|----------------------------------------------------------------------------------------|
-| confirmationPhoneNumber | string                     | The phone number which will be contacted when the cluster is requested to be deleted.  |
-| confirmationEmail       | string <br /> **required** | The email address which will be contacted when the cluster is requested to be deleted. |
+| Field                   | Type                        | Description                                                                            |
+|-------------------------|-----------------------------|----------------------------------------------------------------------------------------|
+| confirmationPhoneNumber | string                      | The phone number which will be contacted when the cluster is requested to be deleted.  |
+| confirmationEmail       | string <br /> **required**  | The email address which will be contacted when the cluster is requested to be deleted. |
 
 ### SparkObject
-| Field            | Type                        | Description                                                                                                    |
-|------------------|-----------------------------|----------------------------------------------------------------------------------------------------------------|
-| version  | string <br /> **required**  | Adds the specified version of Apache Spark to the Cassandra cluster. **Available versions:** `2.3.2`, `3.0.1`. |
+| Field      | Type                        | Description                                                                                                    |
+|------------|-----------------------------|----------------------------------------------------------------------------------------------------------------|
+| version    | string <br /> **required**  | Adds the specified version of Apache Spark to the Cassandra cluster. **Available versions:** `2.3.2`, `3.0.1`. |
 
 ### CassandraDataCentreObject
 | Field                            | Type                                                                     | Description                                                                                                                                                                                                                                                                                            |

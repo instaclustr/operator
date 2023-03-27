@@ -2,13 +2,13 @@
 
 ## Available spec fields
 
-| Field                                             | Type                                                    | Description                                                 |
-|---------------------------------------------------|---------------------------------------------------------|-------------------------------------------------------------|
-| peerAwsAccountId                                              | string <br /> **required**                              | The AWS account ID of the owner of the accepter VPC.        |
-| peerSubnets                                           | Array of strings <br /> **required** <br /> _mutable_ | The subnets for the peering VPC.                            |
-| peerVpcId                             | string <br /> **required**                              | ID of the VPC with which the peering connection is created. |
-| peerRegion                                           | string <br /> **required**                              | Region code for the accepter VPC.                           |
-| cdcId                                       | string <uuid> <br /> **required**                                  | ID of the Cluster Data Centre.       |
+| Field                                                   | Type                                                    | Description                                                 |
+|---------------------------------------------------------|---------------------------------------------------------|-------------------------------------------------------------|
+| peerAwsAccountId                                        | string <br /> **required**                              | The AWS account ID of the owner of the accepter VPC.        |
+| peerSubnets                                             | Array of strings <br /> **required** <br /> _mutable_   | The subnets for the peering VPC.                            |
+| peerVpcId                                               | string <br /> **required**                              | ID of the VPC with which the peering connection is created. |
+| peerRegion                                              | string <br /> **required**                              | Region code for the accepter VPC.                           |
+| cdcId                                                   | string <uuid> <br /> **required**                       | ID of the Cluster Data Centre.                              |
 
 ## Resource create flow
 To create an AWS VPC Peering resource you need to prepare the yaml manifest. Here is an example:
