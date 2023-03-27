@@ -2,23 +2,23 @@
 
 ## Available spec fields
 
-| Field                                                 | Type                                        | Description                                                                                                                                                           |
-|-------------------------------------------------------|---------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| userQuery                                         | string <br /> **required** <br /> _mutable_ |  This is the principal without the User: prefix. |
-| clusterId                                 | string <br /> **required** <br /> _mutable_ | UUID of the Kafka cluster.            |
-| acls                                              | Array of strings <br /> **required**  <br /> _mutable_   | List of ACLs for the given principal.|
+| Field                                | Type                                                   | Description                                     |
+|--------------------------------------|--------------------------------------------------------|-------------------------------------------------|
+| userQuery                            | string <br /> **required** <br /> _mutable_            | This is the principal without the User: prefix. |
+| clusterId                            | string <br /> **required** <br /> _mutable_            | UUID of the Kafka cluster.                      |
+| acls                                 | Array of strings <br /> **required**  <br /> _mutable_ | List of ACLs for the given principal.           |
 
 ### ACLsObject
 
-| Field                                                    | Type                                                        | Description                                                                                                                                                                                                  |
-|----------------------------------------------------------|-------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| principal                                                    | string <br /> **required** <br /> _mutable_                 | Specifies the users(s) for which this ACL applies and can include the wildcard *. Valid values must start with "User:" including the wildcard.                                                               |
-| permissionType                                          | string <br /> **required** <br /> _mutable_                 | Specifies whether to allow or deny the operation. <br> <br> **Enum**: `ALLOW`, `DENY`.                                                                                                                       |
-| host                                           | string <br /> **required** <br /> _mutable_                 | The IP address to which this ACL applies. It takes any string including the wildcard * for all IP addresses.                                                                                                 |
-| patternType                                          | string <br /> **required** <br /> _mutable_                 | Indicates the resource-pattern-type  <br> <br> **Enum**: `LITERAL`, `PREFIXED`.                                                                                                                              |
-| resourceName                                           | string <br /> **required** <br /> _mutable_  | Any string that fits the resource name, e.g. topic name if the resource type is TOPIC                                                                                                                        |
-| operation                                          | string <br /> **required** <br /> _mutable_ | The operation that will be allowed or denied. <br> <br> **Enum**: `ALL`, `READ`, `WRITE`, `CREATE`, `DELETE`, `ALTER`, `DESCRIBE`, `CLUSTER_ACTION`, `DESCRIBE_CONFIGS`, `ALTER_CONFIGS`, `IDEMPOTENT_WRITE`. |
-| resourceType                                           | string <br /> **required** <br /> _mutable_  | Specifies the type of resource.  <br> <br> **Enum**: `CLUSTER`, `TOPIC`, `GROUP`, `DELEGATION_TOKEN`, `TRANSACTIONAL_ID`.                                                                                    |
+| Field                                          | Type                                           | Description                                                                                                                                                                                                   |
+|------------------------------------------------|------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| principal                                      | string <br /> **required** <br /> _mutable_    | Specifies the users(s) for which this ACL applies and can include the wildcard *. Valid values must start with "User:" including the wildcard.                                                                |
+| permissionType                                 | string <br /> **required** <br /> _mutable_    | Specifies whether to allow or deny the operation. <br> <br> **Enum**: `ALLOW`, `DENY`.                                                                                                                        |
+| host                                           | string <br /> **required** <br /> _mutable_    | The IP address to which this ACL applies. It takes any string including the wildcard * for all IP addresses.                                                                                                  |
+| patternType                                    | string <br /> **required** <br /> _mutable_    | Indicates the resource-pattern-type  <br> <br> **Enum**: `LITERAL`, `PREFIXED`.                                                                                                                               |
+| resourceName                                   | string <br /> **required** <br /> _mutable_    | Any string that fits the resource name, e.g. topic name if the resource type is TOPIC                                                                                                                         |
+| operation                                      | string <br /> **required** <br /> _mutable_    | The operation that will be allowed or denied. <br> <br> **Enum**: `ALL`, `READ`, `WRITE`, `CREATE`, `DELETE`, `ALTER`, `DESCRIBE`, `CLUSTER_ACTION`, `DESCRIBE_CONFIGS`, `ALTER_CONFIGS`, `IDEMPOTENT_WRITE`. |
+| resourceType                                   | string <br /> **required** <br /> _mutable_    | Specifies the type of resource.  <br> <br> **Enum**: `CLUSTER`, `TOPIC`, `GROUP`, `DELEGATION_TOKEN`, `TRANSACTIONAL_ID`.                                                                                     |
 
 
 ## Resource create flow
