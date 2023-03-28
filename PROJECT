@@ -258,4 +258,7 @@ resources:
   kind: AWSEncryptionKey
   path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
   version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

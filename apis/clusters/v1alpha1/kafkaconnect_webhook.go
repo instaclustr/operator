@@ -29,7 +29,6 @@ import (
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
-// log is for logging in this package.
 var kafkaconnectlog = logf.Log.WithName("kafkaconnect-resource")
 
 func (r *KafkaConnect) SetupWebhookWithManager(mgr ctrl.Manager) error {
