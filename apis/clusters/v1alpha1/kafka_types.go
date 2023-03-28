@@ -25,6 +25,11 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
+// +kubebuilder:object:generate:=false
+type KafkaAddons interface {
+	SchemaRegistry | RestProxy | KarapaceSchemaRegistry | KarapaceRestProxy | DedicatedZookeeper | KafkaPrivateLink
+}
+
 type SchemaRegistry struct {
 	Version string `json:"version"`
 }
@@ -383,4 +388,40 @@ func (ks *KafkaStatus) DCsFromInstAPI(iDCs []*models.KafkaDataCentre) (dcs []*Da
 		dcs = append(dcs, ks.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
 	}
 	return dcs
+}
+
+func (a *KafkaSpec) IsEqual(b KafkaSpec) bool {
+	return a.Cluster.IsEqual(b.Cluster) &&
+		a.ReplicationFactorNumber == b.ReplicationFactorNumber &&
+		a.PartitionsNumber == b.PartitionsNumber &&
+		a.AllowDeleteTopics == b.AllowDeleteTopics &&
+		a.AutoCreateTopics == b.AutoCreateTopics &&
+		a.ClientToClusterEncryption == b.ClientToClusterEncryption &&
+		a.ClientBrokerAuthWithMTLS == b.ClientBrokerAuthWithMTLS &&
+		a.ClientAuthBrokerWithoutEncryption == b.ClientAuthBrokerWithoutEncryption &&
+		a.ClientAuthBrokerWithEncryption == b.ClientAuthBrokerWithEncryption &&
+		a.BundledUseOnly == b.BundledUseOnly &&
+		isKafkaAddonsEqual[SchemaRegistry](a.SchemaRegistry, b.SchemaRegistry) &&
+		isKafkaAddonsEqual[RestProxy](a.RestProxy, b.RestProxy) &&
+		isKafkaAddonsEqual[KarapaceRestProxy](a.KarapaceRestProxy, b.KarapaceRestProxy) &&
+		isKafkaAddonsEqual[KarapaceSchemaRegistry](a.KarapaceSchemaRegistry, b.KarapaceSchemaRegistry) &&
+		isKafkaAddonsEqual[DedicatedZookeeper](a.DedicatedZookeeper, b.DedicatedZookeeper) &&
+		a.areDCsEqual(b.DataCentres) &&
+		a.IsTwoFactorDeleteEqual(b.TwoFactorDelete)
+}
+
+func (rs *KafkaSpec) areDCsEqual(b []*KafkaDataCentre) bool {
+	a := rs.DataCentres
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range b {
+		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
+			!isKafkaAddonsEqual[KafkaPrivateLink](a[i].PrivateLink, b[i].PrivateLink) {
+			return false
+		}
+	}
+
+	return true
 }
