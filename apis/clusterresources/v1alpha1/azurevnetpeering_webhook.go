@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// log is for logging in this package.
 var azurevnetpeeringlog = logf.Log.WithName("azurevnetpeering-resource")
 
 func (r *AzureVNetPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {

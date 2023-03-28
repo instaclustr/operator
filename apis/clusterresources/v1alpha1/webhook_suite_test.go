@@ -116,6 +116,9 @@ var _ = BeforeSuite(func() {
 	err = (&NodeReload{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&AWSEncryptionKey{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {

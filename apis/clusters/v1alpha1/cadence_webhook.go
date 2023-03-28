@@ -27,7 +27,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-// log is for logging in this package.
 var cadencelog = logf.Log.WithName("cadence-resource")
 
 func (c *Cadence) SetupWebhookWithManager(mgr ctrl.Manager) error {

@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// log is for logging in this package.
 var gcpvpcpeeringlog = logf.Log.WithName("gcpvpcpeering-resource")
 
 func (r *GCPVPCPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {

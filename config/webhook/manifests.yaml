@@ -158,6 +158,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-clusterresources-instaclustr-com-v1alpha1-awsencryptionkey
+  failurePolicy: Fail
+  name: vawsencryptionkey.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awsencryptionkeys
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-clusterresources-instaclustr-com-v1alpha1-awssecuritygroupfirewallrule
   failurePolicy: Fail
   name: vawssecuritygroupfirewallrule.kb.io

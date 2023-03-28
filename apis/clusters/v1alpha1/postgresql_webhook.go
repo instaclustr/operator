@@ -28,7 +28,6 @@ import (
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
-// log is for logging in this package.
 var postgresqllog = logf.Log.WithName("postgresql-resource")
 
 func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
