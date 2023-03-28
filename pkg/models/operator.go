@@ -9,6 +9,8 @@ import (
 const (
 	ResourceStateAnnotation   = "instaclustr.com/resourceState"
 	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
+	ExternalChangesAnnotation = "instaclustr.com/externalChanges"
+	AllowSpecAmendAnnotation  = "instaclustr.com/allowSpecAmend"
 	DeletionConfirmed         = "instaclustr.com/deletionConfirmed"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
@@ -76,6 +78,7 @@ const (
 	FetchSecretFailed = "FetchSecretFailed"
 	ConvertionFailed  = "ConvertionFailed"
 	UpdateFailed      = "UpdateFailed"
+	ExternalChanges   = "ExternalChanges"
 	DeletionStarted   = "DeletionStarted"
 	DeletionFailed    = "DeletionFailed"
 	Deleted           = "Deleted"

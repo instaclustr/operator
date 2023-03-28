@@ -77,6 +77,11 @@ func (k *Kafka) ValidateUpdate(old runtime.Object) error {
 		return k.ValidateCreate()
 	}
 
+	// skip validation when handle external changes from Instaclustr
+	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
 	oldKafka, ok := old.(*Kafka)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to Kafka", old.GetObjectKind())
@@ -110,113 +115,60 @@ func (ks *KafkaSpec) validateUpdate(old *KafkaSpec) error {
 	if err := validateTwoFactorDelete(ks.TwoFactorDelete, old.TwoFactorDelete); err != nil {
 		return err
 	}
-	if err := validateSchemaRegistryUpdate(ks.SchemaRegistry, old.SchemaRegistry); err != nil {
-		return err
-	}
-	if err := validateKarapaceSchemaRegistryUpdate(ks.KarapaceSchemaRegistry, old.KarapaceSchemaRegistry); err != nil {
-		return err
-	}
-	if err := validateRestProxyUpdate(ks.RestProxy, old.RestProxy); err != nil {
-		return err
-	}
-	if err := validateKarapaceRestProxyUpdate(ks.KarapaceRestProxy, old.KarapaceRestProxy); err != nil {
-		return err
-	}
-	if err := validateZookeeperUpdate(ks.DedicatedZookeeper, old.DedicatedZookeeper); err != nil {
-		return err
-	}
 
-	return nil
-}
-
-func validateSchemaRegistryUpdate(new, old []*SchemaRegistry) error {
-	if new == nil && old == nil {
-		return nil
-	}
-
-	if len(new) != len(old) {
+	if !isKafkaAddonsEqual[SchemaRegistry](ks.SchemaRegistry, old.SchemaRegistry) {
 		return models.ErrImmutableSchemaRegistry
 	}
-
-	for i := range new {
-		if *new[i] != *old[i] {
-			return models.ErrImmutableSchemaRegistry
-		}
-	}
-
-	return nil
-}
-
-func validateRestProxyUpdate(new, old []*RestProxy) error {
-	if new == nil && old == nil {
-		return nil
-	}
-
-	if len(new) != len(old) {
-		return models.ErrImmutableRestProxy
-	}
-
-	for i := range new {
-		if *new[i] != *old[i] {
-			return models.ErrImmutableRestProxy
-		}
-	}
-
-	return nil
-}
-
-func validateKarapaceSchemaRegistryUpdate(new, old []*KarapaceSchemaRegistry) error {
-	if new == nil && old == nil {
-		return nil
-	}
-
-	if len(new) != len(old) {
+	if !isKafkaAddonsEqual[KarapaceSchemaRegistry](ks.KarapaceSchemaRegistry, old.KarapaceSchemaRegistry) {
 		return models.ErrImmutableKarapaceSchemaRegistry
 	}
-
-	for i := range new {
-		if *new[i] != *old[i] {
-			return models.ErrImmutableKarapaceSchemaRegistry
-		}
+	if !isKafkaAddonsEqual[RestProxy](ks.RestProxy, old.RestProxy) {
+		return models.ErrImmutableRestProxy
 	}
-
-	return nil
-}
-
-func validateKarapaceRestProxyUpdate(new, old []*KarapaceRestProxy) error {
-	if new == nil && old == nil {
-		return nil
-	}
-
-	if len(new) != len(old) {
+	if !isKafkaAddonsEqual[KarapaceRestProxy](ks.KarapaceRestProxy, old.KarapaceRestProxy) {
 		return models.ErrImmutableKarapaceRestProxy
 	}
-
-	for i := range new {
-		if *new[i] != *old[i] {
-			return models.ErrImmutableKarapaceRestProxy
-		}
+	if ok := validateZookeeperUpdate(ks.DedicatedZookeeper, old.DedicatedZookeeper); !ok {
+		return models.ErrImmutableDedicatedZookeeper
 	}
 
 	return nil
 }
 
-func validateZookeeperUpdate(new, old []*DedicatedZookeeper) error {
+func isKafkaAddonsEqual[T KafkaAddons](new, old []*T) bool {
 	if new == nil && old == nil {
-		return nil
+		return true
 	}
 
 	if len(new) != len(old) {
-		return models.ErrImmutableDedicatedZookeeper
+		return false
+	}
+
+	for i := range new {
+		if *new[i] != *old[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func validateZookeeperUpdate(new, old []*DedicatedZookeeper) bool {
+	if new == nil && old == nil {
+		return true
+	}
+
+	if len(new) != len(old) {
+		return false
 	}
 
 	for i := range new {
 		if new[i].NodesNumber != old[i].NodesNumber {
-			return models.ErrImmutableZookeeperNodeNumber
+			return false
 		}
 	}
 
-	return nil
+	return true
 }
 
 type immutableKafkaFields struct {
