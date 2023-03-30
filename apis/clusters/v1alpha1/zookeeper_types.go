@@ -160,3 +160,24 @@ func (zdc *ZookeeperDataCentre) ToInstAPI() *models.ZookeeperDataCentre {
 		ClientToServerEncryption: zdc.ClientToServerEncryption,
 	}
 }
+
+func (a *ZookeeperSpec) IsEqual(b ZookeeperSpec) bool {
+	return a.Cluster.IsEqual(b.Cluster) &&
+		a.areDCsEqual(b.DataCentres)
+}
+
+func (rs *ZookeeperSpec) areDCsEqual(b []*ZookeeperDataCentre) bool {
+	a := rs.DataCentres
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range b {
+		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
+			a[i].ClientToServerEncryption != b[i].ClientToServerEncryption {
+			return false
+		}
+	}
+
+	return true
+}
