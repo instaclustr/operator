@@ -80,6 +80,11 @@ func (z *Zookeeper) ValidateUpdate(old runtime.Object) error {
 		return z.ValidateCreate()
 	}
 
+	// skip validation when get cluster specification update from Instaclustr UI
+	if z.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
 	return nil
 }
 

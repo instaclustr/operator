@@ -117,3 +117,10 @@ func isClusterActive(clusterID string, activeClusters []*models.ActiveClusters) 
 
 	return false
 }
+
+var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +
+	"If you have canceled a cluster deletion and want to put the cluster on deletion again, " +
+	"remove \"triggered\" from Instaclustr.com/clusterDeletion annotation."
+
+var msgExternalChanges = "The k8s specification is different from Instaclustr. Please reconcile the specs manually, " +
+	"add \"instaclustr.com/allowSpecAmend: true \" annotation to be able to change the k8s resource spec."

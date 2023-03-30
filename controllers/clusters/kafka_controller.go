@@ -244,7 +244,7 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *clustersv1alpha1.Kafka, l
 
 		r.EventRecorder.Event(
 			k, models.Warning, models.UpdateFailed,
-			"There are external changes on Instaclustr, Please contact admin to reconcile the specification")
+			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 
 		return models.ExitReconcile
 	} else {
@@ -335,10 +335,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 				return models.ReconcileRequeue
 			}
 
-			l.Info("Please confirm cluster deletion via email or phone. "+
-				"If you have canceled a cluster deletion and want to put the cluster on deletion again, "+
-				"remove \"triggered\" from Instaclustr.com/ClusterDeletionAnnotation annotation.",
-				"cluster ID", kafka.Status.ID)
+			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", kafka.Status.ID)
 
 			return models.ExitReconcile
 		}
@@ -435,10 +432,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 		if iKafka.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			kafka.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			!kafka.Spec.IsEqual(iKafka.Spec) {
-			l.Info("Kafka spec of k8s is different from Instaclustr. Please reconcile the specs manually, "+
-				"add \"instaclustr.com/allowSpecAmend: true \" annotation to be able to change k8s resource spec.",
-				"instaclustr data", iKafka.Spec,
-				"k8s resource spec", kafka.Spec)
+			l.Info(msgExternalChanges, "instaclustr data", iKafka.Spec, "k8s resource spec", kafka.Spec)
 
 			patch := kafka.NewPatch()
 			kafka.Annotations[models.ExternalChangesAnnotation] = models.True
@@ -451,7 +445,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			}
 
 			r.EventRecorder.Event(kafka, models.Warning, models.ExternalChanges,
-				"There are external changes on Instaclustr. Please contact admins to reconcile the specs.")
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)
