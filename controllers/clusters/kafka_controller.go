@@ -337,6 +337,9 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 
 			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", kafka.Status.ID)
 
+			r.EventRecorder.Event(kafka, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
+
 			return models.ExitReconcile
 		}
 	}
