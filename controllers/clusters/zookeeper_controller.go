@@ -239,7 +239,7 @@ func (r *ZookeeperReconciler) handleExternalChanges(zook *clustersv1alpha1.Zooke
 			return models.ReconcileRequeue
 		}
 
-		l.Info("External changes have been reconciled", "kafka ID", zook.Status.ID)
+		l.Info("External changes have been reconciled", "resource ID", zook.Status.ID)
 		r.EventRecorder.Event(zook, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 		return models.ExitReconcile
@@ -308,6 +308,9 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 			}
 
 			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", zook.Status.ID)
+
+			r.EventRecorder.Event(zook, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
 			return models.ExitReconcile
 		}

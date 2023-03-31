@@ -126,6 +126,11 @@ func (k *KafkaConnect) ValidateUpdate(old runtime.Object) error {
 		return k.ValidateCreate()
 	}
 
+	// skip validation when get cluster specification update from Instaclustr UI
+	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
 	oldCluster, ok := old.(*KafkaConnect)
 	if !ok {
 		return models.ErrTypeAssertion

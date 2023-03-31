@@ -188,6 +188,10 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *cl
 		return models.ReconcileRequeue
 	}
 
+	if kc.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return r.handleExternalChanges(kc, iKC, l)
+	}
+
 	if !kc.Spec.IsEqual(iKC.Spec) {
 		err = r.API.UpdateKafkaConnect(kc.Status.ID, kc.Spec.NewDCsUpdate())
 		if err != nil {
@@ -227,23 +231,53 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *cl
 	return models.ExitReconcile
 }
 
+func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
+	if k.Annotations[models.AllowSpecAmendAnnotation] != models.True {
+		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+			"specification of k8s resource", k.Spec,
+			"data from Instaclustr ", ik.Spec)
+
+		r.EventRecorder.Event(
+			k, models.Warning, models.UpdateFailed,
+			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+
+		return models.ExitReconcile
+	} else {
+		if !k.Spec.IsEqual(ik.Spec) {
+			l.Info("Specifications still don't match. Double check the difference",
+				"specification of k8s resource", k.Spec,
+				"data from Instaclustr ", ik.Spec)
+
+			return models.ExitReconcile
+		}
+
+		patch := k.NewPatch()
+
+		k.Annotations[models.ExternalChangesAnnotation] = ""
+		k.Annotations[models.AllowSpecAmendAnnotation] = ""
+
+		err := r.Patch(context.Background(), k, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
+
+			r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("External changes have been reconciled", "resource ID", k.Status.ID)
+		r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+		return models.ExitReconcile
+	}
+}
+
 func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
 	l = l.WithName("Deletion Event")
 
-	patch := kc.NewPatch()
-	err := r.Patch(ctx, kc, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch Kafka Connect cluster",
-			"cluster name", kc.Spec.Name, "cluster state", kc.Status.State)
-		r.EventRecorder.Eventf(
-			kc, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
-	_, err = r.API.GetKafkaConnect(kc.Status.ID)
+	_, err := r.API.GetKafkaConnect(kc.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get Kafka Connect cluster",
 			"cluster name", kc.Spec.Name,
@@ -256,7 +290,13 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 		return models.ReconcileRequeue
 	}
 
+	patch := kc.NewPatch()
+
 	if !errors.Is(err, instaclustr.NotFound) {
+		l.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", kc.Spec.Name,
+			"cluster ID", kc.Status.ID)
+
 		err = r.API.DeleteCluster(kc.Status.ID, instaclustr.KafkaConnectEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot delete Kafka Connect cluster",
@@ -270,11 +310,28 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 			return models.ReconcileRequeue
 		}
 
-		r.EventRecorder.Eventf(
-			kc, models.Normal, models.DeletionStarted,
-			"Cluster deletion request is sent",
-		)
-		return models.ReconcileRequeue
+		if kc.Spec.TwoFactorDelete != nil {
+			kc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			kc.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, kc, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch cluster resource",
+					"cluster name", kc.Spec.Name,
+					"cluster state", kc.Status.State)
+				r.EventRecorder.Eventf(kc, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err)
+
+				return models.ReconcileRequeue
+			}
+
+			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", kc.Status.ID)
+
+			r.EventRecorder.Event(kc, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
+
+			return models.ExitReconcile
+		}
 	}
 
 	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
@@ -318,6 +375,20 @@ func (r *KafkaConnectReconciler) startClusterStatusJob(kc *clustersv1alpha1.Kafk
 func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaConnect) scheduler.Job {
 	l := log.Log.WithValues("component", "kafkaConnectStatusClusterJob")
 	return func() error {
+		namespacedName := client.ObjectKeyFromObject(kc)
+		err := r.Get(context.Background(), namespacedName, kc)
+		if k8serrors.IsNotFound(err) {
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
+			return nil
+		}
+		if err != nil {
+			l.Error(err, "Cannot get cluster resource",
+				"resource name", kc.Name)
+			return err
+		}
+
 		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
@@ -334,7 +405,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 					)
 
 					patch := kc.NewPatch()
-					kc.Annotations[models.DeletionConfirmed] = models.True
+					kc.Annotations[models.ClusterDeletionAnnotation] = ""
 					kc.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					err = r.Patch(context.TODO(), kc, patch)
 					if err != nil {
@@ -432,19 +503,21 @@ func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
+				if deleting := confirmDeletion(event.ObjectNew); deleting {
+					return true
+				}
+
 				newObj := event.ObjectNew.(*clustersv1alpha1.KafkaConnect)
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
-
-				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-				confirmDeletion(event.ObjectNew)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
 					return true
 				}
 
+				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
