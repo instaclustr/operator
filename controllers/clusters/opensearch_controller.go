@@ -25,6 +25,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,21 +45,19 @@ import (
 // OpenSearchReconciler reconciles a OpenSearch object
 type OpenSearchReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=opensearches,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=opensearches/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=opensearches/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the OpenSearch object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
@@ -124,17 +123,22 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 			id, err = r.API.RestoreOpenSearchCluster(openSearch.Spec.RestoreFrom)
 			if err != nil {
 				logger.Error(err, "Cannot restore OpenSearch cluster from backup",
-					"original cluster ID", openSearch.Spec.RestoreFrom.ClusterID,
-				)
+					"original cluster ID", openSearch.Spec.RestoreFrom.ClusterID)
+
+				r.EventRecorder.Eventf(openSearch, models.Warning, models.CreationFailed,
+					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
+					err)
 
 				return models.ReconcileRequeue
 			}
 
-			logger.Info(
-				"OpenSearch cluster was created from backup",
+			logger.Info("OpenSearch cluster was created from backup",
 				"cluster ID", id,
-				"original cluster ID", openSearch.Spec.RestoreFrom.ClusterID,
-			)
+				"original cluster ID", openSearch.Spec.RestoreFrom.ClusterID)
+
+			r.EventRecorder.Eventf(openSearch, models.Normal, models.Created,
+				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
+				openSearch.Spec.RestoreFrom.ClusterID, id)
 		} else {
 			logger.Info(
 				"Creating OpenSearch cluster",
@@ -146,17 +150,21 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 			if err != nil {
 				logger.Error(err, "Cannot create OpenSearch cluster",
 					"cluster name", openSearch.Spec.Name,
-					"cluster spec", openSearch.Spec,
-				)
+					"cluster spec", openSearch.Spec)
+
+				r.EventRecorder.Eventf(openSearch, models.Warning, models.CreationFailed,
+					"Cluster creation on the Instaclustr is failed. Reason: %v",
+					err)
 
 				return models.ReconcileRequeue
 			}
 
-			logger.Info(
-				"OpenSearch cluster was created",
+			logger.Info("OpenSearch cluster was created",
 				"cluster ID", id,
-				"cluster name", openSearch.Spec.Name,
-			)
+				"cluster name", openSearch.Spec.Name)
+
+			r.EventRecorder.Eventf(openSearch, models.Normal, models.Created,
+				"Cluster creation request is sent. Cluster ID: %s", id)
 		}
 
 		patch := openSearch.NewPatch()
@@ -165,8 +173,10 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		if err != nil {
 			logger.Error(err, "Cannot patch OpenSearch cluster status",
 				"original cluster ID", openSearch.Spec.RestoreFrom.ClusterID,
-				"cluster ID", id,
-			)
+				"cluster ID", id)
+
+			r.EventRecorder.Eventf(openSearch, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v", err)
 
 			return models.ReconcileRequeue
 		}
@@ -177,8 +187,10 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		if err != nil {
 			logger.Error(err, "Cannot patch OpenSearch cluster spec",
 				"cluster ID", openSearch.Status.ID,
-				"spec", openSearch.Spec,
-			)
+				"spec", openSearch.Spec)
+
+			r.EventRecorder.Eventf(openSearch, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
 
 			return models.ReconcileRequeue
 		}
@@ -200,29 +212,35 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	err = r.startClusterStatusJob(openSearch)
 	if err != nil {
 		logger.Error(err, "Cannot start OpenSearch cluster status job",
-			"cluster ID", openSearch.Status.ID,
-		)
+			"cluster ID", openSearch.Status.ID)
+
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.CreationFailed,
+			"Cluster status check job is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Event(openSearch, models.Normal, models.Created,
+		"Cluster status check job is started")
 
 	err = r.startClusterBackupsJob(openSearch)
 	if err != nil {
 		logger.Error(err, "Cannot start OpenSearch cluster backups check job",
-			"cluster ID", openSearch.Status.ID,
-		)
+			"cluster ID", openSearch.Status.ID)
+
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.CreationFailed,
+			"Cluster backups check job is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
 
+	r.EventRecorder.Event(openSearch, models.Normal, models.Created,
+		"Cluster backups check job is started")
+
 	logger.Info(
 		"OpenSearch resource has been created",
-		"cluster name", openSearch.Name,
-		"cluster ID", openSearch.Status.ID,
-		"kind", openSearch.Kind,
-		"api version", openSearch.APIVersion,
-		"namespace", openSearch.Namespace,
-	)
+		"cluster name", openSearch.Name, "cluster ID", openSearch.Status.ID,
+		"api version", openSearch.APIVersion, "namespace", openSearch.Namespace)
 
 	return models.ExitReconcile
 }
@@ -236,8 +254,11 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 	if err != nil {
 		logger.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
 			"cluster name", openSearch.Spec.Name,
-			"cluster ID", openSearch.Status.ID,
-		)
+			"cluster ID", openSearch.Status.ID)
+
+		r.EventRecorder.Eventf(
+			openSearch, models.Warning, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -248,6 +269,9 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			"cluster name", openSearch.Spec.Name,
 			"cluster ID", openSearch.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.ConvertionFailed,
+			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -296,8 +320,11 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 
 		logger.Error(err, "Cannot reconcile data centres node size",
 			"cluster name", openSearch.Spec.Name,
-			"cluster status", openSearch.Status,
-		)
+			"cluster status", openSearch.Status)
+
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.UpdateFailed,
+			"Cluster update on the Instaclustr API is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -308,6 +335,9 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			"twoFactorDelete", openSearch.Spec.TwoFactorDelete,
 			"description", openSearch.Spec.Description,
 		)
+
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.UpdateFailed,
+			"Cluster description and TwoFactoDelete update is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -321,13 +351,15 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			"cluster metadata", openSearch.ObjectMeta,
 		)
 
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("OpenSearch cluster was updated",
 		"cluster name", openSearch.Spec.Name,
-		"cluster status", openSearch.Status,
-	)
+		"cluster status", openSearch.Status)
 
 	return models.ExitReconcile
 }
@@ -363,6 +395,9 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			"cluster status", openSearch.Status.State,
 		)
 
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.FetchFailed,
+			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -391,6 +426,9 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 				"cluster status", openSearch.Status.State,
 			)
 
+			r.EventRecorder.Eventf(openSearch, models.Warning, models.DeletionFailed,
+				"Cluster deletion is failed on the Instaclustr. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
@@ -412,6 +450,10 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		logger.Error(err, "Cannot delete cluster backup resources",
 			"cluster ID", openSearch.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.DeletionFailed,
+			"Cluster backups deletion is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -429,6 +471,9 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			"cluster ID", openSearch.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(openSearch, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -436,6 +481,9 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		"cluster name", openSearch.Spec.Name,
 		"cluster ID", openSearch.Status.ID,
 	)
+
+	r.EventRecorder.Event(openSearch, models.Normal, models.Deleted,
+		"Cluster resource is deleted")
 
 	return models.ExitReconcile
 }
