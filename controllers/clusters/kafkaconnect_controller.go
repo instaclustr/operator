@@ -460,6 +460,25 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 			}
 		}
 
+		if iKC.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			kc.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			!kc.Spec.IsEqual(iKC.Spec) {
+			l.Info(msgExternalChanges, "instaclustr data", iKC.Spec, "k8s resource spec", kc.Spec)
+
+			patch := kc.NewPatch()
+			kc.Annotations[models.ExternalChangesAnnotation] = models.True
+
+			err = r.Patch(context.Background(), kc, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch cluster cluster",
+					"cluster name", kc.Spec.Name, "cluster state", kc.Status.State)
+				return err
+			}
+
+			r.EventRecorder.Event(kc, models.Warning, models.ExternalChanges,
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+		}
+
 		maintEvents, err := r.API.GetMaintenanceEvents(kc.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get Kafka Connect cluster maintenance events",

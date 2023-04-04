@@ -116,19 +116,13 @@ func (k *KafkaConnect) ValidateCreate() error {
 func (k *KafkaConnect) ValidateUpdate(old runtime.Object) error {
 	kafkaconnectlog.Info("validate update", "name", k.Name)
 
-	if k.DeletionTimestamp != nil &&
-		(len(k.Spec.TwoFactorDelete) != 0 &&
-			k.Annotations[models.DeletionConfirmed] != models.True) {
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
 	if k.Status.ID == "" {
 		return k.ValidateCreate()
-	}
-
-	// skip validation when get cluster specification update from Instaclustr UI
-	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return nil
 	}
 
 	oldCluster, ok := old.(*KafkaConnect)

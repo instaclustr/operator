@@ -105,9 +105,8 @@ func (pg *PostgreSQL) ValidateCreate() error {
 func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 	postgresqllog.Info("validate update", "name", r.Name)
 
-	if r.DeletionTimestamp != nil &&
-		(len(r.Spec.TwoFactorDelete) != 0 &&
-			r.Annotations[models.DeletionConfirmed] != models.True) {
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if r.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 

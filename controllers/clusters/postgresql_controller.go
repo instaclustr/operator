@@ -70,8 +70,8 @@ type PostgreSQLReconciler struct {
 func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	pgCluster := &clustersv1alpha1.PostgreSQL{}
-	err := r.Client.Get(ctx, req.NamespacedName, pgCluster)
+	pg := &clustersv1alpha1.PostgreSQL{}
+	err := r.Client.Get(ctx, req.NamespacedName, pg)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info("PostgreSQL custom resource is not found",
@@ -87,25 +87,25 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return models.ExitReconcile, err
 	}
 
-	switch pgCluster.Annotations[models.ResourceStateAnnotation] {
+	switch pg.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.HandleCreateCluster(ctx, pgCluster, logger), nil
+		return r.HandleCreateCluster(ctx, pg, logger), nil
 	case models.UpdatingEvent:
-		return r.HandleUpdateCluster(ctx, pgCluster, logger), nil
+		return r.HandleUpdateCluster(ctx, pg, logger), nil
 	case models.DeletingEvent:
-		return r.HandleDeleteCluster(ctx, pgCluster, logger), nil
+		return r.HandleDeleteCluster(ctx, pg, logger), nil
 	case models.GenericEvent:
 		logger.Info("PostgreSQL resource generic event isn't handled",
-			"cluster name", pgCluster.Spec.Name,
+			"cluster name", pg.Spec.Name,
 			"request", req,
-			"event", pgCluster.Annotations[models.ResourceStateAnnotation],
+			"event", pg.Annotations[models.ResourceStateAnnotation],
 		)
 		return models.ExitReconcile, nil
 	default:
 		logger.Info("PostgreSQL resource event isn't handled",
-			"cluster name", pgCluster.Spec.Name,
+			"cluster name", pg.Spec.Name,
 			"request", req,
-			"event", pgCluster.Annotations[models.ResourceStateAnnotation],
+			"event", pg.Annotations[models.ResourceStateAnnotation],
 		)
 		return models.ExitReconcile, nil
 	}
@@ -113,23 +113,23 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 func (r *PostgreSQLReconciler) HandleCreateCluster(
 	ctx context.Context,
-	pgCluster *clustersv1alpha1.PostgreSQL,
+	pg *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
 	var id string
 	var err error
 
-	patch := pgCluster.NewPatch()
-	if pgCluster.Status.DefaultUserSecretName == "" {
-		secretName, err := pgCluster.GetUserSecretName(ctx, r.Client)
+	patch := pg.NewPatch()
+	if pg.Status.DefaultUserSecretName == "" {
+		secretName, err := pg.GetUserSecretName(ctx, r.Client)
 		if err != nil {
 			logger.Error(err, "Cannot get PostgreSQL secret name",
-				"cluster name", pgCluster.Spec.Name,
-				"cluster ID", pgCluster.Status.ID,
+				"cluster name", pg.Spec.Name,
+				"cluster ID", pg.Status.ID,
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Warning, models.FetchSecretFailed,
+				pg, models.Warning, models.FetchSecretFailed,
 				"Default user secret fetch is failed. Reason: %v",
 				err,
 			)
@@ -137,18 +137,18 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			return models.ReconcileRequeue
 		}
 
-		pgCluster.Status.DefaultUserSecretName = secretName
+		pg.Status.DefaultUserSecretName = secretName
 
 		if secretName == "" {
-			secret := pgCluster.NewUserSecret()
+			secret := pg.NewUserSecret()
 			err = r.Client.Create(ctx, secret)
 			if err != nil {
 				logger.Error(err, "Cannot create PostgreSQL default user secret",
-					"cluster ID", pgCluster.Status.ID,
+					"cluster ID", pg.Status.ID,
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Warning, models.CreationFailed,
+					pg, models.Warning, models.CreationFailed,
 					"Default user secret creation is failed. Reason: %v",
 					err,
 				)
@@ -156,36 +156,36 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				return models.ReconcileRequeue
 			}
 
-			pgCluster.Status.DefaultUserSecretName = secret.Name
+			pg.Status.DefaultUserSecretName = secret.Name
 
 			logger.Info("PostgreSQL default user secret was created",
 				"secret name", secret.Name,
-				"cluster ID", pgCluster.Status.ID,
+				"cluster ID", pg.Status.ID,
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Normal, models.Created,
+				pg, models.Normal, models.Created,
 				"Default user secret is created. Secret name: %s",
-				pgCluster.Status.DefaultUserSecretName,
+				pg.Status.DefaultUserSecretName,
 			)
 		}
 	}
 
-	if pgCluster.Status.ID == "" {
-		if pgCluster.Spec.HasRestore() {
+	if pg.Status.ID == "" {
+		if pg.Spec.HasRestore() {
 			logger.Info(
 				"Creating PostgreSQL cluster from backup",
-				"original cluster ID", pgCluster.Spec.PgRestoreFrom.ClusterID,
+				"original cluster ID", pg.Spec.PgRestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestorePgCluster(pgCluster.Spec.PgRestoreFrom)
+			id, err = r.API.RestorePgCluster(pg.Spec.PgRestoreFrom)
 			if err != nil {
 				logger.Error(err, "Cannot restore PostgreSQL cluster from backup",
-					"original cluster ID", pgCluster.Spec.PgRestoreFrom.ClusterID,
+					"original cluster ID", pg.Spec.PgRestoreFrom.ClusterID,
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Warning, models.CreationFailed,
+					pg, models.Warning, models.CreationFailed,
 					"Cluster restoration from backup on Instaclustr cloud is failed. Reason: %v",
 					err,
 				)
@@ -193,33 +193,33 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				return models.ReconcileRequeue
 			}
 
-			pgCluster.Status.ID = id
-			pgCluster.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+			pg.Status.ID = id
+			pg.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Normal, models.Created,
+				pg, models.Normal, models.Created,
 				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
-				pgCluster.Spec.PgRestoreFrom.ClusterID,
-				pgCluster.Status.ID,
+				pg.Spec.PgRestoreFrom.ClusterID,
+				pg.Status.ID,
 			)
 		} else {
 			logger.Info(
 				"Creating PostgreSQL cluster",
-				"cluster name", pgCluster.Spec.Name,
-				"data centres", pgCluster.Spec.DataCentres,
+				"cluster name", pg.Spec.Name,
+				"data centres", pg.Spec.DataCentres,
 			)
 
-			pgSpec := pgCluster.Spec.ToInstAPI()
+			pgSpec := pg.Spec.ToInstAPI()
 
 			id, err = r.API.CreateCluster(instaclustr.PGSQLEndpoint, pgSpec)
 			if err != nil {
 				logger.Error(
 					err, "Cannot create PostgreSQL cluster",
-					"spec", pgCluster.Spec,
+					"spec", pg.Spec,
 				)
 
 				r.EventRecorder.Eventf(
-					pgCluster, models.Warning, models.CreationFailed,
+					pg, models.Warning, models.CreationFailed,
 					"Cluster creation on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -227,35 +227,35 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 				return models.ReconcileRequeue
 			}
 
-			pgCluster.Status.ID = id
-			pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+			pg.Status.ID = id
+			pg.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Normal, models.Created,
+				pg, models.Normal, models.Created,
 				"Cluster creation request is sent. Cluster ID: %s",
-				pgCluster.Status.ID,
+				pg.Status.ID,
 			)
 		}
 
 		logger.Info(
 			"PostgreSQL resource has been created",
-			"cluster name", pgCluster.Name,
-			"cluster ID", pgCluster.Status.ID,
-			"kind", pgCluster.Kind,
-			"api version", pgCluster.APIVersion,
-			"namespace", pgCluster.Namespace,
+			"cluster name", pg.Name,
+			"cluster ID", pg.Status.ID,
+			"kind", pg.Kind,
+			"api version", pg.APIVersion,
+			"namespace", pg.Namespace,
 		)
 	}
 
-	err = r.Status().Patch(ctx, pgCluster, patch)
+	err = r.Status().Patch(ctx, pg, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch PostgreSQL resource status",
-			"cluster name", pgCluster.Spec.Name,
-			"status", pgCluster.Status,
+			"cluster name", pg.Spec.Name,
+			"status", pg.Status,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.PatchFailed,
+			pg, models.Warning, models.PatchFailed,
 			"Cluster resource status patch is failed. Reason: %v",
 			err,
 		)
@@ -263,18 +263,17 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	pgCluster.Annotations[models.DeletionConfirmed] = models.False
-	controllerutil.AddFinalizer(pgCluster, models.DeletionFinalizer)
+	controllerutil.AddFinalizer(pg, models.DeletionFinalizer)
 
-	err = r.Patch(ctx, pgCluster, patch)
+	err = r.Patch(ctx, pg, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch PostgreSQL resource status",
-			"cluster name", pgCluster.Spec.Name,
-			"status", pgCluster.Status,
+			"cluster name", pg.Spec.Name,
+			"status", pg.Status,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.PatchFailed,
+			pg, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -282,14 +281,14 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	err = r.startClusterStatusJob(pgCluster)
+	err = r.startClusterStatusJob(pg)
 	if err != nil {
 		logger.Error(err, "Cannot start PostgreSQL cluster status check job",
-			"cluster ID", pgCluster.Status.ID,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.CreationFailed,
+			pg, models.Warning, models.CreationFailed,
 			"Cluster status check job is failed. Reason: %v",
 			err,
 		)
@@ -297,18 +296,18 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	}
 
 	r.EventRecorder.Eventf(
-		pgCluster, models.Normal, models.Created,
+		pg, models.Normal, models.Created,
 		"Cluster status check job is started",
 	)
 
-	err = r.startClusterBackupsJob(pgCluster)
+	err = r.startClusterBackupsJob(pg)
 	if err != nil {
 		logger.Error(err, "Cannot start PostgreSQL cluster backups check job",
-			"cluster ID", pgCluster.Status.ID,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.CreationFailed,
+			pg, models.Warning, models.CreationFailed,
 			"Cluster backups check job is failed. Reason: %v",
 			err,
 		)
@@ -316,11 +315,11 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	}
 
 	r.EventRecorder.Eventf(
-		pgCluster, models.Normal, models.Created,
+		pg, models.Normal, models.Created,
 		"Cluster backups check job is started",
 	)
 
-	if pgCluster.Annotations[models.ResourceStateAnnotation] == models.UpdatingEvent {
+	if pg.Annotations[models.ResourceStateAnnotation] == models.UpdatingEvent {
 		return reconcile.Result{Requeue: true}
 	}
 
@@ -329,35 +328,35 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	ctx context.Context,
-	pgCluster *clustersv1alpha1.PostgreSQL,
+	pg *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
-	iData, err := r.API.GetPostgreSQL(pgCluster.Status.ID)
+	iData, err := r.API.GetPostgreSQL(pg.Status.ID)
 	if err != nil {
 		logger.Error(
 			err, "Cannot get PostgreSQL cluster status from the Instaclustr API",
-			"cluster name", pgCluster.Spec.Name,
-			"cluster ID", pgCluster.Status.ID,
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.FetchFailed,
+			pg, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
 	}
 
-	iPg, err := pgCluster.FromInstAPI(iData)
+	iPg, err := pg.FromInstAPI(iData)
 	if err != nil {
 		logger.Error(
 			err, "Cannot convert PostgreSQL cluster status from the Instaclustr API",
-			"cluster name", pgCluster.Spec.Name,
-			"cluster ID", pgCluster.Status.ID,
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.ConvertionFailed,
+			pg, models.Warning, models.ConvertionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
@@ -366,7 +365,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 
 	if iPg.Status.CurrentClusterOperationStatus != models.NoOperation {
 		logger.Info("PostgreSQL cluster is not ready to update",
-			"cluster name", pgCluster.Spec.Name,
+			"cluster name", pg.Spec.Name,
 			"cluster status", iPg.Status.State,
 			"current operation status", iPg.Status.CurrentClusterOperationStatus,
 		)
@@ -374,15 +373,19 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	if !pgCluster.Spec.AreDCsEqual(iPg.Spec.DataCentres) {
-		err = r.updateDataCentres(pgCluster)
+	if pg.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return r.handleExternalChanges(pg, iPg, logger)
+	}
+
+	if !pg.Spec.AreDCsEqual(iPg.Spec.DataCentres) {
+		err = r.updateDataCentres(pg)
 		if err != nil {
 			logger.Error(err, "Cannot update Data Centres",
-				"cluster name", pgCluster.Spec.Name,
+				"cluster name", pg.Spec.Name,
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Warning, models.UpdateFailed,
+				pg, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
@@ -390,19 +393,19 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		}
 
 		logger.Info("PostgreSQL cluster data centres were updated",
-			"cluster name", pgCluster.Spec.Name,
+			"cluster name", pg.Spec.Name,
 		)
 	}
 
-	iConfigs, err := r.API.GetPostgreSQLConfigs(pgCluster.Status.ID)
+	iConfigs, err := r.API.GetPostgreSQLConfigs(pg.Status.ID)
 	if err != nil {
 		logger.Error(err, "Cannot get PostgreSQL cluster configs",
-			"cluster name", pgCluster.Spec.Name,
-			"clusterID", pgCluster.Status.ID,
+			"cluster name", pg.Spec.Name,
+			"clusterID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.FetchFailed,
+			pg, models.Warning, models.FetchFailed,
 			"Cluster configs fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -411,19 +414,19 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 
 	for _, iConfig := range iConfigs {
 		err = r.reconcileClusterConfigurations(
-			pgCluster.Status.ID,
-			pgCluster.Spec.ClusterConfigurations,
+			pg.Status.ID,
+			pg.Spec.ClusterConfigurations,
 			iConfig.ConfigurationProperties)
 		if err != nil {
 			logger.Error(err, "Cannot reconcile PostgreSQL cluster configs",
-				"cluster name", pgCluster.Spec.Name,
-				"clusterID", pgCluster.Status.ID,
-				"configs", pgCluster.Spec.ClusterConfigurations,
+				"cluster name", pg.Spec.Name,
+				"clusterID", pg.Status.ID,
+				"configs", pg.Spec.ClusterConfigurations,
 				"inst configs", iConfig,
 			)
 
 			r.EventRecorder.Eventf(
-				pgCluster, models.Warning, models.UpdateFailed,
+				pg, models.Warning, models.UpdateFailed,
 				"Cluster configs fetch from the Instaclustr API is failed. Reason: %v",
 				err,
 			)
@@ -431,51 +434,51 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		}
 
 		logger.Info("PostgreSQL cluster configurations were updated",
-			"cluster name", pgCluster.Spec.Name,
+			"cluster name", pg.Spec.Name,
 		)
 	}
 
-	err = r.updateDescriptionAndTwoFactorDelete(pgCluster)
+	err = r.updateDescriptionAndTwoFactorDelete(pg)
 	if err != nil {
 		logger.Error(err, "Cannot update description and twoFactorDelete",
-			"cluster name", pgCluster.Spec.Name,
-			"two factor delete", pgCluster.Spec.TwoFactorDelete,
-			"description", pgCluster.Spec.Description,
+			"cluster name", pg.Spec.Name,
+			"two factor delete", pg.Spec.TwoFactorDelete,
+			"description", pg.Spec.Description,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.UpdateFailed,
+			pg, models.Warning, models.UpdateFailed,
 			"Cluster description and TwoFactoDelete update is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
 	}
 
-	err = r.updateDefaultUserPassword(ctx, pgCluster)
+	err = r.updateDefaultUserPassword(ctx, pg)
 	if err != nil {
 		logger.Error(err, "Cannot update PostgreSQL default user password",
-			"cluster ID", pgCluster.Status.ID,
-			"secret name", pgCluster.Status.DefaultUserSecretName,
+			"cluster ID", pg.Status.ID,
+			"secret name", pg.Status.DefaultUserSecretName,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.UpdateFailed,
+			pg, models.Warning, models.UpdateFailed,
 			"Default user password update is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
 	}
 
-	pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.patchClusterMetadata(ctx, pgCluster, logger)
+	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.patchClusterMetadata(ctx, pg, logger)
 	if err != nil {
 		logger.Error(err, "Cannot patch PostgreSQL resource metadata",
-			"cluster name", pgCluster.Spec.Name,
-			"cluster metadata", pgCluster.ObjectMeta,
+			"cluster name", pg.Spec.Name,
+			"cluster metadata", pg.ObjectMeta,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.PatchFailed,
+			pg, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -483,27 +486,70 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	}
 
 	logger.Info("PostgreSQL cluster was updated",
-		"cluster name", pgCluster.Spec.Name,
-		"cluster status", pgCluster.Status.State,
+		"cluster name", pg.Spec.Name,
+		"cluster status", pg.Status.State,
 	)
 
 	return models.ExitReconcile
 }
 
+func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *clustersv1alpha1.PostgreSQL, l logr.Logger) reconcile.Result {
+	if pg.Annotations[models.AllowSpecAmendAnnotation] != models.True {
+		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+			"specification of k8s resource", pg.Spec,
+			"data from Instaclustr ", iPg.Spec)
+
+		r.EventRecorder.Event(
+			pg, models.Warning, models.UpdateFailed,
+			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+
+		return models.ExitReconcile
+	} else {
+		if !pg.Spec.IsEqual(iPg.Spec) {
+			l.Info("Specifications still don't match. Double check the difference",
+				"specification of k8s resource", pg.Spec,
+				"data from Instaclustr ", iPg.Spec)
+
+			return models.ExitReconcile
+		}
+
+		patch := pg.NewPatch()
+
+		pg.Annotations[models.ExternalChangesAnnotation] = ""
+		pg.Annotations[models.AllowSpecAmendAnnotation] = ""
+
+		err := r.Patch(context.Background(), pg, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
+
+			r.EventRecorder.Eventf(pg, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("External changes have been reconciled", "resource ID", pg.Status.ID)
+		r.EventRecorder.Event(pg, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+		return models.ExitReconcile
+	}
+}
+
 func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	ctx context.Context,
-	pgCluster *clustersv1alpha1.PostgreSQL,
+	pg *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
-	_, err := r.API.GetPostgreSQL(pgCluster.Status.ID)
+	_, err := r.API.GetPostgreSQL(pg.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get PostgreSQL cluster status",
-			"cluster name", pgCluster.Spec.Name,
-			"cluster ID", pgCluster.Status.ID,
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.FetchFailed,
+			pg, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
@@ -511,40 +557,18 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	}
 
 	if !errors.Is(err, instaclustr.NotFound) {
-		if !clusterresourcesv1alpha1.IsClusterBeingDeleted(pgCluster.DeletionTimestamp, len(pgCluster.Spec.TwoFactorDelete), pgCluster.Annotations[models.DeletionConfirmed]) {
-			pgCluster.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-			err = r.patchClusterMetadata(ctx, pgCluster, logger)
-			if err != nil {
-				logger.Error(err, "Cannot patch PostgreSQL cluster metadata",
-					"cluster name", pgCluster.Spec.Name,
-				)
+		logger.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID)
 
-				r.EventRecorder.Eventf(
-					pgCluster, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v",
-					err,
-				)
-				return models.ReconcileRequeue
-			}
-
-			logger.Info("PostgreSQL cluster deletion is not confirmed",
-				"cluster name", pgCluster.Spec.Name,
-				"cluster ID", pgCluster.Status.ID,
-				"confirmation annotation", models.DeletionConfirmed,
-				"annotation value", pgCluster.Annotations[models.DeletionConfirmed],
-			)
-
-			return models.ReconcileRequeue
-		}
-
-		err = r.API.DeleteCluster(pgCluster.Status.ID, instaclustr.PGSQLEndpoint)
+		err = r.API.DeleteCluster(pg.Status.ID, instaclustr.PGSQLEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete PostgreSQL cluster",
-				"cluster name", pgCluster.Spec.Name,
-				"cluster status", pgCluster.Status.State,
+				"cluster name", pg.Spec.Name,
+				"cluster status", pg.Status.State,
 			)
 			r.EventRecorder.Eventf(
-				pgCluster, models.Warning, models.DeletionFailed,
+				pg, models.Warning, models.DeletionFailed,
 				"Cluster deletion is failed on the Instaclustr. Reason: %v",
 				err,
 			)
@@ -552,61 +576,73 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		logger.Info("PostgreSQL cluster is being deleted",
-			"cluster name", pgCluster.Spec.Name,
-			"cluster ID", pgCluster.Status.ID,
-			"status", pgCluster.Status.State,
-		)
+		if pg.Spec.TwoFactorDelete != nil {
+			patch := pg.NewPatch()
 
-		r.EventRecorder.Eventf(
-			pgCluster, models.Normal, models.DeletionStarted,
-			"Cluster deletion request is sent to the Instaclustr API.",
-		)
+			pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			pg.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, pg, patch)
+			if err != nil {
+				logger.Error(err, "Cannot patch cluster resource",
+					"cluster name", pg.Spec.Name,
+					"cluster state", pg.Status.State)
+				r.EventRecorder.Eventf(pg, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err)
 
-		return models.ReconcileRequeue
+				return models.ReconcileRequeue
+			}
+
+			logger.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", pg.Status.ID)
+
+			r.EventRecorder.Event(pg, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
+
+			return models.ExitReconcile
+		}
 	}
 
-	logger.Info("Deleting PostgreSQL default user secret",
-		"cluster ID", pgCluster.Status.ID,
-		"secret name", pgCluster.Status.DefaultUserSecretName,
+	logger.Info("PostgreSQL cluster is being deleted. Deleting PostgreSQL default user secret",
+		"cluster ID", pg.Status.ID,
+		"secret name", pg.Status.DefaultUserSecretName,
 	)
 
-	err = r.deleteSecret(ctx, pgCluster)
+	err = r.deleteSecret(ctx, pg)
 	if client.IgnoreNotFound(err) != nil {
 		logger.Error(err, "Cannot delete PostgreSQL default user secret",
-			"cluster ID", pgCluster.Status.ID,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.DeletionFailed,
+			pg, models.Warning, models.DeletionFailed,
 			"Default user secret deletion is failed. Secret name: %s. Reason: %v",
-			pgCluster.Status.DefaultUserSecretName,
+			pg.Status.DefaultUserSecretName,
 			err,
 		)
 		return models.ReconcileRequeue
 	}
 
 	logger.Info("Cluster PostgreSQL default user secret was deleted",
-		"cluster ID", pgCluster.Status.ID,
+		"cluster ID", pg.Status.ID,
 	)
 
 	r.EventRecorder.Eventf(
-		pgCluster, models.Normal, models.Deleted,
+		pg, models.Normal, models.Deleted,
 		"Default user secret is deleted. Secret name: %s",
-		pgCluster.Status.DefaultUserSecretName,
+		pg.Status.DefaultUserSecretName,
 	)
 
 	logger.Info("Deleting cluster backup resources",
-		"cluster ID", pgCluster.Status.ID,
+		"cluster ID", pg.Status.ID,
 	)
 
-	err = r.deleteBackups(ctx, pgCluster.Status.ID, pgCluster.Namespace)
+	err = r.deleteBackups(ctx, pg.Status.ID, pg.Namespace)
 	if err != nil {
 		logger.Error(err, "Cannot delete PostgreSQL backup resources",
-			"cluster ID", pgCluster.Status.ID,
+			"cluster ID", pg.Status.ID,
 		)
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.DeletionFailed,
+			pg, models.Warning, models.DeletionFailed,
 			"Cluster backups deletion is failed. Reason: %v",
 			err,
 		)
@@ -614,28 +650,28 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	}
 
 	logger.Info("Cluster backup resources were deleted",
-		"cluster ID", pgCluster.Status.ID,
+		"cluster ID", pg.Status.ID,
 	)
 
 	r.EventRecorder.Eventf(
-		pgCluster, models.Normal, models.Deleted,
+		pg, models.Normal, models.Deleted,
 		"Cluster backup resources are deleted",
 	)
 
-	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(pgCluster.GetJobID(scheduler.StatusChecker))
-	controllerutil.RemoveFinalizer(pgCluster, models.DeletionFinalizer)
-	pgCluster.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.patchClusterMetadata(ctx, pgCluster, logger)
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
+	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	err = r.patchClusterMetadata(ctx, pg, logger)
 	if err != nil {
 		logger.Error(
 			err, "Cannot patch PostgreSQL resource metadata after finalizer removal",
-			"cluster name", pgCluster.Spec.Name,
-			"cluster ID", pgCluster.Status.ID,
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			pgCluster, models.Warning, models.PatchFailed,
+			pg, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -643,12 +679,12 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	}
 
 	logger.Info("PostgreSQL cluster was deleted",
-		"cluster name", pgCluster.Spec.Name,
-		"cluster ID", pgCluster.Status.ID,
+		"cluster name", pg.Spec.Name,
+		"cluster ID", pg.Status.ID,
 	)
 
 	r.EventRecorder.Eventf(
-		pgCluster, models.Normal, models.Deleted,
+		pg, models.Normal, models.Deleted,
 		"Cluster resource is deleted",
 	)
 
@@ -657,9 +693,9 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 
 func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 	ctx context.Context,
-	pgCluster *clustersv1alpha1.PostgreSQL,
+	pg *clustersv1alpha1.PostgreSQL,
 ) error {
-	secret, err := pgCluster.GetUserSecret(ctx, r.Client)
+	secret, err := pg.GetUserSecret(ctx, r.Client)
 	if err != nil {
 		return err
 	}
@@ -668,14 +704,14 @@ func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 		return nil
 	}
 
-	password := pgCluster.GetUserPassword(secret)
+	password := pg.GetUserPassword(secret)
 
-	isValid := pgCluster.ValidateDefaultUserPassword(password)
+	isValid := pg.ValidateDefaultUserPassword(password)
 	if !isValid {
 		return models.ErrNotValidPassword
 	}
 
-	err = r.API.UpdatePostgreSQLDefaultUserPassword(pgCluster.Status.ID, password)
+	err = r.API.UpdatePostgreSQLDefaultUserPassword(pg.Status.ID, password)
 	if err != nil {
 		return err
 	}
@@ -683,10 +719,10 @@ func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 	return nil
 }
 
-func (r *PostgreSQLReconciler) startClusterStatusJob(cluster *clustersv1alpha1.PostgreSQL) error {
-	job := r.newWatchStatusJob(cluster)
+func (r *PostgreSQLReconciler) startClusterStatusJob(pg *clustersv1alpha1.PostgreSQL) error {
+	job := r.newWatchStatusJob(pg)
 
-	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -694,10 +730,10 @@ func (r *PostgreSQLReconciler) startClusterStatusJob(cluster *clustersv1alpha1.P
 	return nil
 }
 
-func (r *PostgreSQLReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.PostgreSQL) error {
-	job := r.newWatchBackupsJob(cluster)
+func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *clustersv1alpha1.PostgreSQL) error {
+	job := r.newWatchBackupsJob(pg)
 
-	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
+	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
 	if err != nil {
 		return err
 	}
@@ -709,25 +745,20 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 	l := log.Log.WithValues("component", "postgreSQLStatusClusterJob")
 
 	return func() error {
-		err := r.Get(context.Background(), types.NamespacedName{Namespace: pg.Namespace, Name: pg.Name}, pg)
+		namespacedName := client.ObjectKeyFromObject(pg)
+		err := r.Get(context.Background(), namespacedName, pg)
+		if k8serrors.IsNotFound(err) {
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
+			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+			return nil
+		}
 		if err != nil {
 			l.Error(err, "Cannot get PosgtreSQL custom resource",
 				"resource name", pg.Name,
 			)
 			return err
-		}
-
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(
-			pg.DeletionTimestamp,
-			len(pg.Spec.TwoFactorDelete),
-			pg.Annotations[models.DeletionConfirmed],
-		) {
-			l.Info("PostgreSQL cluster is being deleted. Status check job skipped",
-				"cluster name", pg.Spec.Name,
-				"cluster ID", pg.Status.ID,
-			)
-
-			return nil
 		}
 
 		instPGData, err := r.API.GetPostgreSQL(pg.Status.ID)
@@ -746,7 +777,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 					)
 
 					patch := pg.NewPatch()
-					pg.Annotations[models.DeletionConfirmed] = models.True
+					pg.Annotations[models.ClusterDeletionAnnotation] = ""
 					pg.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					err = r.Patch(context.TODO(), pg, patch)
 					if err != nil {
@@ -782,7 +813,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 			return err
 		}
 
-		instaPG, err := pg.FromInstAPI(instPGData)
+		iPg, err := pg.FromInstAPI(instPGData)
 		if err != nil {
 			l.Error(err, "Cannot convert PostgreSQL cluster status from Instaclustr",
 				"cluster name", pg.Spec.Name,
@@ -792,20 +823,20 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 			return err
 		}
 
-		if !areStatusesEqual(&instaPG.Status.ClusterStatus, &pg.Status.ClusterStatus) {
+		if !areStatusesEqual(&iPg.Status.ClusterStatus, &pg.Status.ClusterStatus) {
 			l.Info("Updating PostgreSQL cluster status",
-				"new cluster status", instaPG.Status,
+				"new cluster status", iPg.Status,
 				"old cluster status", pg.Status,
 			)
 
 			patch := pg.NewPatch()
-			pg.Status.ClusterStatus = instaPG.Status.ClusterStatus
+			pg.Status.ClusterStatus = iPg.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), pg, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch PostgreSQL cluster status",
 					"cluster name", pg.Spec.Name,
 					"cluster ID", pg.Status.ID,
-					"instaclustr status", instaPG.Status,
+					"instaclustr status", iPg.Status,
 				)
 				return err
 			}
@@ -821,24 +852,23 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 			return err
 		}
 
-		if pg.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			!pg.Spec.IsEqual(instaPG.Spec) {
-			l.Info("Updating PostgreSQL cluster spec",
-				"new cluster", instPGData,
-				"old cluster", pg,
-			)
+		if iPg.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			pg.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			!pg.Spec.IsEqual(iPg.Spec) {
+			l.Info(msgExternalChanges, "instaclustr data", iPg.Spec, "k8s resource spec", pg.Spec)
 
 			patch := pg.NewPatch()
-			pg.Spec = instaPG.Spec
+			pg.Annotations[models.ExternalChangesAnnotation] = models.True
+
 			err = r.Patch(context.Background(), pg, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch PostgreSQL cluster spec",
-					"cluster name", pg.Spec.Name,
-					"cluster ID", pg.Status.ID,
-					"instaclustr spec", instPGData,
-				)
+				l.Error(err, "Cannot patch cluster cluster",
+					"cluster name", pg.Spec.Name, "cluster state", pg.Status.State)
 				return err
 			}
+
+			r.EventRecorder.Event(pg, models.Warning, models.ExternalChanges,
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 		}
 
 		if !pg.Status.AreMaintenanceEventsEqual(maintEvents) {
@@ -864,30 +894,21 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 	}
 }
 
-func (r *PostgreSQLReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.PostgreSQL) scheduler.Job {
+func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *clustersv1alpha1.PostgreSQL) scheduler.Job {
 	l := log.Log.WithValues("component", "postgreSQLBackupsClusterJob")
 
 	return func() error {
 		ctx := context.Background()
-		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		err := r.Get(ctx, types.NamespacedName{Namespace: pg.Namespace, Name: pg.Name}, pg)
 		if err != nil {
 			return err
 		}
 
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
-			l.Info("PostgreSQL cluster is being deleted. Backups check job skipped",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
-			)
-
-			return nil
-		}
-
-		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, pg.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get PostgreSQL cluster backups",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
+				"cluster name", pg.Spec.Name,
+				"cluster ID", pg.Status.ID,
 			)
 
 			return err
@@ -895,7 +916,7 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Post
 
 		instBackupEvents := instBackups.GetBackupEvents(models.PgClusterKind)
 
-		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
+		k8sBackupList, err := r.listClusterBackups(ctx, pg.Status.ID, pg.Namespace)
 		if err != nil {
 			return err
 		}
@@ -958,7 +979,7 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Post
 				continue
 			}
 
-			backupSpec := cluster.NewBackupSpec(start)
+			backupSpec := pg.NewBackupSpec(start)
 			err = r.Create(ctx, backupSpec)
 			if err != nil {
 				return err
@@ -1166,10 +1187,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				newObj := event.Object.(*clustersv1alpha1.PostgreSQL)
-				if newObj.DeletionTimestamp != nil &&
-					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.Object); deleting {
 					return true
 				}
 
@@ -1177,12 +1195,11 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clustersv1alpha1.PostgreSQL)
-				if newObj.DeletionTimestamp != nil &&
-					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.ObjectNew); deleting {
 					return true
 				}
+
+				newObj := event.ObjectNew.(*clustersv1alpha1.PostgreSQL)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
