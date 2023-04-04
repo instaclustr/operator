@@ -85,15 +85,14 @@ func (r *Redis) ValidateCreate() error {
 func (r *Redis) ValidateUpdate(old runtime.Object) error {
 	redislog.Info("validate update", "name", r.Name)
 
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if r.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
 	oldRedis, ok := old.(*Redis)
 	if !ok {
 		return models.ErrTypeAssertion
-	}
-
-	if r.DeletionTimestamp != nil &&
-		(len(r.Spec.TwoFactorDelete) != 0 &&
-			r.Annotations[models.DeletionConfirmed] != models.True) {
-		return nil
 	}
 
 	if r.Status.ID == "" {

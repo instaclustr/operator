@@ -193,7 +193,6 @@ func (r *RedisReconciler) handleCreateCluster(
 	patch := redis.NewPatch()
 	controllerutil.AddFinalizer(redis, models.DeletionFinalizer)
 	redis.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-	redis.Annotations[models.DeletionConfirmed] = models.False
 	err = r.Patch(ctx, redis, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Redis cluster",
@@ -295,6 +294,10 @@ func (r *RedisReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	if redis.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return r.handleExternalChanges(redis, iRedis, logger)
+	}
+
 	if !redis.Spec.IsEqual(iRedis.Spec) {
 		err = r.API.UpdateCluster(redis.Status.ID, instaclustr.RedisEndpoint, redis.Spec.DCsToInstAPIUpdate())
 		if err != nil {
@@ -337,6 +340,49 @@ func (r *RedisReconciler) handleUpdateCluster(
 	return models.ExitReconcile
 }
 
+func (r *RedisReconciler) handleExternalChanges(redis, iRedis *clustersv1alpha1.Redis, l logr.Logger) reconcile.Result {
+	if redis.Annotations[models.AllowSpecAmendAnnotation] != models.True {
+		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+			"specification of k8s resource", redis.Spec,
+			"data from Instaclustr ", iRedis.Spec)
+
+		r.EventRecorder.Event(
+			redis, models.Warning, models.UpdateFailed,
+			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+
+		return models.ExitReconcile
+	} else {
+		if !redis.Spec.IsEqual(iRedis.Spec) {
+			l.Info("Specifications still don't match. Double check the difference",
+				"specification of k8s resource", redis.Spec,
+				"data from Instaclustr ", iRedis.Spec)
+
+			return models.ExitReconcile
+		}
+
+		patch := redis.NewPatch()
+
+		redis.Annotations[models.ExternalChangesAnnotation] = ""
+		redis.Annotations[models.AllowSpecAmendAnnotation] = ""
+
+		err := r.Patch(context.Background(), redis, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", redis.Spec.Name, "cluster ID", redis.Status.ID)
+
+			r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("External changes have been reconciled", "resource ID", redis.Status.ID)
+		r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+		return models.ExitReconcile
+	}
+}
+
 func (r *RedisReconciler) handleDeleteCluster(
 	ctx context.Context,
 	redis *clustersv1alpha1.Redis,
@@ -357,33 +403,11 @@ func (r *RedisReconciler) handleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
-	if !clusterresourcesv1alpha1.IsClusterBeingDeleted(redis.DeletionTimestamp, len(redis.Spec.TwoFactorDelete), redis.Annotations[models.DeletionConfirmed]) {
-		logger.Info("Redis cluster deletion is not confirmed",
-			"cluster ID", redis.Status.ID,
-			"cluster name", redis.Spec.Name,
-		)
-
-		patch := redis.NewPatch()
-		redis.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err = r.Patch(ctx, redis, patch)
-		if err != nil {
-			logger.Error(err, "Cannot patch Redis cluster metadata after finalizer removal",
-				"cluster name", redis.Spec.Name,
-				"cluster ID", redis.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue
-		}
-
-		return models.ExitReconcile
-	}
-
 	if !errors.Is(err, instaclustr.NotFound) {
+		logger.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", redis.Spec.Name,
+			"cluster ID", redis.Status.ID)
+
 		err = r.API.DeleteCluster(redis.Status.ID, instaclustr.RedisEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete Redis cluster",
@@ -399,17 +423,30 @@ func (r *RedisReconciler) handleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		r.EventRecorder.Eventf(
-			redis, models.Normal, models.DeletionStarted,
-			"Cluster deletion request is sent to the Instaclustr API.",
-		)
+		if redis.Spec.TwoFactorDelete != nil {
+			patch := redis.NewPatch()
 
-		logger.Info("Redis cluster is being deleted",
-			"cluster name", redis.Spec.Name,
-			"cluster ID", redis.Status.ID,
-		)
+			redis.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			redis.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, redis, patch)
+			if err != nil {
+				logger.Error(err, "Cannot patch cluster resource",
+					"cluster name", redis.Spec.Name,
+					"cluster state", redis.Status.State)
+				r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err)
 
-		return models.ReconcileRequeue
+				return models.ReconcileRequeue
+			}
+
+			logger.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", redis.Status.ID)
+
+			r.EventRecorder.Event(redis, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
+
+			return models.ExitReconcile
+		}
 	}
 
 	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
@@ -498,17 +535,13 @@ func (r *RedisReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Redis
 func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) scheduler.Job {
 	l := log.Log.WithValues("component", "redisStatusClusterJob")
 	return func() error {
-		err := r.Get(context.TODO(), types.NamespacedName{Name: redis.Name, Namespace: redis.Namespace}, redis)
-		if err != nil {
-			return err
-		}
-
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(redis.DeletionTimestamp, len(redis.Spec.TwoFactorDelete), redis.Annotations[models.DeletionConfirmed]) {
-			l.Info("Redis cluster is being deleted. Status check job skipped",
-				"cluster name", redis.Spec.Name,
-				"cluster ID", redis.Status.ID,
-			)
-
+		namespacedName := client.ObjectKeyFromObject(redis)
+		err := r.Get(context.Background(), namespacedName, redis)
+		if k8serrors.IsNotFound(err) {
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
+			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 
@@ -528,7 +561,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 					)
 
 					patch := redis.NewPatch()
-					redis.Annotations[models.DeletionConfirmed] = models.True
+					redis.Annotations[models.ClusterDeletionAnnotation] = ""
 					redis.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					err = r.Patch(context.TODO(), redis, patch)
 					if err != nil {
@@ -592,21 +625,22 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 		}
 
 		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			redis.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			!redis.Spec.IsEqual(iRedis.Spec) {
+			l.Info(msgExternalChanges, "instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
+
 			patch := redis.NewPatch()
-			redis.Spec = iRedis.Spec
+			redis.Annotations[models.ExternalChangesAnnotation] = models.True
+
 			err = r.Patch(context.Background(), redis, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Redis cluster spec",
-					"cluster ID", redis.Status.ID,
-				)
-
+				l.Error(err, "Cannot patch cluster cluster",
+					"cluster name", redis.Spec.Name, "cluster state", redis.Status.State)
 				return err
 			}
 
-			l.Info("Redis cluster spec has been updated",
-				"cluster ID", redis.Status.ID,
-			)
+			r.EventRecorder.Event(redis, models.Warning, models.ExternalChanges,
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(redis.Status.ID)
@@ -649,16 +683,11 @@ func (r *RedisReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Redis) sc
 		ctx := context.Background()
 		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+
 			return err
-		}
-
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
-			l.Info("Redis cluster is being deleted. Backups check job skipped",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
-			)
-
-			return nil
 		}
 
 		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
@@ -801,24 +830,19 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Redis{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				newObj := event.Object.(*clustersv1alpha1.Redis)
-				if newObj.DeletionTimestamp != nil &&
-					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.Object); deleting {
 					return true
 				}
 
-				newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clustersv1alpha1.Redis)
-
-				if newObj.DeletionTimestamp != nil &&
-					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.ObjectNew); deleting {
 					return true
 				}
+
+				newObj := event.ObjectNew.(*clustersv1alpha1.Redis)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
