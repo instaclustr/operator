@@ -190,7 +190,6 @@ func (r *CassandraReconciler) handleCreateCluster(
 
 		controllerutil.AddFinalizer(cassandra, models.DeletionFinalizer)
 		cassandra.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		cassandra.Annotations[models.DeletionConfirmed] = models.False
 		err = r.Patch(ctx, cassandra, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster",
@@ -297,6 +296,10 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	if cassandra.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return r.handleExternalChanges(cassandra, iCassandra, l)
+	}
+
 	if !cassandra.Spec.IsEqual(iCassandra.Spec) {
 		err = r.API.UpdateCassandra(cassandra.Status.ID, cassandra.Spec.NewDCsUpdate())
 		if err != nil {
@@ -347,6 +350,49 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	return models.ExitReconcile
 }
 
+func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *clustersv1alpha1.Cassandra, l logr.Logger) reconcile.Result {
+	if cassandra.Annotations[models.AllowSpecAmendAnnotation] != models.True {
+		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+			"specification of k8s resource", cassandra.Spec,
+			"data from Instaclustr ", iCassandra.Spec)
+
+		r.EventRecorder.Event(cassandra, models.Warning, models.UpdateFailed,
+			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+
+		return models.ExitReconcile
+	} else {
+		if !cassandra.Spec.IsEqual(iCassandra.Spec) {
+			l.Info(msgSpecStillNoMatch,
+				"specification of k8s resource", cassandra.Spec,
+				"data from Instaclustr ", iCassandra.Spec)
+			r.EventRecorder.Event(cassandra, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
+
+			return models.ExitReconcile
+		}
+
+		patch := cassandra.NewPatch()
+
+		cassandra.Annotations[models.ExternalChangesAnnotation] = ""
+		cassandra.Annotations[models.AllowSpecAmendAnnotation] = ""
+
+		err := r.Patch(context.Background(), cassandra, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", cassandra.Spec.Name, "cluster ID", cassandra.Status.ID)
+
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("External changes have been reconciled", "resource ID", cassandra.Status.ID)
+		r.EventRecorder.Event(cassandra, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+		return models.ExitReconcile
+	}
+}
+
 func (r *CassandraReconciler) handleDeleteCluster(
 	ctx context.Context,
 	l logr.Logger,
@@ -354,53 +400,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 ) reconcile.Result {
 	l = l.WithName("Cassandra deletion event")
 
-	patch := cassandra.NewPatch()
-	err := r.Patch(ctx, cassandra, patch)
-	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
-			"cluster metadata", cassandra.ObjectMeta,
-		)
-		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
-	if len(cassandra.Spec.TwoFactorDelete) != 0 &&
-		cassandra.Annotations[models.DeletionConfirmed] != models.True {
-		l.Info("Cluster deletion is not confirmed",
-			"cluster ID", cassandra.Status.ID,
-			"cluster name", cassandra.Spec.Name,
-			"deletion confirmation annotation", cassandra.Annotations[models.DeletionConfirmed],
-		)
-
-		cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-		err = r.Patch(ctx, cassandra, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", cassandra.Spec.Name,
-				"cluster ID", cassandra.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue
-		}
-
-		return models.ExitReconcile
-	}
-
-	_, err = r.API.GetCassandra(cassandra.Status.ID)
+	_, err := r.API.GetCassandra(cassandra.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get cluster from the Instaclustr API",
@@ -417,6 +417,8 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		)
 		return models.ReconcileRequeue
 	}
+
+	patch := cassandra.NewPatch()
 
 	if !errors.Is(err, instaclustr.NotFound) {
 		err = r.API.DeleteCluster(cassandra.Status.ID, instaclustr.CassandraEndpoint)
@@ -436,16 +438,27 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		r.EventRecorder.Eventf(
-			cassandra, models.Normal, models.DeletionStarted,
-			"Cluster deletion request is sent",
-		)
+		if cassandra.Spec.TwoFactorDelete != nil {
+			cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			cassandra.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, cassandra, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch cluster resource",
+					"cluster name", cassandra.Spec.Name,
+					"cluster state", cassandra.Status.State)
+				r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v", err)
 
-		l.Info("Cluster is being deleted",
-			"cluster ID", cassandra.Status.ID,
-		)
+				return models.ReconcileRequeue
+			}
 
-		return models.ReconcileRequeue
+			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", cassandra.Status.ID)
+
+			r.EventRecorder.Event(cassandra, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
+
+			return models.ExitReconcile
+		}
 	}
 
 	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
@@ -539,23 +552,13 @@ func (r *CassandraReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.C
 func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "CassandraStatusClusterJob")
 	return func() error {
-		err := r.Get(context.Background(), types.NamespacedName{
-			Namespace: cassandra.Namespace,
-			Name:      cassandra.Name,
-		}, cassandra)
-		if err != nil {
-			l.Error(err, "Cannot get cluster resource",
-				"resource name", cassandra.Name,
-			)
-			return err
-		}
-
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cassandra.DeletionTimestamp, len(cassandra.Spec.TwoFactorDelete), cassandra.Annotations[models.DeletionConfirmed]) {
-			l.Info("Cluster is being deleted. Status check job skipped",
-				"cluster name", cassandra.Spec.Name,
-				"cluster ID", cassandra.Status.ID,
-			)
-
+		namespacedName := client.ObjectKeyFromObject(cassandra)
+		err := r.Get(context.Background(), namespacedName, cassandra)
+		if k8serrors.IsNotFound(err) {
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.BackupsChecker))
+			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 
@@ -575,7 +578,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 					)
 
 					patch := cassandra.NewPatch()
-					cassandra.Annotations[models.DeletionConfirmed] = models.True
+					cassandra.Annotations[models.ClusterDeletionAnnotation] = ""
 					cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					err = r.Patch(context.TODO(), cassandra, patch)
 					if err != nil {
@@ -631,22 +634,22 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 		}
 
 		if iCassandra.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			cassandra.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			!cassandra.Spec.IsEqual(iCassandra.Spec) {
+			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
+
 			patch := cassandra.NewPatch()
-			cassandra.Spec = iCassandra.Spec
+			cassandra.Annotations[models.ExternalChangesAnnotation] = models.True
+
 			err = r.Patch(context.Background(), cassandra, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch cluster resource",
-					"cluster ID", cassandra.Status.ID,
-					"spec from Instaclustr", iCassandra.Spec,
-				)
-
+				l.Error(err, "Cannot patch cluster cluster",
+					"cluster name", cassandra.Spec.Name, "cluster state", cassandra.Status.State)
 				return err
 			}
 
-			l.Info("Cluster spec has been updated",
-				"cluster ID", cassandra.Status.ID,
-			)
+			r.EventRecorder.Event(cassandra, models.Warning, models.ExternalChanges,
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(cassandra.Status.ID)
@@ -689,16 +692,11 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 		ctx := context.Background()
 		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+
 			return err
-		}
-
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(cluster.DeletionTimestamp, len(cluster.Spec.TwoFactorDelete), cluster.Annotations[models.DeletionConfirmed]) {
-			l.Info("Cluster is being deleted. Backups check job skipped",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
-			)
-
-			return nil
 		}
 
 		iBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
@@ -846,10 +844,7 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cassandra{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				obj := event.Object.(*clustersv1alpha1.Cassandra)
-				if obj.DeletionTimestamp != nil &&
-					(len(obj.Spec.TwoFactorDelete) == 0 || obj.Annotations[models.DeletionConfirmed] == models.True) {
-					obj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.Object); deleting {
 					return true
 				}
 
@@ -857,12 +852,11 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clustersv1alpha1.Cassandra)
-				if newObj.DeletionTimestamp != nil &&
-					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.ObjectNew); deleting {
 					return true
 				}
+
+				newObj := event.ObjectNew.(*clustersv1alpha1.Cassandra)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
