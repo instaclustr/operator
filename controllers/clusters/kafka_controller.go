@@ -242,16 +242,16 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *clustersv1alpha1.Kafka, l
 			"specification of k8s resource", k.Spec,
 			"data from Instaclustr ", ik.Spec)
 
-		r.EventRecorder.Event(
-			k, models.Warning, models.UpdateFailed,
+		r.EventRecorder.Event(k, models.Warning, models.UpdateFailed,
 			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 
 		return models.ExitReconcile
 	} else {
 		if !k.Spec.IsEqual(ik.Spec) {
-			l.Info("Specifications still don't match. Double check the difference",
+			l.Info(msgSpecStillNoMatch,
 				"specification of k8s resource", k.Spec,
 				"data from Instaclustr ", ik.Spec)
+			r.EventRecorder.Event(k, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
 
 			return models.ExitReconcile
 		}

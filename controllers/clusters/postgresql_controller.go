@@ -499,16 +499,16 @@ func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *clustersv1alpha1.P
 			"specification of k8s resource", pg.Spec,
 			"data from Instaclustr ", iPg.Spec)
 
-		r.EventRecorder.Event(
-			pg, models.Warning, models.UpdateFailed,
+		r.EventRecorder.Event(pg, models.Warning, models.UpdateFailed,
 			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 
 		return models.ExitReconcile
 	} else {
 		if !pg.Spec.IsEqual(iPg.Spec) {
-			l.Info("Specifications still don't match. Double check the difference",
+			l.Info(msgSpecStillNoMatch,
 				"specification of k8s resource", pg.Spec,
 				"data from Instaclustr ", iPg.Spec)
+			r.EventRecorder.Event(pg, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
 
 			return models.ExitReconcile
 		}
@@ -901,6 +901,9 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *clustersv1alpha1.PostgreSQ
 		ctx := context.Background()
 		err := r.Get(ctx, types.NamespacedName{Namespace: pg.Namespace, Name: pg.Name}, pg)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 

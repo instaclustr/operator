@@ -209,16 +209,16 @@ func (r *ZookeeperReconciler) handleExternalChanges(zook *clustersv1alpha1.Zooke
 			"specification of k8s resource", zook.Spec,
 			"data from Instaclustr ", iZook.Spec)
 
-		r.EventRecorder.Event(
-			zook, models.Warning, models.UpdateFailed,
+		r.EventRecorder.Event(zook, models.Warning, models.UpdateFailed,
 			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 
 		return models.ExitReconcile
 	} else {
 		if !zook.Spec.IsEqual(iZook.Spec) {
-			l.Info("Specifications still don't match. Double check the difference",
+			l.Info(msgSpecStillNoMatch,
 				"specification of k8s resource", zook.Spec,
 				"data from Instaclustr ", iZook.Spec)
+			r.EventRecorder.Event(zook, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
 
 			return models.ExitReconcile
 		}

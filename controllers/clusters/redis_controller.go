@@ -346,16 +346,16 @@ func (r *RedisReconciler) handleExternalChanges(redis, iRedis *clustersv1alpha1.
 			"specification of k8s resource", redis.Spec,
 			"data from Instaclustr ", iRedis.Spec)
 
-		r.EventRecorder.Event(
-			redis, models.Warning, models.UpdateFailed,
+		r.EventRecorder.Event(redis, models.Warning, models.UpdateFailed,
 			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 
 		return models.ExitReconcile
 	} else {
 		if !redis.Spec.IsEqual(iRedis.Spec) {
-			l.Info("Specifications still don't match. Double check the difference",
+			l.Info(msgSpecStillNoMatch,
 				"specification of k8s resource", redis.Spec,
 				"data from Instaclustr ", iRedis.Spec)
+			r.EventRecorder.Event(redis, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
 
 			return models.ExitReconcile
 		}
