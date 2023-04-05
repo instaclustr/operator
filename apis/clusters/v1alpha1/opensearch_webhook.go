@@ -98,9 +98,8 @@ func (os *OpenSearch) ValidateCreate() error {
 func (os *OpenSearch) ValidateUpdate(old runtime.Object) error {
 	opensearchlog.Info("validate update", "name", os.Name)
 
-	if os.DeletionTimestamp != nil &&
-		(len(os.Spec.TwoFactorDelete) != 0 &&
-			os.Annotations[models.DeletionConfirmed] != models.True) {
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if os.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 

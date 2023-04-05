@@ -124,3 +124,5 @@ var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via e
 
 var msgExternalChanges = "The k8s specification is different from Instaclustr. Please reconcile the specs manually, " +
 	"add \"instaclustr.com/allowSpecAmend: true \" annotation to be able to change the k8s resource spec."
+
+var msgSpecStillNoMatch = "k8s specification still don't match with Instaclustr Console. Double check the difference."
