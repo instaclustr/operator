@@ -99,9 +99,8 @@ func (c *Cassandra) ValidateCreate() error {
 func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 	cassandralog.Info("validate update", "name", c.Name)
 
-	if c.DeletionTimestamp != nil &&
-		(len(c.Spec.TwoFactorDelete) != 0 &&
-			c.Annotations[models.DeletionConfirmed] != models.True) {
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
