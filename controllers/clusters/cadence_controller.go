@@ -124,7 +124,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 					"cluster name", cadence.Spec.Name,
 				)
 
-				r.EventRecorder.Eventf(cadence, models.Warning, models.Created,
+				r.EventRecorder.Eventf(cadence, models.Warning, models.CreationFailed,
 					"Cannot prepare packaged solution for Cadence cluster. Reason: %v", err)
 
 				return models.ReconcileRequeue
@@ -134,7 +134,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				logger.Info("Waiting for bundled clusters to be created",
 					"cadence cluster name", cadence.Spec.Name)
 
-				r.EventRecorder.Event(cadence, models.Normal, models.Created,
+				r.EventRecorder.Event(cadence, models.Normal, "Waiting",
 					"Waiting for bundled clusters to be created")
 
 				return models.ReconcileRequeue
