@@ -159,10 +159,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&clusterscontrollers.CadenceReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		API:       instaClient,
-		Scheduler: s,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		Scheduler:     s,
+		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cadence")
 		os.Exit(1)

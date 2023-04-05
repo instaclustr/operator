@@ -20,12 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,15 +47,17 @@ import (
 // CadenceReconciler reconciles a Cadence object
 type CadenceReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	API       instaclustr.API
-	Scheduler scheduler.Interface
+	Scheme        *runtime.Scheme
+	API           instaclustr.API
+	Scheduler     scheduler.Interface
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cadences,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cadences/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cadences/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
+//+kubebuilder:rbac:groups="",resources=events,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -119,13 +123,20 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				logger.Error(err, "Cannot prepare packaged solution for Cadence cluster",
 					"cluster name", cadence.Spec.Name,
 				)
+
+				r.EventRecorder.Eventf(cadence, models.Warning, models.Created,
+					"Cannot prepare packaged solution for Cadence cluster. Reason: %v", err)
+
 				return models.ReconcileRequeue
 			}
 
 			if requeueNeeded {
 				logger.Info("Waiting for bundled clusters to be created",
-					"cadence cluster name", cadence.Spec.Name,
-				)
+					"cadence cluster name", cadence.Spec.Name)
+
+				r.EventRecorder.Event(cadence, models.Normal, models.Created,
+					"Waiting for bundled clusters to be created")
+
 				return models.ReconcileRequeue
 			}
 		}
@@ -139,8 +150,11 @@ func (r *CadenceReconciler) HandleCreateCluster(
 		cadenceAPISpec, err := cadence.Spec.ToInstAPI(ctx, r.Client)
 		if err != nil {
 			logger.Error(err, "Cannot convert Cadence cluster manifest to API spec",
-				"cluster manifest", cadence.Spec,
-			)
+				"cluster manifest", cadence.Spec)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.ConvertionFailed,
+				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
@@ -150,6 +164,9 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				err, "Cannot create Cadence cluster",
 				"cadence manifest", cadence.Spec,
 			)
+			r.EventRecorder.Eventf(cadence, models.Warning, models.CreationFailed,
+				"Cluster creation on the Instaclustr is failed. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
@@ -161,20 +178,24 @@ func (r *CadenceReconciler) HandleCreateCluster(
 					"description", cadence.Spec.Description,
 					"twoFactorDelete", cadence.Spec.TwoFactorDelete,
 				)
+
+				r.EventRecorder.Eventf(cadence, models.Warning, models.CreationFailed,
+					"Cluster description and TwoFactoDelete update is failed. Reason: %v", err)
 			}
 		}
 
 		patch := cadence.NewPatch()
 		cadence.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		cadence.Annotations[models.DeletionConfirmed] = models.False
-		cadence.Finalizers = append(cadence.Finalizers, models.DeletionFinalizer)
+		controllerutil.AddFinalizer(cadence, models.DeletionFinalizer)
 
-		err = r.Client.Patch(ctx, cadence, patch)
+		err = r.Patch(ctx, cadence, patch)
 		if err != nil {
 			logger.Error(err, "Cannot patch Cadence cluster",
-				"cluster name", cadence.Spec.Name,
-				"patch", patch,
-			)
+				"cluster name", cadence.Spec.Name, "patch", patch)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
@@ -185,6 +206,10 @@ func (r *CadenceReconciler) HandleCreateCluster(
 				"cluster name", cadence.Spec.Name,
 				"cluster status", cadence.Status,
 			)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
@@ -196,6 +221,9 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			"api version", cadence.APIVersion,
 			"namespace", cadence.Namespace,
 		)
+
+		r.EventRecorder.Eventf(cadence, models.Normal, models.Created,
+			"Cluster creation request is sent. Cluster ID: %s", id)
 	}
 
 	err := r.startClusterStatusJob(cadence)
@@ -203,8 +231,15 @@ func (r *CadenceReconciler) HandleCreateCluster(
 		logger.Error(err, "Cannot start cluster status job",
 			"cadence cluster ID", cadence.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(cadence, models.Warning, models.CreationFailed,
+			"Cluster status check job is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
+
+	r.EventRecorder.Event(cadence, models.Normal, models.Created,
+		"Cluster status check job is started")
 
 	return models.ExitReconcile
 }
@@ -222,6 +257,9 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 			"cluster ID", cadence.Status.ID,
 		)
 
+		r.EventRecorder.Eventf(cadence, models.Warning, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -232,6 +270,9 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 			"cluster name", cadence.Spec.Name,
 			"cluster ID", cadence.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(cadence, models.Warning, models.ConvertionFailed,
+			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -254,6 +295,9 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 			"two factor delete", cadence.Spec.TwoFactorDelete,
 		)
 
+		r.EventRecorder.Eventf(cadence, models.Warning, models.UpdateFailed,
+			"Cluster description and TwoFactoDelete update is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -264,17 +308,23 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 			"update request", cadence.Spec.NewDCsUpdate(),
 		)
 
+		r.EventRecorder.Eventf(cadence, models.Warning, models.UpdateFailed,
+			"Cluster update on the Instaclustr API is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
 	patch := cadence.NewPatch()
 	cadence.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.Client.Patch(ctx, cadence, patch)
+	err = r.Patch(ctx, cadence, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Cadence cluster",
 			"cluster name", cadence.Spec.Name,
-			"patch", patch,
-		)
+			"patch", patch)
+
+		r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
 		return models.ReconcileRequeue
 	}
 
@@ -298,6 +348,9 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 			"cluster name", cadence.Spec.Name,
 			"cluster ID", cadence.Status.ID,
 		)
+
+		r.EventRecorder.Eventf(cadence, models.Warning, models.FetchFailed,
+			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -340,6 +393,10 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 				"cluster name", cadence.Spec.Name,
 				"cluster status", cadence.Status,
 			)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.DeletionFailed,
+				"Cluster deletion is failed on the Instaclustr. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
@@ -359,6 +416,10 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 				"cluster name", cadence.Spec.Name,
 				"cluster ID", cadence.Status.ID,
 			)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.DeletionFailed,
+				"Cannot delete Cadence packaged resources. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 	}
@@ -368,7 +429,7 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	controllerutil.RemoveFinalizer(cadence, models.DeletionFinalizer)
 	cadence.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 
-	err = r.Client.Patch(ctx, cadence, patch)
+	err = r.Patch(ctx, cadence, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Cadence cluster",
 			"cluster name", cadence.Spec.Name,
@@ -381,6 +442,8 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 		"cluster name", cadence.Spec.Name,
 		"cluster ID", cadence.Status.ID,
 	)
+
+	r.EventRecorder.Event(cadence, models.Normal, models.Deleted, "Cluster resource is deleted")
 
 	return models.ExitReconcile
 }
