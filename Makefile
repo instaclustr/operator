@@ -61,11 +61,11 @@ vet: ## Run go vet against code.
 
 .PHONY: test-clusters
 test-clusters:
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusters -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusters -coverprofile cover.out timeout 1
 
 .PHONY: test-clusterresources
 test-clusterresources:
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusterresources -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/clusterresources -coverprofile cover.out timeout 1
 
 .PHONY: test-kafkamanagement
 test-kafkamanagement:
