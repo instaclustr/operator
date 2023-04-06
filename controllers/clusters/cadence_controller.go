@@ -26,7 +26,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -37,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -287,6 +285,10 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	if cadence.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return r.handleExternalChanges(cadence, iCadence, logger)
+	}
+
 	err = r.updateDescriptionAndTwoFactorDelete(cadence)
 	if err != nil {
 		logger.Error(err, "Cannot update Cadence cluster description and TwoFactorDelete",
@@ -336,6 +338,49 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 	return models.ExitReconcile
 }
 
+func (r *CadenceReconciler) handleExternalChanges(cadence, iCadence *clustersv1alpha1.Cadence, l logr.Logger) reconcile.Result {
+	if cadence.Annotations[models.AllowSpecAmendAnnotation] != models.True {
+		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+			"specification of k8s resource", cadence.Spec,
+			"data from Instaclustr ", iCadence.Spec)
+
+		r.EventRecorder.Event(cadence, models.Warning, models.UpdateFailed,
+			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+
+		return models.ExitReconcile
+	} else {
+		if !cadence.Spec.IsEqual(iCadence.Spec) {
+			l.Info(msgSpecStillNoMatch,
+				"specification of k8s resource", cadence.Spec,
+				"data from Instaclustr ", iCadence.Spec)
+			r.EventRecorder.Event(cadence, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
+
+			return models.ExitReconcile
+		}
+
+		patch := cadence.NewPatch()
+
+		cadence.Annotations[models.ExternalChangesAnnotation] = ""
+		cadence.Annotations[models.AllowSpecAmendAnnotation] = ""
+
+		err := r.Patch(context.Background(), cadence, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", cadence.Spec.Name, "cluster ID", cadence.Status.ID)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("External changes have been reconciled", "resource ID", cadence.Status.ID)
+		r.EventRecorder.Event(cadence, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+		return models.ExitReconcile
+	}
+}
+
 func (r *CadenceReconciler) HandleDeleteCluster(
 	ctx context.Context,
 	cadence *clustersv1alpha1.Cadence,
@@ -356,37 +401,6 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	}
 
 	if !errors.Is(err, instaclustr.NotFound) {
-		if len(cadence.Spec.TwoFactorDelete) != 0 &&
-			cadence.Annotations[models.DeletionConfirmed] != models.True {
-			cadence.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-			patch := cadence.NewPatch()
-			if err != nil {
-				logger.Error(err, "Cannot create Cadence cluster resource metadata patch",
-					"cluster name", cadence.Spec.Name,
-				)
-
-				return models.ReconcileRequeue
-			}
-
-			err = r.Patch(ctx, cadence, patch)
-			if err != nil {
-				logger.Error(err, "Cannot patch Cadence cluster resource metadata",
-					"cluster name", cadence.Spec.Name,
-				)
-
-				return models.ReconcileRequeue
-			}
-
-			logger.Info("Cadence cluster deletion is not confirmed",
-				"cluster name", cadence.Spec.Name,
-				"cluster ID", cadence.Status.ID,
-				"confirmation annotation", models.DeletionConfirmed,
-				"annotation value", cadence.Annotations[models.DeletionConfirmed],
-			)
-
-			return models.ReconcileRequeue
-		}
-
 		err = r.API.DeleteCluster(cadence.Status.ID, instaclustr.CadenceEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete Cadence cluster",
@@ -400,13 +414,35 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		logger.Info("Cadence cluster is being deleted",
-			"cluster name", cadence.Spec.Name,
-			"cluster status", cadence.Status,
-		)
+		if cadence.Spec.TwoFactorDelete != nil {
+			patch := cadence.NewPatch()
 
-		return models.ReconcileRequeue
+			cadence.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			cadence.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, cadence, patch)
+			if err != nil {
+				logger.Error(err, "Cannot patch cluster resource",
+					"cluster name", cadence.Spec.Name,
+					"cluster state", cadence.Status.State)
+				r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err)
+
+				return models.ReconcileRequeue
+			}
+
+			logger.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", cadence.Status.ID)
+
+			r.EventRecorder.Event(cadence, models.Normal, models.DeletionStarted,
+				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
+
+			return models.ExitReconcile
+		}
 	}
+
+	logger.Info("Cadence cluster is being deleted",
+		"cluster name", cadence.Spec.Name,
+		"cluster status", cadence.Status)
 
 	for _, packagedProvisioning := range cadence.Spec.PackagedProvisioning {
 		err = r.deletePackagedResources(ctx, cadence, packagedProvisioning)
@@ -664,25 +700,19 @@ func (r *CadenceReconciler) startClusterStatusJob(cadence *clustersv1alpha1.Cade
 func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence) scheduler.Job {
 	l := log.Log.WithValues("component", "cadenceStatusClusterJob")
 	return func() error {
-		err := r.Get(context.Background(), types.NamespacedName{Namespace: cadence.Namespace, Name: cadence.Name}, cadence)
+		namespacedName := client.ObjectKeyFromObject(cadence)
+		err := r.Get(context.Background(), namespacedName, cadence)
+		if k8serrors.IsNotFound(err) {
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
+			return nil
+		}
 		if err != nil {
 			l.Error(err, "Cannot get Cadence custom resource",
 				"resource name", cadence.Name,
 			)
 			return err
-		}
-
-		if clusterresourcesv1alpha1.IsClusterBeingDeleted(
-			cadence.DeletionTimestamp,
-			len(cadence.Spec.TwoFactorDelete),
-			cadence.Annotations[models.DeletionConfirmed],
-		) {
-			l.Info("Cadence cluster is being deleted. Status check job skipped",
-				"cluster name", cadence.Spec.Name,
-				"cluster ID", cadence.Status.ID,
-			)
-
-			return nil
 		}
 
 		iData, err := r.API.GetCadence(cadence.Status.ID)
@@ -701,7 +731,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 					)
 
 					patch := cadence.NewPatch()
-					cadence.Annotations[models.DeletionConfirmed] = models.True
+					cadence.Annotations[models.ClusterDeletionAnnotation] = ""
 					cadence.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					err = r.Patch(context.TODO(), cadence, patch)
 					if err != nil {
@@ -762,22 +792,22 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 		}
 
 		if iCadence.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			cadence.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			!cadence.Spec.IsEqual(iCadence.Spec) {
+			l.Info(msgExternalChanges, "instaclustr data", iCadence.Spec, "k8s resource spec", cadence.Spec)
+
 			patch := cadence.NewPatch()
-			cadence.Spec = iCadence.Spec
+			cadence.Annotations[models.ExternalChangesAnnotation] = models.True
+
 			err = r.Patch(context.Background(), cadence, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch cluster resource",
-					"cluster ID", cadence.Status.ID,
-					"spec from Instaclustr", iCadence.Spec,
-				)
-
+				l.Error(err, "Cannot patch cluster cluster",
+					"cluster name", cadence.Spec.Name, "cluster state", cadence.Status.State)
 				return err
 			}
 
-			l.Info("Cluster spec has been updated",
-				"cluster ID", cadence.Status.ID,
-			)
+			r.EventRecorder.Event(cadence, models.Warning, models.ExternalChanges,
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(cadence.Status.ID)
@@ -1062,26 +1092,21 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cadence{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				annotations := event.Object.GetAnnotations()
-				if event.Object.GetDeletionTimestamp() != nil {
-					annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					event.Object.SetAnnotations(annotations)
+				if deleting := confirmDeletion(event.Object); deleting {
 					return true
 				}
 
-				annotations[models.ResourceStateAnnotation] = models.CreatingEvent
-				event.Object.SetAnnotations(annotations)
+				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
+
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				oldObj := event.ObjectOld.(*clustersv1alpha1.Cadence)
-				newObj := event.ObjectNew.(*clustersv1alpha1.Cadence)
-
-				if newObj.DeletionTimestamp != nil &&
-					(len(newObj.Spec.TwoFactorDelete) == 0 || newObj.Annotations[models.DeletionConfirmed] == models.True) {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				if deleting := confirmDeletion(event.ObjectNew); deleting {
 					return true
 				}
+
+				oldObj := event.ObjectOld.(*clustersv1alpha1.Cadence)
+				newObj := event.ObjectNew.(*clustersv1alpha1.Cadence)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
