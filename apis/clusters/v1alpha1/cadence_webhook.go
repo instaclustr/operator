@@ -149,6 +149,11 @@ func (c *Cadence) ValidateCreate() error {
 func (c *Cadence) ValidateUpdate(old runtime.Object) error {
 	cadencelog.Info("validate update", "name", c.Name)
 
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
 	oldCluster, ok := old.(*Cadence)
 	if !ok {
 		return models.ErrTypeAssertion
