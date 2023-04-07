@@ -232,6 +232,10 @@ func (c *mockClient) GetCassandra(id string) ([]byte, error) {
 	panic("GetCassandra: is not implemented")
 }
 
+func (c *mockClient) GetCassandraV1(id string) ([]byte, error) {
+	panic("GetCassandraV1: is not implemented")
+}
+
 func (c *mockClient) GetRedis(id string) ([]byte, error) {
 	panic("GetRedis: is not implemented")
 }

@@ -14,12 +14,15 @@ const (
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
-	ControlledByLabel                  = "instaclustr.com/controlledBy"
-	ClusterIDLabel                     = "instaclustr.com/clusterID"
-	ClusterNameLabel                   = "instaclustr.com/clusterName"
+	ControlledByLabel       = "instaclustr.com/controlledBy"
+	ClusterIDLabel          = "instaclustr.com/clusterID"
+	RedisUserNamespaceLabel = "instaclustr.com/redisUserNamespace"
+	KubevirtDomainLabel     = "kubevirt.io/domain"
+	ClusterNameLabel        = "instaclustr.com/clusterName"
+
 	ClustersV1alpha1APIVersion         = "clusters.instaclustr.com/v1alpha1"
 	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
-	RedisUserNamespaceLabel            = "instaclustr.com/redisUserNamespace"
+	K8sAPIVersionV1                    = "v1"
 
 	CassandraKind        = "Cassandra"
 	CassandraChildPrefix = "cassandra-"
@@ -36,25 +39,28 @@ const (
 	CassandraV3_11_13 = "3.11.13"
 	KafkaV3_1_2       = "3.1.2"
 	OpenSearchV1_3_7  = "opensearch:1.3.7"
-	K8sAPIVersionV1   = "v1"
-	VPCPeered         = "VPC_PEERED"
 
 	True  = "true"
 	False = "false"
 
+	VPCPeered = "VPC_PEERED"
 	Triggered = "triggered"
 
-	ClusterBackupKind       = "ClusterBackup"
-	PgClusterKind           = "PostgreSQL"
-	RedisClusterKind        = "Redis"
-	OsClusterKind           = "OpenSearch"
-	CassandraClusterKind    = "Cassandra"
-	SecretKind              = "Secret"
-	PgBackupEventType       = "postgresql-backup"
-	SnapshotUploadEventType = "snapshot-upload"
-	PgBackupPrefix          = "postgresql-backup-"
-	SnapshotUploadPrefix    = "snapshot-upload-"
-	DefaultUserSecretPrefix = "default-user-password-"
+	ClusterBackupKind            = "ClusterBackup"
+	PgClusterKind                = "PostgreSQL"
+	RedisClusterKind             = "Redis"
+	OsClusterKind                = "OpenSearch"
+	CassandraClusterKind         = "Cassandra"
+	SecretKind                   = "Secret"
+	VirtualMachineKind           = "VirtualMachine"
+	ServiceKind                  = "Service"
+	PgBackupEventType            = "postgresql-backup"
+	SnapshotUploadEventType      = "snapshot-upload"
+	PgBackupPrefix               = "postgresql-backup-"
+	SnapshotUploadPrefix         = "snapshot-upload-"
+	DefaultUserSecretPrefix      = "default-user-password-"
+	CDIKubevirtV1beta1APIVersion = "cdi.kubevirt.io/v1beta1"
+	KubevirtV1APIVersion         = "kubevirt.io/v1"
 
 	CassandraConnectionPort    = 9042
 	CadenceConnectionPort      = 7933
@@ -105,4 +111,9 @@ const Requeue60 = time.Second * 60
 var (
 	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
 	ExitReconcile    = reconcile.Result{}
+
+	TrueBool        = true
+	FalseBool       = false
+	BootOrder1 uint = 1
+	BootOrder2 uint = 2
 )

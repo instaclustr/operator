@@ -12,7 +12,6 @@ type ClusterProviderV1 struct {
 	Tags                   map[string]string `json:"tags,omitempty"`
 	ResourceGroup          string            `json:"resourceGroup,omitempty"`
 	DiskEncryptionKey      string            `json:"diskEncryptionKey,omitempty"`
-	ResourceName           string            `json:"resourceName,omitempty"`
 }
 
 type RackAllocationV1 struct {
@@ -40,8 +39,9 @@ type PrivateLink struct {
 }
 
 type Bundle struct {
-	Bundle  string `json:"bundle"`
-	Version string `json:"version"`
+	Bundle  string         `json:"bundle"`
+	Version string         `json:"version"`
+	Options *BundleOptions `json:"options"`
 }
 
 type DataCentreV1 struct {
@@ -96,16 +96,21 @@ type ClusterModifyRequest struct {
 }
 
 type BundleOptions struct {
-	DataNodeSize                 string `json:"dataNodeSize,omitempty"`
-	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
-	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
-	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
-	AlertingPlugin               bool   `json:"alertingPlugin,omitempty"`
-	ICUPlugin                    bool   `json:"icuPlugin,omitempty"`
-	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
-	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
-	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
-	DedicatedMasterNodes         bool   `json:"dedicatedMasterNodes,omitempty"`
+	DataNodeSize                  string `json:"dataNodeSize,omitempty"`
+	MasterNodeSize                string `json:"masterNodeSize,omitempty"`
+	OpenSearchDashboardsNodeSize  string `json:"openSearchDashboardsNodeSize,omitempty"`
+	IndexManagementPlugin         bool   `json:"indexManagementPlugin,omitempty"`
+	AlertingPlugin                bool   `json:"alertingPlugin,omitempty"`
+	ICUPlugin                     bool   `json:"icuPlugin,omitempty"`
+	KNNPlugin                     bool   `json:"knnPlugin,omitempty"`
+	NotificationsPlugin           bool   `json:"notificationsPlugin,omitempty"`
+	ReportsPlugin                 bool   `json:"reportsPlugin,omitempty"`
+	DedicatedMasterNodes          bool   `json:"dedicatedMasterNodes,omitempty"`
+	AuthnAuthz                    bool   `json:"authnAuthz,omitempty"`
+	ClientEncryption              bool   `json:"clientEncryption,omitempty"`
+	UsePrivateBroadcastRPCAddress bool   `json:"usePrivateBroadcastRPCAddress,omitempty"`
+	LuceneEnabled                 bool   `json:"luceneEnabled,omitempty"`
+	ContinuousBackupEnabled       bool   `json:"continuousBackupEnabled,omitempty"`
 }
 
 type ClusterBackup struct {

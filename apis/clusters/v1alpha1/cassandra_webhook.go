@@ -54,6 +54,10 @@ func (c *Cassandra) Default() {
 func (c *Cassandra) ValidateCreate() error {
 	cassandralog.Info("validate create", "name", c.Name)
 
+	if c.Spec.OnPremisesSpec != nil {
+		return c.ValidateOnPremisesCreate()
+	}
+
 	if c.Spec.RestoreFrom != nil {
 		if c.Spec.RestoreFrom.ClusterID == "" {
 			return fmt.Errorf("restore clusterID field is empty")
@@ -109,6 +113,10 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 		return models.ErrTypeAssertion
 	}
 
+	if c.Spec.OnPremisesSpec != nil {
+		return c.ValidateOnPremisesUpdate(oldCluster)
+	}
+
 	if oldCluster.Spec.RestoreFrom != nil {
 		return nil
 	}
@@ -130,5 +138,16 @@ func (c *Cassandra) ValidateDelete() error {
 	cassandralog.Info("validate delete", "name", c.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
+	return nil
+}
+
+func (c *Cassandra) ValidateOnPremisesCreate() error {
+	return nil
+}
+
+func (c *Cassandra) ValidateOnPremisesUpdate(old *Cassandra) error {
+	if old.Generation != c.Generation {
+		return models.ErrOnPremUpdateNotImplemented
+	}
 	return nil
 }

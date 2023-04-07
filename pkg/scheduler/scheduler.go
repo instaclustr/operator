@@ -13,6 +13,8 @@ var ClusterBackupsInterval time.Duration
 
 const StatusChecker = "statusChecker"
 const BackupsChecker = "backupsChecker"
+const OnPremisesStatusChecker = "onPremisesStatusChecker"
+const OnPremisesIPsChecker = "onPremisesIPsChecker"
 
 type Job func() error
 

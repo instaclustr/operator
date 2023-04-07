@@ -62,7 +62,8 @@ type CassandraRestoreFrom struct {
 
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
+	OnPremisesSpec      *CassandraOnPremisesSpec `json:"onPremisesSpec,omitempty"`
+	RestoreFrom         *CassandraRestoreFrom    `json:"restoreFrom,omitempty"`
 	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
@@ -74,6 +75,20 @@ type CassandraSpec struct {
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
 	ClusterStatus `json:",inline"`
+}
+
+type CassandraOnPremisesSpec struct {
+	DeleteDisksWithVM          bool              `json:"deleteDisksWithVM,omitempty"`
+	StorageClassName           string            `json:"storageClassName"`
+	SystemDiskSize             string            `json:"systemDiskSize"`
+	DataDiskSize               string            `json:"dataDiskSize"`
+	SSHGatewayCPU              int64             `json:"sshGatewayCPU"`
+	SSHGatewayMemory           string            `json:"sshGatewayMemory"`
+	NodesNumber                int               `json:"nodesNumber"`
+	NodeCPU                    int64             `json:"nodeCPU"`
+	NodeMemory                 string            `json:"nodeMemory"`
+	ReplicationFactor          int               `json:"replicationFactor"`
+	IgnitionScriptsSecretNames map[string]string `json:"ignitionScriptsSecretNames"`
 }
 
 type CassandraDataCentre struct {
@@ -157,6 +172,56 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1alpha1.
 	}
 }
 
+func (cs *CassandraStatus) FromInstAPIv1(iData []byte) (CassandraStatus, error) {
+	iCass := &models.CassandraClusterV1{}
+	err := json.Unmarshal(iData, iCass)
+	if err != nil {
+		return CassandraStatus{}, err
+	}
+
+	return CassandraStatus{
+		ClusterStatus{
+			ID:          iCass.ID,
+			State:       iCass.ClusterStatus,
+			DataCentres: cs.DCsFromInstAPIv1(iCass.DataCentres),
+		},
+	}, nil
+}
+
+func (cs *CassandraStatus) DCsFromInstAPIv1(iDCs []*models.DataCentreV1) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &DataCentreStatus{
+			ID:              iDC.ID,
+			Status:          iDC.CDCStatus,
+			Nodes:           cs.NodesFromInstAPIv1(iDC),
+			NodeNumber:      iDC.NodeCount,
+			EncryptionKeyID: iDC.EncryptionKeyID,
+		})
+	}
+	return
+}
+
+func (cs *CassandraStatus) NodesFromInstAPIv1(iDC *models.DataCentreV1) (nodes []*Node) {
+	for _, iNode := range iDC.Nodes {
+		nodes = append(nodes, &Node{
+			ID:             iNode.ID,
+			Size:           iNode.Size,
+			PublicAddress:  iNode.PublicAddress,
+			PrivateAddress: iNode.PrivateAddress,
+			Status:         iNode.NodeStatus,
+			Rack:           iNode.Rack,
+		})
+	}
+	return
+}
+
+func (cs *CassandraStatus) FetchNodes() (nodes []*Node) {
+	for _, iDC := range cs.DataCentres {
+		nodes = append(nodes, iDC.Nodes...)
+	}
+	return
+}
+
 func (c *Cassandra) FromInstAPI(iData []byte) (*Cassandra, error) {
 	iCass := &models.CassandraCluster{}
 	err := json.Unmarshal(iData, iCass)
@@ -170,6 +235,29 @@ func (c *Cassandra) FromInstAPI(iData []byte) (*Cassandra, error) {
 		Spec:       c.Spec.FromInstAPI(iCass),
 		Status:     c.Status.FromInstAPI(iCass),
 	}, nil
+}
+
+func (c *Cassandra) NodesFromInstAPIv1(iData []byte) ([]*Node, error) {
+	iCass := &models.CassandraClusterV1{}
+	err := json.Unmarshal(iData, iCass)
+	if err != nil {
+		return nil, err
+	}
+
+	var iNodes []*Node
+	for _, iDC := range iCass.DataCentres {
+		for _, iNode := range iDC.Nodes {
+			iNodes = append(iNodes, &Node{
+				ID:             iNode.ID,
+				Size:           iNode.Size,
+				PublicAddress:  iNode.PublicAddress,
+				PrivateAddress: iNode.PrivateAddress,
+				Status:         iNode.NodeStatus,
+				Rack:           iNode.Rack,
+			})
+		}
+	}
+	return iNodes, nil
 }
 
 func (cs *CassandraSpec) HasRestore() bool {
@@ -411,6 +499,44 @@ func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields
 			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
 		},
 	}
+}
+
+func (cs *CassandraSpec) OnPremisesToInstAPIv1() *models.CassandraClusterV1 {
+	var tfd []*models.TwoFactorDeleteV1
+	if len(cs.TwoFactorDelete) != 0 {
+		tfd = append(tfd, cs.Cluster.TwoFactorDeleteToInstAPIv1())
+	}
+	return &models.CassandraClusterV1{
+		ClusterName: cs.Name,
+		Bundles:     cs.BundlesToInstAPIv1(),
+		Provider: &models.ClusterProviderV1{
+			Name: models.OnPremisesProvider,
+		},
+		PrivateNetworkCluster: cs.PrivateNetworkCluster,
+		PCICompliantCluster:   cs.PCICompliance,
+		SLATier:               cs.SLATier,
+		NodeSize:              models.OnPremisesNodeSize,
+		ClusterNetwork:        models.OnPremisesNetwork,
+		DataCentre:            models.OnPremisesDC,
+		DataCentreCustomName:  fmt.Sprintf("%s_%s", models.OnPremisesProvider, models.OnPremisesDC),
+		RackAllocation: &models.RackAllocationV1{
+			NumberOfRacks: cs.OnPremisesSpec.ReplicationFactor,
+			NodesPerRack:  cs.OnPremisesSpec.NodesNumber / cs.OnPremisesSpec.ReplicationFactor,
+		},
+		TwoFactorDelete: tfd,
+	}
+}
+
+func (cs *CassandraSpec) BundlesToInstAPIv1() (bundles []*models.CassandraBundle) {
+	bundles = append(bundles, &models.CassandraBundle{
+		Bundle:  models.ApacheCassandra,
+		Version: cs.Version,
+		Options: &models.CassandraBundleOptions{
+			AuthnAuthz:    cs.PasswordAndUserAuth,
+			LuceneEnabled: cs.LuceneEnabled,
+		},
+	})
+	return
 }
 
 func init() {

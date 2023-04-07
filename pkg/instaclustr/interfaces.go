@@ -63,6 +63,7 @@ type API interface {
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
 	UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaACLSpec any) error
 	GetCassandra(id string) ([]byte, error)
+	GetCassandraV1(id string) ([]byte, error)
 	UpdateCassandra(id string, cassandra models.CassandraClusterAPIUpdate) error
 	GetKafka(id string) ([]byte, error)
 	GetKafkaConnect(id string) ([]byte, error)

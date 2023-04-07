@@ -68,11 +68,11 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -98,11 +98,11 @@ func (c *Client) GetOpenSearch(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -119,11 +119,11 @@ func (c *Client) GetRedis(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -148,11 +148,11 @@ func (c *Client) CreateRedisUser(user *models.RedisUser) (string, error) {
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -182,11 +182,11 @@ func (c *Client) UpdateRedisUser(user *models.RedisUserUpdate) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -206,11 +206,11 @@ func (c *Client) DeleteRedisUser(id string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -231,17 +231,42 @@ func (c *Client) GetCassandra(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return body, nil
+}
+
+func (c *Client) GetCassandraV1(id string) ([]byte, error) {
+	url := c.serverHostname + ClustersEndpointV1 + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
@@ -260,11 +285,11 @@ func (c *Client) UpdateCassandra(id string, cassandra models.CassandraClusterAPI
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
 		return ClusterIsNotReadyToResize
@@ -285,11 +310,11 @@ func (c *Client) GetKafka(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -310,11 +335,11 @@ func (c *Client) GetKafkaConnect(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -339,11 +364,11 @@ func (c *Client) UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) 
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
 		return ClusterIsNotReadyToResize
@@ -364,11 +389,11 @@ func (c *Client) GetZookeeper(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -397,11 +422,11 @@ func (c *Client) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.Re
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusPreconditionFailed {
 		return StatusPreconditionFailed
@@ -424,11 +449,11 @@ func (c *Client) GetActiveDataCentreResizeOperations(clusterID, dataCentreID str
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -452,11 +477,11 @@ func (c *Client) GetClusterConfigurations(clusterEndpoint, clusterID, bundle str
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -495,11 +520,11 @@ func (c *Client) UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, 
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -516,11 +541,11 @@ func (c *Client) ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, p
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -553,11 +578,11 @@ func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID,
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -578,11 +603,11 @@ func (c *Client) UpdateCluster(id, clusterEndpoint string, InstaDCs any) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
 		return ClusterIsNotReadyToResize
@@ -603,11 +628,11 @@ func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -633,11 +658,11 @@ func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -655,11 +680,12 @@ func (c *Client) GetPeeringStatus(peerID,
 	if err != nil {
 		return nil, err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -691,11 +717,11 @@ func (c *Client) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -724,11 +750,12 @@ func (c *Client) UpdatePeering(peerID,
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -745,11 +772,11 @@ func (c *Client) DeletePeering(peerID, peeringEndpoint string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -772,11 +799,12 @@ func (c *Client) GetFirewallRuleStatus(
 	if err != nil {
 		return nil, err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -810,11 +838,11 @@ func (c *Client) CreateFirewallRule(
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -839,11 +867,12 @@ func (c *Client) DeleteFirewallRule(
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -864,11 +893,11 @@ func (c *Client) GetTopicStatus(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -893,11 +922,11 @@ func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) 
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -919,11 +948,11 @@ func (c *Client) DeleteKafkaTopic(url, id string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -945,11 +974,11 @@ func (c *Client) UpdateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) 
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -973,11 +1002,12 @@ func (c *Client) GetKafkaUserStatus(
 	if err != nil {
 		return nil, err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1011,11 +1041,11 @@ func (c *Client) CreateKafkaUser(
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1044,11 +1074,12 @@ func (c *Client) UpdateKafkaUser(
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1064,11 +1095,12 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -1093,11 +1125,11 @@ func (c *Client) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafk
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1121,11 +1153,11 @@ func (c *Client) GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStat
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1149,11 +1181,11 @@ func (c *Client) DeleteKafkaMirror(id string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1179,11 +1211,11 @@ func (c *Client) UpdateKafkaMirror(id string, latency int32) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1200,11 +1232,11 @@ func (c *Client) GetClusterBackups(endpoint, clusterID string) (*models.ClusterB
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1231,11 +1263,11 @@ func (c *Client) TriggerClusterBackup(url, clusterID string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1268,11 +1300,11 @@ func (c *Client) CreateExclusionWindow(clusterID string, window clusterresources
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1297,11 +1329,11 @@ func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresou
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1330,11 +1362,11 @@ func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1alpha1.Maintenance
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1363,11 +1395,11 @@ func (c *Client) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresour
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1396,11 +1428,11 @@ func (c *Client) DeleteExclusionWindow(id string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -1432,11 +1464,11 @@ func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceE
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("me code: %d, message: %s", resp.StatusCode, body)
@@ -1464,11 +1496,11 @@ func (c *Client) CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1484,11 +1516,12 @@ func (c *Client) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, e
 	if err != nil {
 		return nil, err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1532,11 +1565,11 @@ func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, 
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	var response struct {
 		RestoredCluster string `json:"restoredCluster"`
@@ -1581,11 +1614,11 @@ func (c *Client) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (st
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	var response struct {
 		RestoredCluster string `json:"restoredCluster"`
@@ -1630,11 +1663,11 @@ func (c *Client) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestor
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	var response struct {
 		RestoredCluster string `json:"restoredCluster"`
@@ -1667,11 +1700,11 @@ func (c *Client) CreateKafkaACL(
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1696,11 +1729,12 @@ func (c *Client) GetKafkaACLStatus(
 	if err != nil {
 		return nil, err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1729,11 +1763,12 @@ func (c *Client) DeleteKafkaACL(
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -1761,11 +1796,12 @@ func (c *Client) UpdateKafkaACL(
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -1801,11 +1837,11 @@ func (c *Client) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (st
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	var response struct {
 		RestoredCluster string `json:"restoredCluster"`
@@ -1830,11 +1866,11 @@ func (c *Client) GetPostgreSQL(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1864,11 +1900,11 @@ func (c *Client) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PG
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -1888,11 +1924,11 @@ func (c *Client) GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -1928,11 +1964,11 @@ func (c *Client) UpdatePostgreSQLConfiguration(id, name, value string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -1966,11 +2002,11 @@ func (c *Client) CreatePostgreSQLConfiguration(id, name, value string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -1990,11 +2026,11 @@ func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -2014,11 +2050,11 @@ func (c *Client) GetCadence(id string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -2049,11 +2085,11 @@ func (c *Client) UpdatePostgreSQLDefaultUserPassword(id, password string) error 
 		return err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound
@@ -2073,11 +2109,11 @@ func (c *Client) ListClusters() ([]*models.ActiveClusters, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -2106,11 +2142,11 @@ func (c *Client) CreateEncryptionKey(
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
@@ -2135,11 +2171,12 @@ func (c *Client) GetEncryptionKeyStatus(
 	if err != nil {
 		return nil, err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, NotFound
@@ -2167,11 +2204,12 @@ func (c *Client) DeleteEncryptionKey(
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return NotFound

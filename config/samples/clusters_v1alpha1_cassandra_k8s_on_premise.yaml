@@ -1,0 +1,27 @@
+apiVersion: clusters.instaclustr.com/v1alpha1
+kind: Cassandra
+metadata:
+  name: cass-on-prem-222222
+spec:
+  name: "opCassVirt"
+  version: "apache-cassandra-4.0.4"               # 4.0.1 is deprecated | 4.0.4 and 3.11.13 are supported
+  pciCompliance: false
+  luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
+  passwordAndUserAuth: false
+  slaTier: "Non-Production"
+  privateNetworkCluster: true
+  onPremisesSpec:
+    deleteDisksWithVM: true
+    storageClassName: "managed-csi"
+    systemDiskSize: "10Gi"
+    dataDiskSize: "250Gi"
+    sshGatewayCPU: 2
+    sshGatewayMemory: "4Gi"
+    nodesNumber: 2
+    nodeCPU: 4
+    nodeMemory: "8Gi"
+    replicationFactor: 2
+    ignitionScriptsSecretNames:
+      "ssh": "ssh"
+      "node-1": "node-1"
+      "node-2": "node-2"

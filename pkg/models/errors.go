@@ -35,4 +35,6 @@ var (
 	ErrImmutablePackagedProvisioning         = errors.New("PackagedProvisioning array is immutable")
 	ErrImmutableAdvancedVisibility           = errors.New("AdvancedVisibility array is immutable")
 	ErrImmutablePrivateLink                  = errors.New("PrivateLink array is immutable")
+	ErrEmptyIgnitionScript                   = errors.New("ignition script is empty")
+	ErrOnPremUpdateNotImplemented            = errors.New("on-premises cluster update is not implemented yet")
 )

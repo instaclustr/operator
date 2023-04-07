@@ -94,6 +94,46 @@ spec:
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
+              onPremisesSpec:
+                properties:
+                  dataDiskSize:
+                    type: string
+                  deleteDisksWithVM:
+                    type: boolean
+                  ignitionScriptsSecretNames:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  nodeCPU:
+                    format: int64
+                    type: integer
+                  nodeMemory:
+                    type: string
+                  nodesNumber:
+                    type: integer
+                  replicationFactor:
+                    type: integer
+                  sshGatewayCPU:
+                    format: int64
+                    type: integer
+                  sshGatewayMemory:
+                    type: string
+                  storageClassName:
+                    type: string
+                  systemDiskSize:
+                    type: string
+                required:
+                - dataDiskSize
+                - ignitionScriptsSecretNames
+                - nodeCPU
+                - nodeMemory
+                - nodesNumber
+                - replicationFactor
+                - sshGatewayCPU
+                - sshGatewayMemory
+                - storageClassName
+                - systemDiskSize
+                type: object
               passwordAndUserAuth:
                 type: boolean
               pciCompliance:

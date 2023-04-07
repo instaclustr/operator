@@ -49,6 +49,11 @@ spec:
               secretKeyRef:
                 name: creds-secret
                 key: HOSTNAME
+          - name: CASSANDRA_DATA_VOLUME_IMAGE_URL
+            valueFrom:
+              secretKeyRef:
+                name: creds-secret
+                key: CASSANDRA_DATA_VOLUME_IMAGE_URL
         args:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"

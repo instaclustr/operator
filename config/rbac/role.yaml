@@ -15,10 +15,34 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - persistentvolumeclaims
+  verbs:
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - create
   - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -37,12 +61,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - '*'
+  - cdi.kubevirt.io
   resources:
-  - services
+  - datavolumes
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -632,3 +657,16 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - kubevirt.io
+  resources:
+  - virtualmachines
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
