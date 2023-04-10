@@ -537,6 +537,7 @@ type PostgresqlClusterV2ApiServicer interface {
 	ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdDelete(context.Context, string) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdGet(context.Context, string) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut(context.Context, string, PostgresqlClusterUpdateV2) (ImplResponse, error)
+	ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put(context.Context) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post(context.Context, PostgresqlClusterV2) (ImplResponse, error)
 }
 

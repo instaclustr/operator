@@ -74,6 +74,12 @@ func (c *PostgresqlClusterV2ApiController) Routes() Routes {
 			"/cluster-management/v2/resources/applications/postgresql/clusters/v2",
 			c.ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post,
 		},
+		{
+			"ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put",
+			strings.ToUpper("Put"),
+			"/provisioning/v1/{clusterId}",
+			c.ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put,
+		},
 	}
 }
 
@@ -150,6 +156,21 @@ func (c *PostgresqlClusterV2ApiController) ClusterManagementV2ResourcesApplicati
 		return
 	}
 	result, err := c.service.ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post(r.Context(), bodyParam)
+	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+
+}
+
+// ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put - Update PostgreSQL cluster details
+func (c *PostgresqlClusterV2ApiController) ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put(w http.ResponseWriter, r *http.Request) {
+	// TODO: Remove this method when UpdateDescriptionAndTwoFactorDelete is implemented for API v 2.
+
+	result, err := c.service.ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put(r.Context())
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)

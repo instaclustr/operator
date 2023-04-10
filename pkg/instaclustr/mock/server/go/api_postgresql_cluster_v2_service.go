@@ -77,3 +77,10 @@ func (s *PostgresqlClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	s.MockPostgresqlCluster.Id = CreatedID
 	return Response(202, s.MockPostgresqlCluster), nil
 }
+
+// ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put - Update PostgreSQL cluster details
+func (s *PostgresqlClusterV2ApiService) ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put(ctx context.Context) (ImplResponse, error) {
+	// Add api_postgresql_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+
+	return Response(202, nil), nil
+}
