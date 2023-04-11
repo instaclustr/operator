@@ -423,6 +423,9 @@ func (r *RedisReconciler) handleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
+		r.EventRecorder.Event(redis, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
+
 		if redis.Spec.TwoFactorDelete != nil {
 			patch := redis.NewPatch()
 

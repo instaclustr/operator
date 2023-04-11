@@ -286,10 +286,8 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
-		r.EventRecorder.Eventf(
-			zook, models.Normal, models.DeletionStarted,
-			"Cluster deletion request is sent to the Instaclustr API.",
-		)
+		r.EventRecorder.Event(zook, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
 
 		if zook.Spec.TwoFactorDelete != nil {
 			zook.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
@@ -526,10 +524,6 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
-				}
-
-				if confirmed := confirmDeletion(event.ObjectNew); confirmed {
-					return true
 				}
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent

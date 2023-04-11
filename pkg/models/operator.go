@@ -11,7 +11,6 @@ const (
 	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
 	ExternalChangesAnnotation = "instaclustr.com/externalChanges"
 	AllowSpecAmendAnnotation  = "instaclustr.com/allowSpecAmend"
-	DeletionConfirmed         = "instaclustr.com/deletionConfirmed"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
