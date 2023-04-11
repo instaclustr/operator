@@ -401,6 +401,10 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 	}
 
 	if !errors.Is(err, instaclustr.NotFound) {
+		logger.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", cadence.Spec.Name,
+			"cluster ID", cadence.Status.ID)
+
 		err = r.API.DeleteCluster(cadence.Status.ID, instaclustr.CadenceEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete Cadence cluster",
@@ -413,6 +417,9 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Event(cadence, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
 
 		if cadence.Spec.TwoFactorDelete != nil {
 			patch := cadence.NewPatch()

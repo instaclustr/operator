@@ -431,6 +431,10 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	patch := o.NewPatch()
 
 	if !errors.Is(err, instaclustr.NotFound) {
+		logger.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", o.Spec.Name,
+			"cluster ID", o.Status.ID)
+
 		err = r.API.DeleteCluster(o.Status.ID, instaclustr.ClustersEndpointV1)
 		if err != nil {
 			logger.Error(err, "Cannot delete OpenSearch cluster",
@@ -443,6 +447,9 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Event(o, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
 
 		if o.Spec.TwoFactorDelete != nil {
 			o.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent

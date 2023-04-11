@@ -310,6 +310,9 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 			return models.ReconcileRequeue
 		}
 
+		r.EventRecorder.Event(kc, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
+
 		if kc.Spec.TwoFactorDelete != nil {
 			kc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 			kc.Annotations[models.ClusterDeletionAnnotation] = models.Triggered

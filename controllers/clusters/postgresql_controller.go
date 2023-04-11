@@ -576,6 +576,9 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 			return models.ReconcileRequeue
 		}
 
+		r.EventRecorder.Event(pg, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
+
 		if pg.Spec.TwoFactorDelete != nil {
 			patch := pg.NewPatch()
 

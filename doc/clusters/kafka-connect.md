@@ -166,18 +166,20 @@ To delete cluster run:
 kubectl delete kafkaconnects.clusters.instaclustr.com kafkaconnect-sample
 ```
 
+### Cluster deletion with twoFactorDelete option enabled
+To delete a cluster with the `twoFactorDelete` option enabled you need to do the simple [cluster deletion flow ](#cluster-deletion). 
+After that, a deletion confirmation email will be sent to the email defined in the `confirmationEmail` field of `twoFactorDelete`. 
+When deletion is confirmed via email, Instaclustr support will delete the cluster and the related cluster resources inside K8s will be also removed. 
 It can take some time to delete the resource.
 
-### Cluster deletion with twoFactorDelete option enabled
-To delete cluster with twoFactorDelete option enabled you need to set the confirmation annotation to true:
+If you cancel cluster deletion and want to put cluster on delete again, remove `triggered` from `clusterDeletionAnnotation` annotation like this:
+
 ```yaml
-Annotations:  
-  "instaclustr.com/deletionConfirmed": true
+Annotations:
+  "instaclustr.com/clusterDeletion": ""
 ```
 
-And then simply run:
-```console
-kubectl delete kafkaconnects.clusters.instaclustr.com kafkaconnect-sample
-```
-
-After that, deletion confirmation email will be sent to the email defined in the `confirmationEmail` field of `TwoFactorDelete`. When deletion is confirmed via email, Instaclustr support will delete the cluster and the related cluster resources inside K8s will be also removed.
+## External changes
+If you change properties of the cluster (node size, number of nodes, etc.) using the Instaclustr Console UI, 
+there is going to be inconsistency in the k8s CRD specification (`Spec`). In this case, you have to reconcile the changes manually, 
+for this add the `instaclustr.com/allowSpecAmend: true` annotation to be able to change the k8s resource specification.

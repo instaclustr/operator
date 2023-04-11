@@ -421,6 +421,10 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	patch := cassandra.NewPatch()
 
 	if !errors.Is(err, instaclustr.NotFound) {
+		l.Info("Sending cluster deletion to the Instaclustr API",
+			"cluster name", cassandra.Spec.Name,
+			"cluster ID", cassandra.Status.ID)
+
 		err = r.API.DeleteCluster(cassandra.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot delete cluster",
@@ -437,6 +441,9 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			)
 			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Event(cassandra, models.Normal, models.DeletionStarted,
+			"Cluster deletion request is sent to the Instaclustr API.")
 
 		if cassandra.Spec.TwoFactorDelete != nil {
 			cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
