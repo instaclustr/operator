@@ -6,7 +6,7 @@ metadata:
     testAnnotation: test
 spec:
   name: "testPostgre"
-  version: "14.5.0"
+  version: "14.6.0"
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"

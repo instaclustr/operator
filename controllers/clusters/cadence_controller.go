@@ -115,6 +115,8 @@ func (r *CadenceReconciler) HandleCreateCluster(
 	logger logr.Logger,
 ) reconcile.Result {
 	if cadence.Status.ID == "" {
+		patch := cadence.NewPatch()
+
 		for _, packagedProvisioning := range cadence.Spec.PackagedProvisioning {
 			requeueNeeded, err := r.preparePackagedSolution(ctx, cadence, packagedProvisioning)
 			if err != nil {
@@ -168,6 +170,20 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			return models.ReconcileRequeue
 		}
 
+		cadence.Status.ID = id
+		err = r.Status().Patch(ctx, cadence, patch)
+		if err != nil {
+			logger.Error(err, "Cannot update Cadence cluster status",
+				"cluster name", cadence.Spec.Name,
+				"cluster status", cadence.Status,
+			)
+
+			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
 		if cadence.Spec.Description != "" {
 			err = r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, id, cadence.Spec.Description, nil)
 			if err != nil {
@@ -182,7 +198,6 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			}
 		}
 
-		patch := cadence.NewPatch()
 		cadence.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(cadence, models.DeletionFinalizer)
 
@@ -190,20 +205,6 @@ func (r *CadenceReconciler) HandleCreateCluster(
 		if err != nil {
 			logger.Error(err, "Cannot patch Cadence cluster",
 				"cluster name", cadence.Spec.Name, "patch", patch)
-
-			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		cadence.Status.ID = id
-		err = r.Status().Patch(ctx, cadence, patch)
-		if err != nil {
-			logger.Error(err, "Cannot update Cadence cluster status",
-				"cluster name", cadence.Spec.Name,
-				"cluster status", cadence.Status,
-			)
 
 			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v", err)
@@ -445,6 +446,8 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 
 			return models.ExitReconcile
 		}
+
+		return models.ReconcileRequeue
 	}
 
 	logger.Info("Cadence cluster is being deleted",
@@ -511,6 +514,7 @@ func (r *CadenceReconciler) preparePackagedSolution(
 	if err != nil {
 		return false, err
 	}
+
 	if len(cassandraList.Items) == 0 {
 		cassandraSpec, err := r.newCassandraSpec(cluster)
 		if err != nil {

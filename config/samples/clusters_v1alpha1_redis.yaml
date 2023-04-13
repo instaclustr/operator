@@ -10,7 +10,7 @@ metadata:
   name: redis-sample
 spec:
   name: "testRedis"
-  version: "7.0.5"
+  version: "7.0.9"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
   passwordAndUserAuth: false

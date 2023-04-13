@@ -539,6 +539,7 @@ type PostgresqlClusterV2ApiServicer interface {
 	ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2ClusterIdPut(context.Context, string, PostgresqlClusterUpdateV2) (ImplResponse, error)
 	ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put(context.Context) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsPostgresqlClustersV2Post(context.Context, PostgresqlClusterV2) (ImplResponse, error)
+	ClusterManagementMaintenanceEventsV1ResourcesApplicationsPostgresqlClustersV2Get(ctx context.Context, param string) (ImplResponse, error)
 }
 
 // PostgresqlConfigurationV2ApiServicer defines the api actions for the PostgresqlConfigurationV2Api service

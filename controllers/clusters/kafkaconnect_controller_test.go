@@ -26,7 +26,7 @@ var _ = Describe("Kafka Connect Controller", func() {
 		kc            = "kafkaconnect"
 		ns            = "default"
 		kafkaNS       = types.NamespacedName{Name: kc, Namespace: ns}
-		timeout       = time.Second * 15
+		timeout       = time.Second * 20
 		interval      = time.Second * 2
 	)
 

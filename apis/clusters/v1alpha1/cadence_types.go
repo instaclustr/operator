@@ -521,10 +521,10 @@ func (cs *CadenceSpec) validatePackagedProvisioning(old []*PackagedProvisioning)
 			if *pp.BundledOpenSearchSpec != *old[i].BundledOpenSearchSpec {
 				return models.ErrImmutablePackagedProvisioning
 			}
-		}
-
-		if pp.BundledKafkaSpec != nil || pp.BundledOpenSearchSpec != nil {
-			return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must be empty because UseAdvancedVisibility is set to false")
+		} else {
+			if pp.BundledKafkaSpec != nil || pp.BundledOpenSearchSpec != nil {
+				return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must be empty because UseAdvancedVisibility is set to false")
+			}
 		}
 
 		if *pp.BundledCassandraSpec != *old[i].BundledCassandraSpec ||

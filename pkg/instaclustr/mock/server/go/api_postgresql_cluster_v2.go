@@ -80,6 +80,12 @@ func (c *PostgresqlClusterV2ApiController) Routes() Routes {
 			"/provisioning/v1/{clusterId}",
 			c.ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put,
 		},
+		{
+			"ClusterManagementMaintenanceEventsV1ResourcesApplicationsPostgresqlClustersV2Get",
+			strings.ToUpper("Get"),
+			"/v1/maintenance-events/events",
+			c.ClusterManagementMaintenanceEventsV1ResourcesApplicationsPostgresqlClustersV2Get,
+		},
 	}
 }
 
@@ -179,4 +185,21 @@ func (c *PostgresqlClusterV2ApiController) ClusterManagementConfigurationV1Resou
 	// If no error, encode the body and the result code
 	EncodeJSONResponse(result.Body, &result.Code, w)
 
+}
+
+// ClusterManagementConfigurationV1ResourcesApplicationsPostgresqlClustersV2Put - Update PostgreSQL cluster details
+func (c *PostgresqlClusterV2ApiController) ClusterManagementMaintenanceEventsV1ResourcesApplicationsPostgresqlClustersV2Get(w http.ResponseWriter, r *http.Request) {
+	// TODO: Remove this method when GetMaintenance is implemented for API v 2.
+
+	clusterIdParam := r.URL.Query().Get("clusterId")
+
+	result, err := c.service.ClusterManagementMaintenanceEventsV1ResourcesApplicationsPostgresqlClustersV2Get(r.Context(), clusterIdParam)
+	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+	//   'https://api.instaclustr.com/v1/maintenance-events/events?clusterId=string'
 }

@@ -180,13 +180,6 @@ func (r *KafkaReconciler) handleUpdateCluster(
 ) reconcile.Result {
 	l = l.WithName("Kafka update Event")
 
-	if k.Status.ClusterStatus.State != StatusRUNNING {
-		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
-			"cluster name", k.Spec.Name,
-			"cluster state", k.Status.ClusterStatus.State)
-		return models.ReconcileRequeue
-	}
-
 	iData, err := r.API.GetKafka(k.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", k.Status.ID)
@@ -197,6 +190,13 @@ func (r *KafkaReconciler) handleUpdateCluster(
 	if err != nil {
 		l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", k.Status.ID)
 		return models.ExitReconcile
+	}
+
+	if iKafka.Status.ClusterStatus.State != StatusRUNNING {
+		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
+			"cluster name", k.Spec.Name,
+			"cluster state", iKafka.Status.ClusterStatus.State)
+		return models.ReconcileRequeue
 	}
 
 	if k.Annotations[models.ExternalChangesAnnotation] == models.True {

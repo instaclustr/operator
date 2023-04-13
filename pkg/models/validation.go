@@ -1,15 +1,15 @@
 package models
 
 var (
-	RedisVersions        = []string{"6.2.7", "7.0.5"}
+	RedisVersions        = []string{"6.2.11", "7.0.9"}
 	CassandraVersions    = []string{"4.0.4", "3.11.13"}
 	SparkVersions        = []string{"2.3.2", "3.0.1"}
 	CadenceVersions      = []string{"0.22.4", "0.24.0"}
-	PostgreSQLVersions   = []string{"15.1.0", "14.6.0", "14.5.0", "13.9.0", "13.8.0"}
+	PostgreSQLVersions   = []string{"15.2.0", "14.6.0", "14.7.0", "13.9.0", "13.10.0"}
 	PGBouncerVersions    = []string{"1.17.0"}
 	KafkaVersions        = []string{"3.3.1", "3.0.2", "3.1.2", "2.8.2"}
 	ZookeeperVersions    = []string{"3.6.3", "3.7.1"}
-	KafkaConnectVersions = []string{"3.1.2", "3.0.2", "2.8.2", "2.7.1"}
+	KafkaConnectVersions = []string{"3.1.2", "3.0.2", "2.8.2", "2.7.1", "3.3.1"}
 	KafkaConnectVPCTypes = []string{"KAFKA_VPC", "VPC_PEERED", "SEPARATE_VPC"}
 	OpenSearchVersions   = []string{"opensearch:1.3.7", "opensearch:2.2.1", "opensearch:1.3.7.ic1", "opensearch:2.2.1.ic1"}
 	PoolModes            = []string{"TRANSACTION", "SESSION", "STATEMENT"}
