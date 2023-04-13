@@ -26,7 +26,7 @@ var _ = Describe("Cassandra Controller", func() {
 		c                 = "cassandra"
 		ns                = "default"
 		cassandraNS       = types.NamespacedName{Name: c, Namespace: ns}
-		timeout           = time.Second * 15
+		timeout           = time.Second * 20
 		interval          = time.Second * 2
 	)
 

@@ -641,36 +641,6 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch)
 			}
 		}
 
-		activeOperations, err := r.API.GetActiveDataCentreResizeOperations(o.Status.ID, o.Status.CDCID)
-		if err != nil {
-			l.Error(err, "Cannot get active OpenSearch data centre resize operations",
-				"cluster ID", o.Status.ID)
-
-			return err
-		}
-
-		if len(activeOperations) == 0 &&
-			!o.Spec.IsEqual(iO.Spec) {
-			patch := o.NewPatch()
-			o.Spec = iO.Spec
-			err = r.Patch(context.TODO(), o, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch OpenSearch cluster spec",
-					"cluster name", o.Spec.Name,
-					"cluster ID", o.Status.ID,
-					"instaclustr spec", iO.Spec,
-				)
-
-				return err
-			}
-
-			l.Info("OpenSearch cluster spec was updated",
-				"cluster ID", o.Status.ID,
-				"spec", o.Spec,
-			)
-
-		}
-
 		maintEvents, err := r.API.GetMaintenanceEvents(o.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get OpenSearch cluster maintenance events",

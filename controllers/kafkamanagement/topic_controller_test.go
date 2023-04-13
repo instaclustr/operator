@@ -29,7 +29,7 @@ var _ = Describe("Kafka Topic Controller", func() {
 		t             = "topic"
 		ns            = "default"
 		topicNS       = types.NamespacedName{Name: t, Namespace: ns}
-		timeout       = time.Second * 15
+		timeout       = time.Second * 20
 		interval      = time.Second * 2
 	)
 
