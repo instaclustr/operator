@@ -104,6 +104,11 @@ After you have applied the entity, the Instaclustr operator will create it on yo
 You can check access to the created cluster from your kubernetes cluster and run some simple command to check that it is working with a lot of tools.
 All available tools you can find in the Instaclustr console -> Choose your cluster -> Connection Info -> Examples section.
 
+When a cluster is provisioned, a new service will be created along with it that expose public IP addresses. You can use this service name (pattern **{k8s_cluster_name}-service**) instead of public IP addresses and ports to connect to and interact with your cluster.
+To do this, the public IP address of your machine must be added to the Firewall Rules tab of your cluster in the Instaclustr console.
+![Firewall Rules icon](../images/firewall_rules_screen.png "Firewall Rules icon")
+Then, you can use the service name instead of public addresses and port.
+
 ## Cluster update flow
 To update a cluster you can apply an updated cluster manifest or edit the custom resource instance in kubernetes cluster:
 * Apply an updated cluster manifest:

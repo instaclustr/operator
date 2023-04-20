@@ -37,6 +37,7 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -500,6 +501,16 @@ func (r *RedisReconciler) handleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, redis.Name, redis.Namespace)
+	if err != nil {
+		logger.Error(err, "Cannot delete Redis cluster expose service",
+			"cluster ID", redis.Status.ID,
+			"cluster name", redis.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	logger.Info("Redis cluster was deleted",
 		"cluster name", redis.Spec.Name,
 		"cluster ID", redis.Status.ID,
@@ -614,6 +625,8 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 				"old status", redis.Status,
 			)
 
+			areDCsEqual := areDataCentresEqual(iRedis.Status.ClusterStatus.DataCentres, redis.Status.ClusterStatus.DataCentres)
+
 			patch := redis.NewPatch()
 			redis.Status.ClusterStatus = iRedis.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), redis, patch)
@@ -624,6 +637,23 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 				)
 
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iRedis.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					redis.Name,
+					redis.Namespace,
+					nodes,
+					models.RedisConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

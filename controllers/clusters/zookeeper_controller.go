@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -329,6 +330,16 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, zook.Name, zook.Namespace)
+	if err != nil {
+		l.Error(err, "Cannot delete Zookeeper cluster expose service",
+			"cluster ID", zook.Status.ID,
+			"cluster name", zook.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	l.Info("Zookeeper cluster was deleted",
 		"cluster ID", zook.Status.ID,
 	)
@@ -391,6 +402,8 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 				"instaclustr status", iZook.Status,
 				"status", zook.Status)
 
+			areDCsEqual := areDataCentresEqual(iZook.Status.ClusterStatus.DataCentres, zook.Status.ClusterStatus.DataCentres)
+
 			patch := zook.NewPatch()
 			zook.Status.ClusterStatus = iZook.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), zook, patch)
@@ -399,6 +412,23 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 					"cluster name", zook.Spec.Name,
 					"cluster state", zook.Status.State)
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iZook.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					zook.Name,
+					zook.Namespace,
+					nodes,
+					models.ZookeeperConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

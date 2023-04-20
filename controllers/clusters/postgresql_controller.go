@@ -41,6 +41,7 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -681,6 +682,16 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, pg.Name, pg.Namespace)
+	if err != nil {
+		logger.Error(err, "Cannot delete PostgreSQL cluster expose service",
+			"cluster ID", pg.Status.ID,
+			"cluster name", pg.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	logger.Info("PostgreSQL cluster was deleted",
 		"cluster name", pg.Spec.Name,
 		"cluster ID", pg.Status.ID,
@@ -832,6 +843,8 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 				"old cluster status", pg.Status,
 			)
 
+			areDCsEqual := areDataCentresEqual(iPg.Status.ClusterStatus.DataCentres, pg.Status.ClusterStatus.DataCentres)
+
 			patch := pg.NewPatch()
 			pg.Status.ClusterStatus = iPg.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), pg, patch)
@@ -842,6 +855,23 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 					"instaclustr status", iPg.Status,
 				)
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iPg.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					pg.Name,
+					pg.Namespace,
+					nodes,
+					models.PgConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

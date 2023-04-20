@@ -121,6 +121,10 @@ You can check access to the created Cassandra cluster from your kubernetes clust
 All available tools you can find in the Instaclustr console -> Choose your cluster -> Connection Info -> Examples section.
 For example, how to connect with cqlsh tool you can see in [this doc](https://www.instaclustr.com/support/documentation/cassandra/using-cassandra/connect-to-cassandra-using-cqlsh/). 
 
+When a cluster is provisioned, a new service will be created along with it that expose public IP addresses. You can use this service name (pattern **{k8s_cluster_name}-service**) instead of public IP addresses and ports to connect to and interact with your cluster.
+To do this, the public IP address of your machine must be added to the Cassandra Allowed Addresses in Settings tab of your cluster in the Instaclustr console (Refer [this support article](https://www.instaclustr.com/support/documentation/cassandra/using-cassandra/connecting-to-a-cluster/)).
+Then, you can use the service name instead of public addresses and port.
+
 ## Cluster update flow
 To update a cluster you can apply an updated cluster manifest or edit the custom resource instance in kubernetes cluster:
 * Apply an updated cluster manifest:

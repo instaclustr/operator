@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -484,6 +485,16 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, cadence.Name, cadence.Namespace)
+	if err != nil {
+		logger.Error(err, "Cannot delete Cadence cluster expose service",
+			"cluster ID", cadence.Status.ID,
+			"cluster name", cadence.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	logger.Info("Cadence cluster was deleted",
 		"cluster name", cadence.Spec.Name,
 		"cluster ID", cadence.Status.ID,
@@ -790,6 +801,8 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 				"old status", cadence.Status.ClusterStatus,
 			)
 
+			areDCsEqual := areDataCentresEqual(iCadence.Status.ClusterStatus.DataCentres, cadence.Status.ClusterStatus.DataCentres)
+
 			patch := cadence.NewPatch()
 			cadence.Status.ClusterStatus = iCadence.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), cadence, patch)
@@ -799,6 +812,23 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 					"status", cadence.Status.State,
 				)
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iCadence.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					cadence.Name,
+					cadence.Namespace,
+					nodes,
+					models.CadenceConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -1009,7 +1039,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 	spec := clustersv1alpha1.OpenSearchSpec{
 		Cluster: clustersv1alpha1.Cluster{
 			Name:                  models.OpenSearchChildPrefix + cadence.Name,
-			Version:               models.OpensearchV1_3_7,
+			Version:               models.OpenSearchV1_3_7,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       twoFactorDelete,
