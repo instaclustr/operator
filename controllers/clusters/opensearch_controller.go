@@ -37,6 +37,7 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -512,6 +513,16 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, o.Name, o.Namespace)
+	if err != nil {
+		logger.Error(err, "Cannot delete OpenSearch cluster expose service",
+			"cluster ID", o.Status.ID,
+			"cluster name", o.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	logger.Info("OpenSearch cluster was deleted",
 		"cluster name", o.Spec.Name,
 		"cluster ID", o.Status.ID,
@@ -628,6 +639,8 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch)
 				"old status", o.Status.ClusterStatus,
 			)
 
+			areDCsEqual := areDataCentresEqual(iO.Status.ClusterStatus.DataCentres, o.Status.ClusterStatus.DataCentres)
+
 			patch := o.NewPatch()
 			o.Status.ClusterStatus = iO.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), o, patch)
@@ -638,6 +651,23 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch)
 				)
 
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iO.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					o.Name,
+					o.Namespace,
+					nodes,
+					models.OpenSearchConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

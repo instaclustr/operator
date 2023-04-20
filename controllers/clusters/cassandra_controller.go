@@ -37,6 +37,7 @@ import (
 
 	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -59,6 +60,8 @@ type CassandraReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=*,resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=*,resources=endpoints,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -518,6 +521,16 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, cassandra.Name, cassandra.Namespace)
+	if err != nil {
+		l.Error(err, "Cannot delete Cassandra cluster expose service",
+			"cluster ID", cassandra.Status.ID,
+			"cluster name", cassandra.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	l.Info("Cluster has been deleted",
 		"cluster name", cassandra.Spec.Name,
 		"cluster ID", cassandra.Status.ID,
@@ -632,11 +645,30 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 				"status from Instaclustr", iCassandra.Status.ClusterStatus,
 				"status from k8s", cassandra.Status.ClusterStatus)
 
+			areDCsEqual := areDataCentresEqual(iCassandra.Status.ClusterStatus.DataCentres, cassandra.Status.ClusterStatus.DataCentres)
+
 			patch := cassandra.NewPatch()
 			cassandra.Status.ClusterStatus = iCassandra.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), cassandra, patch)
 			if err != nil {
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iCassandra.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					cassandra.Name,
+					cassandra.Namespace,
+					nodes,
+					models.CassandraConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

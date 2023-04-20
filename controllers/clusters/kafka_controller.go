@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -359,6 +360,16 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 		return models.ReconcileRequeue
 	}
 
+	err = exposeservice.Delete(r.Client, kafka.Name, kafka.Namespace)
+	if err != nil {
+		l.Error(err, "Cannot delete Kafka cluster expose service",
+			"cluster ID", kafka.Status.ID,
+			"cluster name", kafka.Spec.Name,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	l.Info("Cluster was deleted",
 		"cluster name", kafka.Spec.Name,
 		"cluster ID", kafka.Status.ID)
@@ -422,6 +433,8 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 				"instacluster status", iKafka.Status,
 				"k8s status", kafka.Status.ClusterStatus)
 
+			areDCsEqual := areDataCentresEqual(iKafka.Status.ClusterStatus.DataCentres, kafka.Status.ClusterStatus.DataCentres)
+
 			patch := kafka.NewPatch()
 			kafka.Status.ClusterStatus = iKafka.Status.ClusterStatus
 			err = r.Status().Patch(context.Background(), kafka, patch)
@@ -429,6 +442,23 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 				l.Error(err, "Cannot patch cluster cluster",
 					"cluster name", kafka.Spec.Name, "cluster state", kafka.Status.State)
 				return err
+			}
+
+			if !areDCsEqual {
+				var nodes []*clustersv1alpha1.Node
+
+				for _, dc := range iKafka.Status.ClusterStatus.DataCentres {
+					nodes = append(nodes, dc.Nodes...)
+				}
+
+				err = exposeservice.Create(r.Client,
+					kafka.Name,
+					kafka.Namespace,
+					nodes,
+					models.KafkaConnectionPort)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

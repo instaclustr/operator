@@ -16,6 +16,7 @@ const (
 
 	ControlledByLabel                  = "instaclustr.com/controlledBy"
 	ClusterIDLabel                     = "instaclustr.com/clusterID"
+	ClusterNameLabel                   = "instaclustr.com/clusterName"
 	ClustersV1alpha1APIVersion         = "clusters.instaclustr.com/v1alpha1"
 	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
 	RedisUserNamespaceLabel            = "instaclustr.com/redisUserNamespace"
@@ -34,7 +35,7 @@ const (
 
 	CassandraV3_11_13 = "3.11.13"
 	KafkaV3_1_2       = "3.1.2"
-	OpensearchV1_3_7  = "opensearch:1.3.7"
+	OpenSearchV1_3_7  = "opensearch:1.3.7"
 	K8sAPIVersionV1   = "v1"
 	VPCPeered         = "VPC_PEERED"
 
@@ -54,6 +55,15 @@ const (
 	PgBackupPrefix          = "postgresql-backup-"
 	SnapshotUploadPrefix    = "snapshot-upload-"
 	DefaultUserSecretPrefix = "default-user-password-"
+
+	CassandraConnectionPort    = 9042
+	CadenceConnectionPort      = 7933
+	KafkaConnectionPort        = 9092
+	KafkaConnectConnectionPort = 8083
+	OpenSearchConnectionPort   = 9200
+	PgConnectionPort           = 5432
+	RedisConnectionPort        = 6379
+	ZookeeperConnectionPort    = 2181
 )
 
 const (
