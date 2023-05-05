@@ -12,7 +12,7 @@ metadata:
     test.annotation/first: testAnnotation
 spec:
   name: "k8sOpOS"
-  version: "opensearch:2.2.1"
+  version: "2.2.1"
   concurrentResizes: 1
   notifySupportContacts: false
 #  twoFactorDelete:

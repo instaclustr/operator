@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
@@ -31,9 +32,15 @@ import (
 
 var kafkaconnectlog = logf.Log.WithName("kafkaconnect-resource")
 
-func (r *KafkaConnect) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type kafkaConnectValidator struct {
+	API validation.Validation
+}
+
+func (r *KafkaConnect) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(r).WithValidator(webhook.CustomValidator(&kafkaConnectValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -53,26 +60,42 @@ func (r *KafkaConnect) Default() {
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-kafkaconnect,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=kafkaconnects,verbs=create;update,versions=v1alpha1,name=vkafkaconnect.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &KafkaConnect{}
+var _ webhook.CustomValidator = &kafkaConnectValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (k *KafkaConnect) ValidateCreate() error {
-	kafkaconnectlog.Info("validate create", "name", k.Name)
+func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	kc, ok := obj.(*KafkaConnect)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to kafka connect", obj.GetObjectKind())
+	}
 
-	err := k.Spec.Cluster.ValidateCreation(models.KafkaConnectVersions)
+	kafkaconnectlog.Info("validate create", "name", kc.Name)
+
+	err := kc.Spec.Cluster.ValidateCreation()
 	if err != nil {
 		return err
 	}
 
-	if len(k.Spec.DataCentres) == 0 {
+	appVersions, err := kcv.API.ListAppVersions(models.KafkaConnectAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.KafkaConnectAppKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.KafkaConnectAppType, kc.Spec.Version)
+	if err != nil {
+		return err
+	}
+
+	if len(kc.Spec.DataCentres) == 0 {
 		return fmt.Errorf("data centres field is empty")
 	}
 
-	if len(k.Spec.TargetCluster) > 1 {
+	if len(kc.Spec.TargetCluster) > 1 {
 		return fmt.Errorf("targetCluster array size must be between 0 and 1")
 	}
 
-	for _, tc := range k.Spec.TargetCluster {
+	for _, tc := range kc.Spec.TargetCluster {
 		if len(tc.ManagedCluster) > 1 {
 			return fmt.Errorf("managedCluster array size must be between 0 and 1")
 		}
@@ -93,11 +116,11 @@ func (k *KafkaConnect) ValidateCreate() error {
 		}
 	}
 
-	if len(k.Spec.CustomConnectors) > 1 {
+	if len(kc.Spec.CustomConnectors) > 1 {
 		return fmt.Errorf("customConnectors array size must be between 0 and 1")
 	}
 
-	for _, dc := range k.Spec.DataCentres {
+	for _, dc := range kc.Spec.DataCentres {
 		err := dc.ValidateCreation()
 		if err != nil {
 			return err
@@ -112,16 +135,21 @@ func (k *KafkaConnect) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (k *KafkaConnect) ValidateUpdate(old runtime.Object) error {
-	kafkaconnectlog.Info("validate update", "name", k.Name)
+func (kcv *kafkaConnectValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	kc, ok := new.(*KafkaConnect)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to kafka connect", new.GetObjectKind())
+	}
+
+	kafkaconnectlog.Info("validate update", "name", kc.Name)
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
-	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
+	if kc.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
-	if k.Status.ID == "" {
-		return k.ValidateCreate()
+	if kc.Status.ID == "" {
+		return kcv.ValidateCreate(ctx, kc)
 	}
 
 	oldCluster, ok := old.(*KafkaConnect)
@@ -129,7 +157,7 @@ func (k *KafkaConnect) ValidateUpdate(old runtime.Object) error {
 		return models.ErrTypeAssertion
 	}
 
-	err := k.Spec.validateUpdate(oldCluster.Spec)
+	err := kc.Spec.validateUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)
 	}
@@ -138,8 +166,13 @@ func (k *KafkaConnect) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *KafkaConnect) ValidateDelete() error {
-	kafkaconnectlog.Info("validate delete", "name", r.Name)
+func (kcv *kafkaConnectValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	kc, ok := obj.(*KafkaConnect)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to kafka connect", obj.GetObjectKind())
+	}
+
+	kafkaconnectlog.Info("validate delete", "name", kc.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil

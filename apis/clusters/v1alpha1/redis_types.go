@@ -280,26 +280,6 @@ func (rs *RedisStatus) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*Da
 	return
 }
 
-func (rs *RedisSpec) ValidateCreate() error {
-	err := rs.Cluster.ValidateCreation(models.RedisVersions)
-	if err != nil {
-		return err
-	}
-
-	if len(rs.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
-	}
-
-	for _, dc := range rs.DataCentres {
-		err = dc.ValidateCreate()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (rs *RedisSpec) ValidateUpdate(oldSpec RedisSpec) error {
 	newImmutableFields := rs.newImmutableFields()
 	oldImmutableFields := oldSpec.newImmutableFields()

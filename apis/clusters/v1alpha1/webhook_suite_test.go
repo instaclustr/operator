@@ -96,28 +96,28 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&Cassandra{}).SetupWebhookWithManager(mgr)
+	err = (&Cassandra{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&PostgreSQL{}).SetupWebhookWithManager(mgr)
+	err = (&PostgreSQL{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&Redis{}).SetupWebhookWithManager(mgr)
+	err = (&Redis{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&OpenSearch{}).SetupWebhookWithManager(mgr)
+	err = (&OpenSearch{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&Kafka{}).SetupWebhookWithManager(mgr)
+	err = (&Kafka{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&KafkaConnect{}).SetupWebhookWithManager(mgr)
+	err = (&KafkaConnect{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&Cadence{}).SetupWebhookWithManager(mgr)
+	err = (&Cadence{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&Zookeeper{}).SetupWebhookWithManager(mgr)
+	err = (&Zookeeper{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,13 +26,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 var kafkalog = logf.Log.WithName("kafka-resource")
 
-func (r *Kafka) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type kafkaValidator struct {
+	API validation.Validation
+}
+
+func (r *Kafka) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(r).WithValidator(webhook.CustomValidator(&kafkaValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -51,13 +59,29 @@ func (k *Kafka) Default() {
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-kafka,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=kafkas,verbs=create;update,versions=v1alpha1,name=vkafka.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Kafka{}
+var _ webhook.CustomValidator = &kafkaValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (k *Kafka) ValidateCreate() error {
+func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	k, ok := obj.(*Kafka)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to kafka", obj.GetObjectKind())
+	}
+
 	kafkalog.Info("validate create", "name", k.Name)
 
-	err := k.Spec.Cluster.ValidateCreation(models.KafkaVersions)
+	err := k.Spec.Cluster.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	appVersions, err := kv.API.ListAppVersions(models.KafkaAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.KafkaAppKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.KafkaAppType, k.Spec.Version)
 	if err != nil {
 		return err
 	}
@@ -70,11 +94,16 @@ func (k *Kafka) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (k *Kafka) ValidateUpdate(old runtime.Object) error {
+func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	k, ok := new.(*Kafka)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to kafka", new.GetObjectKind())
+	}
+
 	kafkalog.Info("validate update", "name", k.Name)
 
 	if k.Status.ID == "" {
-		return k.ValidateCreate()
+		return kv.ValidateCreate(ctx, k)
 	}
 
 	// skip validation when handle external changes from Instaclustr
@@ -96,7 +125,12 @@ func (k *Kafka) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (k *Kafka) ValidateDelete() error {
+func (kv *kafkaValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	k, ok := obj.(*Kafka)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to kafka", obj.GetObjectKind())
+	}
+
 	kafkalog.Info("validate delete", "name", k.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

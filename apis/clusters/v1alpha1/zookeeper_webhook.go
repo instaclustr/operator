@@ -17,19 +17,29 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 var zookeeperlog = logf.Log.WithName("zookeeper-resource")
 
-func (z *Zookeeper) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type zookeeperValidator struct {
+	API validation.Validation
+}
+
+func (z *Zookeeper) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(z).
+		For(z).WithValidator(webhook.CustomValidator(&zookeeperValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -47,13 +57,29 @@ func (z *Zookeeper) Default() {
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-zookeeper,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=zookeepers,verbs=create;update,versions=v1alpha1,name=vzookeeper.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Zookeeper{}
+var _ webhook.CustomValidator = &zookeeperValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (z *Zookeeper) ValidateCreate() error {
+func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	z, ok := obj.(*Zookeeper)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to zookeeper", obj.GetObjectKind())
+	}
+
 	zookeeperlog.Info("validate create", "name", z.Name)
 
-	err := z.Spec.Cluster.ValidateCreation(models.ZookeeperVersions)
+	err := z.Spec.Cluster.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	appVersions, err := zv.API.ListAppVersions(models.ZookeeperAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.ZookeeperClusterKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.ZookeeperAppType, z.Spec.Version)
 	if err != nil {
 		return err
 	}
@@ -73,11 +99,16 @@ func (z *Zookeeper) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (z *Zookeeper) ValidateUpdate(old runtime.Object) error {
+func (zv *zookeeperValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	z, ok := new.(*Zookeeper)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to zookeeper", new.GetObjectKind())
+	}
+
 	zookeeperlog.Info("validate update", "name", z.Name)
 
 	if z.Status.ID == "" {
-		return z.ValidateCreate()
+		return zv.ValidateCreate(ctx, z)
 	}
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
@@ -89,7 +120,12 @@ func (z *Zookeeper) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (z *Zookeeper) ValidateDelete() error {
+func (zv *zookeeperValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	z, ok := obj.(*Zookeeper)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to zookeeper", obj.GetObjectKind())
+	}
+
 	zookeeperlog.Info("validate delete", "name", z.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

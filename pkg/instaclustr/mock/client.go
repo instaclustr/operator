@@ -331,3 +331,7 @@ func (c *mockClient) GetEncryptionKeyStatus(encryptionKeyID string, encryptionKe
 func (c *mockClient) DeleteEncryptionKey(encryptionKeyID string) error {
 	return nil
 }
+
+func (c *mockClient) ListAppVersions(app string) ([]*models.AppVersions, error) {
+	panic("ListAppVersions: is not implemented")
+}
