@@ -14,4 +14,4 @@ spec:
   name: "OperatorZookeeper"
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
-  version: "3.6.3"
+  version: "3.7.1"

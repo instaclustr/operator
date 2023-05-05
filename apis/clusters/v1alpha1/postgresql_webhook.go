@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,9 +31,15 @@ import (
 
 var postgresqllog = logf.Log.WithName("postgresql-resource")
 
-func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type pgValidator struct {
+	API validation.Validation
+}
+
+func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(r).WithValidator(webhook.CustomValidator(&pgValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -40,7 +47,7 @@ func (r *PostgreSQL) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-postgresql,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=postgresqls,verbs=create;update,versions=v1alpha1,name=mpostgresql.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-postgresql,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=postgresqls,verbs=create;update,versions=v1alpha1,name=vpostgresql.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &PostgreSQL{}
+var _ webhook.CustomValidator = &pgValidator{}
 var _ webhook.Defaulter = &PostgreSQL{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -51,7 +58,12 @@ func (pg *PostgreSQL) Default() {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (pg *PostgreSQL) ValidateCreate() error {
+func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	pg, ok := obj.(*PostgreSQL)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to postgreSQL", obj.GetObjectKind())
+	}
+
 	postgresqllog.Info("validate create", "name", pg.Name)
 
 	if pg.Spec.PgRestoreFrom != nil {
@@ -62,7 +74,18 @@ func (pg *PostgreSQL) ValidateCreate() error {
 		}
 	}
 
-	err := pg.Spec.Cluster.ValidateCreation(models.PostgreSQLVersions)
+	err := pg.Spec.Cluster.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	appVersions, err := pgv.API.ListAppVersions(models.PgAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.PgAppKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.PgAppType, pg.Spec.Version)
 	if err != nil {
 		return err
 	}
@@ -101,11 +124,16 @@ func (pg *PostgreSQL) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
-	postgresqllog.Info("validate update", "name", r.Name)
+func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	pg, ok := new.(*PostgreSQL)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to postgreSQL", new.GetObjectKind())
+	}
+
+	postgresqllog.Info("validate update", "name", pg.Name)
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
-	if r.Annotations[models.ExternalChangesAnnotation] == models.True {
+	if pg.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
@@ -118,11 +146,11 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 		return nil
 	}
 
-	if r.Status.ID == "" {
-		return r.ValidateCreate()
+	if pg.Status.ID == "" {
+		return pgv.ValidateCreate(ctx, pg)
 	}
 
-	err := r.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
+	err := pg.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("immutable fields validation error: %v", err)
 	}
@@ -131,8 +159,13 @@ func (r *PostgreSQL) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PostgreSQL) ValidateDelete() error {
-	postgresqllog.Info("validate delete", "name", r.Name)
+func (pgv *pgValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	pg, ok := obj.(*PostgreSQL)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to postgreSQL", obj.GetObjectKind())
+	}
+
+	postgresqllog.Info("validate delete", "name", pg.Name)
 
 	return nil
 }

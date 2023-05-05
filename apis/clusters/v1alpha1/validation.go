@@ -8,7 +8,7 @@ import (
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
-func (c *Cluster) ValidateCreation(availableVersions []string) error {
+func (c *Cluster) ValidateCreation() error {
 	clusterNameMatched, err := regexp.Match(models.ClusterNameRegExp, []byte(c.Name))
 	if !clusterNameMatched || err != nil {
 		return fmt.Errorf("cluster name should have lenght from 3 to 32 symbols and fit pattern: %s",
@@ -17,11 +17,6 @@ func (c *Cluster) ValidateCreation(availableVersions []string) error {
 
 	if len(c.TwoFactorDelete) > 1 {
 		return fmt.Errorf("two factor delete should not have more than 1 item")
-	}
-
-	if !validation.Contains(c.Version, availableVersions) {
-		return fmt.Errorf("cluster version %s is unavailable, available versions: %v",
-			c.Version, availableVersions)
 	}
 
 	if !validation.Contains(c.SLATier, models.SLATiers) {
@@ -93,6 +88,22 @@ func (cps *CloudProviderSettings) ValidateCreation() error {
 	if (cps.ResourceGroup != "" && cps.DiskEncryptionKey != "") ||
 		(cps.ResourceGroup != "" && cps.CustomVirtualNetworkID != "") {
 		return fmt.Errorf("cluster should have cloud provider settings only for 1 cloud provider")
+	}
+
+	return nil
+}
+
+func validateAppVersion(
+	versions []*models.AppVersions,
+	appType string,
+	version string) error {
+	for _, appVersions := range versions {
+		if appVersions.Application == appType {
+			if !validation.Contains(version, appVersions.Versions) {
+				return fmt.Errorf("%s version %s is unavailable, available versions: %v",
+					appType, version, appVersions.Versions)
+			}
+		}
 	}
 
 	return nil

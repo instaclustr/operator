@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,9 +31,15 @@ import (
 
 var cassandralog = logf.Log.WithName("cassandra-resource")
 
-func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type cassandraValidator struct {
+	API validation.Validation
+}
+
+func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(r).WithValidator(webhook.CustomValidator(&cassandraValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -40,7 +47,7 @@ func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-cassandra,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1alpha1,name=vcassandra.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-cassandra,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1alpha1,name=vcassandra.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Cassandra{}
+var _ webhook.CustomValidator = &cassandraValidator{}
 var _ webhook.Defaulter = &Cassandra{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -51,7 +58,12 @@ func (c *Cassandra) Default() {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (c *Cassandra) ValidateCreate() error {
+func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	c, ok := obj.(*Cassandra)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to cassandra", obj.GetObjectKind())
+	}
+
 	cassandralog.Info("validate create", "name", c.Name)
 
 	if c.Spec.RestoreFrom != nil {
@@ -62,9 +74,31 @@ func (c *Cassandra) ValidateCreate() error {
 		}
 	}
 
-	err := c.Spec.Cluster.ValidateCreation(models.CassandraVersions)
+	err := c.Spec.Cluster.ValidateCreation()
 	if err != nil {
 		return err
+	}
+
+	if len(c.Spec.Spark) > 1 {
+		return fmt.Errorf("spark should not have more than 1 item")
+	}
+
+	appVersions, err := cv.API.ListAppVersions(models.CassandraAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.CassandraAppKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.CassandraAppType, c.Spec.Version)
+	if err != nil {
+		return err
+	}
+
+	for _, spark := range c.Spec.Spark {
+		err = validateAppVersion(appVersions, models.SparkAppType, spark.Version)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(c.Spec.DataCentres) == 0 {
@@ -82,21 +116,16 @@ func (c *Cassandra) ValidateCreate() error {
 		}
 	}
 
-	if len(c.Spec.Spark) > 1 {
-		return fmt.Errorf("spark should not have more than 1 item")
-	}
-	if len(c.Spec.Spark) == 1 {
-		if !validation.Contains(c.Spec.Spark[0].Version, models.SparkVersions) {
-			return fmt.Errorf("cluster spark version %s is unavailable, available versions: %v",
-				c.Spec.Spark[0].Version, models.SparkVersions)
-		}
-	}
-
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
+func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	c, ok := new.(*Cassandra)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to cassandra", new.GetObjectKind())
+	}
+
 	cassandralog.Info("validate update", "name", c.Name)
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
@@ -114,7 +143,7 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if c.Status.ID == "" {
-		return c.ValidateCreate()
+		return cv.ValidateCreate(ctx, c)
 	}
 
 	err := c.Spec.validateUpdate(oldCluster.Spec)
@@ -126,7 +155,12 @@ func (c *Cassandra) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (c *Cassandra) ValidateDelete() error {
+func (cv *cassandraValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	c, ok := obj.(*Cassandra)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to cassandra", obj.GetObjectKind())
+	}
+
 	cassandralog.Info("validate delete", "name", c.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

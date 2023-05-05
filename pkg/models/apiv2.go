@@ -95,3 +95,8 @@ type ActiveCluster struct {
 	Application string `json:"application,omitempty"`
 	ID          string `json:"id,omitempty"`
 }
+
+type AppVersions struct {
+	Application string   `json:"application"`
+	Versions    []string `json:"versions"`
+}

@@ -313,15 +313,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "MaintenanceEvents")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.Cassandra{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.Cassandra{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Cassandra")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.PostgreSQL{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.PostgreSQL{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "PostgreSQL")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.Redis{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.Redis{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Redis")
 		os.Exit(1)
 	}
@@ -333,7 +333,7 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "AWSSecurityGroupFirewallRule")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.OpenSearch{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.OpenSearch{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "OpenSearch")
 		os.Exit(1)
 	}
@@ -341,7 +341,7 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "KafkaACL")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.Kafka{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.Kafka{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Kafka")
 		os.Exit(1)
 	}
@@ -349,7 +349,7 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ClusterNetworkFirewallRule")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.KafkaConnect{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.KafkaConnect{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "KafkaConnect")
 		os.Exit(1)
 	}
@@ -378,11 +378,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RedisUser")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.Zookeeper{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.Zookeeper{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Zookeeper")
 		os.Exit(1)
 	}
-	if err = (&clustersv1alpha1.Cadence{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&clustersv1alpha1.Cadence{}).SetupWebhookWithManager(mgr, instaClient); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Cadence")
 		os.Exit(1)
 	}

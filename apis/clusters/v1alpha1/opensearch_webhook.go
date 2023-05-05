@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,13 +26,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 var opensearchlog = logf.Log.WithName("opensearch-resource")
 
-func (r *OpenSearch) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type openSearchValidator struct {
+	API validation.Validation
+}
+
+func (r *OpenSearch) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(r).WithValidator(webhook.CustomValidator(&openSearchValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -39,7 +47,7 @@ func (r *OpenSearch) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-opensearch,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=opensearches,verbs=create;update,versions=v1alpha1,name=vopensearch.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-opensearch,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=opensearches,verbs=create;update,versions=v1alpha1,name=mopensearch.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &OpenSearch{}
+var _ webhook.CustomValidator = &openSearchValidator{}
 var _ webhook.Defaulter = &OpenSearch{}
 
 func (os *OpenSearch) Default() {
@@ -59,7 +67,12 @@ func (os *OpenSearch) Default() {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (os *OpenSearch) ValidateCreate() error {
+func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	os, ok := obj.(*OpenSearch)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to openSearch", obj.GetObjectKind())
+	}
+
 	opensearchlog.Info("validate create", "name", os.Name)
 
 	if os.Spec.RestoreFrom != nil {
@@ -70,7 +83,18 @@ func (os *OpenSearch) ValidateCreate() error {
 		}
 	}
 
-	err := os.Spec.ValidateCreation(models.OpenSearchVersions)
+	err := os.Spec.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	appVersions, err := osv.API.ListAppVersions(models.OpenSearchAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.OpenSearchAppKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.OpenSearchAppType, os.Spec.Version)
 	if err != nil {
 		return err
 	}
@@ -95,7 +119,12 @@ func (os *OpenSearch) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (os *OpenSearch) ValidateUpdate(old runtime.Object) error {
+func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	os, ok := new.(*OpenSearch)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to openSearch", new.GetObjectKind())
+	}
+
 	opensearchlog.Info("validate update", "name", os.Name)
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
@@ -109,7 +138,7 @@ func (os *OpenSearch) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if os.Status.ID == "" {
-		return os.ValidateCreate()
+		return osv.ValidateCreate(ctx, os)
 	}
 
 	err := os.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
@@ -121,7 +150,12 @@ func (os *OpenSearch) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (os *OpenSearch) ValidateDelete() error {
+func (osv *openSearchValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	os, ok := obj.(*OpenSearch)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to openSearch", obj.GetObjectKind())
+	}
+
 	opensearchlog.Info("validate delete", "name", os.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

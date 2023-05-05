@@ -49,6 +49,7 @@ const (
 	RedisClusterKind        = "Redis"
 	OsClusterKind           = "OpenSearch"
 	CassandraClusterKind    = "Cassandra"
+	ZookeeperClusterKind    = "Zookeeper"
 	SecretKind              = "Secret"
 	PgBackupEventType       = "postgresql-backup"
 	SnapshotUploadEventType = "snapshot-upload"
@@ -64,6 +65,25 @@ const (
 	PgConnectionPort           = 5432
 	RedisConnectionPort        = 6379
 	ZookeeperConnectionPort    = 2181
+
+	KafkaConnectAppKind = "kafka-connect"
+	CadenceAppKind      = "cadence"
+	CassandraAppKind    = "cassandra"
+	KafkaAppKind        = "kafka"
+	OpenSearchAppKind   = "opensearch"
+	PgAppKind           = "postgresql"
+	RedisAppKind        = "redis"
+	ZookeeperAppKind    = "zookeeper"
+
+	KafkaAppType        = "KAFKA"
+	RedisAppType        = "REDIS"
+	CadenceAppType      = "CADENCE"
+	ZookeeperAppType    = "APACHE_ZOOKEEPER"
+	OpenSearchAppType   = "OPENSEARCH"
+	PgAppType           = "POSTGRESQL"
+	KafkaConnectAppType = "KAFKA_CONNECT"
+	CassandraAppType    = "APACHE_CASSANDRA"
+	SparkAppType        = "SPARK"
 )
 
 const (

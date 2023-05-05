@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,13 +26,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 var cadencelog = logf.Log.WithName("cadence-resource")
 
-func (c *Cadence) SetupWebhookWithManager(mgr ctrl.Manager) error {
+type cadenceValidator struct {
+	API validation.Validation
+}
+
+func (c *Cadence) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(c).
+		For(c).WithValidator(webhook.CustomValidator(&cadenceValidator{
+		API: api,
+	})).
 		Complete()
 }
 
@@ -51,13 +59,29 @@ func (c *Cadence) Default() {
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1alpha1-cadence,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cadences,verbs=create;update,versions=v1alpha1,name=vcadence.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Cadence{}
+var _ webhook.CustomValidator = &cadenceValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (c *Cadence) ValidateCreate() error {
+func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+	c, ok := obj.(*Cadence)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to cadence", obj.GetObjectKind())
+	}
+
 	cadencelog.Info("validate create", "name", c.Name)
 
-	err := c.Spec.Cluster.ValidateCreation(models.CadenceVersions)
+	err := c.Spec.Cluster.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	appVersions, err := cv.API.ListAppVersions(models.CadenceAppKind)
+	if err != nil {
+		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
+			models.CadenceAppKind, err)
+	}
+
+	err = validateAppVersion(appVersions, models.CadenceAppType, c.Spec.Version)
 	if err != nil {
 		return err
 	}
@@ -146,7 +170,12 @@ func (c *Cadence) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (c *Cadence) ValidateUpdate(old runtime.Object) error {
+func (cv *cadenceValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
+	c, ok := new.(*Cadence)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to cadence", new.GetObjectKind())
+	}
+
 	cadencelog.Info("validate update", "name", c.Name)
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
@@ -168,7 +197,12 @@ func (c *Cadence) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (c *Cadence) ValidateDelete() error {
+func (cv *cadenceValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+	c, ok := obj.(*Cadence)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to cadence", obj.GetObjectKind())
+	}
+
 	cadencelog.Info("validate delete", "name", c.Name)
 
 	return nil
