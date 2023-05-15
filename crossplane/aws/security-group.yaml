@@ -1,0 +1,12 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroup
+metadata:
+  labels:
+    instance-group: debian
+  name: debian-sg-test
+spec:
+  forProvider:
+    name: debian-sg-test
+    region: us-east-1
+    vpcIdRef:
+      name: debian-vpc-test-crossplane

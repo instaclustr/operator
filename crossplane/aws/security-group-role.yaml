@@ -1,0 +1,127 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-ssh-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 145.224.105.172/32
+    region: us-east-1
+    protocol: tcp
+    fromPort: 22
+    toPort: 22
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-cqlsh-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 145.224.105.172/32
+    region: us-east-1
+    protocol: tcp
+    fromPort: 9042
+    toPort: 9042
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-internode-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 0.0.0.0/0
+    region: us-east-1
+    protocol: tcp
+    fromPort: 7000
+    toPort: 7000
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-ssl-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 0.0.0.0/0
+    region: us-east-1
+    protocol: tcp
+    fromPort: 7001
+    toPort: 7001
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-jmx-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 0.0.0.0/0
+    region: us-east-1
+    protocol: tcp
+    fromPort: 7199
+    toPort: 7199
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-thrift-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 0.0.0.0/0
+    region: us-east-1
+    protocol: tcp
+    fromPort: 9160
+    toPort: 9160
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-nodeagent-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 0.0.0.0/0
+    region: us-east-1
+    protocol: tcp
+    fromPort: 8000
+    toPort: 8000
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: ingress
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: SecurityGroupRule
+metadata:
+  name: debian-sg-outbound-test
+spec:
+  forProvider:
+    cidrBlocks:
+      - 0.0.0.0/0
+    region: us-east-1
+    protocol: tcp
+    fromPort: 0
+    toPort: 65535
+    securityGroupIdRef:
+      name: debian-sg-test
+    type: egress

@@ -1,0 +1,60 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Instance
+metadata:
+  labels:
+    instance-group: debian
+    instance: debian-1
+  name: debian-1-test
+spec:
+  forProvider:
+    ami: ami-0fec2c2e2017f4e7b
+    instanceType: i3en.xlarge
+    region: us-east-1
+    associatePublicIpAddress: true
+    userDataBase64: exampleT0ic3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCZ1FEczZmaCt4SXNmRTVUanhCcUZpVitiMXlDRn
+    tenancy: default
+    subnetIdRef:
+      name: debian-subnet-st-a
+    vpcSecurityGroupIdRefs:
+      - name: debian-sg-test
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Instance
+metadata:
+  labels:
+    instance-group: debian
+    instance: debian-2
+  name: debian-2-test
+spec:
+  forProvider:
+    ami: ami-0fec2c2e2017f4e7b
+    instanceType: i3en.xlarge
+    region: us-east-1
+    associatePublicIpAddress: true
+    userDataBase64: exampleT0ic3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCZ1FEczZmaCt4SXNmRTVUanhCcUZpVitiMXlDRn
+    tenancy: default
+    subnetIdRef:
+      name: debian-subnet-st-b
+    vpcSecurityGroupIdRefs:
+      - name: debian-sg-test
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Instance
+metadata:
+  labels:
+    instance-group: debian
+    instance: debian-3
+  name: debian-3-test
+spec:
+  forProvider:
+    ami: ami-0fec2c2e2017f4e7b
+    instanceType: i3en.xlarge
+    region: us-east-1
+    associatePublicIpAddress: true
+    userDataBase64: exampleT0ic3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCZ1FEczZmaCt4SXNmRTVUanhCcUZpVitiMXlDRn
+    tenancy: default
+    subnetIdRef:
+      name: debian-subnet-st-c
+    vpcSecurityGroupIdRefs:
+      - name: debian-sg-test
+---

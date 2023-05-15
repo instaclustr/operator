@@ -1,0 +1,41 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  labels:
+    instance-group: debian
+  name: debian-subnet-st-a
+spec:
+  forProvider:
+    availabilityZone: us-east-1a
+    cidrBlock: 192.168.1.0/24
+    region: us-east-1
+    vpcIdRef:
+      name: debian-vpc-test-crossplane
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  labels:
+    instance-group: debian
+  name: debian-subnet-st-b
+spec:
+  forProvider:
+    availabilityZone: us-east-1b
+    cidrBlock: 192.168.2.0/24
+    region: us-east-1
+    vpcIdRef:
+      name: debian-vpc-test-crossplane
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  labels:
+    instance-group: debian
+  name: debian-subnet-st-c
+spec:
+  forProvider:
+    availabilityZone: us-east-1c
+    cidrBlock: 192.168.3.0/24
+    region: us-east-1
+    vpcIdRef:
+      name: debian-vpc-test-crossplane

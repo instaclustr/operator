@@ -1,0 +1,11 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: InternetGateway
+metadata:
+  labels:
+    instance-group: debian
+  name: debian-igw-test
+spec:
+  forProvider:
+    region: us-east-1
+    vpcIdRef:
+      name: debian-vpc-test-crossplane

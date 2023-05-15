@@ -1,0 +1,9 @@
+icadmin riemaint create $CLUSTER_ID all -t 196h -m "provisioning on prem cluster"
+
+icadmin node modify --private-address 192.168.1.example c052fe4d-6dce-4b2c-b89c-exampleNodeID
+icadmin node modify --private-address 192.168.2.example af0fff66-3847-4002-8531-example
+icadmin node modify --private-address 192.168.3.example 9737a4c9-04d8-405e-b787-example
+
+icadmin node modify --public-address 3.81.example.103 c052fe4d-6dce-4b2c-b89c-exampleNodeID
+icadmin node modify --public-address 44.214.example.64 af0fff66-3847-4002-8531-example
+icadmin node modify --public-address 44.212.example.220 9737a4c9-04d8-405e-b787-example
