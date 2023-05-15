@@ -48,4 +48,4 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/instacluster-operator:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/instaclustr-operator:latest
