@@ -51,10 +51,6 @@ var _ webhook.CustomValidator = &openSearchValidator{}
 var _ webhook.Defaulter = &OpenSearch{}
 
 func (os *OpenSearch) Default() {
-	if os.Spec.ConcurrentResizes == 0 {
-		os.Spec.ConcurrentResizes = 1
-	}
-
 	for _, dataCentre := range os.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 
@@ -88,6 +84,27 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		return err
 	}
 
+	if len(os.Spec.DataCentres) == 0 {
+		return models.ErrZeroDataCentres
+	}
+
+	err = os.Spec.validateDedicatedManager()
+	if err != nil {
+		return err
+	}
+
+	for _, dataCentre := range os.Spec.DataCentres {
+		err = dataCentre.ValidateCreation()
+		if err != nil {
+			return err
+		}
+
+		err = dataCentre.validateDataNode(os.Spec.DataNodes)
+		if err != nil {
+			return err
+		}
+	}
+
 	appVersions, err := osv.API.ListAppVersions(models.OpenSearchAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -97,22 +114,6 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 	err = validateAppVersion(appVersions, models.OpenSearchAppType, os.Spec.Version)
 	if err != nil {
 		return err
-	}
-
-	if len(os.Spec.DataCentres) == 0 {
-		return models.ErrZeroDataCentres
-	}
-
-	for _, dataCentre := range os.Spec.DataCentres {
-		err = dataCentre.ValidateCreation()
-		if err != nil {
-			return err
-		}
-
-		if dataCentre.DedicatedMasterNodes &&
-			dataCentre.MasterNodeSize == "" {
-			return fmt.Errorf("master node size field is empty")
-		}
 	}
 
 	return nil
@@ -141,9 +142,9 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 		return osv.ValidateCreate(ctx, os)
 	}
 
-	err := os.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
+	err := os.Spec.validateUpdate(oldCluster.Spec)
 	if err != nil {
-		return fmt.Errorf("immutable fields validation error: %v", err)
+		return err
 	}
 
 	return nil
@@ -159,5 +160,146 @@ func (osv *openSearchValidator) ValidateDelete(ctx context.Context, obj runtime.
 	opensearchlog.Info("validate delete", "name", os.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
+	return nil
+}
+
+type immutableOpenSearchFields struct {
+	specificFields specificOpenSearchFields
+	cluster        immutableCluster
+}
+
+type specificOpenSearchFields struct {
+	ICUPlugin                bool
+	AsynchronousSearchPlugin bool
+	KNNPlugin                bool
+	ReportingPlugin          bool
+	SQLPlugin                bool
+	NotificationsPlugin      bool
+	AnomalyDetectionPlugin   bool
+	LoadBalancer             bool
+	IndexManagementPlugin    bool
+	AlertingPlugin           bool
+	BundledUseOnly           bool
+}
+
+func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
+	return &immutableOpenSearchFields{
+		specificFields: specificOpenSearchFields{
+			ICUPlugin:                oss.ICUPlugin,
+			AsynchronousSearchPlugin: oss.AsynchronousSearchPlugin,
+			KNNPlugin:                oss.KNNPlugin,
+			ReportingPlugin:          oss.ReportingPlugin,
+			SQLPlugin:                oss.SQLPlugin,
+			NotificationsPlugin:      oss.NotificationsPlugin,
+			AnomalyDetectionPlugin:   oss.AnomalyDetectionPlugin,
+			LoadBalancer:             oss.LoadBalancer,
+			IndexManagementPlugin:    oss.IndexManagementPlugin,
+			AlertingPlugin:           oss.AlertingPlugin,
+			BundledUseOnly:           oss.BundledUseOnly,
+		},
+		cluster: oss.Cluster.newImmutableFields(),
+	}
+}
+
+type immutableOpenSearchDCFields struct {
+	immutableDC
+	specificOpenSearchDC
+}
+
+type specificOpenSearchDC struct {
+	PrivateLink       bool
+	ReplicationFactor int
+}
+
+func (oss *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFields {
+	return &immutableOpenSearchDCFields{
+		immutableDC{
+			Name:                oss.Name,
+			Region:              oss.Region,
+			CloudProvider:       oss.CloudProvider,
+			ProviderAccountName: oss.ProviderAccountName,
+			Network:             oss.Network,
+		},
+		specificOpenSearchDC{
+			PrivateLink:       oss.PrivateLink,
+			ReplicationFactor: oss.ReplicationFactor,
+		},
+	}
+}
+
+func (oss *OpenSearchSpec) validateDedicatedManager() error {
+	for _, node := range oss.ClusterManagerNodes {
+		if node.DedicatedManager && oss.DataNodes == nil {
+			return fmt.Errorf("cluster with dedicated manager nodes must have data nodes")
+		}
+	}
+
+	return nil
+}
+
+func (oss *OpenSearchSpec) validateUpdate(oldSpec OpenSearchSpec) error {
+	newImmutableFields := oss.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldImmutableFields, newImmutableFields)
+	}
+
+	err := oss.validateImmutableDataCentresUpdate(oldSpec.DataCentres)
+	if err != nil {
+		return err
+	}
+	err = validateTwoFactorDelete(oss.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSearchDataCentre) error {
+	newDCs := oss.DataCentres
+	if len(newDCs) < len(oldDCs) {
+		return models.ErrImmutableDataCentres
+	}
+
+	for _, newDC := range newDCs {
+		for _, oldDC := range oldDCs {
+			if oldDC.Name == newDC.Name {
+				newDCImmutableFields := newDC.newImmutableFields()
+				oldDCImmutableFields := oldDC.newImmutableFields()
+
+				if *newDCImmutableFields != *oldDCImmutableFields {
+					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
+
+				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				if err != nil {
+					return err
+				}
+
+				err = newDC.validateDataNode(oss.DataNodes)
+				if err != nil {
+					return err
+				}
+
+				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (dc *OpenSearchDataCentre) validateDataNode(nodes []*OpenSearchDataNodes) error {
+	for _, node := range nodes {
+		if node.NodesNumber%dc.ReplicationFactor != 0 {
+			return fmt.Errorf("number of data nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
+		}
+	}
+
 	return nil
 }

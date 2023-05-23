@@ -23,6 +23,7 @@ var (
 	ErrImmutableZookeeperNodeNumber          = errors.New("zookeeper node number is immutable")
 	ErrImmutableDedicatedZookeeper           = errors.New("additional dedicated nodes cannot be added")
 	ErrDecreasedDataCentresNumber            = errors.New("data centres number cannot be decreased")
+	ErrImmutableDataCentres                  = errors.New("data centres are immutable")
 	ErrImmutableTargetCluster                = errors.New("TargetCluster field is immutable")
 	ErrImmutableExternalCluster              = errors.New("ExternalCluster field is immutable")
 	ErrImmutableManagedCluster               = errors.New("ManagedCluster field is immutable")

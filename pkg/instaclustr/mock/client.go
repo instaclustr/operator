@@ -33,24 +33,8 @@ func (c *mockClient) GetOpenSearch(id string) ([]byte, error) {
 	panic("GetOpenSearch: is not implemented")
 }
 
-func (c *mockClient) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
-	panic("UpdateNodeSize: is not implemented")
-}
-
-func (c *mockClient) GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
-	panic("GetActiveDataCentreResizeOperations: is not implemented")
-}
-
-func (c *mockClient) GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error) {
-	panic("GetClusterConfigurations: is not implemented")
-}
-
-func (c *mockClient) UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error {
-	panic("UpdateClusterConfiguration: is not implemented")
-}
-
-func (c *mockClient) ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName string) error {
-	panic("ResetClusterConfiguration: is not implemented")
+func (c *mockClient) UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdateRequest) error {
+	panic("UpdateOpenSearch: is not implemented")
 }
 
 func (c *mockClient) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error {
@@ -63,10 +47,6 @@ func (c *mockClient) UpdateCluster(id, clusterEndpoint string, InstaDCs any) err
 
 func (c *mockClient) DeleteCluster(id, clusterEndpoint string) error {
 	panic("DeleteCluster: is not implemented")
-}
-
-func (c *mockClient) AddDataCentre(id, clusterEndpoint string, dataCentre any) error {
-	panic("AddDataCentre: is not implemented")
 }
 
 func (c *mockClient) GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.PeeringStatus, error) {

@@ -1033,7 +1033,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 				NodesNumber:         osNodesNumber,
 				Network:             osNetwork,
 			},
-			RacksNumber: osReplicationFactor,
+			ReplicationFactor: osReplicationFactor,
 		},
 	}
 	spec := clustersv1alpha1.OpenSearchSpec{

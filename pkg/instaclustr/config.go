@@ -4,13 +4,14 @@ import "time"
 
 const (
 	DefaultTimeout  = time.Second * 60
-	OperatorVersion = "k8s v0.0.1"
+	OperatorVersion = "k8s v0.0.5"
 )
 
 // constants for API v2
 const (
 	ClustersEndpoint                       = "/cluster-management/v2/data-sources/clusters/v2/"
 	CassandraEndpoint                      = "/cluster-management/v2/resources/applications/cassandra/clusters/v2/"
+	OpenSearchEndpoint                     = "/cluster-management/v2/resources/applications/opensearch/clusters/v2/"
 	KafkaEndpoint                          = "/cluster-management/v2/resources/applications/kafka/clusters/v2/"
 	KafkaConnectEndpoint                   = "/cluster-management/v2/resources/applications/kafka-connect/clusters/v2/"
 	KafkaMirrorEndpoint                    = "/cluster-management/v2/resources/applications/kafka_connect/mirrors/v2/"
@@ -38,21 +39,12 @@ const (
 
 // constants for API v1
 const (
-	AddDataCentresEndpoint                 = "/cluster-data-centres"
-	ClusterConfigurationsEndpoint          = "/configurations"
-	ClusterConfigurationsParameterEndpoint = "/parameter/"
-	ActiveOnly                             = "activeOnly=true"
-	TerraformDescription                   = "/terraform-description"
-	ClustersCreationEndpoint               = "/provisioning/v1/extended/"
-	BackupsEndpoint                        = "/backups"
+	BackupsEndpoint = "/backups"
 
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
 	ClustersEndpointV1 = "/provisioning/v1/"
 
-	// ClustersResizeEndpoint is used for nodes resizing in a cluster data centre.
-	// Example: fmt.Sprintf("%s/provisioning/v1/%s/%s/resize", serverHostname, clusterID, dataCentreID)
-	ClustersResizeEndpoint = "%s/provisioning/v1/%s/%s/resize"
-	APIv1RestoreEndpoint   = "%s/provisioning/v1/%s/backups/restore"
+	APIv1RestoreEndpoint = "%s/provisioning/v1/%s/backups/restore"
 
 	ExclusionWindowEndpoint        = "/v1/maintenance-events/exclusion-windows/"
 	ExclusionWindowStatusEndpoint  = "/v1/maintenance-events/exclusion-windows?clusterId="
