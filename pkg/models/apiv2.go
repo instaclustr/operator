@@ -21,7 +21,7 @@ type DataCentre struct {
 	DataCentreStatus    `json:",inline"`
 	Name                string          `json:"name"`
 	Network             string          `json:"network"`
-	NodeSize            string          `json:"nodeSize"`
+	NodeSize            string          `json:"nodeSize,omitempty"`
 	NumberOfNodes       int             `json:"numberOfNodes,omitempty"`
 	AWSSettings         []*AWSSetting   `json:"awsSettings,omitempty"`
 	GCPSettings         []*GCPSetting   `json:"gcpSettings,omitempty"`

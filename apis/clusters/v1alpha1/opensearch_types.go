@@ -18,10 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
-
-	"k8s.io/utils/strings/slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,18 +28,294 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
+// +kubebuilder:object:generate:=false
+type OpenSearchNodeTypes interface {
+	OpenSearchDataNodes | OpenSearchDashboards | ClusterManagerNodes
+}
+
+// OpenSearchSpec defines the desired state of OpenSearch
+type OpenSearchSpec struct {
+	RestoreFrom              *OpenSearchRestoreFrom `json:"restoreFrom,omitempty"`
+	Cluster                  `json:",inline"`
+	DataCentres              []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
+	DataNodes                []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
+	ICUPlugin                bool                    `json:"icuPlugin,omitempty"`
+	AsynchronousSearchPlugin bool                    `json:"asynchronousSearchPlugin,omitempty"`
+	KNNPlugin                bool                    `json:"knnPlugin,omitempty"`
+	Dashboards               []*OpenSearchDashboards `json:"dashboards,omitempty"`
+	ReportingPlugin          bool                    `json:"reportingPlugin,omitempty"`
+	SQLPlugin                bool                    `json:"sqlPlugin,omitempty"`
+	NotificationsPlugin      bool                    `json:"notificationsPlugin,omitempty"`
+	AnomalyDetectionPlugin   bool                    `json:"anomalyDetectionPlugin,omitempty"`
+	LoadBalancer             bool                    `json:"loadBalancer,omitempty"`
+	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes"`
+	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
+	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
+	BundledUseOnly           bool                    `json:"bundleUseOnly,omitempty"`
+}
+
 type OpenSearchDataCentre struct {
-	DataCentre                   `json:",inline"`
-	DedicatedMasterNodes         bool   `json:"dedicatedMasterNodes,omitempty"`
-	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
-	OpenSearchDashboardsNodeSize string `json:"openSearchDashboardsNodeSize,omitempty"`
-	IndexManagementPlugin        bool   `json:"indexManagementPlugin,omitempty"`
-	AlertingPlugin               bool   `json:"alertingPlugin,omitempty"`
-	ICUPlugin                    bool   `json:"icuPlugin,omitempty"`
-	KNNPlugin                    bool   `json:"knnPlugin,omitempty"`
-	NotificationsPlugin          bool   `json:"notificationsPlugin,omitempty"`
-	ReportsPlugin                bool   `json:"reportsPlugin,omitempty"`
-	RacksNumber                  int    `json:"racksNumber"`
+	DataCentre  `json:",inline"`
+	PrivateLink bool `json:"privateLink,omitempty"`
+
+	// ReplicationFactor is a number of racks to use when allocating data nodes.
+	ReplicationFactor int `json:"replicationFactor"`
+}
+
+type OpenSearchDataNodes struct {
+	NodeSize    string `json:"nodeSize"`
+	NodesNumber int    `json:"nodesNumber"`
+}
+
+type OpenSearchDashboards struct {
+	NodeSize     string `json:"nodeSize"`
+	OIDCProvider string `json:"oidcProvider,omitempty"`
+	Version      string `json:"version"`
+}
+
+type ClusterManagerNodes struct {
+	NodeSize         string `json:"nodeSize"`
+	DedicatedManager bool   `json:"dedicatedManager"`
+}
+
+func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
+	return &models.OpenSearchCluster{
+		DataNodes:                oss.dataNodesToInstAPI(),
+		PCIComplianceMode:        oss.PCICompliance,
+		ICUPlugin:                oss.ICUPlugin,
+		OpenSearchVersion:        oss.Version,
+		AsynchronousSearchPlugin: oss.AsynchronousSearchPlugin,
+		TwoFactorDelete:          oss.TwoFactorDeletesToInstAPI(),
+		KNNPlugin:                oss.KNNPlugin,
+		OpenSearchDashboards:     oss.dashboardsToInstAPI(),
+		ReportingPlugin:          oss.ReportingPlugin,
+		SQLPlugin:                oss.SQLPlugin,
+		NotificationsPlugin:      oss.NotificationsPlugin,
+		DataCentres:              oss.dcsToInstAPI(),
+		AnomalyDetectionPlugin:   oss.AnomalyDetectionPlugin,
+		LoadBalancer:             oss.LoadBalancer,
+		PrivateNetworkCluster:    oss.PrivateNetworkCluster,
+		Name:                     oss.Name,
+		BundledUseOnly:           oss.BundledUseOnly,
+		ClusterManagerNodes:      oss.clusterManagerNodesToInstAPI(),
+		IndexManagementPlugin:    oss.IndexManagementPlugin,
+		SLATier:                  oss.SLATier,
+		AlertingPlugin:           oss.AlertingPlugin,
+	}
+}
+
+func (oss *OpenSearchSpec) dcsToInstAPI() (iDCs []*models.OpenSearchDataCentre) {
+	for _, dc := range oss.DataCentres {
+		iDCs = append(iDCs, &models.OpenSearchDataCentre{
+			DataCentre:    dc.DataCentre.ToInstAPI(),
+			PrivateLink:   dc.PrivateLink,
+			NumberOfRacks: dc.ReplicationFactor,
+		})
+	}
+
+	return
+}
+
+func (oss *OpenSearchSpec) dashboardsToInstAPI() (iDashboards []*models.OpenSearchDashboards) {
+	for _, dashboard := range oss.Dashboards {
+		iDashboards = append(iDashboards, &models.OpenSearchDashboards{
+			NodeSize:     dashboard.NodeSize,
+			OIDCProvider: dashboard.OIDCProvider,
+			Version:      dashboard.Version,
+		})
+	}
+
+	return
+}
+
+func (oss *OpenSearchSpec) clusterManagerNodesToInstAPI() (iManagerNodes []*models.ClusterManagerNodes) {
+	for _, managerNodes := range oss.ClusterManagerNodes {
+		iManagerNodes = append(iManagerNodes, &models.ClusterManagerNodes{
+			NodeSize:         managerNodes.NodeSize,
+			DedicatedManager: managerNodes.DedicatedManager,
+		})
+	}
+
+	return
+}
+
+func (oss *OpenSearchSpec) dataNodesToInstAPI() (iDataNodes []*models.OpenSearchDataNodes) {
+	for _, dataNode := range oss.DataNodes {
+		iDataNodes = append(iDataNodes, &models.OpenSearchDataNodes{
+			NodeSize:  dataNode.NodeSize,
+			NodeCount: dataNode.NodesNumber,
+		})
+	}
+
+	return
+}
+
+func (oss *OpenSearch) FromInstAPI(iData []byte) (*OpenSearch, error) {
+	iOpenSearch := &models.OpenSearchCluster{}
+	err := json.Unmarshal(iData, iOpenSearch)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OpenSearch{
+		TypeMeta:   oss.TypeMeta,
+		ObjectMeta: oss.ObjectMeta,
+		Spec:       oss.Spec.FromInstAPI(iOpenSearch),
+		Status:     oss.Status.FromInstAPI(iOpenSearch),
+	}, nil
+}
+
+func (oss *OpenSearchSpec) FromInstAPI(iOpenSearch *models.OpenSearchCluster) OpenSearchSpec {
+	return OpenSearchSpec{
+		Cluster: Cluster{
+			Name:                  iOpenSearch.Name,
+			Version:               iOpenSearch.OpenSearchVersion,
+			PCICompliance:         iOpenSearch.PCIComplianceMode,
+			PrivateNetworkCluster: iOpenSearch.PrivateNetworkCluster,
+			SLATier:               iOpenSearch.SLATier,
+			TwoFactorDelete:       oss.Cluster.TwoFactorDeleteFromInstAPI(iOpenSearch.TwoFactorDelete),
+		},
+		DataCentres:              oss.DCsFromInstAPI(iOpenSearch.DataCentres),
+		DataNodes:                oss.DataNodesFromInstAPI(iOpenSearch.DataNodes),
+		ICUPlugin:                oss.ICUPlugin,
+		AsynchronousSearchPlugin: oss.AsynchronousSearchPlugin,
+		KNNPlugin:                oss.KNNPlugin,
+		Dashboards:               oss.DashboardsFromInstAPI(iOpenSearch.OpenSearchDashboards),
+		ReportingPlugin:          oss.ReportingPlugin,
+		SQLPlugin:                oss.SQLPlugin,
+		NotificationsPlugin:      oss.NotificationsPlugin,
+		AnomalyDetectionPlugin:   oss.AnomalyDetectionPlugin,
+		LoadBalancer:             oss.LoadBalancer,
+		ClusterManagerNodes:      oss.ClusterManagerNodesFromInstAPI(iOpenSearch.ClusterManagerNodes),
+		IndexManagementPlugin:    oss.IndexManagementPlugin,
+		AlertingPlugin:           oss.AlertingPlugin,
+		BundledUseOnly:           oss.BundledUseOnly,
+	}
+}
+
+func (oss *OpenSearchSpec) DCsFromInstAPI(iDCs []*models.OpenSearchDataCentre) (dcs []*OpenSearchDataCentre) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, &OpenSearchDataCentre{
+			DataCentre:        oss.Cluster.DCFromInstAPI(iDC.DataCentre),
+			PrivateLink:       iDC.PrivateLink,
+			ReplicationFactor: iDC.NumberOfRacks,
+		})
+	}
+
+	return
+}
+
+func (oss *OpenSearchSpec) DataNodesFromInstAPI(iDataNodes []*models.OpenSearchDataNodes) (dataNodes []*OpenSearchDataNodes) {
+	for _, iNode := range iDataNodes {
+		dataNodes = append(dataNodes, &OpenSearchDataNodes{
+			NodeSize:    iNode.NodeSize,
+			NodesNumber: iNode.NodeCount,
+		})
+	}
+	return
+}
+
+func (oss *OpenSearchSpec) DashboardsFromInstAPI(iDashboards []*models.OpenSearchDashboards) (dashboards []*OpenSearchDashboards) {
+	for _, iDashboard := range iDashboards {
+		dashboards = append(dashboards, &OpenSearchDashboards{
+			NodeSize:     iDashboard.NodeSize,
+			OIDCProvider: iDashboard.OIDCProvider,
+			Version:      iDashboard.Version,
+		})
+	}
+	return
+}
+
+func (oss *OpenSearchSpec) ClusterManagerNodesFromInstAPI(iManagerNodes []*models.ClusterManagerNodes) (managerNodes []*ClusterManagerNodes) {
+	for _, iNode := range iManagerNodes {
+		managerNodes = append(managerNodes, &ClusterManagerNodes{
+			NodeSize:         iNode.NodeSize,
+			DedicatedManager: iNode.DedicatedManager,
+		})
+	}
+	return
+}
+
+func (oss *OpenSearchStatus) FromInstAPI(iOpenSearch *models.OpenSearchCluster) OpenSearchStatus {
+	return OpenSearchStatus{
+		ClusterStatus: ClusterStatus{
+			ID:                            iOpenSearch.ID,
+			State:                         iOpenSearch.Status,
+			DataCentres:                   oss.DCsFromInstAPI(iOpenSearch.DataCentres),
+			CurrentClusterOperationStatus: iOpenSearch.CurrentClusterOperationStatus,
+			MaintenanceEvents:             oss.MaintenanceEvents,
+		},
+	}
+}
+
+func (oss *OpenSearchStatus) DCsFromInstAPI(iDCs []*models.OpenSearchDataCentre) (dcs []*DataCentreStatus) {
+	for _, iDC := range iDCs {
+		dcs = append(dcs, oss.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+	}
+	return
+}
+
+func (a *OpenSearchSpec) IsEqual(b OpenSearchSpec) bool {
+	return a.Cluster.IsEqual(b.Cluster) &&
+		a.IsTwoFactorDeleteEqual(b.TwoFactorDelete) &&
+		areOpenSearchSettingsEqual[OpenSearchDataNodes](a.DataNodes, b.DataNodes) &&
+		a.ICUPlugin == b.ICUPlugin &&
+		a.AsynchronousSearchPlugin == b.AsynchronousSearchPlugin &&
+		a.KNNPlugin == b.KNNPlugin &&
+		areOpenSearchSettingsEqual[OpenSearchDashboards](a.Dashboards, b.Dashboards) &&
+		a.ReportingPlugin == b.ReportingPlugin &&
+		a.SQLPlugin == b.SQLPlugin &&
+		a.NotificationsPlugin == b.NotificationsPlugin &&
+		a.AnomalyDetectionPlugin == b.AnomalyDetectionPlugin &&
+		a.LoadBalancer == b.LoadBalancer &&
+		areOpenSearchSettingsEqual[ClusterManagerNodes](a.ClusterManagerNodes, b.ClusterManagerNodes) &&
+		a.IndexManagementPlugin == b.IndexManagementPlugin &&
+		a.AlertingPlugin == b.AlertingPlugin &&
+		a.BundledUseOnly == b.BundledUseOnly &&
+		a.areDCsEqual(b.DataCentres)
+}
+
+func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
+	a := oss.DataCentres
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range b {
+		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
+			a[i].PrivateLink != b[i].PrivateLink ||
+			a[i].ReplicationFactor != b[i].ReplicationFactor {
+			return false
+		}
+	}
+
+	return true
+}
+
+func areOpenSearchSettingsEqual[T OpenSearchNodeTypes](a, b []*T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if *a[i] != *b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (oss *OpenSearchSpec) ToInstAPIUpdate() models.OpenSearchInstAPIUpdateRequest {
+	return models.OpenSearchInstAPIUpdateRequest{
+		DataNodes:            oss.dataNodesToInstAPI(),
+		OpenSearchDashboards: oss.dashboardsToInstAPI(),
+		ClusterManagerNodes:  oss.clusterManagerNodesToInstAPI(),
+	}
 }
 
 type OpenSearchRestoreFrom struct {
@@ -72,18 +345,6 @@ type OpenSearchRestoreCDCInfo struct {
 	CustomVPCNetwork string `json:"customVpcNetwork,omitempty"`
 }
 
-// OpenSearchSpec defines the desired state of OpenSearch
-type OpenSearchSpec struct {
-	RestoreFrom           *OpenSearchRestoreFrom `json:"restoreFrom,omitempty"`
-	Cluster               `json:",inline"`
-	DataCentres           []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
-	ConcurrentResizes     int                     `json:"concurrentResizes,omitempty"`
-	NotifySupportContacts bool                    `json:"notifySupportContacts,omitempty"`
-	Description           string                  `json:"description,omitempty"`
-	PrivateLink           *PrivateLinkV1          `json:"privateLink,omitempty"`
-	BundledUseOnly        bool                    `json:"bundleUseOnly,omitempty"`
-}
-
 // OpenSearchStatus defines the observed state of OpenSearch
 type OpenSearchStatus struct {
 	ClusterStatus `json:",inline"`
@@ -110,35 +371,13 @@ type OpenSearchList struct {
 	Items           []OpenSearch `json:"items"`
 }
 
-type immutableOpenSearchFields struct {
-	//TODO Add version validation when APIv2 lifecycle is implemented
-	Name                  string
-	PCICompliance         bool
-	PrivateNetworkCluster bool
-	SLATier               string
-}
-
-type immutableOpenSearchDCFields struct {
-	immutableDC
-	specificOpenSearchDCFields
-}
-
-type specificOpenSearchDCFields struct {
-	DedicatedMasterNodes  bool
-	IndexManagementPlugin bool
-	AlertingPlugin        bool
-	ICUPlugin             bool
-	KNNPlugin             bool
-	NotificationsPlugin   bool
-	ReportsPlugin         bool
-}
-
 func (os *OpenSearch) GetJobID(jobName string) string {
 	return client.ObjectKeyFromObject(os).String() + "/" + jobName
 }
 
 func (os *OpenSearch) NewPatch() client.Patch {
 	old := os.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 
@@ -168,303 +407,6 @@ func (oss *OpenSearchSpec) HasRestore() bool {
 	}
 
 	return false
-}
-
-func (os *OpenSearch) FromInstAPIv1(iData []byte) (*OpenSearch, error) {
-	iOs := &models.OpenSearchClusterV1{}
-	err := json.Unmarshal(iData, iOs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &OpenSearch{
-		TypeMeta:   os.TypeMeta,
-		ObjectMeta: os.ObjectMeta,
-		Spec:       os.Spec.FromInstAPIv1(iOs),
-		Status:     os.Status.FromInstAPIv1(iOs),
-	}, nil
-}
-
-func (oss *OpenSearchSpec) FromInstAPIv1(iOs *models.OpenSearchClusterV1) OpenSearchSpec {
-	os := OpenSearchSpec{
-		Cluster: Cluster{
-			Name:                  iOs.ClusterName,
-			Version:               iOs.BundleVersion,
-			PCICompliance:         iOs.PCICompliance != models.Disabled,
-			PrivateNetworkCluster: iOs.PrivateNetworkCluster,
-			SLATier:               iOs.SLATier,
-		},
-		DataCentres:           oss.DCsFromInstAPIv1(iOs),
-		ConcurrentResizes:     oss.ConcurrentResizes,
-		NotifySupportContacts: oss.NotifySupportContacts,
-		Description:           oss.Description,
-		BundledUseOnly:        iOs.BundledUseOnlyCluster,
-	}
-	if len(iOs.DataCentre) != 0 &&
-		iOs.DataCentres[0].PrivateLink != nil {
-		os.PrivateLink = &PrivateLinkV1{
-			IAMPrincipalARNs: iOs.DataCentres[0].PrivateLink.IAMPrincipalARNs,
-		}
-	}
-	return os
-}
-
-func (oss *OpenSearchSpec) DCsFromInstAPIv1(iOs *models.OpenSearchClusterV1) (dcs []*OpenSearchDataCentre) {
-	for _, iDC := range iOs.DataCentres {
-		var provider *models.ClusterProviderV1
-		for _, iProvider := range iOs.ClusterProvider {
-			if iProvider.Name == iDC.Provider {
-				provider = iProvider
-				break
-			}
-		}
-		dataCentre := DataCentre{
-			Name:                iDC.CDCName,
-			Region:              iDC.Name,
-			CloudProvider:       iDC.Provider,
-			ProviderAccountName: provider.AccountName,
-			CloudProviderSettings: []*CloudProviderSettings{
-				{
-					CustomVirtualNetworkID: provider.CustomVirtualNetworkID,
-					ResourceGroup:          provider.ResourceGroup,
-					DiskEncryptionKey:      provider.DiskEncryptionKey,
-				},
-			},
-			NodeSize:    iOs.BundleOptions.DataNodeSize,
-			Network:     iDC.CDCNetwork,
-			NodesNumber: iDC.NodeCount,
-			Tags:        provider.Tags,
-		}
-		if iOs.BundleOptions.DataNodeSize == "" {
-			dataCentre.NodeSize = iOs.BundleOptions.MasterNodeSize
-			iOs.BundleOptions.MasterNodeSize = ""
-		}
-
-		dcs = append(dcs, &OpenSearchDataCentre{
-			DataCentre:                   dataCentre,
-			DedicatedMasterNodes:         iOs.BundleOptions.DedicatedMasterNodes,
-			MasterNodeSize:               iOs.BundleOptions.MasterNodeSize,
-			OpenSearchDashboardsNodeSize: iOs.BundleOptions.OpenSearchDashboardsNodeSize,
-			IndexManagementPlugin:        iOs.BundleOptions.IndexManagementPlugin,
-			AlertingPlugin:               iOs.BundleOptions.AlertingPlugin,
-			ICUPlugin:                    iOs.BundleOptions.ICUPlugin,
-			KNNPlugin:                    iOs.BundleOptions.KNNPlugin,
-			NotificationsPlugin:          iOs.BundleOptions.NotificationsPlugin,
-			ReportsPlugin:                iOs.BundleOptions.ReportsPlugin,
-		})
-	}
-	return
-}
-
-func (oss *OpenSearchStatus) FromInstAPIv1(iOs *models.OpenSearchClusterV1) OpenSearchStatus {
-	return OpenSearchStatus{
-		ClusterStatus: ClusterStatus{
-			ID:                iOs.ID,
-			State:             iOs.ClusterStatus,
-			DataCentres:       oss.DCsFromInstAPIv1(iOs.DataCentres),
-			MaintenanceEvents: oss.MaintenanceEvents,
-			CDCID:             iOs.CDCID,
-		},
-	}
-}
-
-func (oss *OpenSearchStatus) DCsFromInstAPIv1(iDCs []*models.OpenSearchDataCentreV1) (dcs []*DataCentreStatus) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, &DataCentreStatus{
-			ID:         iDC.ID,
-			Status:     iDC.CDCStatus,
-			Nodes:      oss.NodesFromInstAPIv1(iDC.Nodes),
-			NodeNumber: iDC.NodeCount,
-		})
-	}
-	return
-}
-
-func (oss *OpenSearchSpec) IsEqual(iSpec OpenSearchSpec) bool {
-	return oss.Cluster.IsEqual(iSpec.Cluster) &&
-		oss.AreDCsEqual(iSpec.DataCentres) &&
-		oss.IsPrivateLinkEqual(iSpec.PrivateLink)
-}
-
-func (oss *OpenSearchSpec) AreDCsEqual(dcs []*OpenSearchDataCentre) bool {
-	if len(oss.DataCentres) != len(dcs) {
-		return false
-	}
-
-	for i, bDC := range dcs {
-		aDC := oss.DataCentres[i]
-		if !aDC.IsEqual(bDC.DataCentre) ||
-			aDC.DedicatedMasterNodes != bDC.DedicatedMasterNodes ||
-			aDC.MasterNodeSize != bDC.MasterNodeSize ||
-			aDC.OpenSearchDashboardsNodeSize != bDC.OpenSearchDashboardsNodeSize ||
-			aDC.IndexManagementPlugin != bDC.IndexManagementPlugin ||
-			aDC.AlertingPlugin != bDC.AlertingPlugin ||
-			aDC.ICUPlugin != bDC.ICUPlugin ||
-			aDC.KNNPlugin != bDC.KNNPlugin ||
-			aDC.NotificationsPlugin != bDC.NotificationsPlugin ||
-			aDC.ReportsPlugin != bDC.ReportsPlugin ||
-			aDC.RacksNumber != bDC.RacksNumber {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (oss *OpenSearchSpec) IsPrivateLinkEqual(iLink *PrivateLinkV1) bool {
-	if oss.PrivateLink == iLink {
-		return true
-	}
-
-	if oss.PrivateLink != nil &&
-		len(oss.PrivateLink.IAMPrincipalARNs) != len(iLink.IAMPrincipalARNs) {
-		return false
-	}
-
-	for _, arn := range oss.PrivateLink.IAMPrincipalARNs {
-		if !slices.Contains(iLink.IAMPrincipalARNs, arn) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (oss *OpenSearchSpec) ValidateImmutableFieldsUpdate(oldSpec OpenSearchSpec) error {
-	newImmutableFields := oss.newImmutableFields()
-	oldImmutableFields := oldSpec.newImmutableFields()
-
-	if *newImmutableFields != *oldImmutableFields {
-		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v", oldImmutableFields, newImmutableFields)
-	}
-
-	err := validateTwoFactorDelete(oss.TwoFactorDelete, oldSpec.TwoFactorDelete)
-	if err != nil {
-		return err
-	}
-
-	err = oss.validateImmutableDataCentresFieldsUpdate(oldSpec)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
-	return &immutableOpenSearchFields{
-		Name:                  oss.Name,
-		PCICompliance:         oss.PCICompliance,
-		PrivateNetworkCluster: oss.PrivateNetworkCluster,
-		SLATier:               oss.SLATier,
-	}
-}
-
-func (odc *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFields {
-	return &immutableOpenSearchDCFields{
-		immutableDC: immutableDC{
-			Name:                odc.Name,
-			Region:              odc.Region,
-			CloudProvider:       odc.CloudProvider,
-			ProviderAccountName: odc.ProviderAccountName,
-			Network:             odc.Network,
-		},
-		specificOpenSearchDCFields: specificOpenSearchDCFields{
-			DedicatedMasterNodes:  odc.DedicatedMasterNodes,
-			IndexManagementPlugin: odc.IndexManagementPlugin,
-			AlertingPlugin:        odc.AlertingPlugin,
-			ICUPlugin:             odc.ICUPlugin,
-			KNNPlugin:             odc.KNNPlugin,
-			NotificationsPlugin:   odc.NotificationsPlugin,
-			ReportsPlugin:         odc.ReportsPlugin,
-		},
-	}
-}
-
-func (oss *OpenSearchSpec) validateImmutableDataCentresFieldsUpdate(oldSpec OpenSearchSpec) error {
-	if len(oss.DataCentres) != len(oldSpec.DataCentres) {
-		return models.ErrImmutableDataCentresNumber
-	}
-
-	for i, newDC := range oss.DataCentres {
-		oldDC := oldSpec.DataCentres[i]
-		newDCImmutableFields := newDC.newImmutableFields()
-		oldDCImmutableFields := oldDC.newImmutableFields()
-
-		if *newDCImmutableFields != *oldDCImmutableFields {
-			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
-		}
-
-		// TODO add CloudProviderSettings immutable fields validation when APIv2 is implemented
-	}
-
-	return nil
-}
-
-func (odc *OpenSearchDataCentre) bundleToInstAPIv1(version string) []*models.OpenSearchBundleV1 {
-	var newBundles []*models.OpenSearchBundleV1
-	bundle := &models.OpenSearchBundleV1{
-		Bundle: models.Bundle{
-			Bundle:  models.OpenSearchV1,
-			Version: version,
-		},
-		Options: &models.OpenSearchBundleOptionsV1{
-			DedicatedMasterNodes:         odc.DedicatedMasterNodes,
-			MasterNodeSize:               odc.MasterNodeSize,
-			OpenSearchDashboardsNodeSize: odc.OpenSearchDashboardsNodeSize,
-			IndexManagementPlugin:        odc.IndexManagementPlugin,
-			ICUPlugin:                    odc.ICUPlugin,
-			KNNPlugin:                    odc.KNNPlugin,
-			NotificationsPlugin:          odc.NotificationsPlugin,
-			ReportsPlugin:                odc.ReportsPlugin,
-		},
-	}
-	newBundles = append(newBundles, bundle)
-
-	return newBundles
-}
-
-func (odc *OpenSearchDataCentre) providerToInstAPIv1() *models.ClusterProviderV1 {
-	var iCustomVirtualNetworkID string
-	var iResourceGroup string
-	var iDiskEncryptionKey string
-	if len(odc.CloudProviderSettings) > 0 {
-		iCustomVirtualNetworkID = odc.CloudProviderSettings[0].CustomVirtualNetworkID
-		iResourceGroup = odc.CloudProviderSettings[0].ResourceGroup
-		iDiskEncryptionKey = odc.CloudProviderSettings[0].DiskEncryptionKey
-	}
-
-	return &models.ClusterProviderV1{
-		Name:                   odc.CloudProvider,
-		AccountName:            odc.ProviderAccountName,
-		Tags:                   odc.Tags,
-		CustomVirtualNetworkID: iCustomVirtualNetworkID,
-		ResourceGroup:          iResourceGroup,
-		DiskEncryptionKey:      iDiskEncryptionKey,
-	}
-}
-
-func (oss *OpenSearchSpec) NewCreateRequestInstAPIv1() (iOs models.OpenSearchCreateAPIv1) {
-	iOs.ClusterName = oss.Name
-	iOs.PrivateNetworkCluster = oss.PrivateNetworkCluster
-	iOs.SLATier = oss.SLATier
-	iOs.BundledUseOnlyCluster = oss.BundledUseOnly
-	iOs.PCICompliantCluster = oss.PCICompliance
-	iOs.TwoFactorDelete = oss.Cluster.TwoFactorDeleteToInstAPIv1()
-	if len(oss.DataCentres) != 0 {
-		dc := oss.DataCentres[0]
-		iOs.NodeSize = dc.NodeSize
-		iOs.ClusterNetwork = dc.Network
-		iOs.DataCentre = dc.Region
-		iOs.DataCentreCustomName = dc.Name
-		iOs.Bundles = dc.bundleToInstAPIv1(oss.Version)
-		iOs.Provider = dc.providerToInstAPIv1()
-		iOs.RackAllocation = &models.RackAllocationV1{
-			NumberOfRacks: dc.RacksNumber,
-			NodesPerRack:  dc.NodesNumber,
-		}
-	}
-	return
 }
 
 func init() {

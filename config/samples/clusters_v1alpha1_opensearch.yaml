@@ -11,25 +11,35 @@ metadata:
   annotations:
     test.annotation/first: testAnnotation
 spec:
-  name: "k8sOpOS"
-  version: "2.2.1"
-  concurrentResizes: 1
-  notifySupportContacts: false
-#  twoFactorDelete:
-#    - email: "rostyslp@netapp.com"
+  alertingPlugin: false
+  anomalyDetectionPlugin: false
+  asynchronousSearchPlugin: false
+  clusterManagerNodes:
+    - dedicatedManager: false
+      nodeSize: SRH-DEV-t4g.small-5
   dataCentres:
-    - region: "US_WEST_2"
-      network: "10.1.0.0/16"
-      cloudProvider: "AWS_VPC"
-      nodeSize: "SRH-DEV-t4g.small-5"
-#      nodeSize: "SRH-DEV-t4g.medium-30"
-      racksNumber: 3
-      nodesNumber: 1
-      indexManagementPlugin: false
-#      dedicatedMasterNodes: true
-#      masterNodeSize: "SRH-DM-DEV-t4g.small-5"
-#      openSearchDashboardsNodeSize: "SRH-DEV-t4g.small-5"
-#  twoFactorDelete:
-#    - email: "rostyslp@netapp.com"
-  #  description: "test 222"
-  slaTier: "NON_PRODUCTION"
+    - cloudProvider: AWS_VPC
+      name: AWS_VPC_US_EAST_1
+      network: 10.0.0.0/16
+      replicationFactor: 3
+      privateLink: false
+      region: US_EAST_1
+#  dataNodes:
+#    - nodeNumber: 3
+#      nodeSize: SRH-DEV-t4g.small-5
+  icuPlugin: false
+  indexManagementPlugin: true
+  knnPlugin: false
+  loadBalancer: false
+  name: operatorOpenSearch
+  notificationsPlugin: false
+#  opensearchDashboards:
+#    - nodeSize: SRH-DEV-t4g.small-5
+#      oidcProvider: ''
+#      version: opensearch-dashboards:2.5.0
+  version: 2.5.0
+  pciCompliance: false
+  privateNetworkCluster: false
+  reportingPlugin: false
+  slaTier: NON_PRODUCTION
+  sqlPlugin: false

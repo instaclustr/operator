@@ -70,15 +70,13 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info("OpenSearch cluster resource is not found",
-				"request", req,
-			)
+				"request", req)
 
 			return models.ExitReconcile, nil
 		}
 
 		logger.Error(err, "Unable to fetch OpenSearch cluster resource",
-			"request", req,
-		)
+			"request", req)
 
 		return models.ReconcileRequeue, nil
 	}
@@ -112,6 +110,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	o *clustersv1alpha1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
+	logger = logger.WithName("OpenSearch creation event")
 	var id string
 	var err error
 	if o.Status.ID == "" {
@@ -147,15 +146,14 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 				"data centres", o.Spec.DataCentres,
 			)
 
-			id, err = r.API.CreateCluster(instaclustr.ClustersCreationEndpoint, o.Spec.NewCreateRequestInstAPIv1())
+			id, err = r.API.CreateCluster(instaclustr.OpenSearchEndpoint, o.Spec.ToInstAPI())
 			if err != nil {
 				logger.Error(err, "Cannot create OpenSearch cluster",
 					"cluster name", o.Spec.Name,
 					"cluster spec", o.Spec)
 
 				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-					"Cluster creation on the Instaclustr is failed. Reason: %v",
-					err)
+					"Cluster creation on the Instaclustr is failed. Reason: %v", err)
 
 				return models.ReconcileRequeue
 			}
@@ -193,19 +191,6 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 				"Cluster resource patch is failed. Reason: %v", err)
 
 			return models.ReconcileRequeue
-		}
-
-		if len(o.Spec.TwoFactorDelete) != 0 || o.Spec.Description != "" {
-			err = r.updateDescriptionAndTwoFactorDelete(o)
-			if err != nil {
-				logger.Error(err, "Cannot update description and twoFactorDelete",
-					"cluster name", o.Spec.Name,
-					"twoFactorDelete", o.Spec.TwoFactorDelete,
-					"description", o.Spec.Description,
-				)
-
-				return models.ReconcileRequeue
-			}
 		}
 	}
 
@@ -250,6 +235,8 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 	o *clustersv1alpha1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
+	logger = logger.WithName("OpenSearch update event")
+
 	iData, err := r.API.GetOpenSearch(o.Status.ID)
 	if err != nil {
 		logger.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
@@ -263,7 +250,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	iOpenSearch, err := o.FromInstAPIv1(iData)
+	iOpenSearch, err := o.FromInstAPI(iData)
 	if err != nil {
 		logger.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
 			"cluster name", o.Spec.Name,
@@ -289,61 +276,18 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return r.handleExternalChanges(o, iOpenSearch, logger)
 	}
 
-	activeResizes, err := r.API.GetActiveDataCentreResizeOperations(o.Status.ID, o.Status.CDCID)
-	if err != nil {
-		logger.Error(err, "Cannot get active data centre resizes",
-			"cluster name", o.Spec.Name,
-			"cluster status", o.Status,
-		)
-		return models.ReconcileRequeue
-	}
+	if !o.Spec.IsEqual(iOpenSearch.Spec) {
+		err = r.API.UpdateOpenSearch(o.Status.ID, o.Spec.ToInstAPIUpdate())
+		if err != nil {
+			logger.Error(err, "Cannot update cluster",
+				"cluster ID", o.Status.ID,
+				"cluster spec", o.Spec,
+				"cluster state", o.Status.State)
 
-	if len(activeResizes) != 0 {
-		logger.Info("OpenSearch cluster is not ready to resize",
-			"cluster name", o.Spec.Name,
-			"cluster status", o.Status,
-			"new data centre spec", o.Spec.DataCentres[0],
-			"reason", instaclustr.HasActiveResizeOperation,
-		)
-
-		return models.ReconcileRequeue
-	}
-
-	err = r.reconcileDataCentreNodeSize(*iOpenSearch, *o, logger)
-	if err != nil {
-		if errors.Is(err, instaclustr.StatusPreconditionFailed) || errors.Is(err, instaclustr.HasActiveResizeOperation) {
-			logger.Info("OpenSearch cluster is not ready to resize",
-				"cluster name", o.Spec.Name,
-				"cluster status", o.Status,
-				"new data centre spec", o.Spec.DataCentres[0],
-				"reason", err,
-			)
-
+			r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
-
-		logger.Error(err, "Cannot reconcile data centres node size",
-			"cluster name", o.Spec.Name,
-			"cluster status", o.Status)
-
-		r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
-			"Cluster update on the Instaclustr API is failed. Reason: %v", err)
-
-		return models.ReconcileRequeue
-	}
-
-	err = r.updateDescriptionAndTwoFactorDelete(o)
-	if err != nil {
-		logger.Error(err, "Cannot update description and twoFactorDelete",
-			"cluster name", o.Spec.Name,
-			"twoFactorDelete", o.Spec.TwoFactorDelete,
-			"description", o.Spec.Description,
-		)
-
-		r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
-			"Cluster description and TwoFactoDelete update is failed. Reason: %v", err)
-
-		return models.ReconcileRequeue
 	}
 
 	patch := o.NewPatch()
@@ -363,7 +307,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 
 	logger.Info("OpenSearch cluster was updated",
 		"cluster name", o.Spec.Name,
-		"cluster status", o.Status)
+		"cluster ID", o.Status.ID)
 
 	return models.ExitReconcile
 }
@@ -416,12 +360,13 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	o *clustersv1alpha1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
+	logger = logger.WithName("OpenSearch deletion event")
+
 	_, err := r.API.GetOpenSearch(o.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get OpenSearch cluster",
 			"cluster name", o.Spec.Name,
-			"cluster status", o.Status.State,
-		)
+			"cluster status", o.Status.State)
 
 		r.EventRecorder.Eventf(o, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v", err)
@@ -436,12 +381,11 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			"cluster name", o.Spec.Name,
 			"cluster ID", o.Status.ID)
 
-		err = r.API.DeleteCluster(o.Status.ID, instaclustr.ClustersEndpointV1)
+		err = r.API.DeleteCluster(o.Status.ID, instaclustr.OpenSearchEndpoint)
 		if err != nil {
 			logger.Error(err, "Cannot delete OpenSearch cluster",
 				"cluster name", o.Spec.Name,
-				"cluster status", o.Status.State,
-			)
+				"cluster status", o.Status.State)
 
 			r.EventRecorder.Eventf(o, models.Warning, models.DeletionFailed,
 				"Cluster deletion is failed on the Instaclustr. Reason: %v", err)
@@ -625,7 +569,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch)
 			return err
 		}
 
-		iO, err := o.FromInstAPIv1(iData)
+		iO, err := o.FromInstAPI(iData)
 		if err != nil {
 			l.Error(err, "Cannot convert OpenSearch cluster from the Instaclustr API",
 				"cluster ID", o.Status.ID)
@@ -741,8 +685,7 @@ func (r *OpenSearchReconciler) newWatchBackupsJob(o *clustersv1alpha1.OpenSearch
 		if err != nil {
 			l.Error(err, "Cannot get OpenSearch cluster backups",
 				"cluster name", o.Spec.Name,
-				"clusterID", o.Status.ID,
-			)
+				"clusterID", o.Status.ID)
 
 			return err
 		}
@@ -872,93 +815,6 @@ func (r *OpenSearchReconciler) deleteBackups(ctx context.Context, clusterID, nam
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (r *OpenSearchReconciler) reconcileDataCentreNodeSize(iO, o clustersv1alpha1.OpenSearch, logger logr.Logger) error {
-	if len(o.Spec.DataCentres) == 0 ||
-		len(iO.Spec.DataCentres) == 0 {
-		return models.ErrZeroDataCentres
-	}
-
-	iDC := iO.Spec.DataCentres[0]
-	dc := o.Spec.DataCentres[0]
-
-	resizeRequest := &models.ResizeRequest{
-		ConcurrentResizes:     o.Spec.ConcurrentResizes,
-		NotifySupportContacts: o.Spec.NotifySupportContacts,
-		ClusterID:             o.Status.ID,
-		DataCentreID:          o.Status.CDCID,
-	}
-
-	if iDC.NodeSize != dc.NodeSize {
-		resizeRequest.NewNodeSize = dc.NodeSize
-		resizeRequest.NodePurpose = models.OpenSearchDataNodePurposeV1
-		err := r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Data nodes resize request was sent",
-			"cluster name", o.Spec.Name,
-			"data centre id", resizeRequest.DataCentreID,
-			"new node size", resizeRequest.NewNodeSize,
-		)
-
-		return instaclustr.HasActiveResizeOperation
-	}
-
-	if iDC.MasterNodeSize != dc.MasterNodeSize {
-		resizeRequest.NewNodeSize = dc.MasterNodeSize
-		resizeRequest.NodePurpose = models.OpenSearchMasterNodePurposeV1
-		err := r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Master nodes resize request was sent",
-			"cluster name", o.Spec.Name,
-			"data centre id", resizeRequest.DataCentreID,
-			"new node size", resizeRequest.NewNodeSize,
-		)
-
-		return instaclustr.HasActiveResizeOperation
-	}
-
-	if iDC.OpenSearchDashboardsNodeSize != dc.OpenSearchDashboardsNodeSize {
-		resizeRequest.NodePurpose = models.OpenSearchDashBoardsNodePurposeV1
-		err := r.API.UpdateNodeSize(instaclustr.ClustersEndpointV1, resizeRequest)
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Dashboard nodes resize request was sent",
-			"cluster name", o.Spec.Name,
-			"data centre id", resizeRequest.DataCentreID,
-			"new node size", resizeRequest.NewNodeSize,
-		)
-
-		return instaclustr.HasActiveResizeOperation
-	}
-
-	return nil
-}
-
-func (r *OpenSearchReconciler) updateDescriptionAndTwoFactorDelete(
-	openSearchCluster *clustersv1alpha1.OpenSearch) error {
-	var twoFactorDelete *clustersv1alpha1.TwoFactorDelete
-	if len(openSearchCluster.Spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = openSearchCluster.Spec.TwoFactorDelete[0]
-	}
-
-	err := r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1,
-		openSearchCluster.Status.ID,
-		openSearchCluster.Spec.Description,
-		twoFactorDelete)
-	if err != nil {
-		return err
 	}
 
 	return nil

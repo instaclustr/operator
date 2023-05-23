@@ -13,15 +13,10 @@ type API interface {
 	DoRequest(url string, method string, data []byte) (*http.Response, error)
 	CreateCluster(url string, clusterSpec any) (string, error)
 	GetOpenSearch(id string) ([]byte, error)
-	UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error
-	GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error)
-	GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error)
-	UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error
-	ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName string) error
+	UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdateRequest) error
 	UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error
 	UpdateCluster(id, clusterEndpoint string, instaDCs any) error
 	DeleteCluster(id, clusterEndpoint string) error
-	AddDataCentre(id, clusterEndpoint string, dataCentre any) error
 	GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.PeeringStatus, error)
 	UpdatePeering(peerID, peeringEndpoint string, peerSpec any) error
 	DeletePeering(peerID, peeringEndpoint string) error

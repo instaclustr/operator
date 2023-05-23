@@ -35,7 +35,7 @@ const (
 
 	CassandraV3_11_13 = "3.11.13"
 	KafkaV3_1_2       = "3.1.2"
-	OpenSearchV1_3_7  = "opensearch:1.3.7"
+	OpenSearchV1_3_7  = "1.3.7"
 	K8sAPIVersionV1   = "v1"
 	VPCPeered         = "VPC_PEERED"
 

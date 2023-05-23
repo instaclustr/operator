@@ -35,17 +35,45 @@ spec:
           spec:
             description: OpenSearchSpec defines the desired state of OpenSearch
             properties:
+              alertingPlugin:
+                type: boolean
+              anomalyDetectionPlugin:
+                type: boolean
+              asynchronousSearchPlugin:
+                type: boolean
               bundleUseOnly:
                 type: boolean
-              concurrentResizes:
-                type: integer
+              clusterManagerNodes:
+                items:
+                  properties:
+                    dedicatedManager:
+                      type: boolean
+                    nodeSize:
+                      type: string
+                  required:
+                  - dedicatedManager
+                  - nodeSize
+                  type: object
+                type: array
+              dashboards:
+                items:
+                  properties:
+                    nodeSize:
+                      type: string
+                    oidcProvider:
+                      type: string
+                    version:
+                      type: string
+                  required:
+                  - nodeSize
+                  - version
+                  type: object
+                type: array
               dataCentres:
                 items:
                   properties:
                     accountName:
                       type: string
-                    alertingPlugin:
-                      type: boolean
                     cloudProvider:
                       type: string
                     cloudProviderSettings:
@@ -59,16 +87,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    dedicatedMasterNodes:
-                      type: boolean
-                    icuPlugin:
-                      type: boolean
-                    indexManagementPlugin:
-                      type: boolean
-                    knnPlugin:
-                      type: boolean
-                    masterNodeSize:
-                      type: string
                     name:
                       type: string
                     network:
@@ -77,16 +95,14 @@ spec:
                       type: string
                     nodesNumber:
                       type: integer
-                    notificationsPlugin:
+                    privateLink:
                       type: boolean
-                    openSearchDashboardsNodeSize:
-                      type: string
-                    racksNumber:
-                      type: integer
                     region:
                       type: string
-                    reportsPlugin:
-                      type: boolean
+                    replicationFactor:
+                      description: ReplicationFactor is a number of racks to use when
+                        allocating data nodes.
+                      type: integer
                     tags:
                       additionalProperties:
                         type: string
@@ -96,16 +112,34 @@ spec:
                   - network
                   - nodeSize
                   - nodesNumber
-                  - racksNumber
                   - region
+                  - replicationFactor
                   type: object
                 type: array
-              description:
-                type: string
+              dataNodes:
+                items:
+                  properties:
+                    nodeSize:
+                      type: string
+                    nodesNumber:
+                      type: integer
+                  required:
+                  - nodeSize
+                  - nodesNumber
+                  type: object
+                type: array
+              icuPlugin:
+                type: boolean
+              indexManagementPlugin:
+                type: boolean
+              knnPlugin:
+                type: boolean
+              loadBalancer:
+                type: boolean
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
-              notifySupportContacts:
+              notificationsPlugin:
                 type: boolean
               pciCompliance:
                 description: The PCI compliance standards relate to the security of
@@ -113,16 +147,9 @@ spec:
                   provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
                   and Redis. PCI compliance cannot be enabled if the cluster has Spark.
                 type: boolean
-              privateLink:
-                properties:
-                  iamPrincipalARNs:
-                    items:
-                      type: string
-                    type: array
-                required:
-                - iamPrincipalARNs
-                type: object
               privateNetworkCluster:
+                type: boolean
+              reportingPlugin:
                 type: boolean
               restoreFrom:
                 properties:
@@ -170,6 +197,8 @@ spec:
                   class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
                   "NON_PRODUCTION".'
                 type: string
+              sqlPlugin:
+                type: boolean
               twoFactorDelete:
                 items:
                   properties:
@@ -185,6 +214,8 @@ spec:
                 type: array
               version:
                 type: string
+            required:
+            - clusterManagerNodes
             type: object
           status:
             description: OpenSearchStatus defines the observed state of OpenSearch

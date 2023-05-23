@@ -91,7 +91,7 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 }
 
 func (c *Client) GetOpenSearch(id string) ([]byte, error) {
-	url := c.serverHostname + ClustersEndpointV1 + id + TerraformDescription
+	url := c.serverHostname + OpenSearchEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -109,6 +109,31 @@ func (c *Client) GetOpenSearch(id string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func (c *Client) UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdateRequest) error {
+	url := c.serverHostname + OpenSearchEndpoint + id
+	data, err := json.Marshal(o)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
 }
 
 func (c *Client) GetRedis(id string) ([]byte, error) {
@@ -381,154 +406,6 @@ func (c *Client) GetZookeeper(id string) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Client) UpdateNodeSize(clusterEndpoint string, resizeRequest *models.ResizeRequest) error {
-	var url string
-	if clusterEndpoint == ClustersEndpointV1 {
-		url = fmt.Sprintf(ClustersResizeEndpoint, c.serverHostname, resizeRequest.ClusterID, resizeRequest.DataCentreID)
-	}
-
-	resizePayload, err := json.Marshal(resizeRequest)
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.DoRequest(url, http.MethodPost, resizePayload)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode == http.StatusPreconditionFailed {
-		return StatusPreconditionFailed
-	}
-
-	if resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return nil
-}
-
-func (c *Client) GetActiveDataCentreResizeOperations(clusterID, dataCentreID string) ([]*models.DataCentreResizeOperations, error) {
-	var dcResizeOperations []*models.DataCentreResizeOperations
-
-	url := fmt.Sprintf(ClustersResizeEndpoint+"?%s", c.serverHostname, clusterID, dataCentreID, ActiveOnly)
-
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	err = json.Unmarshal(body, &dcResizeOperations)
-	if err != nil {
-		return nil, err
-	}
-
-	return dcResizeOperations, nil
-}
-
-func (c *Client) GetClusterConfigurations(clusterEndpoint, clusterID, bundle string) (map[string]string, error) {
-	var instClusterConfigurations []*models.ClusterConfigurations
-
-	url := c.serverHostname + clusterEndpoint + clusterID + "/" + bundle + ClusterConfigurationsEndpoint
-
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	err = json.Unmarshal(body, &instClusterConfigurations)
-	if err != nil {
-		return nil, err
-	}
-
-	var clusterConfigurations = make(map[string]string)
-	if len(instClusterConfigurations) > 0 {
-		for _, clusterConfiguration := range instClusterConfigurations {
-			clusterConfigurations[clusterConfiguration.ParameterName] = clusterConfiguration.ParameterValue
-		}
-	}
-
-	return clusterConfigurations, err
-}
-
-func (c *Client) UpdateClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName, paramValue string) error {
-	clusterConfigurationsToUpdate := &models.ClusterConfigurations{
-		ParameterName:  paramName,
-		ParameterValue: paramValue,
-	}
-
-	url := c.serverHostname + clusterEndpoint + clusterID + "/" + bundle + ClusterConfigurationsEndpoint
-
-	clusterConfigurationsPayload, err := json.Marshal(clusterConfigurationsToUpdate)
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.DoRequest(url, http.MethodPut, clusterConfigurationsPayload)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return nil
-}
-
-func (c *Client) ResetClusterConfiguration(clusterEndpoint, clusterID, bundle, paramName string) error {
-	url := c.serverHostname + clusterEndpoint + clusterID + "/" + bundle + ClusterConfigurationsEndpoint + ClusterConfigurationsParameterEndpoint + paramName
-
-	resp, err := c.DoRequest(url, http.MethodDelete, nil)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return nil
-}
-
 func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error {
 	url := c.serverHostname + clusterEndpoint + clusterID
 
@@ -614,32 +491,6 @@ func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
 	}
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return nil
-}
-
-func (c *Client) AddDataCentre(id, clusterEndpoint string, dataCentre any) error {
-	url := c.serverHostname + clusterEndpoint + id + AddDataCentresEndpoint
-
-	dataCentrePayload, err := json.Marshal(dataCentre)
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.DoRequest(url, http.MethodPost, dataCentrePayload)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
