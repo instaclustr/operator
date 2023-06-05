@@ -45,7 +45,7 @@ type OpenSearchDataCentreV2 struct {
 	Region string `json:"region"`
 
 	// Private link enable or not
-	PrivateLink []OpenSearchPrivateLinkV2 `json:"privateLink,omitempty"`
+	PrivateLink bool `json:"privateLink,omitempty"`
 
 	// For customers running in their own account. Your provider account can be found on the Create Cluster page on the Instaclustr Console, or the \"Provider Account\" property on any existing cluster. For customers provisioning on Instaclustr's cloud provider accounts, this property may be omitted.
 	ProviderAccountName string `json:"providerAccountName,omitempty"`
@@ -90,11 +90,6 @@ func AssertOpenSearchDataCentreV2Required(obj OpenSearchDataCentreV2) error {
 	}
 	for _, el := range obj.AzureSettings {
 		if err := AssertProviderAzureSettingsV2Required(el); err != nil {
-			return err
-		}
-	}
-	for _, el := range obj.PrivateLink {
-		if err := AssertOpenSearchPrivateLinkV2Required(el); err != nil {
 			return err
 		}
 	}

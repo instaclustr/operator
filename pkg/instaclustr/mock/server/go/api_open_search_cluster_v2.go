@@ -71,7 +71,7 @@ func (c *OpenSearchClusterV2ApiController) Routes() Routes {
 		{
 			"ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post",
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/applications/opensearch/clusters/v2/",
+			"/cluster-management/v2/resources/applications/opensearch/clusters/v2",
 			c.ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post,
 		},
 	}

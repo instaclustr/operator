@@ -11,14 +11,13 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // OpenSearchClusterV2ApiService is a service that implements the logic for the OpenSearchClusterV2ApiServicer
 // This service should implement the business logic for every endpoint for the OpenSearchClusterV2Api API.
 // Include any external packages or services that will be required by this service.
 type OpenSearchClusterV2ApiService struct {
+	MockOpenSearchCluster *OpenSearchClusterV2
 }
 
 // NewOpenSearchClusterV2ApiService creates a default api service
@@ -31,10 +30,8 @@ func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_open_search_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	//return Response(204, nil),nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete method not implemented")
+	s.MockOpenSearchCluster = nil
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet - Get OpenSearch cluster details
@@ -42,10 +39,13 @@ func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_open_search_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(200, OpenSearchClusterV2{}) or use other options such as http.Ok ...
-	//return Response(200, OpenSearchClusterV2{}), nil
+	if s.MockOpenSearchCluster != nil {
+		s.MockOpenSearchCluster.Status = RUNNING
+	} else {
+		return Response(404, nil), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet method not implemented")
+	return Response(200, s.MockOpenSearchCluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut - Update a OpenSearch cluster
@@ -53,13 +53,14 @@ func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_open_search_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, OpenSearchClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, OpenSearchClusterV2{}), nil
+	s.MockOpenSearchCluster.DataNodes = body.DataNodes
+	s.MockOpenSearchCluster.OpensearchDashboards = body.OpensearchDashboards
+	s.MockOpenSearchCluster.ClusterManagerNodes = body.ClusterManagerNodes
+
+	return Response(202, nil), nil
 
 	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	//return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut method not implemented")
 }
 
 // ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post - Create an OpenSearch cluster
@@ -67,8 +68,7 @@ func (s *OpenSearchClusterV2ApiService) ClusterManagementV2ResourcesApplications
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post with the required logic for this service method.
 	// Add api_open_search_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	//TODO: Uncomment the next line to return response Response(202, OpenSearchClusterV2{}) or use other options such as http.Ok ...
-	//return Response(202, OpenSearchClusterV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post method not implemented")
+	s.MockOpenSearchCluster = &body
+	s.MockOpenSearchCluster.Id = CreatedID
+	return Response(202, s.MockOpenSearchCluster), nil
 }

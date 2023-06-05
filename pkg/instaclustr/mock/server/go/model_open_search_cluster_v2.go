@@ -86,7 +86,6 @@ type OpenSearchClusterV2 struct {
 // AssertOpenSearchClusterV2Required checks if the required fields are not zero-ed
 func AssertOpenSearchClusterV2Required(obj OpenSearchClusterV2) error {
 	elements := map[string]interface{}{
-		"dataNodes":         obj.DataNodes,
 		"pciComplianceMode": obj.PciComplianceMode,
 		"opensearchVersion": obj.OpensearchVersion,
 		"dataCentres":       obj.DataCentres,

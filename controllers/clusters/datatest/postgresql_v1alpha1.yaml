@@ -31,7 +31,6 @@ spec:
         - isPrimaryDataCentre: true
   slaTier: "NON_PRODUCTION"
   privateNetworkCluster: true
-  pciCompliance: true
   synchronousModeStrict: true
 #  twoFactorDelete:
 #    - email: "emailTEST"
