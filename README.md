@@ -106,19 +106,12 @@ make manifests
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
+## Support Contact
+
+Please reach out to support@instaclustr.com for issues with this Instaclustr Operator. Please note that we've disabled the issues feature on this repository and transferred open issues to our Zendesk system.
+
+The support status of this project is available through https://www.instaclustr.com/support/documentation/announcements/instaclustr-open-source-project-status/.
+
 ## License
 
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+Apache2 - See the included LICENSE file for more details.
