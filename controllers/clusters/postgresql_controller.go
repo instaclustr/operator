@@ -117,6 +117,8 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	pg *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
+	logger = logger.WithName("PostgreSQL creation event")
+
 	var id string
 	var err error
 
@@ -238,6 +240,22 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 			)
 		}
 
+		err = r.Status().Patch(ctx, pg, patch)
+		if err != nil {
+			logger.Error(err, "Cannot patch PostgreSQL resource status",
+				"cluster name", pg.Spec.Name,
+				"status", pg.Status,
+			)
+
+			r.EventRecorder.Eventf(
+				pg, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v",
+				err,
+			)
+
+			return models.ReconcileRequeue
+		}
+
 		logger.Info(
 			"PostgreSQL resource has been created",
 			"cluster name", pg.Name,
@@ -248,36 +266,17 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		)
 	}
 
-	err = r.Status().Patch(ctx, pg, patch)
-	if err != nil {
-		logger.Error(err, "Cannot patch PostgreSQL resource status",
-			"cluster name", pg.Spec.Name,
-			"status", pg.Status,
-		)
-
-		r.EventRecorder.Eventf(
-			pg, models.Warning, models.PatchFailed,
-			"Cluster resource status patch is failed. Reason: %v",
-			err,
-		)
-
-		return models.ReconcileRequeue
-	}
-
 	controllerutil.AddFinalizer(pg, models.DeletionFinalizer)
 
 	err = r.Patch(ctx, pg, patch)
 	if err != nil {
-		logger.Error(err, "Cannot patch PostgreSQL resource status",
+		logger.Error(err, "Cannot patch PostgreSQL resource",
 			"cluster name", pg.Spec.Name,
-			"status", pg.Status,
-		)
+			"status", pg.Status)
 
 		r.EventRecorder.Eventf(
 			pg, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
-			err,
-		)
+			"Cluster resource patch is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -332,6 +331,8 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	pg *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
+	logger = logger.WithName("PostgreSQL update event")
+
 	iData, err := r.API.GetPostgreSQL(pg.Status.ID)
 	if err != nil {
 		logger.Error(
@@ -542,6 +543,8 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	pg *clustersv1alpha1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
+	logger = logger.WithName("PostgreSQL deletion event")
+
 	_, err := r.API.GetPostgreSQL(pg.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get PostgreSQL cluster status",
