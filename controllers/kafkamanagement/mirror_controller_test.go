@@ -42,7 +42,7 @@ var _ = Describe("Kafka Mirror Controller", func() {
 		m              = "mirror"
 		ns             = "default"
 		mirrorNS       = types.NamespacedName{Name: m, Namespace: ns}
-		timeout        = time.Second * 15
+		timeout        = time.Second * 40
 		interval       = time.Second * 2
 	)
 

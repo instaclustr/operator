@@ -30,6 +30,8 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 
 ### Running on the cluster
 1. Create the .env file, copy all content from the .env.tmpl and fill variables. When the operator deploys, it will create the secret from these variables to access the Instaclustr API.
+Create the config/manager/kustomization.yaml file and copy all content from the config/manager/kustomization.yaml.tmpl.
+
 2. Deploy the cert-manager:
 
 ```sh

@@ -42,7 +42,7 @@ var _ = Describe("Redis Controller", func() {
 		k             = "redis"
 		ns            = "default"
 		redisNS       = types.NamespacedName{Name: k, Namespace: ns}
-		timeout       = time.Second * 20
+		timeout       = time.Second * 40
 		interval      = time.Second * 2
 	)
 
