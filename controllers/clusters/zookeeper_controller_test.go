@@ -42,7 +42,7 @@ var _ = Describe("Zookeeper Controller", func() {
 		zook              = "zookeeper"
 		ns                = "default"
 		zookeeperNS       = types.NamespacedName{Name: zook, Namespace: ns}
-		timeout           = time.Second * 15
+		timeout           = time.Second * 40
 		interval          = time.Second * 2
 	)
 

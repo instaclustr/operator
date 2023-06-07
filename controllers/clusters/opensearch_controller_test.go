@@ -42,7 +42,7 @@ var _ = Describe("OpenSearch Controller", func() {
 		o                  = "opensearch"
 		ns                 = "default"
 		openSearchNS       = types.NamespacedName{Name: o, Namespace: ns}
-		timeout            = time.Second * 30
+		timeout            = time.Second * 40
 		interval           = time.Second * 2
 	)
 

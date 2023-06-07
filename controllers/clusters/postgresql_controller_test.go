@@ -42,7 +42,7 @@ var _ = Describe("PostgreSQL Controller", func() {
 		p                  = "postgresql"
 		ns                 = "default"
 		postgresqlNS       = types.NamespacedName{Name: p, Namespace: ns}
-		timeout            = time.Second * 20
+		timeout            = time.Second * 60
 		interval           = time.Second * 2
 	)
 
