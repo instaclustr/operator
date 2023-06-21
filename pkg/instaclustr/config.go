@@ -67,3 +67,8 @@ const (
 	MaintenanceEventEndpoint       = "/v1/maintenance-events/events/"
 	MaintenanceEventStatusEndpoint = "/v1/maintenance-events/events?clusterId="
 )
+
+const (
+	APIv1UserEndpoint   = "%s/provisioning/v1/%s/%s/users"
+	CassandraBundleUser = "apache_cassandra"
+)

@@ -3,8 +3,8 @@ kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
-  name: "CassandraTEST"
-  version: "3.11.13"               # 4.0.1 is deprecated | 4.0.4 and 3.11.13 are supported
+  name: "Username-Cassandra"
+  version: "4.0.10"
   dataCentres:
     - name: "AWS_cassandra"
       region: "US_EAST_1"
@@ -17,7 +17,7 @@ spec:
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
-      nodeSize: "CAS-DEV-t4g.small-30"
+      nodeSize: "CAS-DEV-t4g.small-5"
 #    - name: "AWS_cassandra2"
 #      region: "US_EAST_1"
 #      cloudProvider: "AWS_VPC"
@@ -33,6 +33,9 @@ spec:
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: true
+#  userRef:
+#    namespace: default
+#    name: cassandrauser-sample
   slaTier: "NON_PRODUCTION"
 #  twoFactorDelete:
 #    - email: "rostyslp@netapp.com"

@@ -2100,3 +2100,62 @@ func (c *Client) ListAppVersions(app string) ([]*models.AppVersions, error) {
 
 	return appVersions, nil
 }
+
+func (c *Client) CreateUser(userSpec any, clusterID, app string) error {
+	var data []byte
+	data, err := json.Marshal(userSpec)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf(APIv1UserEndpoint, c.serverHostname, clusterID, app)
+
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteUser(username, clusterID, app string) error {
+	var deletionRequest struct {
+		Username string `json:"username"`
+	}
+	deletionRequest.Username = username
+
+	var data []byte
+	data, err := json.Marshal(deletionRequest)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf(APIv1UserEndpoint, c.serverHostname, clusterID, app)
+
+	resp, err := c.DoRequest(url, http.MethodDelete, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}

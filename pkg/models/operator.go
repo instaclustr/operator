@@ -36,6 +36,7 @@ const (
 	ClustersV1alpha1APIVersion         = "clusters.instaclustr.com/v1alpha1"
 	ClusterresourcesV1alpha1APIVersion = "clusterresources.instaclustr.com/v1alpha1"
 	RedisUserNamespaceLabel            = "instaclustr.com/redisUserNamespace"
+	CassandraUserNamespaceLabel        = "instaclustr.com/cassandraUserNamespace"
 
 	CassandraKind        = "Cassandra"
 	CassandraChildPrefix = "cassandra-"
@@ -118,11 +119,13 @@ const (
 	Warning           = "Warning"
 	Created           = "Created"
 	PatchFailed       = "PatchFailed"
+	NotFound          = "NotFound"
 	CreationFailed    = "CreationFailed"
 	FetchFailed       = "FetchFailed"
 	FetchSecretFailed = "FetchSecretFailed"
 	ConvertionFailed  = "ConvertionFailed"
 	UpdateFailed      = "UpdateFailed"
+	UpdatedSecret     = "UpdatedSecret"
 	ExternalChanges   = "ExternalChanges"
 	DeletionStarted   = "DeletionStarted"
 	DeletionFailed    = "DeletionFailed"
@@ -137,6 +140,7 @@ const (
 )
 
 const Requeue60 = time.Second * 60
+const Requeue300 = time.Second * 300
 
 var (
 	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}

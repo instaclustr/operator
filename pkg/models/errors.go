@@ -50,4 +50,5 @@ var (
 	ErrImmutablePackagedProvisioning         = errors.New("PackagedProvisioning array is immutable")
 	ErrImmutableAdvancedVisibility           = errors.New("AdvancedVisibility array is immutable")
 	ErrImmutablePrivateLink                  = errors.New("PrivateLink array is immutable")
+	ErrMissingSecretKeys                     = errors.New("the secret is missing the correct keys for the user")
 )

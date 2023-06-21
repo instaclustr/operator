@@ -497,3 +497,8 @@ func arePrivateLinksEqual(a, b []*PrivateLink) bool {
 
 	return true
 }
+
+type UserReference struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}

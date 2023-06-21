@@ -155,6 +155,32 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - cassandrausers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - cassandrausers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - cassandrausers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - clusterbackups
   verbs:
   - create

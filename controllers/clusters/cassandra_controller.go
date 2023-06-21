@@ -258,6 +258,22 @@ func (r *CassandraReconciler) handleCreateCluster(
 		"Cluster backups check job is started",
 	)
 
+	// Adding users is allowed when the cluster is running.
+	if cassandra.Spec.UserRef != nil {
+		cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+		err = r.Patch(ctx, cassandra, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster",
+				"cluster name", cassandra.Spec.Name,
+				"cluster ID", cassandra.Status.ID)
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err)
+			return models.ReconcileRequeue
+		}
+
+		return reconcile.Result{RequeueAfter: models.Requeue300}
+	}
+
 	return models.ExitReconcile
 }
 
@@ -342,6 +358,13 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	if cassandra.Spec.UserRef != nil {
+		err = r.handleCreateUser(ctx, cassandra, l)
+		if err != nil {
+			return models.ReconcileRequeue
+		}
+	}
+
 	l.Info(
 		"Cluster has been updated",
 		"cluster name", cassandra.Spec.Name,
@@ -351,6 +374,49 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	)
 
 	return models.ExitReconcile
+}
+
+func (r *CassandraReconciler) handleCreateUser(
+	ctx context.Context,
+	cassandra *clustersv1alpha1.Cassandra,
+	l logr.Logger,
+) error {
+	req := types.NamespacedName{
+		Namespace: cassandra.Spec.UserRef.Namespace,
+		Name:      cassandra.Spec.UserRef.Name,
+	}
+
+	u := &clusterresourcesv1alpha1.CassandraUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Info("Cassandra user is not found", "request", req)
+			r.EventRecorder.Event(u, models.Warning, "Not Found",
+				"User is not found, create a new one Cassandra User or provide correct userRef.")
+
+			return err
+		}
+
+		l.Error(err, "Cannot get Cassandra user secret", "user", u.Spec)
+		return err
+	}
+
+	if u.Status.ClusterID == "" {
+		u.Status.ClusterID = cassandra.Status.ID
+
+		err = r.Status().Update(ctx, u)
+		if err != nil {
+			l.Error(err, "Cannot update Cassandra User with cluster ID",
+				"cluster name", cassandra.Spec.Name, "cluster ID", cassandra.Status.ID)
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.CreationFailed,
+				"Cannot update Cassandra User with cluster ID. Reason: %v", err)
+			return err
+		}
+
+		l.Info("Cassandra user has been assigned to cluster", "username", cassandra.Spec.UserRef)
+	}
+
+	return nil
 }
 
 func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *clustersv1alpha1.Cassandra, l logr.Logger) reconcile.Result {

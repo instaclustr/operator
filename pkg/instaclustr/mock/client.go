@@ -331,3 +331,11 @@ func (c *mockClient) DeleteEncryptionKey(encryptionKeyID string) error {
 func (c *mockClient) ListAppVersions(app string) ([]*models.AppVersions, error) {
 	panic("ListAppVersions: is not implemented")
 }
+
+func (c *mockClient) CreateUser(userSpec any, clusterID, app string) error {
+	panic("CreateUser: is not implemented")
+}
+
+func (c *mockClient) DeleteUser(username, clusterID, app string) error {
+	panic("DeleteUser: is not implemented")
+}

@@ -173,3 +173,9 @@ func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEven
 
 	return instBackupEvents
 }
+
+type InstaUser struct {
+	Username          string `json:"username"`
+	Password          string `json:"password"`
+	InitialPermission string `json:"initial-permissions"`
+}

@@ -52,3 +52,8 @@ type FirewallRuleStatus struct {
 type immutablePeeringFields struct {
 	DataCentreID string
 }
+
+type SecretReference struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
