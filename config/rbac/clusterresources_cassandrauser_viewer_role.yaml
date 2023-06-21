@@ -1,0 +1,27 @@
+# permissions for end users to view cassandrausers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: cassandrauser-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: operator
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+  name: cassandrauser-viewer-role
+rules:
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - cassandrausers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - cassandrausers/status
+  verbs:
+  - get
