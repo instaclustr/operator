@@ -44,6 +44,7 @@ func (r *Redis) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validat
 }
 
 // +kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1alpha1-redis,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=redis,verbs=create;update,versions=v1alpha1,name=mredis.kb.io,admissionReviewVersions=v1
+
 var _ webhook.Defaulter = &Redis{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
