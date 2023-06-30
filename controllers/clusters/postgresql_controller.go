@@ -90,11 +90,13 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	switch pg.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.HandleCreateCluster(ctx, pg, logger), nil
+		return r.handleCreateCluster(ctx, pg, logger), nil
 	case models.UpdatingEvent:
-		return r.HandleUpdateCluster(ctx, pg, logger), nil
+		return r.handleUpdateCluster(ctx, pg, logger), nil
 	case models.DeletingEvent:
-		return r.HandleDeleteCluster(ctx, pg, logger), nil
+		return r.handleDeleteCluster(ctx, pg, logger), nil
+	case models.SecretEvent:
+		return r.handleUpdateDefaultUserPassword(ctx, pg, logger), nil
 	case models.GenericEvent:
 		logger.Info("PostgreSQL resource generic event isn't handled",
 			"cluster name", pg.Spec.Name,
@@ -112,7 +114,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 }
 
-func (r *PostgreSQLReconciler) HandleCreateCluster(
+func (r *PostgreSQLReconciler) handleCreateCluster(
 	ctx context.Context,
 	pg *v1beta1.PostgreSQL,
 	logger logr.Logger,
@@ -123,57 +125,6 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 	var err error
 
 	patch := pg.NewPatch()
-	if pg.Status.DefaultUserSecretName == "" {
-		secretName, err := pg.GetUserSecretName(ctx, r.Client)
-		if err != nil {
-			logger.Error(err, "Cannot get PostgreSQL secret name",
-				"cluster name", pg.Spec.Name,
-				"cluster ID", pg.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				pg, models.Warning, models.FetchSecretFailed,
-				"Default user secret fetch is failed. Reason: %v",
-				err,
-			)
-
-			return models.ReconcileRequeue
-		}
-
-		pg.Status.DefaultUserSecretName = secretName
-
-		if secretName == "" {
-			secret := pg.NewUserSecret()
-			err = r.Client.Create(ctx, secret)
-			if err != nil {
-				logger.Error(err, "Cannot create PostgreSQL default user secret",
-					"cluster ID", pg.Status.ID,
-				)
-
-				r.EventRecorder.Eventf(
-					pg, models.Warning, models.CreationFailed,
-					"Default user secret creation is failed. Reason: %v",
-					err,
-				)
-
-				return models.ReconcileRequeue
-			}
-
-			pg.Status.DefaultUserSecretName = secret.Name
-
-			logger.Info("PostgreSQL default user secret was created",
-				"secret name", secret.Name,
-				"cluster ID", pg.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				pg, models.Normal, models.Created,
-				"Default user secret is created. Secret name: %s",
-				pg.Status.DefaultUserSecretName,
-			)
-		}
-	}
-
 	if pg.Status.ID == "" {
 		if pg.Spec.HasRestore() {
 			logger.Info(
@@ -319,14 +270,26 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 		"Cluster backups check job is started",
 	)
 
-	if pg.Annotations[models.ResourceStateAnnotation] == models.UpdatingEvent {
-		return reconcile.Result{Requeue: true}
+	err = r.createDefaultPassword(pg, logger)
+	if err != nil {
+		logger.Error(err, "Cannot create default password for PostgreSQL",
+			"cluster name", pg.Spec.Name,
+			"clusterID", pg.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.CreationFailed,
+			"Default user secret creation on the Instaclustr is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue
 	}
 
 	return models.ExitReconcile
 }
 
-func (r *PostgreSQLReconciler) HandleUpdateCluster(
+func (r *PostgreSQLReconciler) handleUpdateCluster(
 	ctx context.Context,
 	pg *v1beta1.PostgreSQL,
 	logger logr.Logger,
@@ -456,21 +419,6 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	err = r.updateDefaultUserPassword(ctx, pg)
-	if err != nil {
-		logger.Error(err, "Cannot update PostgreSQL default user password",
-			"cluster ID", pg.Status.ID,
-			"secret name", pg.Status.DefaultUserSecretName,
-		)
-
-		r.EventRecorder.Eventf(
-			pg, models.Warning, models.UpdateFailed,
-			"Default user password update is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
 	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.patchClusterMetadata(ctx, pg, logger)
 	if err != nil {
@@ -538,7 +486,7 @@ func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *v1beta1.PostgreSQL
 	}
 }
 
-func (r *PostgreSQLReconciler) HandleDeleteCluster(
+func (r *PostgreSQLReconciler) handleDeleteCluster(
 	ctx context.Context,
 	pg *v1beta1.PostgreSQL,
 	logger logr.Logger,
@@ -611,7 +559,6 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 
 	logger.Info("PostgreSQL cluster is being deleted. Deleting PostgreSQL default user secret",
 		"cluster ID", pg.Status.ID,
-		"secret name", pg.Status.DefaultUserSecretName,
 	)
 
 	err = r.deleteSecret(ctx, pg)
@@ -623,7 +570,6 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 		r.EventRecorder.Eventf(
 			pg, models.Warning, models.DeletionFailed,
 			"Default user secret deletion is failed. Secret name: %s. Reason: %v",
-			pg.Status.DefaultUserSecretName,
 			err,
 		)
 		return models.ReconcileRequeue
@@ -636,7 +582,6 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	r.EventRecorder.Eventf(
 		pg, models.Normal, models.Deleted,
 		"Default user secret is deleted. Secret name: %s",
-		pg.Status.DefaultUserSecretName,
 	)
 
 	logger.Info("Deleting cluster backup resources",
@@ -708,32 +653,90 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *PostgreSQLReconciler) updateDefaultUserPassword(
+func (r *PostgreSQLReconciler) handleUpdateDefaultUserPassword(
 	ctx context.Context,
 	pg *v1beta1.PostgreSQL,
-) error {
+	logger logr.Logger,
+) reconcile.Result {
+	logger = logger.WithName("PostgreSQL default user password updating event")
+
 	secret, err := pg.GetUserSecret(ctx, r.Client)
 	if err != nil {
-		return err
-	}
+		logger.Error(err, "Cannot get the default secret for the PostgreSQL cluster",
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
+		)
 
-	if secret.Generation == 0 {
-		return nil
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.FetchFailed,
+			"Fetch default user secret is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue
 	}
 
 	password := pg.GetUserPassword(secret)
 
 	isValid := pg.ValidateDefaultUserPassword(password)
 	if !isValid {
-		return models.ErrNotValidPassword
+		logger.Error(err, "Default PostgreSQL user password is not valid. This field must be at least 8 characters long. Must contain characters from at least 3 of the following 4 categories: Uppercase, Lowercase, Numbers, Special Characters",
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.ValidationFailed,
+			"Validation for default user secret is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue
 	}
 
 	err = r.API.UpdatePostgreSQLDefaultUserPassword(pg.Status.ID, password)
 	if err != nil {
-		return err
+		logger.Error(err, "Cannot update default PostgreSQL user password",
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.UpdateFailed,
+			"Default user password update on the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue
 	}
 
-	return nil
+	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	err = r.patchClusterMetadata(ctx, pg, logger)
+	if err != nil {
+		logger.Error(err, "Cannot patch PostgreSQL resource metadata",
+			"cluster name", pg.Spec.Name,
+			"cluster metadata", pg.ObjectMeta,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue
+	}
+
+	logger.Info("PostgreSQL default user password was updated",
+		"cluster name", pg.Spec.Name,
+		"cluster ID", pg.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		pg, models.Normal, models.UpdatedEvent,
+		"Cluster default user password is updated",
+	)
+
+	return models.ExitReconcile
 }
 
 func (r *PostgreSQLReconciler) startClusterStatusJob(pg *v1beta1.PostgreSQL) error {
@@ -928,6 +931,90 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 
 		return nil
 	}
+}
+
+func (r *PostgreSQLReconciler) createDefaultPassword(pg *v1beta1.PostgreSQL, l logr.Logger) error {
+	iData, err := r.API.GetPostgreSQL(pg.Status.ID)
+	if err != nil {
+		l.Error(
+			err, "Cannot get PostgreSQL cluster status from the Instaclustr API",
+			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	secret, err := pg.GetUserSecret(context.TODO(), r.Client)
+	if err != nil && !k8serrors.IsNotFound(err) {
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.FetchFailed,
+			"Default user secret fetch is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	if secret != nil {
+		l.Info("Default user secret for PostgreSQL cluster already exists",
+			"cluster name", pg.Spec.Name,
+			"clusterID", pg.Status.ID,
+		)
+
+		return nil
+	}
+
+	defaultUserPassword, err := pg.DefaultPasswordFromInstAPI(iData)
+	if err != nil {
+		l.Error(err, "Cannot get default user creds for PostgreSQL cluster from the Instaclustr API",
+			"cluster name", pg.Spec.Name,
+			"clusterID", pg.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.FetchFailed,
+			"Default user password fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	secret = pg.NewUserSecret(defaultUserPassword)
+	err = r.Client.Create(context.TODO(), secret)
+	if err != nil {
+		l.Error(err, "Cannot create PostgreSQL default user secret",
+			"cluster ID", pg.Status.ID,
+			"secret name", secret.Name,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.CreationFailed,
+			"Default user secret creation is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	l.Info("PostgreSQL default user secret was created",
+		"secret name", secret.Name,
+		"cluster ID", pg.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		pg, models.Normal, models.Created,
+		"Default user secret is created. Secret name: %s",
+		secret.Name,
+	)
+
+	return nil
 }
 
 func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *v1beta1.PostgreSQL) scheduler.Job {
@@ -1197,6 +1284,12 @@ func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *v1
 }
 
 func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcile.Request {
+	s := secret.(*k8sCore.Secret)
+
+	if s.Labels[models.DefaultSecretLabel] != "true" {
+		return []reconcile.Request{}
+	}
+
 	pg := &v1beta1.PostgreSQL{}
 	pgNamespacedName := types.NamespacedName{
 		Namespace: secret.GetNamespace(),
@@ -1212,7 +1305,7 @@ func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcil
 	}
 
 	patch := pg.NewPatch()
-	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+	pg.Annotations[models.ResourceStateAnnotation] = models.SecretEvent
 	err = r.Patch(context.TODO(), pg, patch)
 	if err != nil {
 		return []reconcile.Request{}
@@ -1264,7 +1357,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findSecretObject),
 			builder.WithPredicates(predicate.Funcs{
 				CreateFunc: func(createEvent event.CreateEvent) bool {
-					return createEvent.Object.GetGeneration() == 0
+					return false
 				},
 			}),
 		).

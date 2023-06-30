@@ -228,8 +228,6 @@ spec:
                       type: string
                   type: object
                 type: array
-              defaultUserSecretName:
-                type: string
               id:
                 type: string
               maintenanceEvents:

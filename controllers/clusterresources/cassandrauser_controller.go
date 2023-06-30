@@ -205,8 +205,8 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func (r *CassandraUserReconciler) getUserCreds(secret *k8sCore.Secret) (username, password string, err error) {
-	password = string(secret.Data["password"])
-	username = string(secret.Data["username"])
+	password = string(secret.Data[models.Password])
+	username = string(secret.Data[models.Username])
 
 	if len(username) == 0 || len(password) == 0 {
 		return "", "", models.ErrMissingSecretKeys

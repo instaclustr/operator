@@ -93,8 +93,7 @@ type PgSpec struct {
 
 // PgStatus defines the observed state of PostgreSQL
 type PgStatus struct {
-	ClusterStatus         `json:",inline"`
-	DefaultUserSecretName string `json:"defaultUserSecretName,omitempty"`
+	ClusterStatus `json:",inline"`
 }
 
 //+kubebuilder:object:root=true
@@ -303,18 +302,18 @@ func (pdc *PgDataCentre) ArePGBouncersEqual(iPGBs []*PgBouncer) bool {
 }
 
 func (pg *PostgreSQL) GetUserPassword(secret *k8sCore.Secret) string {
-	password := secret.Data[models.DefaultUserPassword]
+	password := secret.Data[models.Password]
 	if len(password) == 0 {
 		return ""
 	}
 
-	return string(password[:len(password)-1])
+	return string(password)
 }
 
 func (pg *PostgreSQL) GetUserSecret(ctx context.Context, k8sClient client.Client) (*k8sCore.Secret, error) {
 	userSecret := &k8sCore.Secret{}
 	userSecretNamespacedName := types.NamespacedName{
-		Name:      pg.Status.DefaultUserSecretName,
+		Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, pg.Name),
 		Namespace: pg.Namespace,
 	}
 	err := k8sClient.Get(ctx, userSecretNamespacedName, userSecret)
@@ -347,18 +346,24 @@ func (pg *PostgreSQL) GetUserSecretName(ctx context.Context, k8sClient client.Cl
 	return userSecretList.Items[0].Name, nil
 }
 
-func (pg *PostgreSQL) NewUserSecret() *k8sCore.Secret {
+func (pg *PostgreSQL) NewUserSecret(defaultUserPassword string) *k8sCore.Secret {
 	return &k8sCore.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       models.SecretKind,
 			APIVersion: models.K8sAPIVersionV1,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      models.DefaultUserSecretPrefix + pg.Name,
+			Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, pg.Name),
 			Namespace: pg.Namespace,
-			Labels:    map[string]string{models.ControlledByLabel: pg.Name},
+			Labels: map[string]string{
+				models.ControlledByLabel:  pg.Name,
+				models.DefaultSecretLabel: "true",
+			},
 		},
-		StringData: map[string]string{models.DefaultUserPassword: ""},
+		StringData: map[string]string{
+			models.Username: models.DefaultPgUsernameValue,
+			models.Password: defaultUserPassword,
+		},
 	}
 }
 
@@ -517,6 +522,20 @@ func (pg *PostgreSQL) FromInstAPI(iData []byte) (*PostgreSQL, error) {
 		Spec:       pg.Spec.FromInstAPI(iPg),
 		Status:     pg.Status.FromInstAPI(iPg),
 	}, nil
+}
+
+func (pg *PostgreSQL) DefaultPasswordFromInstAPI(iData []byte) (string, error) {
+	type defaultPasswordResponse struct {
+		DefaultUserPassword string `json:"defaultUserPassword,omitempty"`
+	}
+
+	dpr := &defaultPasswordResponse{}
+	err := json.Unmarshal(iData, dpr)
+	if err != nil {
+		return "", err
+	}
+
+	return dpr.DefaultUserPassword, nil
 }
 
 func (pgs *PgSpec) FromInstAPI(iPg *models.PGCluster) PgSpec {
