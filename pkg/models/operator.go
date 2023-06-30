@@ -30,6 +30,7 @@ const (
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
+	DefaultSecretLabel                = "instaclustr.com/defaultSecret"
 	ControlledByLabel                 = "instaclustr.com/controlledBy"
 	ClusterIDLabel                    = "instaclustr.com/clusterID"
 	ClusterNameLabel                  = "instaclustr.com/clusterName"
@@ -61,18 +62,19 @@ const (
 
 	Triggered = "triggered"
 
-	ClusterBackupKind       = "ClusterBackup"
-	PgClusterKind           = "PostgreSQL"
-	RedisClusterKind        = "Redis"
-	OsClusterKind           = "OpenSearch"
-	CassandraClusterKind    = "Cassandra"
-	ZookeeperClusterKind    = "Zookeeper"
-	SecretKind              = "Secret"
-	PgBackupEventType       = "postgresql-backup"
-	SnapshotUploadEventType = "snapshot-upload"
-	PgBackupPrefix          = "postgresql-backup-"
-	SnapshotUploadPrefix    = "snapshot-upload-"
-	DefaultUserSecretPrefix = "default-user-password-"
+	ClusterBackupKind             = "ClusterBackup"
+	PgClusterKind                 = "PostgreSQL"
+	RedisClusterKind              = "Redis"
+	OsClusterKind                 = "OpenSearch"
+	CassandraClusterKind          = "Cassandra"
+	ZookeeperClusterKind          = "Zookeeper"
+	SecretKind                    = "Secret"
+	PgBackupEventType             = "postgresql-backup"
+	SnapshotUploadEventType       = "snapshot-upload"
+	PgBackupPrefix                = "postgresql-backup-"
+	SnapshotUploadPrefix          = "snapshot-upload-"
+	DefaultUserSecretPrefix       = "default-user-password"
+	DefaultUserSecretNameTemplate = "%s-%s"
 
 	CassandraConnectionPort    = 9042
 	CadenceConnectionPort      = 7933
@@ -101,6 +103,8 @@ const (
 	KafkaConnectAppType = "KAFKA_CONNECT"
 	CassandraAppType    = "APACHE_CASSANDRA"
 	SparkAppType        = "SPARK"
+
+	DefaultPgUsernameValue = "icpostgresql"
 )
 
 const (
@@ -124,6 +128,7 @@ const (
 	FetchFailed       = "FetchFailed"
 	FetchSecretFailed = "FetchSecretFailed"
 	ConvertionFailed  = "ConvertionFailed"
+	ValidationFailed  = "ValidationFailed"
 	UpdateFailed      = "UpdateFailed"
 	UpdatedSecret     = "UpdatedSecret"
 	ExternalChanges   = "ExternalChanges"
@@ -133,10 +138,12 @@ const (
 )
 
 const (
-	ReplaceOperation    = "replace"
-	AnnotationsPath     = "/metadata/annotations"
-	FinalizersPath      = "/metadata/finalizers"
-	DefaultUserPassword = "defaultUserPassword"
+	ReplaceOperation = "replace"
+	AnnotationsPath  = "/metadata/annotations"
+	FinalizersPath   = "/metadata/finalizers"
+
+	Username = "username"
+	Password = "password"
 )
 
 const Requeue60 = time.Second * 60
