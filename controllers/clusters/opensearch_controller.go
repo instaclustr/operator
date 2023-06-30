@@ -227,6 +227,22 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		"cluster name", o.Name, "cluster ID", o.Status.ID,
 		"api version", o.APIVersion, "namespace", o.Namespace)
 
+	if o.Spec.UserRef != nil {
+		patch := o.NewPatch()
+		o.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+		err = r.Patch(ctx, o, patch)
+		if err != nil {
+			logger.Error(err, "Cannot patch cluster",
+				"cluster name", o.Spec.Name,
+				"cluster ID", o.Status.ID,
+			)
+			r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v", err,
+			)
+			return models.ReconcileRequeue
+		}
+	}
+
 	return models.ExitReconcile
 }
 
@@ -290,6 +306,13 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		}
 	}
 
+	if o.Spec.UserRef != nil {
+		err = r.handleCreateUser(ctx, o, logger)
+		if err != nil {
+			return models.ReconcileRequeue
+		}
+	}
+
 	patch := o.NewPatch()
 	o.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.Patch(ctx, o, patch)
@@ -310,6 +333,54 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		"cluster ID", o.Status.ID)
 
 	return models.ExitReconcile
+}
+
+func (r *OpenSearchReconciler) handleCreateUser(
+	ctx context.Context,
+	o *v1beta1.OpenSearch,
+	logger logr.Logger,
+) error {
+	req := types.NamespacedName{
+		Namespace: o.Spec.UserRef.Namespace,
+		Name:      o.Spec.UserRef.Name,
+	}
+
+	u := &clusterresourcesv1beta1.OpenSearchUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("OpenSearch user is not found", "request", req)
+			r.EventRecorder.Event(
+				u, models.Warning, "Not Found",
+				"User is not found, create a new one OpenSearch User or provide correct userRef.",
+			)
+			return err
+		}
+
+		logger.Error(err, "Cannot get OpenSearch user secret", "user", u.Spec)
+		return err
+	}
+
+	if u.Status.ClusterID == "" {
+		u.Status.ClusterID = o.Status.ID
+		err = r.Status().Update(ctx, u)
+		if err != nil {
+			logger.Error(err, "Cannot update OpenSearch User with cluster ID",
+				"cluster name", o.Spec.Name,
+				"cluster ID", o.Status.ID,
+			)
+			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+				"Cannot update OpenSearch User with cluster ID. Reason: %v", err,
+			)
+			return err
+		}
+		logger.Info("OpenSearch user has been assigned to cluster",
+			"cluster name", o.Spec.Name,
+			"cluster ID", o.Status.ID,
+		)
+	}
+
+	return nil
 }
 
 func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) reconcile.Result {

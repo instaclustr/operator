@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret-1
+data:
+  username: dGVzdC11c2VyLTEK # test-user-1
+  password: VGVzdFBhc3MxMjMhCg== # TestPass123!
+---
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: OpenSearchUser
+metadata:
+  name: test-user-1
+spec:
+  secretRef:
+    name: "test-secret-1"
+    namespace: "default"

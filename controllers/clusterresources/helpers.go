@@ -17,6 +17,9 @@ limitations under the License.
 package clusterresources
 
 import (
+	k8sCore "k8s.io/api/core/v1"
+
+	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 )
 
@@ -60,4 +63,15 @@ func areEncryptionKeyStatusesEqual(a, b *v1beta1.AWSEncryptionKeyStatus) bool {
 	}
 
 	return true
+}
+
+func getUserCreds(secret *k8sCore.Secret) (username, password string, err error) {
+	password = string(secret.Data["password"])
+	username = string(secret.Data["username"])
+
+	if len(username) == 0 || len(password) == 0 {
+		return "", "", models.ErrMissingSecretKeys
+	}
+
+	return username[:len(username)-1], password[:len(password)-1], nil
 }

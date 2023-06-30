@@ -132,7 +132,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if u.Status.ClusterID != "" && u.Status.State != models.Created {
 		patch := u.NewPatch()
 
-		username, password, err := r.getUserCreds(s)
+		username, password, err := getUserCreds(s)
 		if err != nil {
 			l.Error(err, "Cannot get user credentials", "user", u.Name)
 			r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
@@ -204,24 +204,13 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return models.ExitReconcile, nil
 }
 
-func (r *CassandraUserReconciler) getUserCreds(secret *k8sCore.Secret) (username, password string, err error) {
-	password = string(secret.Data[models.Password])
-	username = string(secret.Data[models.Username])
-
-	if len(username) == 0 || len(password) == 0 {
-		return "", "", models.ErrMissingSecretKeys
-	}
-
-	return username[:len(username)-1], password[:len(password)-1], nil
-}
-
 func (r *CassandraUserReconciler) handleDeleteUser(
 	ctx context.Context,
 	l logr.Logger,
 	s *k8sCore.Secret,
 	u *v1beta1.CassandraUser,
 ) error {
-	username, _, err := r.getUserCreds(s)
+	username, _, err := getUserCreds(s)
 	if err != nil {
 		l.Error(err, "Cannot get user credentials", "user", u.Name)
 		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,

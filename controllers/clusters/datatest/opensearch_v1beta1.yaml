@@ -6,6 +6,9 @@ spec:
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
+#  userRef:
+#    name: test-user
+#    namespace: default
   clusterManagerNodes:
     - dedicatedManager: false
       nodeSize: SRH-DEV-t4g.small-5

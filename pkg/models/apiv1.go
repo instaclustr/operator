@@ -179,3 +179,13 @@ type InstaUser struct {
 	Password          string `json:"password"`
 	InitialPermission string `json:"initial-permissions"`
 }
+
+type InstaOpenSearchUser struct {
+	*InstaUser `json:",inline"`
+	Options    Options `json:"options"`
+}
+
+type Options struct {
+	IndexPattern string `json:"indexPattern"`
+	Role         string `json:"role"`
+}
