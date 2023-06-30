@@ -312,6 +312,33 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - opensearchusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - opensearchusers/finalizers
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - opensearchusers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - redisusers
   verbs:
   - create

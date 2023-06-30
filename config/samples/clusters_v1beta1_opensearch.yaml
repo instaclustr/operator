@@ -14,6 +14,9 @@ spec:
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
+#  userRef:
+#    name: "test-user-1"
+#    namespace: "default"
   clusterManagerNodes:
     - dedicatedManager: false
       nodeSize: SRH-DEV-t4g.small-5
@@ -31,13 +34,13 @@ spec:
   indexManagementPlugin: true
   knnPlugin: false
   loadBalancer: false
-  name: operatorOpenSearch
+  name: bohdan-test
   notificationsPlugin: false
   #  opensearchDashboards:
   #    - nodeSize: SRH-DEV-t4g.small-5
   #      oidcProvider: ''
   #      version: opensearch-dashboards:2.5.0
-  version: 2.5.0
+  version: 2.7.0
   pciCompliance: false
   privateNetworkCluster: false
   reportingPlugin: false

@@ -38,6 +38,7 @@ const (
 	ClusterresourcesV1beta1APIVersion = "clusterresources.instaclustr.com/v1beta1"
 	RedisUserNamespaceLabel           = "instaclustr.com/redisUserNamespace"
 	CassandraUserNamespaceLabel       = "instaclustr.com/cassandraUserNamespace"
+	OpenSearchUserNamespaceLabel       = "instaclustr.com/openSearchUserNamespace"
 
 	CassandraKind        = "Cassandra"
 	CassandraChildPrefix = "cassandra-"

@@ -25,6 +25,7 @@ resources:
 - bases/clusterresources.instaclustr.com_redisusers.yaml
 - bases/clusterresources.instaclustr.com_awsencryptionkeys.yaml
 - bases/clusterresources.instaclustr.com_cassandrausers.yaml
+- bases/clusterresources.instaclustr.com_opensearchusers.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

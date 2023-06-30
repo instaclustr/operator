@@ -2153,6 +2153,10 @@ func (c *Client) DeleteUser(username, clusterID, app string) error {
 		return err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
