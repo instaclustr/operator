@@ -15,7 +15,7 @@ spec:
     singular: nodereload
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: NodeReload is the Schema for the nodereloads API

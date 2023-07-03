@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -62,7 +62,7 @@ type KafkaConnectReconciler struct {
 func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	kafkaConnect := &clustersv1alpha1.KafkaConnect{}
+	kafkaConnect := &v1beta1.KafkaConnect{}
 	err := r.Client.Get(ctx, req.NamespacedName, kafkaConnect)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -88,7 +88,7 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 }
 
-func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
 	l = l.WithName("Creation Event")
 
 	if kc.Status.ID == "" {
@@ -162,7 +162,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *cl
 	return models.ExitReconcile
 }
 
-func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
 	l = l.WithName("Update Event")
 
 	iData, err := r.API.GetKafkaConnect(kc.Status.ID)
@@ -232,7 +232,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *cl
 	return models.ExitReconcile
 }
 
-func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
 	if k.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", k.Spec,
@@ -275,7 +275,7 @@ func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *clustersv1alpha1.K
 	}
 }
 
-func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *clustersv1alpha1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
 	l = l.WithName("Deletion Event")
 
 	_, err := r.API.GetKafkaConnect(kc.Status.ID)
@@ -375,7 +375,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *cl
 	return models.ExitReconcile
 }
 
-func (r *KafkaConnectReconciler) startClusterStatusJob(kc *clustersv1alpha1.KafkaConnect) error {
+func (r *KafkaConnectReconciler) startClusterStatusJob(kc *v1beta1.KafkaConnect) error {
 	job := r.newWatchStatusJob(kc)
 
 	err := r.Scheduler.ScheduleJob(kc.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -386,7 +386,7 @@ func (r *KafkaConnectReconciler) startClusterStatusJob(kc *clustersv1alpha1.Kafk
 	return nil
 }
 
-func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaConnect) scheduler.Job {
+func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) scheduler.Job {
 	l := log.Log.WithValues("component", "kafkaConnectStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(kc)
@@ -476,7 +476,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iKC.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -548,7 +548,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *clustersv1alpha1.KafkaCon
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.KafkaConnect{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.KafkaConnect{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				confirmDeletion(event.Object)
@@ -559,7 +559,7 @@ func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				newObj := event.ObjectNew.(*clustersv1alpha1.KafkaConnect)
+				newObj := event.ObjectNew.(*v1beta1.KafkaConnect)
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}

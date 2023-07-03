@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ const zookeeperNodeSizeFromYAML = "zookeeper-developer-t3.small-20"
 
 var _ = Describe("Zookeeper Controller", func() {
 	var (
-		zookeeperResource v1alpha1.Zookeeper
-		zookeeperYAML     v1alpha1.Zookeeper
+		zookeeperResource v1beta1.Zookeeper
+		zookeeperYAML     v1beta1.Zookeeper
 		zook              = "zookeeper"
 		ns                = "default"
 		zookeeperNS       = types.NamespacedName{Name: zook, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("Zookeeper Controller", func() {
 		interval          = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/zookeeper_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/zookeeper_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &zookeeperYAML)

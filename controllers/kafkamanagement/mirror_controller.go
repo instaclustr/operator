@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -61,7 +61,7 @@ type MirrorReconciler struct {
 func (r *MirrorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	mirror := &kafkamanagementv1alpha1.Mirror{}
+	mirror := &v1beta1.Mirror{}
 	err := r.Client.Get(ctx, req.NamespacedName, mirror)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -95,7 +95,7 @@ func (r *MirrorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 func (r *MirrorReconciler) handleCreateCluster(
 	ctx context.Context,
-	mirror *kafkamanagementv1alpha1.Mirror,
+	mirror *v1beta1.Mirror,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Creation Event")
@@ -172,7 +172,7 @@ func (r *MirrorReconciler) handleCreateCluster(
 
 func (r *MirrorReconciler) handleUpdateCluster(
 	ctx context.Context,
-	mirror *kafkamanagementv1alpha1.Mirror,
+	mirror *v1beta1.Mirror,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Update Event")
@@ -231,7 +231,7 @@ func (r *MirrorReconciler) handleUpdateCluster(
 
 func (r *MirrorReconciler) handleDeleteCluster(
 	ctx context.Context,
-	mirror *kafkamanagementv1alpha1.Mirror,
+	mirror *v1beta1.Mirror,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Deletion Event")
@@ -299,7 +299,7 @@ func (r *MirrorReconciler) handleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *MirrorReconciler) startClusterStatusJob(mirror *kafkamanagementv1alpha1.Mirror) error {
+func (r *MirrorReconciler) startClusterStatusJob(mirror *v1beta1.Mirror) error {
 	job := r.newWatchStatusJob(mirror)
 
 	err := r.Scheduler.ScheduleJob(mirror.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -310,7 +310,7 @@ func (r *MirrorReconciler) startClusterStatusJob(mirror *kafkamanagementv1alpha1
 	return nil
 }
 
-func (r *MirrorReconciler) newWatchStatusJob(mirror *kafkamanagementv1alpha1.Mirror) scheduler.Job {
+func (r *MirrorReconciler) newWatchStatusJob(mirror *v1beta1.Mirror) scheduler.Job {
 	l := log.Log.WithValues("component", "mirrorStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(mirror)
@@ -387,14 +387,14 @@ func (r *MirrorReconciler) newWatchStatusJob(mirror *kafkamanagementv1alpha1.Mir
 // SetupWithManager sets up the controller with the Manager.
 func (r *MirrorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&kafkamanagementv1alpha1.Mirror{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Mirror{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				confirmDeletion(event.Object)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.Mirror)
+				newObj := event.ObjectNew.(*v1beta1.Mirror)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

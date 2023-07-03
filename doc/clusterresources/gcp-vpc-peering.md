@@ -13,7 +13,7 @@
 To create a GCP VPC Peering resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # gcpvpcpeering.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: GCPVPCPeering
 metadata:
   name: gcpvpcpeering-sample

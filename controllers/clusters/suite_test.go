@@ -33,8 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	clusterresourcescontrollers "github.com/instaclustr/operator/controllers/clusterresources"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -74,10 +74,10 @@ var _ = BeforeSuite(func() {
 
 	instaClient := instaclustr.NewClient("test", "test", "http://localhost:8082", time.Second*10)
 
-	err = clustersv1alpha1.AddToScheme(scheme.Scheme)
+	err = v1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = clusterresourcesv1alpha1.AddToScheme(scheme.Scheme)
+	err = clusterresourcesv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme

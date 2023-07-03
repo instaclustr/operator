@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -62,7 +62,7 @@ type MaintenanceEventsReconciler struct {
 func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	me := &clusterresourcesv1alpha1.MaintenanceEvents{}
+	me := &v1beta1.MaintenanceEvents{}
 	err := r.Client.Get(ctx, req.NamespacedName, me)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -204,7 +204,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return models.ExitReconcile, nil
 }
 
-func (r *MaintenanceEventsReconciler) startMaintenanceEventStatusJob(me *clusterresourcesv1alpha1.MaintenanceEvents) error {
+func (r *MaintenanceEventsReconciler) startMaintenanceEventStatusJob(me *v1beta1.MaintenanceEvents) error {
 	job := r.newWatchStatusJob(me)
 
 	err := r.Scheduler.ScheduleJob(me.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -215,7 +215,7 @@ func (r *MaintenanceEventsReconciler) startMaintenanceEventStatusJob(me *cluster
 	return nil
 }
 
-func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1alpha1.MaintenanceEvents) scheduler.Job {
+func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *v1beta1.MaintenanceEvents) scheduler.Job {
 	l := log.Log.WithValues("component", "MaintenanceEventStatusJob")
 	return func() error {
 		err := r.Get(context.TODO(), types.NamespacedName{
@@ -279,8 +279,8 @@ func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *clusterresourcesv1al
 	}
 }
 
-func (r *MaintenanceEventsReconciler) reconcileMaintenanceEventsReschedules(mEvents *clusterresourcesv1alpha1.MaintenanceEvents) error {
-	var updatedMEventsStatuses []*clusterresourcesv1alpha1.MaintenanceEventStatus
+func (r *MaintenanceEventsReconciler) reconcileMaintenanceEventsReschedules(mEvents *v1beta1.MaintenanceEvents) error {
+	var updatedMEventsStatuses []*v1beta1.MaintenanceEventStatus
 	instMEvents, err := r.API.GetMaintenanceEventsStatuses(mEvents.Spec.ClusterID)
 	if err != nil {
 		return err
@@ -311,13 +311,13 @@ func (r *MaintenanceEventsReconciler) reconcileMaintenanceEventsReschedules(mEve
 	return nil
 }
 
-func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *clusterresourcesv1alpha1.MaintenanceEvents) error {
+func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *v1beta1.MaintenanceEvents) error {
 	instWindowsStatuses, err := r.API.GetExclusionWindowsStatuses(mEvents.Spec.ClusterID)
 	if err != nil {
 		return err
 	}
 
-	instWindowsMap := map[clusterresourcesv1alpha1.ExclusionWindowSpec]string{}
+	instWindowsMap := map[v1beta1.ExclusionWindowSpec]string{}
 	for _, instWindow := range instWindowsStatuses {
 		instWindowsMap[instWindow.ExclusionWindowSpec] = instWindow.ID
 	}
@@ -337,7 +337,7 @@ func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *cluster
 		k8sWindowsMap[instWindow] = id
 	}
 
-	var windowsStatus []*clusterresourcesv1alpha1.ExclusionWindowStatus
+	var windowsStatus []*v1beta1.ExclusionWindowStatus
 	for k8sWindow := range k8sWindowsMap {
 		if _, exists := instWindowsMap[k8sWindow]; !exists {
 			k8sWindowsMap[k8sWindow], err = r.API.CreateExclusionWindow(mEvents.Spec.ClusterID, k8sWindow)
@@ -346,7 +346,7 @@ func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *cluster
 			}
 		}
 
-		windowsStatus = append(windowsStatus, &clusterresourcesv1alpha1.ExclusionWindowStatus{
+		windowsStatus = append(windowsStatus, &v1beta1.ExclusionWindowStatus{
 			ID:                  k8sWindowsMap[k8sWindow],
 			ExclusionWindowSpec: k8sWindow,
 		})
@@ -357,7 +357,7 @@ func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *cluster
 	return nil
 }
 
-func (r *MaintenanceEventsReconciler) deleteExclusionWindows(mEvents *clusterresourcesv1alpha1.MaintenanceEvents) error {
+func (r *MaintenanceEventsReconciler) deleteExclusionWindows(mEvents *v1beta1.MaintenanceEvents) error {
 	for _, window := range mEvents.Status.ExclusionWindowsStatuses {
 		err := r.API.DeleteExclusionWindow(window.ID)
 		if err != nil {
@@ -371,7 +371,7 @@ func (r *MaintenanceEventsReconciler) deleteExclusionWindows(mEvents *clusterres
 // SetupWithManager sets up the controller with the Manager.
 func (r *MaintenanceEventsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.MaintenanceEvents{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.MaintenanceEvents{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return !(event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration())
 			},

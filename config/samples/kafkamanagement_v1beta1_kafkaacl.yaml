@@ -1,0 +1,22 @@
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: KafkaACL
+metadata:
+  labels:
+    app.kubernetes.io/name: kafkaacl
+    app.kubernetes.io/instance: kafkaacl-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: kafkaacl-sample
+spec:
+  acls:
+    - host: "*"
+      operation: DESCRIBE
+      patternType: LITERAL
+      permissionType: ALLOW
+      principal: User:test
+      resourceName: kafka-cluster
+      resourceType: CLUSTER
+  clusterId: dcb8e03f-8bac-4f4b-83bc-34b6e7f3cb29
+  userQuery: test
+

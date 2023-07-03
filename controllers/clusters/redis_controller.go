@@ -35,8 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -65,7 +65,7 @@ type RedisReconciler struct {
 func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	redis := &clustersv1alpha1.Redis{}
+	redis := &v1beta1.Redis{}
 	err := r.Client.Get(ctx, req.NamespacedName, redis)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -105,7 +105,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 func (r *RedisReconciler) handleCreateCluster(
 	ctx context.Context,
-	redis *clustersv1alpha1.Redis,
+	redis *v1beta1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
 	var err error
@@ -260,7 +260,7 @@ func (r *RedisReconciler) handleCreateCluster(
 
 func (r *RedisReconciler) handleUpdateCluster(
 	ctx context.Context,
-	redis *clustersv1alpha1.Redis,
+	redis *v1beta1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
 	iData, err := r.API.GetRedis(redis.Status.ID)
@@ -341,7 +341,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 	return models.ExitReconcile
 }
 
-func (r *RedisReconciler) handleExternalChanges(redis, iRedis *clustersv1alpha1.Redis, l logr.Logger) reconcile.Result {
+func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l logr.Logger) reconcile.Result {
 	if redis.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", redis.Spec,
@@ -386,7 +386,7 @@ func (r *RedisReconciler) handleExternalChanges(redis, iRedis *clustersv1alpha1.
 
 func (r *RedisReconciler) handleDeleteCluster(
 	ctx context.Context,
-	redis *clustersv1alpha1.Redis,
+	redis *v1beta1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
 	_, err := r.API.GetRedis(redis.Status.ID)
@@ -524,7 +524,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *RedisReconciler) startClusterStatusJob(cluster *clustersv1alpha1.Redis) error {
+func (r *RedisReconciler) startClusterStatusJob(cluster *v1beta1.Redis) error {
 	job := r.newWatchStatusJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -535,7 +535,7 @@ func (r *RedisReconciler) startClusterStatusJob(cluster *clustersv1alpha1.Redis)
 	return nil
 }
 
-func (r *RedisReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Redis) error {
+func (r *RedisReconciler) startClusterBackupsJob(cluster *v1beta1.Redis) error {
 	job := r.newWatchBackupsJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
@@ -546,7 +546,7 @@ func (r *RedisReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Redis
 	return nil
 }
 
-func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) scheduler.Job {
+func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job {
 	l := log.Log.WithValues("component", "redisStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(redis)
@@ -640,7 +640,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iRedis.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -709,7 +709,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *clustersv1alpha1.Redis) sched
 	}
 }
 
-func (r *RedisReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Redis) scheduler.Job {
+func (r *RedisReconciler) newWatchBackupsJob(cluster *v1beta1.Redis) scheduler.Job {
 	l := log.Log.WithValues("component", "redisBackupsClusterJob")
 
 	return func() error {
@@ -740,8 +740,8 @@ func (r *RedisReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Redis) sc
 			return err
 		}
 
-		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
-		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		k8sBackups := map[int]*clusterresourcesv1beta1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1beta1.ClusterBackup{}
 		for _, k8sBackup := range k8sBackupList.Items {
 			if k8sBackup.Status.Start != 0 {
 				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
@@ -812,8 +812,8 @@ func (r *RedisReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Redis) sc
 	}
 }
 
-func (r *RedisReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
-	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+func (r *RedisReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1beta1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1beta1.ClusterBackupList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -836,7 +836,7 @@ func (r *RedisReconciler) deleteBackups(ctx context.Context, clusterID, namespac
 		return nil
 	}
 
-	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	backupType := &clusterresourcesv1beta1.ClusterBackup{}
 	opts := []client.DeleteAllOfOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -861,7 +861,7 @@ func (r *RedisReconciler) deleteBackups(ctx context.Context, clusterID, namespac
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.Redis{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Redis{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {
 					return true
@@ -875,7 +875,7 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				newObj := event.ObjectNew.(*clustersv1alpha1.Redis)
+				newObj := event.ObjectNew.(*v1beta1.Redis)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

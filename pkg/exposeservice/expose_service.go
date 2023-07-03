@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -34,7 +34,7 @@ func Create(
 	c client.Client,
 	clusterName string,
 	ns string,
-	nodes []*v1alpha1.Node,
+	nodes []*v1beta1.Node,
 	targetPort int32,
 ) error {
 	svcName := fmt.Sprintf("%s-service", clusterName)

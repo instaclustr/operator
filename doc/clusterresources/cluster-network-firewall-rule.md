@@ -12,7 +12,7 @@
 To create a Cluster Network Firewall Rule resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # clusternetworkfirewallrule.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: ClusterNetworkFirewallRule
 metadata:
   name: clusternetworkfirewallrule-sample

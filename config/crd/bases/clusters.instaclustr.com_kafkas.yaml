@@ -15,7 +15,7 @@ spec:
     singular: kafka
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: Kafka is the Schema for the kafkas API

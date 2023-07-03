@@ -24,15 +24,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr/mock"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
 	Context("When setting up a AWS VPC Peering CRD", func() {
-		awsVPCPeeringSpec := v1alpha1.AWSVPCPeeringSpec{
-			VPCPeeringSpec: v1alpha1.VPCPeeringSpec{
+		awsVPCPeeringSpec := v1beta1.AWSVPCPeeringSpec{
+			VPCPeeringSpec: v1beta1.VPCPeeringSpec{
 				DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
 				PeerSubnets:  []string{"172.31.0.0/16", "192.168.0.0/16"},
 			},
@@ -42,7 +42,7 @@ var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
 		}
 
 		ctx := context.Background()
-		resource := v1alpha1.AWSVPCPeering{
+		resource := v1beta1.AWSVPCPeering{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "awsvpcpeering",
 				Namespace: "default",
@@ -57,7 +57,7 @@ var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
 			By("Sending AWS VPC Peering Specification to Instaclustr API v2")
-			var awsVPCPeering v1alpha1.AWSVPCPeering
+			var awsVPCPeering v1beta1.AWSVPCPeering
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "awsvpcpeering", Namespace: "default"}, &awsVPCPeering); err != nil {
 					return false

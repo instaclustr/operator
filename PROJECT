@@ -16,8 +16,21 @@ resources:
   domain: instaclustr.com
   group: clusters
   kind: Cassandra
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusters
+  kind: Cadence
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
   webhooks:
     defaulting: true
     validation: true
@@ -29,8 +42,21 @@ resources:
   domain: instaclustr.com
   group: clusters
   kind: Kafka
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusters
+  kind: KafkaConnect
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
   webhooks:
     defaulting: true
     validation: true
@@ -42,8 +68,8 @@ resources:
   domain: instaclustr.com
   group: clusters
   kind: OpenSearch
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
   webhooks:
     defaulting: true
     validation: true
@@ -53,11 +79,12 @@ resources:
     namespaced: true
   controller: true
   domain: instaclustr.com
-  group: clusterresources
-  kind: AWSVPCPeering
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
+  group: clusters
+  kind: PostgreSQL
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
   webhooks:
+    defaulting: true
     validation: true
     webhookVersion: v1
 - api:
@@ -67,9 +94,10 @@ resources:
   domain: instaclustr.com
   group: clusters
   kind: Redis
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
   webhooks:
+    defaulting: true
     validation: true
     webhookVersion: v1
 - api:
@@ -78,9 +106,9 @@ resources:
   controller: true
   domain: instaclustr.com
   group: clusters
-  kind: Cadence
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
+  kind: Zookeeper
+  path: github.com/instaclustr/operator/apis/clusters/v1beta1
+  version: v1beta1
   webhooks:
     defaulting: true
     validation: true
@@ -91,46 +119,9 @@ resources:
   controller: true
   domain: instaclustr.com
   group: clusterresources
-  kind: GCPVPCPeering
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
-  webhooks:
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusterresources
-  kind: AzureVNetPeering
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
-  webhooks:
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusters
-  kind: KafkaConnect
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
-  webhooks:
-    defaulting: true
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusterresources
-  kind: ClusterNetworkFirewallRule
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
+  kind: AWSEncryptionKey
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
   webhooks:
     validation: true
     webhookVersion: v1
@@ -141,107 +132,9 @@ resources:
   domain: instaclustr.com
   group: clusterresources
   kind: AWSSecurityGroupFirewallRule
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
   webhooks:
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: kafkamanagement
-  kind: Topic
-  path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusterresources
-  kind: MaintenanceEvents
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
-  webhooks:
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusters
-  kind: Zookeeper
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
-  webhooks:
-    defaulting: true
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: kafkamanagement
-  kind: KafkaUser
-  path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: kafkamanagement
-  kind: Mirror
-  path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusterresources
-  kind: ClusterBackup
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusterresources
-  kind: NodeReload
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
-  webhooks:
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: kafkamanagement
-  kind: KafkaACL
-  path: github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1
-  version: v1alpha1
-  webhooks:
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: instaclustr.com
-  group: clusters
-  kind: PostgreSQL
-  path: github.com/instaclustr/operator/apis/clusters/v1alpha1
-  version: v1alpha1
-  webhooks:
-    defaulting: true
     validation: true
     webhookVersion: v1
 - api:
@@ -250,18 +143,21 @@ resources:
   controller: true
   domain: instaclustr.com
   group: clusterresources
-  kind: RedisUser
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
+  kind: AWSVPCPeering
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
   domain: instaclustr.com
   group: clusterresources
-  kind: AWSEncryptionKey
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
+  kind: AzureVNetPeering
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
   webhooks:
     validation: true
     webhookVersion: v1
@@ -272,6 +168,114 @@ resources:
   domain: instaclustr.com
   group: clusterresources
   kind: CassandraUser
-  path: github.com/instaclustr/operator/apis/clusterresources/v1alpha1
-  version: v1alpha1
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: ClusterBackup
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: ClusterNetworkFirewallRule
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: GCPVPCPeering
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: MaintenanceEvents
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: NodeReload
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: RedisUser
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: kafkamanagement
+  kind: KafkaACL
+  path: github.com/instaclustr/operator/apis/kafkamanagement/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: kafkamanagement
+  kind: KafkaUser
+  path: github.com/instaclustr/operator/apis/kafkamanagement/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: kafkamanagement
+  kind: Mirror
+  path: github.com/instaclustr/operator/apis/kafkamanagement/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: kafkamanagement
+  kind: Topic
+  path: github.com/instaclustr/operator/apis/kafkamanagement/v1beta1
+  version: v1beta1
 version: "3"

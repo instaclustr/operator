@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -60,7 +60,7 @@ type AWSSecurityGroupFirewallRuleReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
-	firewallRule := &clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule{}
+	firewallRule := &v1beta1.AWSSecurityGroupFirewallRule{}
 	err := r.Client.Get(ctx, req.NamespacedName, firewallRule)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -95,7 +95,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
+	firewallRule *v1beta1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
 	if firewallRule.Status.ID == "" {
@@ -183,7 +183,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule,
+	firewallRule *v1beta1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
 	patch := firewallRule.NewPatch()
@@ -273,7 +273,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	return models.ExitReconcile
 }
 
-func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule) error {
+func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *v1beta1.AWSSecurityGroupFirewallRule) error {
 	job := r.newWatchStatusJob(firewallRule)
 
 	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -284,7 +284,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(fire
 	return nil
 }
 
-func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule *clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule) scheduler.Job {
+func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule *v1beta1.AWSSecurityGroupFirewallRule) scheduler.Job {
 	l := log.Log.WithValues("component", "FirewallRuleStatusJob")
 	return func() error {
 		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
@@ -316,7 +316,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSSecurityGroupFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.AWSSecurityGroupFirewallRule{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
 					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
@@ -327,7 +327,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manag
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.AWSSecurityGroupFirewallRule)
+				newObj := event.ObjectNew.(*v1beta1.AWSSecurityGroupFirewallRule)
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}

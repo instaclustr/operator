@@ -83,7 +83,7 @@
 To create a cluster you need to prepare a cluster manifest. Here is an example:
 ```yaml
 # postgresql.yaml file
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
   name: postgresql-sample
@@ -185,7 +185,7 @@ kubectl edit default-user-password-postgresql-sample
 To restore a PostgreSQL cluster instance from an existing one you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # postgresql-restore.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
   name: postgresql-sample-restored

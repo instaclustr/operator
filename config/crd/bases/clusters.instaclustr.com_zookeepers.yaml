@@ -15,7 +15,7 @@ spec:
     singular: zookeeper
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: Zookeeper is the Schema for the zookeepers API

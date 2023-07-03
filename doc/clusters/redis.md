@@ -67,7 +67,7 @@ To create a Redis cluster instance you need to prepare the yaml manifest. Here i
 
 ```yaml
 # redis.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Redis
 metadata:
   name: redis-sample
@@ -149,7 +149,7 @@ After that, deletion confirmation email will be sent to the email defined in the
 To restore a Redis cluster instance from an existing one you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # redis-restore.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Redis
 metadata:
   name: redis-sample-restore

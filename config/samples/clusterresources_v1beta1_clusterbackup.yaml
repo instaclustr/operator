@@ -1,0 +1,7 @@
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: ClusterBackup
+metadata:
+  name: clusterbackup-sample
+spec:
+  clusterId: b3eb2b51-1b89-45a1-906d-10cf340c7bd7
+  clusterKind: PostgreSQl

@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -69,7 +69,7 @@ type KafkaUserReconciler struct {
 func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	user := &kafkamanagementv1alpha1.KafkaUser{}
+	user := &v1beta1.KafkaUser{}
 	err := r.Client.Get(ctx, req.NamespacedName, user)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -116,7 +116,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 func (r *KafkaUserReconciler) handleCreateKafkaUser(
 	ctx context.Context,
-	user *kafkamanagementv1alpha1.KafkaUser,
+	user *v1beta1.KafkaUser,
 	l logr.Logger,
 ) reconcile.Result {
 	if user.Status.ID == "" {
@@ -212,7 +212,7 @@ func (r *KafkaUserReconciler) handleCreateKafkaUser(
 
 func (r *KafkaUserReconciler) handleUpdateKafkaUser(
 	ctx context.Context,
-	user *kafkamanagementv1alpha1.KafkaUser,
+	user *v1beta1.KafkaUser,
 	l logr.Logger,
 ) reconcile.Result {
 	iKafkaUser := user.Spec.ToInstAPI()
@@ -276,7 +276,7 @@ func (r *KafkaUserReconciler) handleUpdateKafkaUser(
 
 func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 	ctx context.Context,
-	user *kafkamanagementv1alpha1.KafkaUser,
+	user *v1beta1.KafkaUser,
 	l logr.Logger,
 ) reconcile.Result {
 	patch := user.NewPatch()
@@ -370,12 +370,12 @@ func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
-		&kafkamanagementv1alpha1.KafkaUser{},
+		&v1beta1.KafkaUser{},
 		kafkaUserField,
 		func(rawObj client.Object,
 		) []string {
 
-			kafkaUser := rawObj.(*kafkamanagementv1alpha1.KafkaUser)
+			kafkaUser := rawObj.(*v1beta1.KafkaUser)
 			if kafkaUser.Spec.KafkaUserSecretName == "" {
 				return nil
 			}
@@ -385,7 +385,7 @@ func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&kafkamanagementv1alpha1.KafkaUser{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.KafkaUser{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
 					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
@@ -395,7 +395,7 @@ func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.KafkaUser)
+				newObj := event.ObjectNew.(*v1beta1.KafkaUser)
 				if newObj.DeletionTimestamp != nil {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true
@@ -433,7 +433,7 @@ func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *KafkaUserReconciler) findSecretObjects(secret client.Object) []reconcile.Request {
-	kafkaUserList := &kafkamanagementv1alpha1.KafkaUserList{}
+	kafkaUserList := &v1beta1.KafkaUserList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(kafkaUserField, secret.GetName()),
 		Namespace:     secret.GetNamespace(),
@@ -462,7 +462,7 @@ func (r *KafkaUserReconciler) findSecretObjects(secret client.Object) []reconcil
 }
 
 func (r *KafkaUserReconciler) getKafkaUserCredsFromSecret(
-	kafkaUserSpec kafkamanagementv1alpha1.KafkaUserSpec,
+	kafkaUserSpec v1beta1.KafkaUserSpec,
 ) (string, string, error) {
 	kafkaUserSecret := &v1.Secret{}
 	kafkaUserSecretNamespacedName := types.NamespacedName{

@@ -101,7 +101,7 @@ To create a Kafka Connect cluster instance you need to prepare the yaml manifest
 ```yaml
 # kafkaconnect.yaml
 
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: KafkaConnect
 metadata:
   name: kafkaconnect-sample

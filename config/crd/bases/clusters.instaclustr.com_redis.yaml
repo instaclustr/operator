@@ -15,7 +15,7 @@ spec:
     singular: redis
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: Redis is the Schema for the redis API

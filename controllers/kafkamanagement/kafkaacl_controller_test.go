@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ var newRecourseType = "GROUP"
 
 var _ = Describe("Kafka ACL Controller", func() {
 	var (
-		aclResource v1alpha1.KafkaACL
-		aclYAML     v1alpha1.KafkaACL
+		aclResource v1beta1.KafkaACL
+		aclYAML     v1beta1.KafkaACL
 		a           = "acl"
 		ns          = "default"
 		aclNS       = types.NamespacedName{Name: a, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("Kafka ACL Controller", func() {
 		interval    = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/kafkaacl_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/kafkaacl_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &aclYAML)

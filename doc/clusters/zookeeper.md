@@ -43,7 +43,7 @@ To create a Zookeeper cluster instance you need to prepare the yaml manifest. He
 
 ```yaml
 # zookeeper.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Zookeeper
 metadata:
   name: zookeeper-sample

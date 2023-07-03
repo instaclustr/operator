@@ -20,7 +20,7 @@ import (
 	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -43,7 +43,7 @@ func convertAPIv2ConfigToMap(instConfigs []*models.ConfigurationProperties) map[
 	}
 	return newConfigs
 }
-func areStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
+func areStatusesEqual(a, b *v1beta1.ClusterStatus) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -61,7 +61,7 @@ func areStatusesEqual(a, b *clustersv1alpha1.ClusterStatus) bool {
 	return true
 }
 
-func areDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
+func areDataCentreOptionsEqual(a, b *v1beta1.Options) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -73,7 +73,7 @@ func areDataCentreOptionsEqual(a, b *clustersv1alpha1.Options) bool {
 	return *a == *b
 }
 
-func areDataCentresEqual(a, b []*clustersv1alpha1.DataCentreStatus) bool {
+func areDataCentresEqual(a, b []*v1beta1.DataCentreStatus) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -98,7 +98,7 @@ func areDataCentresEqual(a, b []*clustersv1alpha1.DataCentreStatus) bool {
 	return true
 }
 
-func isDataCentreNodesEqual(a, b []*clustersv1alpha1.Node) bool {
+func isDataCentreNodesEqual(a, b []*v1beta1.Node) bool {
 	if a == nil && b == nil {
 		return true
 	}

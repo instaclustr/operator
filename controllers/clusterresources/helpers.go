@@ -17,10 +17,10 @@ limitations under the License.
 package clusterresources
 
 import (
-	"github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 )
 
-func areFirewallRuleStatusesEqual(a, b *v1alpha1.FirewallRuleStatus) bool {
+func areFirewallRuleStatusesEqual(a, b *v1beta1.FirewallRuleStatus) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -36,7 +36,7 @@ func areFirewallRuleStatusesEqual(a, b *v1alpha1.FirewallRuleStatus) bool {
 	return true
 }
 
-func arePeeringStatusesEqual(a, b *v1alpha1.PeeringStatus) bool {
+func arePeeringStatusesEqual(a, b *v1beta1.PeeringStatus) bool {
 	if a.ID != b.ID ||
 		a.Name != b.Name ||
 		a.StatusCode != b.StatusCode ||
@@ -47,7 +47,7 @@ func arePeeringStatusesEqual(a, b *v1alpha1.PeeringStatus) bool {
 	return true
 }
 
-func areEncryptionKeyStatusesEqual(a, b *v1alpha1.AWSEncryptionKeyStatus) bool {
+func areEncryptionKeyStatusesEqual(a, b *v1beta1.AWSEncryptionKeyStatus) bool {
 	if a == nil && b == nil {
 		return true
 	}

@@ -36,7 +36,7 @@
 To create a Kafka Connect Mirror resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # kafka-connect-mirror.yaml
-apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: Mirror
 metadata:
   name: mirror-sample

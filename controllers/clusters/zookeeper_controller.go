@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -62,7 +62,7 @@ type ZookeeperReconciler struct {
 func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	zook := &clustersv1alpha1.Zookeeper{}
+	zook := &v1beta1.Zookeeper{}
 	err := r.Client.Get(ctx, req.NamespacedName, zook)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -99,7 +99,7 @@ func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 func (r *ZookeeperReconciler) handleCreateCluster(
 	ctx context.Context,
-	zook *clustersv1alpha1.Zookeeper,
+	zook *v1beta1.Zookeeper,
 	l logr.Logger,
 ) reconcile.Result {
 	var err error
@@ -178,7 +178,7 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 }
 
 func (r *ZookeeperReconciler) handleUpdateCluster(
-	zook *clustersv1alpha1.Zookeeper,
+	zook *v1beta1.Zookeeper,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Update Event")
@@ -192,7 +192,7 @@ func (r *ZookeeperReconciler) handleUpdateCluster(
 	return models.ExitReconcile
 }
 
-func (r *ZookeeperReconciler) handleExternalChanges(zook *clustersv1alpha1.Zookeeper, l logr.Logger) reconcile.Result {
+func (r *ZookeeperReconciler) handleExternalChanges(zook *v1beta1.Zookeeper, l logr.Logger) reconcile.Result {
 	iData, err := r.API.GetZookeeper(zook.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", zook.Status.ID)
@@ -249,7 +249,7 @@ func (r *ZookeeperReconciler) handleExternalChanges(zook *clustersv1alpha1.Zooke
 
 func (r *ZookeeperReconciler) handleDeleteCluster(
 	ctx context.Context,
-	zook *clustersv1alpha1.Zookeeper,
+	zook *v1beta1.Zookeeper,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Deletion Event")
@@ -352,7 +352,7 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *ZookeeperReconciler) startClusterStatusJob(Zookeeper *clustersv1alpha1.Zookeeper) error {
+func (r *ZookeeperReconciler) startClusterStatusJob(Zookeeper *v1beta1.Zookeeper) error {
 	job := r.newWatchStatusJob(Zookeeper)
 
 	err := r.Scheduler.ScheduleJob(Zookeeper.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -363,7 +363,7 @@ func (r *ZookeeperReconciler) startClusterStatusJob(Zookeeper *clustersv1alpha1.
 	return nil
 }
 
-func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper) scheduler.Job {
+func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) scheduler.Job {
 	l := log.Log.WithValues("component", "ZookeeperStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(zook)
@@ -415,7 +415,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iZook.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -483,7 +483,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *clustersv1alpha1.Zookeeper
 	}
 }
 
-func (r *ZookeeperReconciler) handleDeleteFromInstaclustrUI(zook *clustersv1alpha1.Zookeeper, l logr.Logger) error {
+func (r *ZookeeperReconciler) handleDeleteFromInstaclustrUI(zook *v1beta1.Zookeeper, l logr.Logger) error {
 	activeClusters, err := r.API.ListClusters()
 	if err != nil {
 		l.Error(err, "Cannot list account active clusters")
@@ -534,14 +534,14 @@ func (r *ZookeeperReconciler) handleDeleteFromInstaclustrUI(zook *clustersv1alph
 // SetupWithManager sets up the controller with the Manager.
 func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.Zookeeper{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Zookeeper{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				confirmDeletion(event.Object)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clustersv1alpha1.Zookeeper)
+				newObj := event.ObjectNew.(*v1beta1.Zookeeper)
 
 				if deleting := confirmDeletion(newObj); deleting {
 					return true

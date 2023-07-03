@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -62,7 +62,7 @@ type KafkaReconciler struct {
 func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var kafka clustersv1alpha1.Kafka
+	var kafka v1beta1.Kafka
 	err := r.Client.Get(ctx, req.NamespacedName, &kafka)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -93,7 +93,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) reconcile.Result {
 	l = l.WithName("Kafka creation Event")
 
 	var err error
@@ -176,7 +176,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *cluste
 
 func (r *KafkaReconciler) handleUpdateCluster(
 	ctx context.Context,
-	k *clustersv1alpha1.Kafka,
+	k *v1beta1.Kafka,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Kafka update Event")
@@ -237,7 +237,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 	return models.ExitReconcile
 }
 
-func (r *KafkaReconciler) handleExternalChanges(k, ik *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Logger) reconcile.Result {
 	if k.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", k.Spec,
@@ -280,7 +280,7 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *clustersv1alpha1.Kafka, l
 	}
 }
 
-func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *clustersv1alpha1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) reconcile.Result {
 	l = l.WithName("Kafka deletion Event")
 
 	_, err := r.API.GetKafka(kafka.Status.ID)
@@ -382,7 +382,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *cluste
 	return models.ExitReconcile
 }
 
-func (r *KafkaReconciler) startClusterStatusJob(kafka *clustersv1alpha1.Kafka) error {
+func (r *KafkaReconciler) startClusterStatusJob(kafka *v1beta1.Kafka) error {
 	job := r.newWatchStatusJob(kafka)
 
 	err := r.Scheduler.ScheduleJob(kafka.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -393,7 +393,7 @@ func (r *KafkaReconciler) startClusterStatusJob(kafka *clustersv1alpha1.Kafka) e
 	return nil
 }
 
-func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) scheduler.Job {
+func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job {
 	l := log.Log.WithValues("component", "kafkaStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(kafka)
@@ -445,7 +445,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iKafka.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -514,7 +514,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *clustersv1alpha1.Kafka) sched
 	}
 }
 
-func (r *KafkaReconciler) handleDeleteFromInstaclustrUI(kafka *clustersv1alpha1.Kafka, l logr.Logger) error {
+func (r *KafkaReconciler) handleDeleteFromInstaclustrUI(kafka *v1beta1.Kafka, l logr.Logger) error {
 	activeClusters, err := r.API.ListClusters()
 	if err != nil {
 		l.Error(err, "Cannot list account active clusters")
@@ -562,7 +562,7 @@ func (r *KafkaReconciler) handleDeleteFromInstaclustrUI(kafka *clustersv1alpha1.
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.Kafka{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Kafka{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				annots := event.Object.GetAnnotations()
 				if annots == nil {
@@ -581,7 +581,7 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				newObj := event.ObjectNew.(*clustersv1alpha1.Kafka)
+				newObj := event.ObjectNew.(*v1beta1.Kafka)
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
 					return true

@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -61,7 +61,7 @@ type AWSVPCPeeringReconciler struct {
 func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var aws clusterresourcesv1alpha1.AWSVPCPeering
+	var aws v1beta1.AWSVPCPeering
 	err := r.Client.Get(ctx, req.NamespacedName, &aws)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -92,7 +92,7 @@ func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 	ctx context.Context,
-	aws *clusterresourcesv1alpha1.AWSVPCPeering,
+	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	if aws.Status.ID == "" {
@@ -191,7 +191,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 
 func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 	ctx context.Context,
-	aws *clusterresourcesv1alpha1.AWSVPCPeering,
+	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	err := r.API.UpdatePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
@@ -243,7 +243,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 
 func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 	ctx context.Context,
-	aws *clusterresourcesv1alpha1.AWSVPCPeering,
+	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	patch := aws.NewPatch()
@@ -341,7 +341,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 	return models.ExitReconcile
 }
 
-func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *clusterresourcesv1alpha1.AWSVPCPeering) error {
+func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *v1beta1.AWSVPCPeering) error {
 	job := r.newWatchStatusJob(awsPeering)
 
 	err := r.Scheduler.ScheduleJob(awsPeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -352,7 +352,7 @@ func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *cluste
 	return nil
 }
 
-func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *clusterresourcesv1alpha1.AWSVPCPeering) scheduler.Job {
+func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPeering) scheduler.Job {
 	l := log.Log.WithValues("component", "AWSVPCPeeringStatusJob")
 	return func() error {
 		instaPeeringStatus, err := r.API.GetPeeringStatus(awsPeering.Status.ID, instaclustr.AWSPeeringEndpoint)
@@ -381,7 +381,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *clusterresources
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				if event.Object.GetDeletionTimestamp() != nil {
@@ -390,7 +390,7 @@ func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.AWSVPCPeering)
+				newObj := event.ObjectNew.(*v1beta1.AWSVPCPeering)
 				if newObj.DeletionTimestamp != nil {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true

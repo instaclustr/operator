@@ -14,7 +14,7 @@
 To create a Kafka Topic resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # kafka-topic.yaml
-apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: Topic
 metadata:
   name: topic-sample
@@ -57,7 +57,7 @@ You can only update fields that are **mutable**. These fields are marked in the 
 You can add [some configs](https://kafka.apache.org/23/documentation.html#topicconfigs) for your Kafka Topic resource. Here is an example:
 ```yaml
 # kafka-topic.yaml
-apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: Topic
 metadata:
   name: topic-sample

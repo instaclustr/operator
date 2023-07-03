@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -61,7 +61,7 @@ type AzureVNetPeeringReconciler struct {
 func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var azure clusterresourcesv1alpha1.AzureVNetPeering
+	var azure v1beta1.AzureVNetPeering
 	err := r.Client.Get(ctx, req.NamespacedName, &azure)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -95,7 +95,7 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 	ctx context.Context,
-	azure *clusterresourcesv1alpha1.AzureVNetPeering,
+	azure *v1beta1.AzureVNetPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	if azure.Status.ID == "" {
@@ -195,7 +195,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 
 func (r *AzureVNetPeeringReconciler) handleUpdatePeering(
 	ctx context.Context,
-	azure *clusterresourcesv1alpha1.AzureVNetPeering,
+	azure *v1beta1.AzureVNetPeering,
 	l *logr.Logger,
 ) reconcile.Result {
 	l.Info("Update is not implemented")
@@ -205,7 +205,7 @@ func (r *AzureVNetPeeringReconciler) handleUpdatePeering(
 
 func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 	ctx context.Context,
-	azure *clusterresourcesv1alpha1.AzureVNetPeering,
+	azure *v1beta1.AzureVNetPeering,
 	l *logr.Logger,
 ) reconcile.Result {
 	patch := azure.NewPatch()
@@ -305,7 +305,7 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 	return models.ExitReconcile
 }
 
-func (r *AzureVNetPeeringReconciler) startAzureVNetPeeringStatusJob(azurePeering *clusterresourcesv1alpha1.AzureVNetPeering,
+func (r *AzureVNetPeeringReconciler) startAzureVNetPeeringStatusJob(azurePeering *v1beta1.AzureVNetPeering,
 ) error {
 	job := r.newWatchStatusJob(azurePeering)
 
@@ -317,7 +317,7 @@ func (r *AzureVNetPeeringReconciler) startAzureVNetPeeringStatusJob(azurePeering
 	return nil
 }
 
-func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *clusterresourcesv1alpha1.AzureVNetPeering,
+func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *v1beta1.AzureVNetPeering,
 ) scheduler.Job {
 	l := log.Log.WithValues("component", "AzureVNetPeeringStatusJob")
 	return func() error {
@@ -347,7 +347,7 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *cluster
 // SetupWithManager sets up the controller with the Manager.
 func (r *AzureVNetPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.AzureVNetPeering{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.AzureVNetPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				if event.Object.GetDeletionTimestamp() != nil {
@@ -356,7 +356,7 @@ func (r *AzureVNetPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.AzureVNetPeering)
+				newObj := event.ObjectNew.(*v1beta1.AzureVNetPeering)
 				if newObj.DeletionTimestamp != nil {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true

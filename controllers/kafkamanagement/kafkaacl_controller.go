@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -59,7 +59,7 @@ type KafkaACLReconciler struct {
 func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var kafkaACL kafkamanagementv1alpha1.KafkaACL
+	var kafkaACL v1beta1.KafkaACL
 	err := r.Client.Get(ctx, req.NamespacedName, &kafkaACL)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -92,7 +92,7 @@ func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 func (r *KafkaACLReconciler) handleCreateKafkaACL(
 	ctx context.Context,
-	acl *kafkamanagementv1alpha1.KafkaACL,
+	acl *v1beta1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
 	if acl.Status.ID == "" {
@@ -164,7 +164,7 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 
 func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 	ctx context.Context,
-	acl *kafkamanagementv1alpha1.KafkaACL,
+	acl *v1beta1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
 	err := r.API.UpdateKafkaACL(acl.Status.ID, instaclustr.KafkaACLEndpoint, &acl.Spec)
@@ -206,7 +206,7 @@ func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 
 func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 	ctx context.Context,
-	acl *kafkamanagementv1alpha1.KafkaACL,
+	acl *v1beta1.KafkaACL,
 	l logr.Logger,
 ) reconcile.Result {
 	patch := acl.NewPatch()
@@ -291,7 +291,7 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&kafkamanagementv1alpha1.KafkaACL{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.KafkaACL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
 					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
@@ -302,7 +302,7 @@ func (r *KafkaACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.KafkaACL)
+				newObj := event.ObjectNew.(*v1beta1.KafkaACL)
 				if newObj.DeletionTimestamp != nil {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true

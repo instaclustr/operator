@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -70,7 +70,7 @@ type CadenceReconciler struct {
 func (r *CadenceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	cadenceCluster := &clustersv1alpha1.Cadence{}
+	cadenceCluster := &v1beta1.Cadence{}
 	err := r.Client.Get(ctx, req.NamespacedName, cadenceCluster)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -112,7 +112,7 @@ func (r *CadenceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 func (r *CadenceReconciler) HandleCreateCluster(
 	ctx context.Context,
-	cadence *clustersv1alpha1.Cadence,
+	cadence *v1beta1.Cadence,
 	logger logr.Logger,
 ) reconcile.Result {
 	if cadence.Status.ID == "" {
@@ -246,7 +246,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 
 func (r *CadenceReconciler) HandleUpdateCluster(
 	ctx context.Context,
-	cadence *clustersv1alpha1.Cadence,
+	cadence *v1beta1.Cadence,
 	logger logr.Logger,
 ) reconcile.Result {
 	iData, err := r.API.GetCadence(cadence.Status.ID)
@@ -340,7 +340,7 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 	return models.ExitReconcile
 }
 
-func (r *CadenceReconciler) handleExternalChanges(cadence, iCadence *clustersv1alpha1.Cadence, l logr.Logger) reconcile.Result {
+func (r *CadenceReconciler) handleExternalChanges(cadence, iCadence *v1beta1.Cadence, l logr.Logger) reconcile.Result {
 	if cadence.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", cadence.Spec,
@@ -385,7 +385,7 @@ func (r *CadenceReconciler) handleExternalChanges(cadence, iCadence *clustersv1a
 
 func (r *CadenceReconciler) HandleDeleteCluster(
 	ctx context.Context,
-	cadence *clustersv1alpha1.Cadence,
+	cadence *v1beta1.Cadence,
 	logger logr.Logger,
 ) reconcile.Result {
 	_, err := r.API.GetCadence(cadence.Status.ID)
@@ -507,8 +507,8 @@ func (r *CadenceReconciler) HandleDeleteCluster(
 
 func (r *CadenceReconciler) preparePackagedSolution(
 	ctx context.Context,
-	cluster *clustersv1alpha1.Cadence,
-	packagedProvisioning *clustersv1alpha1.PackagedProvisioning,
+	cluster *v1beta1.Cadence,
+	packagedProvisioning *v1beta1.PackagedProvisioning,
 ) (bool, error) {
 	if len(cluster.Spec.DataCentres) < 1 {
 		return false, models.ErrZeroDataCentres
@@ -520,7 +520,7 @@ func (r *CadenceReconciler) preparePackagedSolution(
 		return false, err
 	}
 
-	cassandraList := &clustersv1alpha1.CassandraList{}
+	cassandraList := &v1beta1.CassandraList{}
 	err = r.Client.List(ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return false, err
@@ -540,13 +540,13 @@ func (r *CadenceReconciler) preparePackagedSolution(
 		return true, nil
 	}
 
-	kafkaList := &clustersv1alpha1.KafkaList{}
-	osList := &clustersv1alpha1.OpenSearchList{}
-	advancedVisibility := &clustersv1alpha1.AdvancedVisibility{
-		TargetKafka:      &clustersv1alpha1.TargetKafka{},
-		TargetOpenSearch: &clustersv1alpha1.TargetOpenSearch{},
+	kafkaList := &v1beta1.KafkaList{}
+	osList := &v1beta1.OpenSearchList{}
+	advancedVisibility := &v1beta1.AdvancedVisibility{
+		TargetKafka:      &v1beta1.TargetKafka{},
+		TargetOpenSearch: &v1beta1.TargetOpenSearch{},
 	}
-	var advancedVisibilities []*clustersv1alpha1.AdvancedVisibility
+	var advancedVisibilities []*v1beta1.AdvancedVisibility
 	if packagedProvisioning.UseAdvancedVisibility {
 		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
@@ -604,9 +604,9 @@ func (r *CadenceReconciler) preparePackagedSolution(
 		return true, nil
 	}
 
-	cluster.Spec.StandardProvisioning = append(cluster.Spec.StandardProvisioning, &clustersv1alpha1.StandardProvisioning{
+	cluster.Spec.StandardProvisioning = append(cluster.Spec.StandardProvisioning, &v1beta1.StandardProvisioning{
 		AdvancedVisibility: advancedVisibilities,
-		TargetCassandra: &clustersv1alpha1.TargetCassandra{
+		TargetCassandra: &v1beta1.TargetCassandra{
 			DependencyCDCID:   cassandraList.Items[0].Status.DataCentres[0].ID,
 			DependencyVPCType: models.VPCPeered,
 		},
@@ -615,10 +615,10 @@ func (r *CadenceReconciler) preparePackagedSolution(
 	return false, nil
 }
 
-func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.Cassandra, error) {
+func (r *CadenceReconciler) newCassandraSpec(cadence *v1beta1.Cadence) (*v1beta1.Cassandra, error) {
 	typeMeta := v1.TypeMeta{
 		Kind:       models.CassandraKind,
-		APIVersion: models.ClustersV1alpha1APIVersion,
+		APIVersion: models.ClustersV1beta1APIVersion,
 	}
 
 	metadata := v1.ObjectMeta{
@@ -637,9 +637,9 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
 
-	var twoFactorDelete []*clustersv1alpha1.TwoFactorDelete
+	var twoFactorDelete []*v1beta1.TwoFactorDelete
 	if len(cadence.Spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = []*clustersv1alpha1.TwoFactorDelete{
+		twoFactorDelete = []*v1beta1.TwoFactorDelete{
 			{
 				Email: cadence.Spec.TwoFactorDelete[0].Email,
 				Phone: cadence.Spec.TwoFactorDelete[0].Phone,
@@ -673,9 +673,9 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
 
-	cassandraDataCentres := []*clustersv1alpha1.CassandraDataCentre{
+	cassandraDataCentres := []*v1beta1.CassandraDataCentre{
 		{
-			DataCentre: clustersv1alpha1.DataCentre{
+			DataCentre: v1beta1.DataCentre{
 				Name:                dcName,
 				Region:              dcRegion,
 				CloudProvider:       cloudProvider,
@@ -688,8 +688,8 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 			PrivateIPBroadcastForDiscovery: cassPrivateIPBroadcastForDiscovery,
 		},
 	}
-	spec := clustersv1alpha1.CassandraSpec{
-		Cluster: clustersv1alpha1.Cluster{
+	spec := v1beta1.CassandraSpec{
+		Cluster: v1beta1.Cluster{
 			Name:                  models.CassandraChildPrefix + cadence.Name,
 			Version:               models.CassandraV3_11_13,
 			SLATier:               slaTier,
@@ -701,14 +701,14 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *clustersv1alpha1.Cadence) 
 		PasswordAndUserAuth: cassPasswordAndUserAuth,
 	}
 
-	return &clustersv1alpha1.Cassandra{
+	return &v1beta1.Cassandra{
 		TypeMeta:   typeMeta,
 		ObjectMeta: metadata,
 		Spec:       spec,
 	}, nil
 }
 
-func (r *CadenceReconciler) startClusterStatusJob(cadence *clustersv1alpha1.Cadence) error {
+func (r *CadenceReconciler) startClusterStatusJob(cadence *v1beta1.Cadence) error {
 	job := r.newWatchStatusJob(cadence)
 
 	err := r.Scheduler.ScheduleJob(cadence.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -719,7 +719,7 @@ func (r *CadenceReconciler) startClusterStatusJob(cadence *clustersv1alpha1.Cade
 	return nil
 }
 
-func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence) scheduler.Job {
+func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) scheduler.Job {
 	l := log.Log.WithValues("component", "cadenceStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(cadence)
@@ -815,7 +815,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iCadence.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -884,10 +884,10 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *clustersv1alpha1.Cadence)
 	}
 }
 
-func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.Kafka, error) {
+func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence) (*v1beta1.Kafka, error) {
 	typeMeta := v1.TypeMeta{
 		Kind:       models.KafkaKind,
-		APIVersion: models.ClustersV1alpha1APIVersion,
+		APIVersion: models.ClustersV1beta1APIVersion,
 	}
 
 	metadata := v1.ObjectMeta{
@@ -902,9 +902,9 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 		return nil, models.ErrZeroDataCentres
 	}
 
-	var kafkaTFD []*clustersv1alpha1.TwoFactorDelete
+	var kafkaTFD []*v1beta1.TwoFactorDelete
 	for _, cadenceTFD := range cadence.Spec.TwoFactorDelete {
-		twoFactorDelete := &clustersv1alpha1.TwoFactorDelete{
+		twoFactorDelete := &v1beta1.TwoFactorDelete{
 			Email: cadenceTFD.Email,
 			Phone: cadenceTFD.Phone,
 		}
@@ -929,9 +929,9 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	dcRegion := cadence.Spec.DataCentres[0].Region
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
-	kafkaDataCentres := []*clustersv1alpha1.KafkaDataCentre{
+	kafkaDataCentres := []*v1beta1.KafkaDataCentre{
 		{
-			DataCentre: clustersv1alpha1.DataCentre{
+			DataCentre: v1beta1.DataCentre{
 				Name:                dcName,
 				Region:              dcRegion,
 				CloudProvider:       cloudProvider,
@@ -947,8 +947,8 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
 	clientEncryption := cadence.Spec.DataCentres[0].ClientEncryption
-	spec := clustersv1alpha1.KafkaSpec{
-		Cluster: clustersv1alpha1.Cluster{
+	spec := v1beta1.KafkaSpec{
+		Cluster: v1beta1.Cluster{
 			Name:                  models.KafkaChildPrefix + cadence.Name,
 			Version:               models.KafkaV3_1_2,
 			SLATier:               slaTier,
@@ -964,17 +964,17 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *clustersv1alpha1.Cadence) (*cl
 		ClientToClusterEncryption: clientEncryption,
 	}
 
-	return &clustersv1alpha1.Kafka{
+	return &v1beta1.Kafka{
 		TypeMeta:   typeMeta,
 		ObjectMeta: metadata,
 		Spec:       spec,
 	}, nil
 }
 
-func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence) (*clustersv1alpha1.OpenSearch, error) {
+func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence) (*v1beta1.OpenSearch, error) {
 	typeMeta := v1.TypeMeta{
 		Kind:       models.OpenSearchKind,
-		APIVersion: models.ClustersV1alpha1APIVersion,
+		APIVersion: models.ClustersV1beta1APIVersion,
 	}
 
 	metadata := v1.ObjectMeta{
@@ -998,9 +998,9 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
 
-	var twoFactorDelete []*clustersv1alpha1.TwoFactorDelete
+	var twoFactorDelete []*v1beta1.TwoFactorDelete
 	if len(cadence.Spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = []*clustersv1alpha1.TwoFactorDelete{
+		twoFactorDelete = []*v1beta1.TwoFactorDelete{
 			{
 				Email: cadence.Spec.TwoFactorDelete[0].Email,
 				Phone: cadence.Spec.TwoFactorDelete[0].Phone,
@@ -1022,9 +1022,9 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 	cloudProvider := cadence.Spec.DataCentres[0].CloudProvider
 	providerAccountName := cadence.Spec.DataCentres[0].ProviderAccountName
 
-	osDataCentres := []*clustersv1alpha1.OpenSearchDataCentre{
+	osDataCentres := []*v1beta1.OpenSearchDataCentre{
 		{
-			DataCentre: clustersv1alpha1.DataCentre{
+			DataCentre: v1beta1.DataCentre{
 				Name:                dcName,
 				Region:              dcRegion,
 				CloudProvider:       cloudProvider,
@@ -1036,8 +1036,8 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 			ReplicationFactor: osReplicationFactor,
 		},
 	}
-	spec := clustersv1alpha1.OpenSearchSpec{
-		Cluster: clustersv1alpha1.Cluster{
+	spec := v1beta1.OpenSearchSpec{
+		Cluster: v1beta1.Cluster{
 			Name:                  models.OpenSearchChildPrefix + cadence.Name,
 			Version:               models.OpenSearchV1_3_7,
 			SLATier:               slaTier,
@@ -1048,7 +1048,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 		DataCentres: osDataCentres,
 	}
 
-	return &clustersv1alpha1.OpenSearch{
+	return &v1beta1.OpenSearch{
 		TypeMeta:   typeMeta,
 		ObjectMeta: metadata,
 		Spec:       spec,
@@ -1057,8 +1057,8 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *clustersv1alpha1.Cadence)
 
 func (r *CadenceReconciler) deletePackagedResources(
 	ctx context.Context,
-	cadence *clustersv1alpha1.Cadence,
-	packagedProvisioning *clustersv1alpha1.PackagedProvisioning,
+	cadence *v1beta1.Cadence,
+	packagedProvisioning *v1beta1.PackagedProvisioning,
 ) error {
 	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, cadence.Name)
 	selector, err := labels.Parse(labelsToQuery)
@@ -1066,7 +1066,7 @@ func (r *CadenceReconciler) deletePackagedResources(
 		return err
 	}
 
-	cassandraList := &clustersv1alpha1.CassandraList{}
+	cassandraList := &v1beta1.CassandraList{}
 	err = r.Client.List(ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return err
@@ -1082,7 +1082,7 @@ func (r *CadenceReconciler) deletePackagedResources(
 	}
 
 	if packagedProvisioning.UseAdvancedVisibility {
-		kafkaList := &clustersv1alpha1.KafkaList{}
+		kafkaList := &v1beta1.KafkaList{}
 		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
 			return err
@@ -1096,7 +1096,7 @@ func (r *CadenceReconciler) deletePackagedResources(
 			}
 		}
 
-		osList := &clustersv1alpha1.OpenSearchList{}
+		osList := &v1beta1.OpenSearchList{}
 		err = r.Client.List(ctx, osList, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
 			return err
@@ -1114,8 +1114,8 @@ func (r *CadenceReconciler) deletePackagedResources(
 	return nil
 }
 
-func (r *CadenceReconciler) updateDescriptionAndTwoFactorDelete(cadence *clustersv1alpha1.Cadence) error {
-	var twoFactorDelete *clustersv1alpha1.TwoFactorDelete
+func (r *CadenceReconciler) updateDescriptionAndTwoFactorDelete(cadence *v1beta1.Cadence) error {
+	var twoFactorDelete *v1beta1.TwoFactorDelete
 	if len(cadence.Spec.TwoFactorDelete) != 0 {
 		twoFactorDelete = cadence.Spec.TwoFactorDelete[0]
 	}
@@ -1131,7 +1131,7 @@ func (r *CadenceReconciler) updateDescriptionAndTwoFactorDelete(cadence *cluster
 // SetupWithManager sets up the controller with the Manager.
 func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.Cadence{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Cadence{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {
 					return true
@@ -1146,8 +1146,8 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				oldObj := event.ObjectOld.(*clustersv1alpha1.Cadence)
-				newObj := event.ObjectNew.(*clustersv1alpha1.Cadence)
+				oldObj := event.ObjectOld.(*v1beta1.Cadence)
+				newObj := event.ObjectNew.(*v1beta1.Cadence)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

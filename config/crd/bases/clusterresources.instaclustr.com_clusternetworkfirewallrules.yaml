@@ -15,7 +15,7 @@ spec:
     singular: clusternetworkfirewallrule
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: ClusterNetworkFirewallRule is the Schema for the clusternetworkfirewallrules

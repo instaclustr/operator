@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ const newKafkaConnectNodeNumbers = 6
 
 var _ = Describe("Kafka Connect Controller", func() {
 	var (
-		kafkaResource v1alpha1.KafkaConnect
-		kafkaYAML     v1alpha1.KafkaConnect
+		kafkaResource v1beta1.KafkaConnect
+		kafkaYAML     v1beta1.KafkaConnect
 		kc            = "kafkaconnect"
 		ns            = "default"
 		kafkaNS       = types.NamespacedName{Name: kc, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("Kafka Connect Controller", func() {
 		interval      = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/kafkaconnect_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/kafkaconnect_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &kafkaYAML)

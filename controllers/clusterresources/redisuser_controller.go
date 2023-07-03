@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -62,7 +62,7 @@ type RedisUserReconciler struct {
 func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	user := &clusterresourcesv1alpha1.RedisUser{}
+	user := &v1beta1.RedisUser{}
 	err := r.Get(ctx, req.NamespacedName, user)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
@@ -294,7 +294,7 @@ func (r *RedisUserReconciler) getPassword(secret *k8sCore.Secret) string {
 }
 
 func (r *RedisUserReconciler) newUserReconcileRequest(secretObj client.Object) []reconcile.Request {
-	user := &clusterresourcesv1alpha1.RedisUser{}
+	user := &v1beta1.RedisUser{}
 	userNamespacedName := types.NamespacedName{
 		Namespace: secretObj.GetLabels()[models.RedisUserNamespaceLabel],
 		Name:      secretObj.GetLabels()[models.ControlledByLabel],
@@ -315,7 +315,7 @@ func (r *RedisUserReconciler) newUserReconcileRequest(secretObj client.Object) [
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.RedisUser{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.RedisUser{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return event.ObjectNew.GetGeneration() != event.ObjectOld.GetGeneration()
 			},

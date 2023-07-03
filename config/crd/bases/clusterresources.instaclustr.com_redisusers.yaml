@@ -15,7 +15,7 @@ spec:
     singular: redisuser
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: RedisUser is the Schema for the redisusers API
