@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -63,7 +63,7 @@ type AWSEncryptionKeyReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
-	encryptionKey := &clusterresourcesv1alpha1.AWSEncryptionKey{}
+	encryptionKey := &v1beta1.AWSEncryptionKey{}
 	err := r.Client.Get(ctx, req.NamespacedName, encryptionKey)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -97,7 +97,7 @@ func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *AWSEncryptionKeyReconciler) handleCreate(
 	ctx context.Context,
-	encryptionKey *clusterresourcesv1alpha1.AWSEncryptionKey,
+	encryptionKey *v1beta1.AWSEncryptionKey,
 	l *logr.Logger,
 ) reconcile.Result {
 	if encryptionKey.Status.ID == "" {
@@ -185,7 +185,7 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 
 func (r *AWSEncryptionKeyReconciler) handleDelete(
 	ctx context.Context,
-	encryptionKey *clusterresourcesv1alpha1.AWSEncryptionKey,
+	encryptionKey *v1beta1.AWSEncryptionKey,
 	l *logr.Logger,
 ) reconcile.Result {
 	status, err := r.API.GetEncryptionKeyStatus(encryptionKey.Status.ID, instaclustr.AWSEncryptionKeyEndpoint)
@@ -260,7 +260,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 	return models.ExitReconcile
 }
 
-func (r *AWSEncryptionKeyReconciler) startEncryptionKeyStatusJob(encryptionKey *clusterresourcesv1alpha1.AWSEncryptionKey) error {
+func (r *AWSEncryptionKeyReconciler) startEncryptionKeyStatusJob(encryptionKey *v1beta1.AWSEncryptionKey) error {
 	job := r.newWatchStatusJob(encryptionKey)
 
 	err := r.Scheduler.ScheduleJob(encryptionKey.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -271,7 +271,7 @@ func (r *AWSEncryptionKeyReconciler) startEncryptionKeyStatusJob(encryptionKey *
 	return nil
 }
 
-func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *clusterresourcesv1alpha1.AWSEncryptionKey) scheduler.Job {
+func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *v1beta1.AWSEncryptionKey) scheduler.Job {
 	l := log.Log.WithValues("component", "EncryptionKeyStatusJob")
 	return func() error {
 		instaEncryptionKeyStatus, err := r.API.GetEncryptionKeyStatus(encryptionKey.Status.ID, instaclustr.AWSEncryptionKeyEndpoint)
@@ -299,7 +299,7 @@ func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *clusterres
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSEncryptionKeyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.AWSEncryptionKey{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.AWSEncryptionKey{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
 					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
@@ -310,7 +310,7 @@ func (r *AWSEncryptionKeyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.AWSEncryptionKey)
+				newObj := event.ObjectNew.(*v1beta1.AWSEncryptionKey)
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}

@@ -15,7 +15,7 @@
 To create a Azure Vnet Peering resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # azurevnetpeering.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: AzureVNetPeering
 metadata:
   name: azurevnetpeering-sample

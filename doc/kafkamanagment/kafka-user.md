@@ -29,7 +29,7 @@ data:
   Password: "ZnJlaGcxX3BpbmRmNTRfaW9rMDk="
 ---
 # kafka-user.yaml
-apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: KafkaUser
 metadata:
   name: kafkauser-sample

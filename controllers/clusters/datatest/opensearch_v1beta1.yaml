@@ -1,0 +1,37 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: OpenSearch
+metadata:
+  name: opensearch
+spec:
+  alertingPlugin: false
+  anomalyDetectionPlugin: false
+  asynchronousSearchPlugin: false
+  clusterManagerNodes:
+    - dedicatedManager: false
+      nodeSize: SRH-DEV-t4g.small-5
+  dataCentres:
+    - cloudProvider: AWS_VPC
+      name: AWS_VPC_US_EAST_1
+      network: 10.0.0.0/16
+      replicationFactor: 3
+      privateLink: false
+      region: US_EAST_1
+#  dataNodes:
+#    - nodeNumber: 3
+#      nodeSize: SRH-DEV-t4g.small-5
+  icuPlugin: false
+  indexManagementPlugin: true
+  knnPlugin: false
+  loadBalancer: false
+  name: operatorOpenSearch
+  notificationsPlugin: false
+#  opensearchDashboards:
+#    - nodeSize: SRH-DEV-t4g.small-5
+#      oidcProvider: ''
+#      version: opensearch-dashboards:2.5.0
+  version: 2.5.0
+  pciCompliance: false
+  privateNetworkCluster: false
+  reportingPlugin: false
+  slaTier: NON_PRODUCTION
+  sqlPlugin: false

@@ -1,0 +1,9 @@
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: Topic
+metadata:
+  name: topic-sample
+spec:
+  partitions: 3
+  replicationFactor: 3
+  topic: "operator-topic-test"
+  clusterId: "9fcd9820-96dc-49fe-9b58-e9a75fcdd6fc"

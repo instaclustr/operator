@@ -1,0 +1,14 @@
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: ClusterNetworkFirewallRule
+metadata:
+  labels:
+    app.kubernetes.io/name: clusternetworkfirewallrule
+    app.kubernetes.io/instance: clusternetworkfirewallrule-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: clusternetworkfirewallrule-sample
+spec:
+  network: 62.212.64.19/32
+  clusterId: 944cfe6b-441f-4c5a-865b-42fd40c7d816
+  type: KAFKA

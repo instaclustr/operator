@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ const newPostgreSQLNodeSize = "PGS-DEV-t4g.medium-30"
 
 var _ = Describe("PostgreSQL Controller", func() {
 	var (
-		postgresqlResource v1alpha1.PostgreSQL
-		postgresqlYAML     v1alpha1.PostgreSQL
+		postgresqlResource v1beta1.PostgreSQL
+		postgresqlYAML     v1beta1.PostgreSQL
 		p                  = "postgresql"
 		ns                 = "default"
 		postgresqlNS       = types.NamespacedName{Name: p, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("PostgreSQL Controller", func() {
 		interval           = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/postgresql_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/postgresql_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &postgresqlYAML)

@@ -136,7 +136,7 @@ To create a Cadence cluster instance you need to prepare the yaml manifest. Here
 
 ```yaml
 # cadence.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cadence
 metadata:
   name: cadence-sample

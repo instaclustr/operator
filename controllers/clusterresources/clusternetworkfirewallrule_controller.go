@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -64,7 +64,7 @@ type ClusterNetworkFirewallRuleReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
-	firewallRule := &clusterresourcesv1alpha1.ClusterNetworkFirewallRule{}
+	firewallRule := &v1beta1.ClusterNetworkFirewallRule{}
 	err := r.Client.Get(ctx, req.NamespacedName, firewallRule)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -102,7 +102,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
+	firewallRule *v1beta1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
 	if firewallRule.Status.ID == "" {
@@ -192,7 +192,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
+	firewallRule *v1beta1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
 	l.Info("Cluster network firewall rule update is not implemented",
@@ -205,7 +205,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	ctx context.Context,
-	firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule,
+	firewallRule *v1beta1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
 ) reconcile.Result {
 	patch := firewallRule.NewPatch()
@@ -292,7 +292,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	return models.ExitReconcile
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule) error {
+func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *v1beta1.ClusterNetworkFirewallRule) error {
 	job := r.newWatchStatusJob(firewallRule)
 
 	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -303,7 +303,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewa
 	return nil
 }
 
-func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *clusterresourcesv1alpha1.ClusterNetworkFirewallRule) scheduler.Job {
+func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *v1beta1.ClusterNetworkFirewallRule) scheduler.Job {
 	l := log.Log.WithValues("component", "FirewallRuleStatusJob")
 	return func() error {
 		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
@@ -330,7 +330,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *c
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterNetworkFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.ClusterNetworkFirewallRule{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.ClusterNetworkFirewallRule{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
 					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
@@ -341,7 +341,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.ClusterNetworkFirewallRule)
+				newObj := event.ObjectNew.(*v1beta1.ClusterNetworkFirewallRule)
 				if newObj.DeletionTimestamp != nil {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true

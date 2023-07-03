@@ -39,8 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -71,7 +71,7 @@ type PostgreSQLReconciler struct {
 func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	pg := &clustersv1alpha1.PostgreSQL{}
+	pg := &v1beta1.PostgreSQL{}
 	err := r.Client.Get(ctx, req.NamespacedName, pg)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -114,7 +114,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 func (r *PostgreSQLReconciler) HandleCreateCluster(
 	ctx context.Context,
-	pg *clustersv1alpha1.PostgreSQL,
+	pg *v1beta1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
 	logger = logger.WithName("PostgreSQL creation event")
@@ -328,7 +328,7 @@ func (r *PostgreSQLReconciler) HandleCreateCluster(
 
 func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	ctx context.Context,
-	pg *clustersv1alpha1.PostgreSQL,
+	pg *v1beta1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
 	logger = logger.WithName("PostgreSQL update event")
@@ -495,7 +495,7 @@ func (r *PostgreSQLReconciler) HandleUpdateCluster(
 	return models.ExitReconcile
 }
 
-func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *clustersv1alpha1.PostgreSQL, l logr.Logger) reconcile.Result {
+func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *v1beta1.PostgreSQL, l logr.Logger) reconcile.Result {
 	if pg.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", pg.Spec,
@@ -540,7 +540,7 @@ func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *clustersv1alpha1.P
 
 func (r *PostgreSQLReconciler) HandleDeleteCluster(
 	ctx context.Context,
-	pg *clustersv1alpha1.PostgreSQL,
+	pg *v1beta1.PostgreSQL,
 	logger logr.Logger,
 ) reconcile.Result {
 	logger = logger.WithName("PostgreSQL deletion event")
@@ -710,7 +710,7 @@ func (r *PostgreSQLReconciler) HandleDeleteCluster(
 
 func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 	ctx context.Context,
-	pg *clustersv1alpha1.PostgreSQL,
+	pg *v1beta1.PostgreSQL,
 ) error {
 	secret, err := pg.GetUserSecret(ctx, r.Client)
 	if err != nil {
@@ -736,7 +736,7 @@ func (r *PostgreSQLReconciler) updateDefaultUserPassword(
 	return nil
 }
 
-func (r *PostgreSQLReconciler) startClusterStatusJob(pg *clustersv1alpha1.PostgreSQL) error {
+func (r *PostgreSQLReconciler) startClusterStatusJob(pg *v1beta1.PostgreSQL) error {
 	job := r.newWatchStatusJob(pg)
 
 	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -747,7 +747,7 @@ func (r *PostgreSQLReconciler) startClusterStatusJob(pg *clustersv1alpha1.Postgr
 	return nil
 }
 
-func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *clustersv1alpha1.PostgreSQL) error {
+func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *v1beta1.PostgreSQL) error {
 	job := r.newWatchBackupsJob(pg)
 
 	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
@@ -758,7 +758,7 @@ func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *clustersv1alpha1.Postg
 	return nil
 }
 
-func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL) scheduler.Job {
+func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) scheduler.Job {
 	l := log.Log.WithValues("component", "postgreSQLStatusClusterJob")
 
 	return func() error {
@@ -861,7 +861,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iPg.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -930,7 +930,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *clustersv1alpha1.PostgreSQL
 	}
 }
 
-func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *clustersv1alpha1.PostgreSQL) scheduler.Job {
+func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *v1beta1.PostgreSQL) scheduler.Job {
 	l := log.Log.WithValues("component", "postgreSQLBackupsClusterJob")
 
 	return func() error {
@@ -960,8 +960,8 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *clustersv1alpha1.PostgreSQ
 			return err
 		}
 
-		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
-		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		k8sBackups := map[int]*clusterresourcesv1beta1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1beta1.ClusterBackup{}
 		for _, k8sBackup := range k8sBackupList.Items {
 			if k8sBackup.Status.Start != 0 {
 				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
@@ -1032,8 +1032,8 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *clustersv1alpha1.PostgreSQ
 	}
 }
 
-func (r *PostgreSQLReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
-	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+func (r *PostgreSQLReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1beta1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1beta1.ClusterBackupList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -1056,7 +1056,7 @@ func (r *PostgreSQLReconciler) deleteBackups(ctx context.Context, clusterID, nam
 		return nil
 	}
 
-	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	backupType := &clusterresourcesv1beta1.ClusterBackup{}
 	opts := []client.DeleteAllOfOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -1078,7 +1078,7 @@ func (r *PostgreSQLReconciler) deleteBackups(ctx context.Context, clusterID, nam
 	return nil
 }
 
-func (r *PostgreSQLReconciler) deleteSecret(ctx context.Context, pgCluster *clustersv1alpha1.PostgreSQL) error {
+func (r *PostgreSQLReconciler) deleteSecret(ctx context.Context, pgCluster *v1beta1.PostgreSQL) error {
 	secret, err := pgCluster.GetUserSecret(ctx, r.Client)
 	if err != nil {
 		return err
@@ -1092,7 +1092,7 @@ func (r *PostgreSQLReconciler) deleteSecret(ctx context.Context, pgCluster *clus
 	return nil
 }
 
-func (r *PostgreSQLReconciler) updateDataCentres(cluster *clustersv1alpha1.PostgreSQL) error {
+func (r *PostgreSQLReconciler) updateDataCentres(cluster *v1beta1.PostgreSQL) error {
 	instDCs := cluster.Spec.DCsToInstAPI()
 	err := r.API.UpdatePostgreSQLDataCentres(cluster.Status.ID, instDCs)
 	if err != nil {
@@ -1135,17 +1135,17 @@ func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 
 func (r *PostgreSQLReconciler) patchClusterMetadata(
 	ctx context.Context,
-	pgCluster *clustersv1alpha1.PostgreSQL,
+	pgCluster *v1beta1.PostgreSQL,
 	logger logr.Logger,
 ) error {
-	patchRequest := []*clustersv1alpha1.PatchRequest{}
+	patchRequest := []*v1beta1.PatchRequest{}
 
 	annotationsPayload, err := json.Marshal(pgCluster.Annotations)
 	if err != nil {
 		return err
 	}
 
-	annotationsPatch := &clustersv1alpha1.PatchRequest{
+	annotationsPatch := &v1beta1.PatchRequest{
 		Operation: models.ReplaceOperation,
 		Path:      models.AnnotationsPath,
 		Value:     json.RawMessage(annotationsPayload),
@@ -1157,7 +1157,7 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 		return err
 	}
 
-	finzlizersPatch := &clustersv1alpha1.PatchRequest{
+	finzlizersPatch := &v1beta1.PatchRequest{
 		Operation: models.ReplaceOperation,
 		Path:      models.FinalizersPath,
 		Value:     json.RawMessage(finalizersPayload),
@@ -1182,8 +1182,8 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 	return nil
 }
 
-func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *clustersv1alpha1.PostgreSQL) error {
-	var twoFactorDelete *clustersv1alpha1.TwoFactorDelete
+func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *v1beta1.PostgreSQL) error {
+	var twoFactorDelete *v1beta1.TwoFactorDelete
 	if len(pgCluster.Spec.TwoFactorDelete) != 0 {
 		twoFactorDelete = pgCluster.Spec.TwoFactorDelete[0]
 	}
@@ -1197,7 +1197,7 @@ func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *cl
 }
 
 func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcile.Request {
-	pg := &clustersv1alpha1.PostgreSQL{}
+	pg := &v1beta1.PostgreSQL{}
 	pgNamespacedName := types.NamespacedName{
 		Namespace: secret.GetNamespace(),
 		Name:      secret.GetLabels()[models.ControlledByLabel],
@@ -1224,7 +1224,7 @@ func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcil
 // SetupWithManager sets up the controller with the Manager.
 func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {
 					return true
@@ -1238,7 +1238,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				newObj := event.ObjectNew.(*clustersv1alpha1.PostgreSQL)
+				newObj := event.ObjectNew.(*v1beta1.PostgreSQL)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
@@ -1257,7 +1257,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		})).
-		Owns(&clusterresourcesv1alpha1.ClusterBackup{}).
+		Owns(&clusterresourcesv1beta1.ClusterBackup{}).
 		Owns(&k8sCore.Secret{}).
 		Watches(
 			&source.Kind{Type: &k8sCore.Secret{}},

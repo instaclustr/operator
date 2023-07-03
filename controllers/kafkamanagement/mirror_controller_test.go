@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ var newMirrorLatency int32 = 3000
 
 var _ = Describe("Kafka Mirror Controller", func() {
 	var (
-		mirrorResource v1alpha1.Mirror
-		mirrorYAML     v1alpha1.Mirror
+		mirrorResource v1beta1.Mirror
+		mirrorYAML     v1beta1.Mirror
 		m              = "mirror"
 		ns             = "default"
 		mirrorNS       = types.NamespacedName{Name: m, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("Kafka Mirror Controller", func() {
 		interval       = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/mirror_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/mirror_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &mirrorYAML)

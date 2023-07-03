@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ const newOpenSearchNodeSize = "SRH-DEV-t4g.small-30"
 
 var _ = Describe("OpenSearch Controller", func() {
 	var (
-		openSearchResource v1alpha1.OpenSearch
-		openSearchYAML     v1alpha1.OpenSearch
+		openSearchResource v1beta1.OpenSearch
+		openSearchYAML     v1beta1.OpenSearch
 		o                  = "opensearch"
 		ns                 = "default"
 		openSearchNS       = types.NamespacedName{Name: o, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("OpenSearch Controller", func() {
 		interval           = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/opensearch_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/opensearch_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &openSearchYAML)

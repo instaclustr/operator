@@ -24,15 +24,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr/mock"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 var _ = Describe("Successful creation of a AWS Security Group Firewall Rule resource", func() {
 	Context("When setting up a AWS Security Group Firewall Rule CRD", func() {
-		awsSGFirewallRuleSpec := v1alpha1.AWSSecurityGroupFirewallRuleSpec{
-			FirewallRuleSpec: v1alpha1.FirewallRuleSpec{
+		awsSGFirewallRuleSpec := v1beta1.AWSSecurityGroupFirewallRuleSpec{
+			FirewallRuleSpec: v1beta1.FirewallRuleSpec{
 				ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
 				Type:      "SECURITY",
 			},
@@ -40,7 +40,7 @@ var _ = Describe("Successful creation of a AWS Security Group Firewall Rule reso
 		}
 
 		ctx := context.Background()
-		resource := v1alpha1.AWSSecurityGroupFirewallRule{
+		resource := v1beta1.AWSSecurityGroupFirewallRule{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "awssgfwrule",
 				Namespace: "default",
@@ -55,7 +55,7 @@ var _ = Describe("Successful creation of a AWS Security Group Firewall Rule reso
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
 			By("Sending AWS Security Group Firewall Rule Specification to Instaclustr API v2")
-			var awsSGFirewallRule v1alpha1.AWSSecurityGroupFirewallRule
+			var awsSGFirewallRule v1beta1.AWSSecurityGroupFirewallRule
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "awssgfwrule", Namespace: "default"}, &awsSGFirewallRule); err != nil {
 					return false

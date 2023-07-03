@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -37,8 +37,8 @@ const newRedisNodeSize = "RDS-DEV-t4g.medium-80"
 
 var _ = Describe("Redis Controller", func() {
 	var (
-		redisResource v1alpha1.Redis
-		redisYAML     v1alpha1.Redis
+		redisResource v1beta1.Redis
+		redisYAML     v1beta1.Redis
 		k             = "redis"
 		ns            = "default"
 		redisNS       = types.NamespacedName{Name: k, Namespace: ns}
@@ -46,7 +46,7 @@ var _ = Describe("Redis Controller", func() {
 		interval      = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/redis_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/redis_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &redisYAML)

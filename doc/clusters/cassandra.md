@@ -76,7 +76,7 @@ To create a Cassandra cluster instance you need to prepare the yaml manifest. He
 
 ```yaml
 # cassandra.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
   name: cassandra-sample
@@ -165,7 +165,7 @@ After that, deletion confirmation email will be sent to the email defined in the
 To restore a Cassandra cluster instance from an existing one you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # cassandra-restore.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
   name: cassandra-sample-restore

@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -57,7 +57,7 @@ type ClusterBackupReconciler struct {
 func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	backup := &clusterresourcesv1alpha1.ClusterBackup{}
+	backup := &v1beta1.ClusterBackup{}
 	err := r.Get(ctx, req.NamespacedName, backup)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -215,8 +215,8 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return models.ExitReconcile, nil
 }
 
-func (r *ClusterBackupReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
-	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+func (r *ClusterBackupReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*v1beta1.ClusterBackupList, error) {
+	backupsList := &v1beta1.ClusterBackupList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -232,7 +232,7 @@ func (r *ClusterBackupReconciler) listClusterBackups(ctx context.Context, cluste
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.ClusterBackup{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.ClusterBackup{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return false
 			},

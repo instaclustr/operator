@@ -24,9 +24,9 @@ import (
 	"net/http"
 	"time"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	kafkamanagementv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -422,7 +422,7 @@ func (c *Client) GetZookeeper(id string) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error {
+func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1beta1.TwoFactorDelete) error {
 	url := c.serverHostname + clusterEndpoint + clusterID
 
 	clusterModifyRequest := &models.ClusterModifyRequest{
@@ -515,7 +515,7 @@ func (c *Client) DeleteCluster(id, clusterEndpoint string) error {
 
 func (c *Client) GetPeeringStatus(peerID,
 	peeringEndpoint string,
-) (*clusterresourcesv1alpha1.PeeringStatus, error) {
+) (*clusterresourcesv1beta1.PeeringStatus, error) {
 	url := c.serverHostname + peeringEndpoint + peerID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -537,7 +537,7 @@ func (c *Client) GetPeeringStatus(peerID,
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var peeringStatus clusterresourcesv1alpha1.PeeringStatus
+	var peeringStatus clusterresourcesv1beta1.PeeringStatus
 	err = json.Unmarshal(body, &peeringStatus)
 	if err != nil {
 		return nil, err
@@ -546,7 +546,7 @@ func (c *Client) GetPeeringStatus(peerID,
 	return &peeringStatus, nil
 }
 
-func (c *Client) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1alpha1.PeeringStatus, error) {
+func (c *Client) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1beta1.PeeringStatus, error) {
 
 	jsonDataCreate, err := json.Marshal(peeringSpec)
 	if err != nil {
@@ -569,7 +569,7 @@ func (c *Client) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *clusterresourcesv1alpha1.PeeringStatus
+	var creationResponse *clusterresourcesv1beta1.PeeringStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -635,7 +635,7 @@ func (c *Client) DeletePeering(peerID, peeringEndpoint string) error {
 func (c *Client) GetFirewallRuleStatus(
 	firewallRuleID string,
 	firewallRuleEndpoint string,
-) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
+) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
 	url := c.serverHostname + firewallRuleEndpoint + firewallRuleID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -657,7 +657,7 @@ func (c *Client) GetFirewallRuleStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var firewallRuleStatus *clusterresourcesv1alpha1.FirewallRuleStatus
+	var firewallRuleStatus *clusterresourcesv1beta1.FirewallRuleStatus
 	err = json.Unmarshal(body, &firewallRuleStatus)
 	if err != nil {
 		return nil, err
@@ -669,7 +669,7 @@ func (c *Client) GetFirewallRuleStatus(
 func (c *Client) CreateFirewallRule(
 	url string,
 	firewallRuleSpec any,
-) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
+) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
 	jsonFirewallRule, err := json.Marshal(firewallRuleSpec)
 	if err != nil {
 		return nil, err
@@ -691,7 +691,7 @@ func (c *Client) CreateFirewallRule(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *clusterresourcesv1alpha1.FirewallRuleStatus
+	var creationResponse *clusterresourcesv1beta1.FirewallRuleStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -753,7 +753,7 @@ func (c *Client) GetTopicStatus(id string) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
+func (c *Client) CreateKafkaTopic(url string, t *kafkamanagementv1beta1.Topic) error {
 	data, err := json.Marshal(t.Spec)
 	if err != nil {
 		return err
@@ -804,7 +804,7 @@ func (c *Client) DeleteKafkaTopic(url, id string) error {
 	return nil
 }
 
-func (c *Client) UpdateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) error {
+func (c *Client) UpdateKafkaTopic(url string, t *kafkamanagementv1beta1.Topic) error {
 	data, err := json.Marshal(t.Spec.TopicConfigsUpdateToInstAPI())
 	if err != nil {
 		return err
@@ -838,7 +838,7 @@ func (c *Client) UpdateKafkaTopic(url string, t *kafkamanagementv1alpha1.Topic) 
 func (c *Client) GetKafkaUserStatus(
 	kafkaUserID,
 	kafkaUserEndpoint string,
-) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+) (*kafkamanagementv1beta1.KafkaUserStatus, error) {
 	url := c.serverHostname + kafkaUserEndpoint + kafkaUserID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -860,7 +860,7 @@ func (c *Client) GetKafkaUserStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var kafkaUserStatus kafkamanagementv1alpha1.KafkaUserStatus
+	var kafkaUserStatus kafkamanagementv1beta1.KafkaUserStatus
 	err = json.Unmarshal(body, &kafkaUserStatus)
 	if err != nil {
 		return nil, err
@@ -872,7 +872,7 @@ func (c *Client) GetKafkaUserStatus(
 func (c *Client) CreateKafkaUser(
 	url string,
 	kafkaUser *models.KafkaUser,
-) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+) (*kafkamanagementv1beta1.KafkaUserStatus, error) {
 	jsonKafkaUser, err := json.Marshal(kafkaUser)
 	if err != nil {
 		return nil, err
@@ -894,7 +894,7 @@ func (c *Client) CreateKafkaUser(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *kafkamanagementv1alpha1.KafkaUserStatus
+	var creationResponse *kafkamanagementv1beta1.KafkaUserStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -957,7 +957,7 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 	return nil
 }
 
-func (c *Client) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+func (c *Client) CreateKafkaMirror(m *kafkamanagementv1beta1.MirrorSpec) (*kafkamanagementv1beta1.MirrorStatus, error) {
 	data, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -979,7 +979,7 @@ func (c *Client) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafk
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	status := &kafkamanagementv1alpha1.MirrorStatus{}
+	status := &kafkamanagementv1beta1.MirrorStatus{}
 
 	err = json.Unmarshal(body, status)
 	if err != nil {
@@ -989,7 +989,7 @@ func (c *Client) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafk
 	return status, nil
 }
 
-func (c *Client) GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+func (c *Client) GetMirrorStatus(id string) (*kafkamanagementv1beta1.MirrorStatus, error) {
 	url := c.serverHostname + KafkaMirrorEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -1007,7 +1007,7 @@ func (c *Client) GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStat
 		return nil, NotFound
 	}
 
-	m := &kafkamanagementv1alpha1.MirrorStatus{}
+	m := &kafkamanagementv1beta1.MirrorStatus{}
 
 	err = json.Unmarshal(body, &m)
 	if err != nil {
@@ -1120,7 +1120,7 @@ func (c *Client) TriggerClusterBackup(url, clusterID string) error {
 	return nil
 }
 
-func (c *Client) CreateExclusionWindow(clusterID string, window clusterresourcesv1alpha1.ExclusionWindowSpec) (string, error) {
+func (c *Client) CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
 	req := &struct {
 		ClusterID       string `json:"clusterId"`
 		DayOfWeek       string `json:"dayOfWeek"`
@@ -1165,7 +1165,7 @@ func (c *Client) CreateExclusionWindow(clusterID string, window clusterresources
 	return response.ID, nil
 }
 
-func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1alpha1.MaintenanceEventStatus, error) {
+func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
 	url := c.serverHostname + MaintenanceEventStatusEndpoint + clusterID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -1188,7 +1188,7 @@ func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresou
 	}
 
 	statuses := &struct {
-		MaintenanceEvents []*clusterresourcesv1alpha1.MaintenanceEventStatus `json:"maintenanceEvents"`
+		MaintenanceEvents []*clusterresourcesv1beta1.MaintenanceEventStatus `json:"maintenanceEvents"`
 	}{}
 	err = json.Unmarshal(body, statuses)
 	if err != nil {
@@ -1198,7 +1198,7 @@ func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresou
 	return statuses.MaintenanceEvents, nil
 }
 
-func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1alpha1.MaintenanceEvent, error) {
+func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1beta1.MaintenanceEvent, error) {
 	url := c.serverHostname + MaintenanceEventStatusEndpoint + clusterID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -1221,7 +1221,7 @@ func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1alpha1.Maintenance
 	}
 
 	status := &struct {
-		MaintenanceEvents []*v1alpha1.MaintenanceEvent `json:"maintenanceEvents"`
+		MaintenanceEvents []*v1beta1.MaintenanceEvent `json:"maintenanceEvents"`
 	}{}
 	err = json.Unmarshal(body, status)
 	if err != nil {
@@ -1231,7 +1231,7 @@ func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1alpha1.Maintenance
 	return status.MaintenanceEvents, nil
 }
 
-func (c *Client) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1alpha1.ExclusionWindowStatus, error) {
+func (c *Client) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error) {
 	url := c.serverHostname + ExclusionWindowStatusEndpoint + clusterID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -1254,7 +1254,7 @@ func (c *Client) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresour
 	}
 
 	status := &struct {
-		ExclusionWindows []*clusterresourcesv1alpha1.ExclusionWindowStatus `json:"exclusionWindows"`
+		ExclusionWindows []*clusterresourcesv1beta1.ExclusionWindowStatus `json:"exclusionWindows"`
 	}{}
 	err = json.Unmarshal(body, status)
 	if err != nil {
@@ -1289,7 +1289,7 @@ func (c *Client) DeleteExclusionWindow(id string) error {
 	return nil
 }
 
-func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1alpha1.MaintenanceEventStatus, error) {
+func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
 	url := c.serverHostname + MaintenanceEventEndpoint + me.ScheduleID
 
 	requestBody := &struct {
@@ -1318,7 +1318,7 @@ func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceE
 		return nil, fmt.Errorf("me code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	response := &clusterresourcesv1alpha1.MaintenanceEventStatus{}
+	response := &clusterresourcesv1beta1.MaintenanceEventStatus{}
 	err = json.Unmarshal(body, response)
 	if err != nil {
 		return nil, err
@@ -1327,7 +1327,7 @@ func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceE
 	return response, nil
 }
 
-func (c *Client) CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error {
+func (c *Client) CreateNodeReload(nr *clusterresourcesv1beta1.Node) error {
 	url := fmt.Sprintf(NodeReloadEndpoint, c.serverHostname, nr.ID)
 
 	data, err := json.Marshal(nr)
@@ -1384,14 +1384,14 @@ func (c *Client) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, e
 	return nodeReload, nil
 }
 
-func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error) {
+func (c *Client) RestorePgCluster(restoreData *v1beta1.PgRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
 	restoreRequest := struct {
-		ClusterNameOverride string                       `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []*v1alpha1.PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                        `json:"pointInTime,omitempty"`
-		ClusterNetwork      string                       `json:"clusterNetwork,omitempty"`
+		ClusterNameOverride string                      `json:"clusterNameOverride,omitempty"`
+		CDCInfos            []*v1beta1.PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
+		PointInTime         int64                       `json:"pointInTime,omitempty"`
+		ClusterNetwork      string                      `json:"clusterNetwork,omitempty"`
 	}{
 		ClusterNameOverride: restoreData.ClusterNameOverride,
 		CDCInfos:            restoreData.CDCInfos,
@@ -1431,15 +1431,15 @@ func (c *Client) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, 
 	return response.RestoredCluster, nil
 }
 
-func (c *Client) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error) {
+func (c *Client) RestoreRedisCluster(restoreData *v1beta1.RedisRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
 	restoreRequest := struct {
-		ClusterNameOverride string                          `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []*v1alpha1.RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                           `json:"pointInTime,omitempty"`
-		IndexNames          string                          `json:"indexNames,omitempty"`
-		ClusterNetwork      string                          `json:"clusterNetwork,omitempty"`
+		ClusterNameOverride string                         `json:"clusterNameOverride,omitempty"`
+		CDCInfos            []*v1beta1.RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
+		PointInTime         int64                          `json:"pointInTime,omitempty"`
+		IndexNames          string                         `json:"indexNames,omitempty"`
+		ClusterNetwork      string                         `json:"clusterNetwork,omitempty"`
 	}{
 		CDCInfos:            restoreData.CDCInfos,
 		ClusterNameOverride: restoreData.ClusterNameOverride,
@@ -1480,15 +1480,15 @@ func (c *Client) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (st
 	return response.RestoredCluster, nil
 }
 
-func (c *Client) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
+func (c *Client) RestoreOpenSearchCluster(restoreData *v1beta1.OpenSearchRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
 	restoreRequest := struct {
-		ClusterNameOverride string                               `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []*v1alpha1.OpenSearchRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                                `json:"pointInTime,omitempty"`
-		IndexNames          string                               `json:"indexNames,omitempty"`
-		ClusterNetwork      string                               `json:"clusterNetwork,omitempty"`
+		ClusterNameOverride string                              `json:"clusterNameOverride,omitempty"`
+		CDCInfos            []*v1beta1.OpenSearchRestoreCDCInfo `json:"cdcInfos,omitempty"`
+		PointInTime         int64                               `json:"pointInTime,omitempty"`
+		IndexNames          string                              `json:"indexNames,omitempty"`
+		ClusterNetwork      string                              `json:"clusterNetwork,omitempty"`
 	}{
 		ClusterNameOverride: restoreData.ClusterNameOverride,
 		CDCInfos:            restoreData.CDCInfos,
@@ -1531,8 +1531,8 @@ func (c *Client) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestor
 
 func (c *Client) CreateKafkaACL(
 	url string,
-	kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec,
-) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+	kafkaACL *kafkamanagementv1beta1.KafkaACLSpec,
+) (*kafkamanagementv1beta1.KafkaACLStatus, error) {
 	jsonKafkaACLUser, err := json.Marshal(kafkaACL)
 	if err != nil {
 		return nil, err
@@ -1554,7 +1554,7 @@ func (c *Client) CreateKafkaACL(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *kafkamanagementv1alpha1.KafkaACLStatus
+	var creationResponse *kafkamanagementv1beta1.KafkaACLStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -1566,7 +1566,7 @@ func (c *Client) CreateKafkaACL(
 func (c *Client) GetKafkaACLStatus(
 	kafkaACLID,
 	kafkaACLEndpoint string,
-) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+) (*kafkamanagementv1beta1.KafkaACLStatus, error) {
 	url := c.serverHostname + kafkaACLEndpoint + kafkaACLID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -1588,7 +1588,7 @@ func (c *Client) GetKafkaACLStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var kafkaACLStatus kafkamanagementv1alpha1.KafkaACLStatus
+	var kafkaACLStatus kafkamanagementv1beta1.KafkaACLStatus
 	err = json.Unmarshal(body, &kafkaACLStatus)
 	if err != nil {
 		return nil, err
@@ -1654,15 +1654,15 @@ func (c *Client) UpdateKafkaACL(
 	return nil
 }
 
-func (c *Client) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
+func (c *Client) RestoreCassandra(restoreData v1beta1.CassandraRestoreFrom) (string, error) {
 	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
 
 	restoreRequest := struct {
-		ClusterNameOverride string                        `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []v1alpha1.CassandraRestoreDC `json:"cdcInfos,omitempty"`
-		PointInTime         int64                         `json:"pointInTime,omitempty"`
-		KeyspaceTables      string                        `json:"keyspaceTables,omitempty"`
-		ClusterNetwork      string                        `json:"clusterNetwork,omitempty"`
+		ClusterNameOverride string                       `json:"clusterNameOverride,omitempty"`
+		CDCInfos            []v1beta1.CassandraRestoreDC `json:"cdcInfos,omitempty"`
+		PointInTime         int64                        `json:"pointInTime,omitempty"`
+		KeyspaceTables      string                       `json:"keyspaceTables,omitempty"`
+		ClusterNetwork      string                       `json:"clusterNetwork,omitempty"`
 	}{
 		CDCInfos:            restoreData.CDCInfos,
 		ClusterNameOverride: restoreData.ClusterNameOverride,
@@ -1974,7 +1974,7 @@ func (c *Client) ListClusters() ([]*models.ActiveClusters, error) {
 
 func (c *Client) CreateEncryptionKey(
 	encryptionKeySpec any,
-) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
+) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error) {
 	jsonEncryptionKey, err := json.Marshal(encryptionKeySpec)
 	if err != nil {
 		return nil, err
@@ -1996,7 +1996,7 @@ func (c *Client) CreateEncryptionKey(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var creationResponse *clusterresourcesv1alpha1.AWSEncryptionKeyStatus
+	var creationResponse *clusterresourcesv1beta1.AWSEncryptionKeyStatus
 	err = json.Unmarshal(body, &creationResponse)
 	if err != nil {
 		return nil, err
@@ -2008,7 +2008,7 @@ func (c *Client) CreateEncryptionKey(
 func (c *Client) GetEncryptionKeyStatus(
 	encryptionKeyID string,
 	encryptionKeyEndpoint string,
-) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
+) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error) {
 	url := c.serverHostname + encryptionKeyEndpoint + encryptionKeyID
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -2030,7 +2030,7 @@ func (c *Client) GetEncryptionKeyStatus(
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	var encryptionKeyStatus *clusterresourcesv1alpha1.AWSEncryptionKeyStatus
+	var encryptionKeyStatus *clusterresourcesv1beta1.AWSEncryptionKeyStatus
 	err = json.Unmarshal(body, &encryptionKeyStatus)
 	if err != nil {
 		return nil, err

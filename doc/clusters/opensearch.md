@@ -85,7 +85,7 @@
 To create a cluster you need to prepare a cluster manifest. Here is an example:
 ```yaml
 # opensearch.yaml file
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: OpenSearch
 metadata:
   name: opensearch-sample
@@ -172,7 +172,7 @@ After that deletion confirmation email will be sent to the email defined in the 
 To restore a OpenSearch cluster instance from an existing one you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # opensearch-restore.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: OpenSearch
 metadata:
   name: opensearch-sample-restore

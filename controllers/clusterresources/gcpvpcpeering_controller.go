@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/scheduler"
@@ -61,7 +61,7 @@ type GCPVPCPeeringReconciler struct {
 func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var gcp clusterresourcesv1alpha1.GCPVPCPeering
+	var gcp v1beta1.GCPVPCPeering
 	err := r.Client.Get(ctx, req.NamespacedName, &gcp)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -93,7 +93,7 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 	ctx context.Context,
-	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
+	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	if gcp.Status.ID == "" {
@@ -186,7 +186,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 
 func (r *GCPVPCPeeringReconciler) handleUpdateCluster(
 	ctx context.Context,
-	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
+	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	l.Info("Update is not implemented")
@@ -196,7 +196,7 @@ func (r *GCPVPCPeeringReconciler) handleUpdateCluster(
 
 func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	ctx context.Context,
-	gcp *clusterresourcesv1alpha1.GCPVPCPeering,
+	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
 	patch := gcp.NewPatch()
@@ -288,7 +288,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *GCPVPCPeeringReconciler) startGCPVPCPeeringStatusJob(gcpPeering *clusterresourcesv1alpha1.GCPVPCPeering) error {
+func (r *GCPVPCPeeringReconciler) startGCPVPCPeeringStatusJob(gcpPeering *v1beta1.GCPVPCPeering) error {
 	job := r.newWatchStatusJob(gcpPeering)
 
 	err := r.Scheduler.ScheduleJob(gcpPeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -299,7 +299,7 @@ func (r *GCPVPCPeeringReconciler) startGCPVPCPeeringStatusJob(gcpPeering *cluste
 	return nil
 }
 
-func (r *GCPVPCPeeringReconciler) newWatchStatusJob(gcpPeering *clusterresourcesv1alpha1.GCPVPCPeering) scheduler.Job {
+func (r *GCPVPCPeeringReconciler) newWatchStatusJob(gcpPeering *v1beta1.GCPVPCPeering) scheduler.Job {
 	l := log.Log.WithValues("component", "GCPVPCPeeringStatusJob")
 	return func() error {
 		instaPeeringStatus, err := r.API.GetPeeringStatus(gcpPeering.Status.ID, instaclustr.GCPPeeringEndpoint)
@@ -328,7 +328,7 @@ func (r *GCPVPCPeeringReconciler) newWatchStatusJob(gcpPeering *clusterresources
 // SetupWithManager sets up the controller with the Manager.
 func (r *GCPVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.GCPVPCPeering{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.GCPVPCPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
 				if event.Object.GetDeletionTimestamp() != nil {
@@ -337,7 +337,7 @@ func (r *GCPVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*clusterresourcesv1alpha1.GCPVPCPeering)
+				newObj := event.ObjectNew.(*v1beta1.GCPVPCPeering)
 				if newObj.DeletionTimestamp != nil {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
 					return true

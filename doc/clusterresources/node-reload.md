@@ -15,7 +15,7 @@
 To create a Node Reload resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # node-reload.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: NodeReload
 metadata:
   name: nodereload-sample

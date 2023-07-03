@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -59,7 +59,7 @@ type CassandraUserReconciler struct {
 func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	u := &clusterresourcesv1alpha1.CassandraUser{}
+	u := &v1beta1.CassandraUser{}
 	err := r.Get(ctx, req.NamespacedName, u)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
@@ -219,7 +219,7 @@ func (r *CassandraUserReconciler) handleDeleteUser(
 	ctx context.Context,
 	l logr.Logger,
 	s *k8sCore.Secret,
-	u *clusterresourcesv1alpha1.CassandraUser,
+	u *v1beta1.CassandraUser,
 ) error {
 	username, _, err := r.getUserCreds(s)
 	if err != nil {
@@ -276,7 +276,7 @@ func (r *CassandraUserReconciler) newUserReconcileRequest(secret client.Object) 
 		Name:      secret.GetLabels()[models.ControlledByLabel],
 	}
 
-	user := &clusterresourcesv1alpha1.CassandraUser{}
+	user := &v1beta1.CassandraUser{}
 
 	err := r.Get(context.Background(), userNamespacedName, user)
 	if err != nil {
@@ -302,7 +302,7 @@ func (r *CassandraUserReconciler) newUserReconcileRequest(secret client.Object) 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.CassandraUser{}).
+		For(&v1beta1.CassandraUser{}).
 		Watches(&source.Kind{Type: &k8sCore.Secret{}}, handler.EnqueueRequestsFromMapFunc(r.newUserReconcileRequest)).
 		Complete(r)
 }

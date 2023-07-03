@@ -1,0 +1,12 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: PostgreSQL
+metadata:
+  name: postgresql-sample-restored
+  annotations:
+    testAnnotation: test
+spec:
+  pgRestoreFrom:
+    clusterId: 826e00dc-eda5-426a-9185-48fc35f13dfc
+    clusterNameOverride: "pgRestoredTest"
+    pointInTime: 1676371087358
+    clusterNetwork: "10.13.0.0/16"

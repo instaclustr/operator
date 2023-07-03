@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -60,7 +60,7 @@ type TopicReconciler struct {
 func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var topic kafkamanagementv1alpha1.Topic
+	var topic v1beta1.Topic
 	err := r.Client.Get(ctx, req.NamespacedName, &topic)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -93,7 +93,7 @@ func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 func (r *TopicReconciler) handleCreateCluster(
 	ctx context.Context,
-	topic *kafkamanagementv1alpha1.Topic,
+	topic *v1beta1.Topic,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Creation Event")
@@ -155,7 +155,7 @@ func (r *TopicReconciler) handleCreateCluster(
 
 func (r *TopicReconciler) handleUpdateCluster(
 	ctx context.Context,
-	t *kafkamanagementv1alpha1.Topic,
+	t *v1beta1.Topic,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Update Event")
@@ -198,7 +198,7 @@ func (r *TopicReconciler) handleUpdateCluster(
 
 func (r *TopicReconciler) handleDeleteCluster(
 	ctx context.Context,
-	topic *kafkamanagementv1alpha1.Topic,
+	topic *v1beta1.Topic,
 	l logr.Logger,
 ) reconcile.Result {
 	l = l.WithName("Deletion Event")
@@ -272,14 +272,14 @@ func confirmDeletion(obj client.Object) {
 // SetupWithManager sets up the controller with the Manager.
 func (r *TopicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&kafkamanagementv1alpha1.Topic{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Topic{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				confirmDeletion(event.Object)
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
-				newObj := event.ObjectNew.(*kafkamanagementv1alpha1.Topic)
+				newObj := event.ObjectNew.(*v1beta1.Topic)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

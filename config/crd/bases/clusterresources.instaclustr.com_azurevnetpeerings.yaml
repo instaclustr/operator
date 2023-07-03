@@ -15,7 +15,7 @@ spec:
     singular: azurevnetpeering
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: AzureVNetPeering is the Schema for the azurevnetpeerings API

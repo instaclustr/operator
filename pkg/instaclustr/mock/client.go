@@ -19,9 +19,9 @@ package mock
 import (
 	"net/http"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	"github.com/instaclustr/operator/apis/clusters/v1alpha1"
-	kafkamanagementv1alpha1 "github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	clustersv1beta1 "github.com/instaclustr/operator/apis/clusters/v1beta1"
+	kafkamanagementv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -53,7 +53,7 @@ func (c *mockClient) UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdat
 	panic("UpdateOpenSearch: is not implemented")
 }
 
-func (c *mockClient) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1alpha1.TwoFactorDelete) error {
+func (c *mockClient) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *clustersv1beta1.TwoFactorDelete) error {
 	panic("UpdateDescriptionAndTwoFactorDelete: is not implemented")
 }
 
@@ -65,7 +65,7 @@ func (c *mockClient) DeleteCluster(id, clusterEndpoint string) error {
 	panic("DeleteCluster: is not implemented")
 }
 
-func (c *mockClient) GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1alpha1.PeeringStatus, error) {
+func (c *mockClient) GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1beta1.PeeringStatus, error) {
 	panic("GetPeeringStatus: is not implemented")
 }
 
@@ -77,8 +77,8 @@ func (c *mockClient) DeletePeering(peerID, peeringEndpoint string) error {
 	panic("DeletePeering: is not implemented")
 }
 
-func (c *mockClient) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1alpha1.PeeringStatus, error) {
-	ps := &clusterresourcesv1alpha1.PeeringStatus{
+func (c *mockClient) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1beta1.PeeringStatus, error) {
+	ps := &clusterresourcesv1beta1.PeeringStatus{
 		ID:            StatusID,
 		Name:          "name",
 		StatusCode:    "statusCode",
@@ -87,8 +87,8 @@ func (c *mockClient) CreatePeering(url string, peeringSpec any) (*clusterresourc
 	return ps, nil
 }
 
-func (c *mockClient) GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
-	fwRule := &clusterresourcesv1alpha1.FirewallRuleStatus{
+func (c *mockClient) GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
+	fwRule := &clusterresourcesv1beta1.FirewallRuleStatus{
 		ID:             StatusID,
 		Status:         "OK",
 		DeferredReason: "NO",
@@ -96,8 +96,8 @@ func (c *mockClient) GetFirewallRuleStatus(firewallRuleID string, firewallRuleEn
 	return fwRule, nil
 }
 
-func (c *mockClient) CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1alpha1.FirewallRuleStatus, error) {
-	fwRule := &clusterresourcesv1alpha1.FirewallRuleStatus{
+func (c *mockClient) CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
+	fwRule := &clusterresourcesv1beta1.FirewallRuleStatus{
 		ID:             StatusID,
 		Status:         "OK",
 		DeferredReason: "NO",
@@ -109,11 +109,11 @@ func (c *mockClient) DeleteFirewallRule(firewallRuleID string, firewallRuleEndpo
 	panic("DeleteFirewallRule: is not implemented")
 }
 
-func (c *mockClient) GetKafkaUserStatus(kafkaUserID, kafkaUserEndpoint string) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+func (c *mockClient) GetKafkaUserStatus(kafkaUserID, kafkaUserEndpoint string) (*kafkamanagementv1beta1.KafkaUserStatus, error) {
 	panic("GetKafkaUserStatus: is not implemented")
 }
 
-func (c *mockClient) CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*kafkamanagementv1alpha1.KafkaUserStatus, error) {
+func (c *mockClient) CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*kafkamanagementv1beta1.KafkaUserStatus, error) {
 	panic("CreateKafkaUser: is not implemented")
 }
 
@@ -129,7 +129,7 @@ func (c *mockClient) GetTopicStatus(id string) ([]byte, error) {
 	panic("GetTopicStatus: is not implemented")
 }
 
-func (c *mockClient) CreateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error {
+func (c *mockClient) CreateKafkaTopic(url string, topic *kafkamanagementv1beta1.Topic) error {
 	panic("CreateKafkaTopic: is not implemented")
 }
 
@@ -137,11 +137,11 @@ func (c *mockClient) DeleteKafkaTopic(url, id string) error {
 	panic("DeleteKafkaTopic: is not implemented")
 }
 
-func (c *mockClient) UpdateKafkaTopic(url string, topic *kafkamanagementv1alpha1.Topic) error {
+func (c *mockClient) UpdateKafkaTopic(url string, topic *kafkamanagementv1beta1.Topic) error {
 	panic("UpdateKafkaTopic: is not implemented")
 }
 
-func (c *mockClient) CreateKafkaMirror(m *kafkamanagementv1alpha1.MirrorSpec) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+func (c *mockClient) CreateKafkaMirror(m *kafkamanagementv1beta1.MirrorSpec) (*kafkamanagementv1beta1.MirrorStatus, error) {
 	panic("CreateKafkaMirror: is not implemented")
 }
 
@@ -161,7 +161,7 @@ func (c *mockClient) TriggerClusterBackup(url, clusterID string) error {
 	panic("TriggerClusterBackup: is not implemented")
 }
 
-func (c *mockClient) CreateNodeReload(nr *clusterresourcesv1alpha1.Node) error {
+func (c *mockClient) CreateNodeReload(nr *clusterresourcesv1beta1.Node) error {
 	return nil
 }
 
@@ -169,14 +169,14 @@ func (c *mockClient) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatu
 	return nil, nil
 }
 
-func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1alpha1.KafkaACLSpec) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
-	kafkaACLStatus := &kafkamanagementv1alpha1.KafkaACLStatus{
+func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1beta1.KafkaACLSpec) (*kafkamanagementv1beta1.KafkaACLStatus, error) {
+	kafkaACLStatus := &kafkamanagementv1beta1.KafkaACLStatus{
 		ID: StatusID,
 	}
 	return kafkaACLStatus, nil
 }
 
-func (c *mockClient) GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1alpha1.KafkaACLStatus, error) {
+func (c *mockClient) GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1beta1.KafkaACLStatus, error) {
 	panic("GetKafkaACLStatus: is not implemented")
 }
 
@@ -188,23 +188,23 @@ func (c *mockClient) UpdateKafkaACL(kafkaACLID, kafkaACLEndpoint string, kafkaAC
 	panic("UpdateKafkaACL: is not implemented")
 }
 
-func (c *mockClient) GetMirrorStatus(id string) (*kafkamanagementv1alpha1.MirrorStatus, error) {
+func (c *mockClient) GetMirrorStatus(id string) (*kafkamanagementv1beta1.MirrorStatus, error) {
 	panic("GetMirrorStatus: is not implemented")
 }
 
-func (c *mockClient) CreateExclusionWindow(clusterID string, window clusterresourcesv1alpha1.ExclusionWindowSpec) (string, error) {
+func (c *mockClient) CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
 	panic("CreateExclusionWindow: is not implemented")
 }
 
-func (c *mockClient) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1alpha1.ExclusionWindowStatus, error) {
+func (c *mockClient) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error) {
 	panic("GetExclusionWindowsStatuses: is not implemented")
 }
 
-func (c *mockClient) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1alpha1.MaintenanceEventStatus, error) {
+func (c *mockClient) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
 	panic("GetMaintenanceEventsStatuses: is not implemented")
 }
 
-func (c *mockClient) GetMaintenanceEvents(clusterID string) ([]*v1alpha1.MaintenanceEvent, error) {
+func (c *mockClient) GetMaintenanceEvents(clusterID string) ([]*clustersv1beta1.MaintenanceEvent, error) {
 	panic("GetMaintenanceEvents: is not implemented")
 }
 
@@ -212,15 +212,15 @@ func (c *mockClient) DeleteExclusionWindow(id string) error {
 	panic("DeleteExclusionWindow: is not implemented")
 }
 
-func (c *mockClient) UpdateMaintenanceEvent(me clusterresourcesv1alpha1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1alpha1.MaintenanceEventStatus, error) {
+func (c *mockClient) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
 	panic("UpdateMaintenanceEvent: is not implemented")
 }
 
-func (c *mockClient) RestorePgCluster(restoreData *v1alpha1.PgRestoreFrom) (string, error) {
+func (c *mockClient) RestorePgCluster(restoreData *clustersv1beta1.PgRestoreFrom) (string, error) {
 	panic("RestorePgCluster: is not implemented")
 }
 
-func (c *mockClient) RestoreCassandra(restoreData v1alpha1.CassandraRestoreFrom) (string, error) {
+func (c *mockClient) RestoreCassandra(restoreData clustersv1beta1.CassandraRestoreFrom) (string, error) {
 	panic("RestoreCassandra: is not implemented")
 }
 
@@ -244,11 +244,11 @@ func (c *mockClient) GetZookeeper(id string) ([]byte, error) {
 	panic("GetZookeeper: is not implemented")
 }
 
-func (c *mockClient) RestoreRedisCluster(restoreData *v1alpha1.RedisRestoreFrom) (string, error) {
+func (c *mockClient) RestoreRedisCluster(restoreData *clustersv1beta1.RedisRestoreFrom) (string, error) {
 	panic("RestoreRedisCluster: is not implemented")
 }
 
-func (c *mockClient) RestoreOpenSearchCluster(restoreData *v1alpha1.OpenSearchRestoreFrom) (string, error) {
+func (c *mockClient) RestoreOpenSearchCluster(restoreData *clustersv1beta1.OpenSearchRestoreFrom) (string, error) {
 	panic("RestoreOpenSearchCluster: is not implemented")
 }
 
@@ -308,16 +308,16 @@ func (c *mockClient) DeleteRedisUser(id string) error {
 	panic("DeleteRedisUser: is not implemented")
 }
 
-func (c *mockClient) CreateEncryptionKey(encryptionKeySpec any) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
-	encryptionKey := &clusterresourcesv1alpha1.AWSEncryptionKeyStatus{
+func (c *mockClient) CreateEncryptionKey(encryptionKeySpec any) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error) {
+	encryptionKey := &clusterresourcesv1beta1.AWSEncryptionKeyStatus{
 		ID:    StatusID,
 		InUse: false,
 	}
 	return encryptionKey, nil
 }
 
-func (c *mockClient) GetEncryptionKeyStatus(encryptionKeyID string, encryptionKeyEndpoint string) (*clusterresourcesv1alpha1.AWSEncryptionKeyStatus, error) {
-	encryptionKey := &clusterresourcesv1alpha1.AWSEncryptionKeyStatus{
+func (c *mockClient) GetEncryptionKeyStatus(encryptionKeyID string, encryptionKeyEndpoint string) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error) {
+	encryptionKey := &clusterresourcesv1beta1.AWSEncryptionKeyStatus{
 		ID:    StatusID,
 		InUse: false,
 	}

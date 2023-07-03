@@ -35,8 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -65,7 +65,7 @@ type OpenSearchReconciler struct {
 func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	openSearch := &clustersv1alpha1.OpenSearch{}
+	openSearch := &v1beta1.OpenSearch{}
 	err := r.Client.Get(ctx, req.NamespacedName, openSearch)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -107,7 +107,7 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 func (r *OpenSearchReconciler) HandleCreateCluster(
 	ctx context.Context,
-	o *clustersv1alpha1.OpenSearch,
+	o *v1beta1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
 	logger = logger.WithName("OpenSearch creation event")
@@ -232,7 +232,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 
 func (r *OpenSearchReconciler) HandleUpdateCluster(
 	ctx context.Context,
-	o *clustersv1alpha1.OpenSearch,
+	o *v1beta1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
 	logger = logger.WithName("OpenSearch update event")
@@ -312,7 +312,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 	return models.ExitReconcile
 }
 
-func (r *OpenSearchReconciler) handleExternalChanges(o, iO *clustersv1alpha1.OpenSearch, l logr.Logger) reconcile.Result {
+func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) reconcile.Result {
 	if o.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", o.Spec,
@@ -357,7 +357,7 @@ func (r *OpenSearchReconciler) handleExternalChanges(o, iO *clustersv1alpha1.Ope
 
 func (r *OpenSearchReconciler) HandleDeleteCluster(
 	ctx context.Context,
-	o *clustersv1alpha1.OpenSearch,
+	o *v1beta1.OpenSearch,
 	logger logr.Logger,
 ) reconcile.Result {
 	logger = logger.WithName("OpenSearch deletion event")
@@ -478,7 +478,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *OpenSearchReconciler) startClusterStatusJob(cluster *clustersv1alpha1.OpenSearch) error {
+func (r *OpenSearchReconciler) startClusterStatusJob(cluster *v1beta1.OpenSearch) error {
 	job := r.newWatchStatusJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -489,7 +489,7 @@ func (r *OpenSearchReconciler) startClusterStatusJob(cluster *clustersv1alpha1.O
 	return nil
 }
 
-func (r *OpenSearchReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.OpenSearch) error {
+func (r *OpenSearchReconciler) startClusterBackupsJob(cluster *v1beta1.OpenSearch) error {
 	job := r.newWatchBackupsJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
@@ -500,7 +500,7 @@ func (r *OpenSearchReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.
 	return nil
 }
 
-func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch) scheduler.Job {
+func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) scheduler.Job {
 	l := log.Log.WithValues("component", "openSearchStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(o)
@@ -598,7 +598,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch)
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iO.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -667,7 +667,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *clustersv1alpha1.OpenSearch)
 	}
 }
 
-func (r *OpenSearchReconciler) newWatchBackupsJob(o *clustersv1alpha1.OpenSearch) scheduler.Job {
+func (r *OpenSearchReconciler) newWatchBackupsJob(o *v1beta1.OpenSearch) scheduler.Job {
 	l := log.Log.WithValues("component", "openSearchBackupsClusterJob")
 
 	return func() error {
@@ -702,8 +702,8 @@ func (r *OpenSearchReconciler) newWatchBackupsJob(o *clustersv1alpha1.OpenSearch
 			return err
 		}
 
-		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
-		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		k8sBackups := map[int]*clusterresourcesv1beta1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1beta1.ClusterBackup{}
 		for _, k8sBackup := range k8sBackupList.Items {
 			if k8sBackup.Status.Start != 0 {
 				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
@@ -774,8 +774,8 @@ func (r *OpenSearchReconciler) newWatchBackupsJob(o *clustersv1alpha1.OpenSearch
 	}
 }
 
-func (r *OpenSearchReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
-	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+func (r *OpenSearchReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1beta1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1beta1.ClusterBackupList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -798,7 +798,7 @@ func (r *OpenSearchReconciler) deleteBackups(ctx context.Context, clusterID, nam
 		return nil
 	}
 
-	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	backupType := &clusterresourcesv1beta1.ClusterBackup{}
 	opts := []client.DeleteAllOfOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -823,7 +823,7 @@ func (r *OpenSearchReconciler) deleteBackups(ctx context.Context, clusterID, nam
 // SetupWithManager sets up the controller with the Manager.
 func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.OpenSearch{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.OpenSearch{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {
 					return true
@@ -837,7 +837,7 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				newObj := event.ObjectNew.(*clustersv1alpha1.OpenSearch)
+				newObj := event.ObjectNew.(*v1beta1.OpenSearch)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

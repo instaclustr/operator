@@ -25,7 +25,7 @@
 To create a Kafka ACL resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # kafkaacl.yaml
-apiVersion: kafkamanagement.instaclustr.com/v1alpha1
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: KafkaACL
 metadata:
   name: kafkaacl-sample

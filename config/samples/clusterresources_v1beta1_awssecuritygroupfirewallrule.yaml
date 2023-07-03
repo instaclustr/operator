@@ -1,0 +1,14 @@
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: AWSSecurityGroupFirewallRule
+metadata:
+  labels:
+    app.kubernetes.io/name: awssecuritygroupfirewallrule
+    app.kubernetes.io/instance: awssecuritygroupfirewallrule-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: awssecuritygroupfirewallrule-sample
+spec:
+  securityGroupId: sg-0d681e2d0fe0f0a39
+  clusterId: ef924204-3139-43e9-8e03-c29278e6eccd
+  type: POSTGRESQL

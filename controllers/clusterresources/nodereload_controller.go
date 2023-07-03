@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -55,7 +55,7 @@ type NodeReloadReconciler struct {
 func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	nrs := &clusterresourcesv1alpha1.NodeReload{}
+	nrs := &v1beta1.NodeReload{}
 	err := r.Client.Get(ctx, req.NamespacedName, nrs)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -93,7 +93,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	patch := nrs.NewPatch()
 
 	if nrs.Status.NodeInProgress.ID == "" {
-		nodeInProgress := &clusterresourcesv1alpha1.Node{
+		nodeInProgress := &v1beta1.Node{
 			ID: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].ID,
 		}
 		nrs.Status.NodeInProgress.ID = nodeInProgress.ID
@@ -205,7 +205,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeReloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterresourcesv1alpha1.NodeReload{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.NodeReload{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return event.ObjectNew.GetGeneration() != event.ObjectOld.GetGeneration()
 			},

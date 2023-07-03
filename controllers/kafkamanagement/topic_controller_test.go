@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/instaclustr/operator/apis/kafkamanagement/v1alpha1"
+	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -40,8 +40,8 @@ var newTopicConfig = map[string]string{
 
 var _ = Describe("Kafka Topic Controller", func() {
 	var (
-		topicResource v1alpha1.Topic
-		topicYAML     v1alpha1.Topic
+		topicResource v1beta1.Topic
+		topicYAML     v1beta1.Topic
 		t             = "topic"
 		ns            = "default"
 		topicNS       = types.NamespacedName{Name: t, Namespace: ns}
@@ -49,7 +49,7 @@ var _ = Describe("Kafka Topic Controller", func() {
 		interval      = time.Second * 2
 	)
 
-	yfile, err := os.ReadFile("datatest/topic_v1alpha1.yaml")
+	yfile, err := os.ReadFile("datatest/topic_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	err = yaml.Unmarshal(yfile, &topicYAML)

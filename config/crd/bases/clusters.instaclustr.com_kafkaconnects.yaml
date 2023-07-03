@@ -15,7 +15,7 @@ spec:
     singular: kafkaconnect
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: KafkaConnect is the Schema for the kafkaconnects API

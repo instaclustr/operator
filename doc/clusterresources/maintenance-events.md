@@ -25,7 +25,7 @@
 To create an Exclusion window resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # maintenance-event.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: MaintenanceEvents
 metadata:
   name: maintenanceevents-sample
@@ -57,7 +57,7 @@ After you have applied the entity, the Instaclustr operator will create it on yo
 If you want to reschedule the maintenance event, you need to prepare or update the existent yaml manifest. Here is an example:
 ```yaml
 # maintenance-event.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: MaintenanceEvents
 metadata:
   name: maintenanceevents-sample

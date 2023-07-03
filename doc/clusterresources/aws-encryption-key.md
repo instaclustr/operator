@@ -12,7 +12,7 @@
 To create an AWS Encryption key resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # awsencryptionkey.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: AWSEncryptionKey
 metadata:
   name: awsencryptionkey-sample

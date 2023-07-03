@@ -12,7 +12,7 @@
 To create an AWS Security Group Firewall Rule resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # awssecuritygroupfirewallrule.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: AWSSecurityGroupFirewallRule
 metadata:
   name: awssecuritygroupfirewallrule-sample

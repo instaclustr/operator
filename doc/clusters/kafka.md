@@ -96,7 +96,7 @@ To create a Kafka cluster instance you need to prepare the yaml manifest. Here i
 
 ```yaml
 # kafka.yaml
-apiVersion: clusters.instaclustr.com/v1alpha1
+apiVersion: clusters.instaclustr.com/v1beta1
 kind: Kafka
 metadata:
   name: kafka-sample

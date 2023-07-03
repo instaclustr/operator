@@ -14,7 +14,7 @@
 To create an AWS VPC Peering resource you need to prepare the yaml manifest. Here is an example:
 ```yaml
 # awsvpcpeering.yaml
-apiVersion: clusterresources.instaclustr.com/v1alpha1
+apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: AWSVPCPeering
 metadata:
  name: awsvpcpeering-sample

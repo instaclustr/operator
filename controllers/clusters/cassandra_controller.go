@@ -35,8 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterresourcesv1alpha1 "github.com/instaclustr/operator/apis/clusterresources/v1alpha1"
-	clustersv1alpha1 "github.com/instaclustr/operator/apis/clusters/v1alpha1"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -71,7 +71,7 @@ type CassandraReconciler struct {
 func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	cassandra := &clustersv1alpha1.Cassandra{}
+	cassandra := &v1beta1.Cassandra{}
 	err := r.Client.Get(ctx, req.NamespacedName, cassandra)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -110,7 +110,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *CassandraReconciler) handleCreateCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cassandra *clustersv1alpha1.Cassandra,
+	cassandra *v1beta1.Cassandra,
 ) reconcile.Result {
 	l = l.WithName("Cassandra creation event")
 	var err error
@@ -280,7 +280,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 func (r *CassandraReconciler) handleUpdateCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cassandra *clustersv1alpha1.Cassandra,
+	cassandra *v1beta1.Cassandra,
 ) reconcile.Result {
 	l = l.WithName("Cassandra update event")
 
@@ -378,7 +378,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 func (r *CassandraReconciler) handleCreateUser(
 	ctx context.Context,
-	cassandra *clustersv1alpha1.Cassandra,
+	cassandra *v1beta1.Cassandra,
 	l logr.Logger,
 ) error {
 	req := types.NamespacedName{
@@ -386,7 +386,7 @@ func (r *CassandraReconciler) handleCreateUser(
 		Name:      cassandra.Spec.UserRef.Name,
 	}
 
-	u := &clusterresourcesv1alpha1.CassandraUser{}
+	u := &clusterresourcesv1beta1.CassandraUser{}
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -419,7 +419,7 @@ func (r *CassandraReconciler) handleCreateUser(
 	return nil
 }
 
-func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *clustersv1alpha1.Cassandra, l logr.Logger) reconcile.Result {
+func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *v1beta1.Cassandra, l logr.Logger) reconcile.Result {
 	if cassandra.Annotations[models.AllowSpecAmendAnnotation] != models.True {
 		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
 			"specification of k8s resource", cassandra.Spec,
@@ -465,7 +465,7 @@ func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *clust
 func (r *CassandraReconciler) handleDeleteCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cassandra *clustersv1alpha1.Cassandra,
+	cassandra *v1beta1.Cassandra,
 ) reconcile.Result {
 	l = l.WithName("Cassandra deletion event")
 
@@ -613,7 +613,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	return models.ExitReconcile
 }
 
-func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *clustersv1alpha1.Cassandra) error {
+func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *v1beta1.Cassandra) error {
 	job := r.newWatchStatusJob(cassandraCluster)
 
 	err := r.Scheduler.ScheduleJob(cassandraCluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -624,7 +624,7 @@ func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *clustersv1
 	return nil
 }
 
-func (r *CassandraReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.Cassandra) error {
+func (r *CassandraReconciler) startClusterBackupsJob(cluster *v1beta1.Cassandra) error {
 	job := r.newWatchBackupsJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.BackupsChecker), scheduler.ClusterBackupsInterval, job)
@@ -635,7 +635,7 @@ func (r *CassandraReconciler) startClusterBackupsJob(cluster *clustersv1alpha1.C
 	return nil
 }
 
-func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cassandra) scheduler.Job {
+func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "CassandraStatusClusterJob")
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(cassandra)
@@ -721,7 +721,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 			}
 
 			if !areDCsEqual {
-				var nodes []*clustersv1alpha1.Node
+				var nodes []*v1beta1.Node
 
 				for _, dc := range iCassandra.Status.ClusterStatus.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
@@ -790,7 +790,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *clustersv1alpha1.Cass
 	}
 }
 
-func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassandra) scheduler.Job {
+func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "cassandraBackupsClusterJob")
 
 	return func() error {
@@ -826,8 +826,8 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 			return err
 		}
 
-		k8sBackups := map[int]*clusterresourcesv1alpha1.ClusterBackup{}
-		unassignedBackups := []*clusterresourcesv1alpha1.ClusterBackup{}
+		k8sBackups := map[int]*clusterresourcesv1beta1.ClusterBackup{}
+		unassignedBackups := []*clusterresourcesv1beta1.ClusterBackup{}
 		for _, k8sBackup := range k8sBackupList.Items {
 			if k8sBackup.Status.Start != 0 {
 				k8sBackups[k8sBackup.Status.Start] = &k8sBackup
@@ -898,8 +898,8 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *clustersv1alpha1.Cassa
 	}
 }
 
-func (r *CassandraReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1alpha1.ClusterBackupList, error) {
-	backupsList := &clusterresourcesv1alpha1.ClusterBackupList{}
+func (r *CassandraReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1beta1.ClusterBackupList, error) {
+	backupsList := &clusterresourcesv1beta1.ClusterBackupList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -922,7 +922,7 @@ func (r *CassandraReconciler) deleteBackups(ctx context.Context, clusterID, name
 		return nil
 	}
 
-	backupType := &clusterresourcesv1alpha1.ClusterBackup{}
+	backupType := &clusterresourcesv1beta1.ClusterBackup{}
 	opts := []client.DeleteAllOfOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels{models.ClusterIDLabel: clusterID},
@@ -947,7 +947,7 @@ func (r *CassandraReconciler) deleteBackups(ctx context.Context, clusterID, name
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustersv1alpha1.Cassandra{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1beta1.Cassandra{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {
 					return true
@@ -961,7 +961,7 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 
-				newObj := event.ObjectNew.(*clustersv1alpha1.Cassandra)
+				newObj := event.ObjectNew.(*v1beta1.Cassandra)
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

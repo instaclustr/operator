@@ -1,0 +1,13 @@
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: AWSEncryptionKey
+metadata:
+  labels:
+    app.kubernetes.io/name: awsencryptionkey
+    app.kubernetes.io/instance: awsencryptionkey-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: awsencryptionkey-sample
+spec:
+  alias: test-2
+  arn: arn:aws:kms:us-east-1:152668027680:key/460b469b-9f0a-4801-854a-e23626957d00

@@ -15,7 +15,7 @@ spec:
     singular: awsvpcpeering
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: AWSVPCPeering is the Schema for the awsvpcpeerings API
