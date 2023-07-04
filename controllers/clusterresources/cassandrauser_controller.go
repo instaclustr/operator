@@ -28,10 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -85,16 +82,31 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return models.ReconcileRequeue, nil
 		}
 
-		l.Error(err, "Cannot get Cassandra user secret", "user", u.Name)
+		l.Error(err, "Cannot get Cassandra user secret", "request", req)
+		r.EventRecorder.Eventf(u, models.Warning, models.NotFound,
+			"Cannot get user secret. Reason: %v", err)
 
 		return models.ReconcileRequeue, nil
 	}
 
-	if s.Labels == nil {
-		s.Labels = map[string]string{}
+	patch := u.NewPatch()
+
+	finalizerNeeded := controllerutil.AddFinalizer(u, models.DeletionFinalizer)
+	if finalizerNeeded {
+		err = r.Patch(ctx, u, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch Cassandra user resource",
+				"secret name", s.Name,
+				"secret namespace", s.Namespace)
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue, nil
+		}
 	}
 
 	if u.DeletionTimestamp != nil {
+		// TODO: https://github.com/instaclustr/operator/issues/455 - Delete a user only if it is deleted from all clusters.
 		err = r.handleDeleteUser(ctx, l, s, u)
 		if err != nil {
 			return models.ReconcileRequeue, nil
@@ -103,102 +115,103 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return models.ExitReconcile, nil
 	}
 
-	if u.GetAnnotations()[models.ResourceStateAnnotation] == models.SecretEvent {
-		l.Info("Secret of Cassandra user has been updated", "secret reference", u.Spec.SecretRef)
+	username, password, err := getUserCreds(s)
+	if err != nil {
+		l.Error(err, "Cannot get the Cassandra user credentials from the secret",
+			"secret name", s.Name,
+			"secret namespace", s.Namespace)
+		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
+			"Cannot get the Cassandra user credentials from the secret. Reason: %v", err)
 
-		if s.DeletionTimestamp != nil {
-			err = r.handleDeleteUser(ctx, l, s, u)
+		return models.ReconcileRequeue, nil
+	}
+
+	for clusterID, event := range u.Status.ClustersEvents {
+		if event == models.CreatingEvent {
+			err = r.API.CreateUser(u.ToInstAPI(username, password), clusterID, instaclustr.CassandraBundleUser)
 			if err != nil {
+				l.Error(err, "Cannot create a user for the Cassandra cluster",
+					"cluster ID", clusterID,
+					"username", username)
+				r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
+					"Cannot create user. Reason: %v", err)
+
 				return models.ReconcileRequeue, nil
 			}
 
-			return models.ExitReconcile, nil
-		}
+			event = models.Created
+			u.Status.ClustersEvents[clusterID] = event
 
-		patch := u.NewPatch()
-		u.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatedSecret
-		err = r.Patch(ctx, u, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Cassandra user on secret update", "user", u.Name)
-			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
-		}
-
-		return models.ExitReconcile, nil
-	}
-
-	if u.Status.ClusterID != "" && u.Status.State != models.Created {
-		patch := u.NewPatch()
-
-		username, password, err := getUserCreds(s)
-		if err != nil {
-			l.Error(err, "Cannot get user credentials", "user", u.Name)
-			r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
-				"Cannot get user credentials. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
-		}
-
-		iu := u.ToInstAPI(username, password)
-		err = r.API.CreateUser(iu, u.Status.ClusterID, instaclustr.CassandraBundleUser)
-		if err != nil {
-			l.Error(err, "Cannot create Cassandra user", "user", u.Name)
-			r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
-		}
-
-		u.Status.State = models.Created
-
-		err = r.Status().Patch(ctx, u, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Cassandra user status", "user", u.Name)
-			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
-		}
-
-		l.Info("User has been created", "username", iu.Username)
-		r.EventRecorder.Eventf(u, models.Normal, models.Created,
-			"User has been created for a cluster. Cluster ID: %s, username: %s", u.Status.ClusterID, iu.Username)
-
-		return models.ExitReconcile, nil
-	}
-
-	if s.Labels[models.CassandraUserNamespaceLabel] == "" || s.Labels[models.ControlledByLabel] == "" {
-		s.Labels[models.CassandraUserNamespaceLabel] = u.Namespace
-		s.Labels[models.ControlledByLabel] = u.Name
-		controllerutil.AddFinalizer(s, models.DeletionFinalizer)
-
-		err = r.Update(ctx, s)
-		if err != nil {
-			l.Error(err, "Cannot update Cassandra user secret", "user", u.Name)
-			r.EventRecorder.Eventf(u, models.Warning, models.UpdatedEvent,
-				"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
-		}
-
-		patch := u.NewPatch()
-
-		finalizerNeeded := controllerutil.AddFinalizer(u, models.DeletionFinalizer)
-		if finalizerNeeded {
-			err = r.Patch(ctx, u, patch)
+			err = r.Status().Patch(ctx, u, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Cassandra user resource", "user", u.Name)
+				l.Error(err, "Cannot patch Cassandra user status")
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
 				return models.ReconcileRequeue, nil
 			}
+
+			l.Info("User has been created", "username", username)
+			r.EventRecorder.Eventf(u, models.Normal, models.Created,
+				"User has been created for a cluster. Cluster ID: %s, username: %s",
+				clusterID, username)
+
+			// TODO: https://github.com/instaclustr/operator/issues/454 - add multiple finalizers for users who uses one secret.
+			controllerutil.AddFinalizer(s, models.DeletionFinalizer)
+			err = r.Update(ctx, s)
+			if err != nil {
+				l.Error(err, "Cannot update Cassandra user secret",
+					"secret name", s.Name,
+					"secret namespace", s.Namespace)
+				r.EventRecorder.Eventf(u, models.Warning, models.UpdatedEvent,
+					"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			continue
 		}
 
-		l.Info("User has been attached to the secret", "user", u.Name)
-		r.EventRecorder.Event(u, models.Normal, models.Created, "User has been attached to the secret")
+		if event == models.DeletingEvent {
+			err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
+			if err != nil {
+				l.Error(err, "Cannot delete Cassandra user")
+				r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
+					"Cannot delete user. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("User has been deleted for cluster", "username", username,
+				"cluster ID", clusterID)
+			r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
+				"User has been deleted for a cluster. Cluster ID: %s, username: %s",
+				clusterID, username)
+
+			delete(u.Status.ClustersEvents, clusterID)
+
+			err = r.Status().Patch(ctx, u, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Cassandra user status")
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
+			err = r.Update(ctx, s)
+			if err != nil {
+				l.Error(err, "Cannot remove finalizer from secret", "secret name", s.Name)
+
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			continue
+		}
 	}
 
 	return models.ExitReconcile, nil
@@ -212,22 +225,42 @@ func (r *CassandraUserReconciler) handleDeleteUser(
 ) error {
 	username, _, err := getUserCreds(s)
 	if err != nil {
-		l.Error(err, "Cannot get user credentials", "user", u.Name)
+		l.Error(err, "Cannot get user credentials")
 		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
 			"Cannot get user credentials. Reason: %v", err)
 
 		return err
 	}
 
-	if u.Status.ClusterID != "" {
-		err := r.API.DeleteUser(username, u.Status.ClusterID, instaclustr.CassandraBundleUser)
+	for clusterID := range u.Status.ClustersEvents {
+		patch := u.NewPatch()
+
+		err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
 		if err != nil {
-			l.Error(err, "Cannot delete user", "user", u.Name)
-			r.EventRecorder.Eventf(u, models.Warning, models.DeletionFailed,
-				"Resource deletion on the Instaclustr is failed. Reason: %v", err)
+			l.Error(err, "Cannot delete Cassandra user")
+			r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
+				"Cannot delete user. Reason: %v", err)
+
+			return err
+		}
+
+		l.Info("User has been deleted for cluster", "username", username, "cluster ID", clusterID)
+		r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
+			"User has been deleted for a cluster. Cluster ID: %s, username: %s",
+			clusterID, username)
+
+		delete(u.Status.ClustersEvents, clusterID)
+
+		err = r.Status().Patch(ctx, u, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch Cassandra user status")
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v", err)
+
 			return err
 		}
 	}
+
 	l.Info("Cassandra user has been deleted", "username", username)
 
 	p := u.NewPatch()
@@ -236,15 +269,13 @@ func (r *CassandraUserReconciler) handleDeleteUser(
 
 	err = r.Patch(context.Background(), u, p)
 	if err != nil {
-		l.Error(err, "Cannot patch Cassandra user resource", "user", u.Name)
+		l.Error(err, "Cannot patch Cassandra user resource")
 
 		r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 			"Resource patch is failed. Reason: %v", err)
 		return err
 	}
 
-	s.Labels[models.CassandraUserNamespaceLabel] = ""
-	s.Labels[models.ControlledByLabel] = ""
 	controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
 	err = r.Update(ctx, s)
 	if err != nil {
@@ -259,39 +290,9 @@ func (r *CassandraUserReconciler) handleDeleteUser(
 	return nil
 }
 
-func (r *CassandraUserReconciler) newUserReconcileRequest(secret client.Object) []reconcile.Request {
-	userNamespacedName := types.NamespacedName{
-		Namespace: secret.GetLabels()[models.CassandraUserNamespaceLabel],
-		Name:      secret.GetLabels()[models.ControlledByLabel],
-	}
-
-	user := &v1beta1.CassandraUser{}
-
-	err := r.Get(context.Background(), userNamespacedName, user)
-	if err != nil {
-		return nil
-	}
-
-	patch := user.NewPatch()
-
-	annots := user.GetAnnotations()
-	if annots == nil {
-		annots = map[string]string{}
-	}
-	annots[models.ResourceStateAnnotation] = models.SecretEvent
-
-	err = r.Patch(context.Background(), user, patch)
-	if err != nil {
-		return []reconcile.Request{}
-	}
-
-	return []reconcile.Request{{NamespacedName: userNamespacedName}}
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.CassandraUser{}).
-		Watches(&source.Kind{Type: &k8sCore.Secret{}}, handler.EnqueueRequestsFromMapFunc(r.newUserReconcileRequest)).
 		Complete(r)
 }
