@@ -30,8 +30,9 @@ type CassandraUserSpec struct {
 
 // CassandraUserStatus defines the observed state of CassandraUser
 type CassandraUserStatus struct {
-	State     string `json:"state,omitempty"`
-	ClusterID string `json:"clusterId,omitempty"`
+	// ClustersEvents efficiently stores and associates creation or deletion events with their respective cluster IDs.
+	// The keys of the map represent the cluster IDs, while the corresponding values represent the events themselves.
+	ClustersEvents map[string]string `json:"clustersEvents,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -33,9 +33,11 @@ spec:
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: true
-  #  userRef:
-  #    namespace: default
-  #    name: cassandrauser-sample
+#  userRef:
+#    - namespace: default
+#      name: cassandrauser-sample
+#    - namespace: default
+#      name: cassandrauser-sample2
   slaTier: "NON_PRODUCTION"
     #  twoFactorDelete:
     #    - email: "rostyslp@netapp.com"
