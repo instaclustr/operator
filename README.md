@@ -110,7 +110,7 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 
 ## Support Contact
 
-Please reach out to support@instaclustr.com for issues with this Instaclustr Operator. Please note that we've disabled the issues feature on this repository and transferred open issues to our Zendesk system.
+Please reach out to support@instaclustr.com for issues with this Instaclustr Operator. Please note that we've disabled the issues feature on this repository.
 
 The support status of this project is available through https://www.instaclustr.com/support/documentation/announcements/instaclustr-open-source-project-status/.
 
