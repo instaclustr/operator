@@ -326,7 +326,6 @@ rules:
   resources:
   - opensearchusers/finalizers
   verbs:
-  - patch
   - update
 - apiGroups:
   - clusterresources.instaclustr.com
