@@ -19,8 +19,8 @@ package clusterresources
 import (
 	k8sCore "k8s.io/api/core/v1"
 
-	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 func areFirewallRuleStatusesEqual(a, b *v1beta1.FirewallRuleStatus) bool {
