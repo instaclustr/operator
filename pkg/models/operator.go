@@ -28,6 +28,7 @@ const (
 	ExternalChangesAnnotation = "instaclustr.com/externalChanges"
 	AllowSpecAmendAnnotation  = "instaclustr.com/allowSpecAmend"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
+	DeletionUserFinalizer     = "instaclustr.com/dependsOnCluster_"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 
 	DefaultSecretLabel                = "instaclustr.com/defaultSecret"
@@ -148,7 +149,6 @@ const (
 )
 
 const Requeue60 = time.Second * 60
-const Requeue300 = time.Second * 300
 
 var (
 	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}

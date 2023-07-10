@@ -91,30 +91,6 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	patch := u.NewPatch()
 
-	finalizerNeeded := controllerutil.AddFinalizer(u, models.DeletionFinalizer)
-	if finalizerNeeded {
-		err = r.Patch(ctx, u, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Cassandra user resource",
-				"secret name", s.Name,
-				"secret namespace", s.Namespace)
-			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
-		}
-	}
-
-	if u.DeletionTimestamp != nil {
-		// TODO: https://github.com/instaclustr/operator/issues/455 - Delete a user only if it is deleted from all clusters.
-		err = r.handleDeleteUser(ctx, l, s, u)
-		if err != nil {
-			return models.ReconcileRequeue, nil
-		}
-
-		return models.ExitReconcile, nil
-	}
-
 	username, password, err := getUserCreds(s)
 	if err != nil {
 		l.Error(err, "Cannot get the Cassandra user credentials from the secret",
@@ -156,15 +132,28 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"User has been created for a cluster. Cluster ID: %s, username: %s",
 				clusterID, username)
 
-			// TODO: https://github.com/instaclustr/operator/issues/454 - add multiple finalizers for users who uses one secret.
-			controllerutil.AddFinalizer(s, models.DeletionFinalizer)
-			err = r.Update(ctx, s)
+			finalizerNeeded := controllerutil.AddFinalizer(s, models.DeletionFinalizer)
+			if finalizerNeeded {
+				err = r.Update(ctx, s)
+				if err != nil {
+					l.Error(err, "Cannot update Cassandra user secret",
+						"secret name", s.Name,
+						"secret namespace", s.Namespace)
+					r.EventRecorder.Eventf(u, models.Warning, models.UpdatedEvent,
+						"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
+
+					return models.ReconcileRequeue, nil
+				}
+			}
+
+			controllerutil.AddFinalizer(u, models.DeletionUserFinalizer+clusterID)
+			err = r.Patch(ctx, u, patch)
 			if err != nil {
-				l.Error(err, "Cannot update Cassandra user secret",
+				l.Error(err, "Cannot patch Cassandra user resource",
 					"secret name", s.Name,
 					"secret namespace", s.Namespace)
-				r.EventRecorder.Eventf(u, models.Warning, models.UpdatedEvent,
-					"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
 
 				return models.ReconcileRequeue, nil
 			}
@@ -199,11 +188,12 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return models.ReconcileRequeue, nil
 			}
 
-			controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
-			err = r.Update(ctx, s)
+			controllerutil.RemoveFinalizer(u, models.DeletionUserFinalizer+clusterID)
+			err = r.Patch(ctx, u, patch)
 			if err != nil {
-				l.Error(err, "Cannot remove finalizer from secret", "secret name", s.Name)
-
+				l.Error(err, "Cannot patch Cassandra user resource",
+					"secret name", s.Name,
+					"secret namespace", s.Namespace)
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
@@ -211,6 +201,13 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			}
 
 			continue
+		}
+	}
+
+	if u.DeletionTimestamp != nil {
+		err = r.handleDeleteUser(ctx, l, s, u)
+		if err != nil {
+			return models.ReconcileRequeue, nil
 		}
 	}
 
@@ -232,49 +229,18 @@ func (r *CassandraUserReconciler) handleDeleteUser(
 		return err
 	}
 
-	for clusterID := range u.Status.ClustersEvents {
-		patch := u.NewPatch()
+	for clusterID, event := range u.Status.ClustersEvents {
+		if event == models.Created || event == models.CreatingEvent {
+			l.Error(models.ErrUserStillExist, "please remove the user from the cluster specification",
+				"username", username, "cluster ID", clusterID)
+			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent,
+				"The user is still attached to cluster, please remove the user from the cluster specification.")
 
-		err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
-		if err != nil {
-			l.Error(err, "Cannot delete Cassandra user")
-			r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
-				"Cannot delete user. Reason: %v", err)
-
-			return err
-		}
-
-		l.Info("User has been deleted for cluster", "username", username, "cluster ID", clusterID)
-		r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
-			"User has been deleted for a cluster. Cluster ID: %s, username: %s",
-			clusterID, username)
-
-		delete(u.Status.ClustersEvents, clusterID)
-
-		err = r.Status().Patch(ctx, u, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Cassandra user status")
-			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v", err)
-
-			return err
+			return models.ErrUserStillExist
 		}
 	}
 
 	l.Info("Cassandra user has been deleted", "username", username)
-
-	p := u.NewPatch()
-
-	controllerutil.RemoveFinalizer(u, models.DeletionFinalizer)
-
-	err = r.Patch(context.Background(), u, p)
-	if err != nil {
-		l.Error(err, "Cannot patch Cassandra user resource")
-
-		r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-			"Resource patch is failed. Reason: %v", err)
-		return err
-	}
 
 	controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
 	err = r.Update(ctx, s)
