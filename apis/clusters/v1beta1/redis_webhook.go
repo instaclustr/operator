@@ -52,6 +52,9 @@ func (r *Redis) Default() {
 	for _, dataCentre := range r.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}
+
+	redislog.Info("default values are set", "name", r.Name)
+
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.

@@ -71,6 +71,7 @@ type RedisSpec struct {
 	PasswordAndUserAuth bool               `json:"passwordAndUserAuth,omitempty"`
 	DataCentres         []*RedisDataCentre `json:"dataCentres,omitempty"`
 	Description         string             `json:"description,omitempty"`
+	UserRefs            []*UserReference   `json:"userRefs,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis

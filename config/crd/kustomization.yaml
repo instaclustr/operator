@@ -35,7 +35,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_postgresqls.yaml
 #- patches/webhook_in_opensearches.yaml
 #- patches/webhook_in_awsvpcpeerings.yaml
-#- patches/webhook_in_redis.yaml
+- patches/webhook_in_clusters_redis.yaml
 #- patches/webhook_in_cadences.yaml
 #- patches/webhook_in_kafkas.yaml
 #- patches/webhook_in_azurevnetpeerings.yaml
@@ -62,7 +62,7 @@ patchesStrategicMerge:
 - patches/cainjection_in_clusters_postgresqls.yaml
 - patches/cainjection_in_clusters_opensearches.yaml
 #- patches/cainjection_in_awsvpcpeerings.yaml
-#- patches/cainjection_in_redis.yaml
+- patches/cainjection_in_clusters_redis.yaml
 #- patches/cainjection_in_cadences.yaml
 #- patches/cainjection_in_kafkas.yaml
 #- patches/cainjection_in_azurevnetpeerings.yaml

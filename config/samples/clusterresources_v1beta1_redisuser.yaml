@@ -1,17 +1,53 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: redis-user-test
+  name: redis-user-test-1
 data:
-  Password: VGVzdDEyMzQhCg==
+  username: bXlreXRhCg== #mykyta
+  password: VGVzdDEyMyEK #Test123!
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-user-test-2
+data:
+  username: c3Rhcwo= #stas
+  password: VGVzdDEyMyEh #Test123!!
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-user-test-3
+data:
+  username: Ym9oZGFuCg== #bohdan
+  password: VGVzdDEyMzQ1IQo= #Test12345!
 ---
 apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: RedisUser
 metadata:
-  name: redisuser-sample
+  name: redisuser-sample-1
 spec:
-  clusterId: "259807aa-02a2-4511-bdcd-e03961ae1a01"
-  username: "testRedis"
-  passwordSecretName: "redis-user-test"
-  passwordSecretNamespace: "default"
   initialPermissions: "none"
+  secretRef:
+    name: "redis-user-test-1" #metadata name
+    namespace: "default"
+---
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: RedisUser
+metadata:
+  name: redisuser-sample-2
+spec:
+  initialPermissions: "none"
+  secretRef:
+    name: "redis-user-test-2" #metadata name
+    namespace: "default"
+---
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: RedisUser
+metadata:
+  name: redisuser-sample-3
+spec:
+  initialPermissions: "none"
+  secretRef:
+    name: "redis-user-test-3" #metadata name
+    namespace: "default"

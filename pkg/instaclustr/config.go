@@ -70,5 +70,6 @@ const (
 
 const (
 	APIv1UserEndpoint   = "%s/provisioning/v1/%s/%s/users"
+	RedisUserIDFmt      = "%s_%s"
 	CassandraBundleUser = "apache_cassandra"
 )
