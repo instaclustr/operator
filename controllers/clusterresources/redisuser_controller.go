@@ -18,23 +18,18 @@ package clusterresources
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
+	"github.com/go-logr/logr"
 	k8sCore "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -63,7 +58,9 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	l := log.FromContext(ctx)
 
 	user := &v1beta1.RedisUser{}
+
 	err := r.Get(ctx, req.NamespacedName, user)
+
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			l.Info("Redis user resource is not found",
@@ -79,17 +76,16 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return models.ReconcileRequeue, nil
 	}
 
-	passwordSecret := &k8sCore.Secret{}
+	secret := &k8sCore.Secret{}
+
 	err = r.Get(ctx, types.NamespacedName{
-		Namespace: user.Spec.PasswordSecretNamespace,
-		Name:      user.Spec.PasswordSecretName,
-	}, passwordSecret)
+		Namespace: user.Spec.SecretRef.Namespace,
+		Name:      user.Spec.SecretRef.Name,
+	}, secret)
 	if err != nil {
 		l.Error(err, "Cannot get Redis user password secret",
-			"secret name", user.Spec.PasswordSecretName,
-			"secret namespace", user.Spec.PasswordSecretNamespace,
-			"username", user.Spec.Username,
-			"cluster ID", user.Spec.ClusterID,
+			"secret name", user.Spec.SecretRef.Name,
+			"secret namespace", user.Spec.SecretRef.Namespace,
 			"user ID", user.Status.ID,
 		)
 
@@ -102,227 +98,205 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return models.ReconcileRequeue, nil
 	}
 
-	if user.DeletionTimestamp != nil {
-		err = r.API.DeleteRedisUser(user.Status.ID)
-		if err != nil && !errors.Is(err, instaclustr.NotFound) {
-			l.Error(err, "Cannot delete Redis user",
-				"username", user.Spec.Username,
-				"cluster ID", user.Spec.ClusterID,
-				"user ID", user.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.DeletionFailed,
-				"Resource deletion on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		r.EventRecorder.Eventf(
-			user, models.Normal, models.DeletionStarted,
-			"Resource deletion request is sent to the Instaclustr API.",
-		)
-
-		patch := user.NewPatch()
-		controllerutil.RemoveFinalizer(user, models.DeletionFinalizer)
-		passwordSecret.Labels[models.RedisUserNamespaceLabel] = ""
-		passwordSecret.Labels[models.ControlledByLabel] = ""
-		err = r.Patch(ctx, user, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Redis user resource",
-				"secret name", user.Spec.PasswordSecretName,
-				"secret namespace", user.Spec.PasswordSecretNamespace,
-				"username", user.Spec.Username,
-				"cluster ID", user.Spec.ClusterID,
-				"status", user.Status,
-			)
-
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		l.Info("Redis user is deleted",
-			"secret name", user.Spec.PasswordSecretName,
-			"secret namespace", user.Spec.PasswordSecretNamespace,
-			"username", user.Spec.Username,
-			"cluster ID", user.Spec.ClusterID,
-			"user ID", user.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			user, models.Normal, models.Deleted,
-			"Resource is deleted",
-		)
-
-		return models.ExitReconcile, nil
-	}
-
-	password := r.getPassword(passwordSecret)
-	if user.Status.ID == "" {
-		patch := user.NewPatch()
-		if len(passwordSecret.Labels) == 0 {
-			passwordSecret.Labels = map[string]string{}
-		}
-		passwordSecret.Labels[models.RedisUserNamespaceLabel] = user.Namespace
-		passwordSecret.Labels[models.ControlledByLabel] = user.Name
-		err = r.Update(ctx, passwordSecret)
-		if err != nil {
-			l.Error(err, "Cannot update Redis user password secret",
-				"secret name", user.Spec.PasswordSecretName,
-				"secret namespace", user.Spec.PasswordSecretNamespace,
-				"username", user.Spec.Username,
-				"cluster ID", user.Spec.ClusterID,
-				"user ID", user.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.UpdateFailed,
-				"Resource update is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		user.Status.ID, err = r.API.CreateRedisUser(user.Spec.ToInstAPI(password))
-		if err != nil {
-			l.Error(err, "Cannot create Redis user",
-				"secret name", user.Spec.PasswordSecretName,
-				"secret namespace", user.Spec.PasswordSecretNamespace,
-				"username", user.Spec.Username,
-				"cluster ID", user.Spec.ClusterID,
-			)
-
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.CreationFailed,
-				"Resource creation on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		r.EventRecorder.Eventf(
-			user, models.Normal, models.Created,
-			"Resource creation request is sent. User ID: %s",
-			user.Status.ID,
-		)
-
-		err = r.Status().Patch(ctx, user, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Redis user status",
-				"secret name", user.Spec.PasswordSecretName,
-				"secret namespace", user.Spec.PasswordSecretNamespace,
-				"username", user.Spec.Username,
-				"cluster ID", user.Spec.ClusterID,
-				"status", user.Status,
-			)
-
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.PatchFailed,
-				"Resource status patch is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		controllerutil.AddFinalizer(user, models.DeletionFinalizer)
-		err = r.Patch(ctx, user, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Redis user resource",
-				"secret name", user.Spec.PasswordSecretName,
-				"secret namespace", user.Spec.PasswordSecretNamespace,
-				"username", user.Spec.Username,
-				"cluster ID", user.Spec.ClusterID,
-				"status", user.Status,
-			)
-
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		l.Info("Redis user is created",
-			"secret name", user.Spec.PasswordSecretName,
-			"secret namespace", user.Spec.PasswordSecretNamespace,
-			"username", user.Spec.Username,
-			"cluster ID", user.Spec.ClusterID,
-			"user ID", user.Status.ID,
-		)
-
-		return models.ExitReconcile, nil
-	}
-
-	err = r.API.UpdateRedisUser(user.ToInstAPIUpdate(password))
+	username, password, err := getUserCreds(secret)
 	if err != nil {
-		l.Error(err, "Cannot update redis user",
-			"secret name", user.Spec.PasswordSecretName,
-			"secret namespace", user.Spec.PasswordSecretNamespace,
-			"username", user.Spec.Username,
-			"cluster ID", user.Spec.ClusterID,
-			"user ID", user.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			user, models.Warning, models.UpdateFailed,
-			"Resource update on the Instacluter is failed. Reason: %v",
-			err,
-		)
+		l.Error(err, "Cannot get user credentials", "user", username)
+		r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
+			"Cannot get user. Reason: %v", err)
 
 		return models.ReconcileRequeue, nil
 	}
 
-	l.Info("Redis user is updated",
-		"secret name", user.Spec.PasswordSecretName,
-		"secret namespace", user.Spec.PasswordSecretNamespace,
-		"username", user.Spec.Username,
-		"cluster ID", user.Spec.ClusterID,
-		"user ID", user.Status.ID,
-	)
+	for clusterID, event := range user.Status.ClustersEvents {
+		if event == models.CreatingEvent {
+			patch := user.NewPatch()
+
+			_, err = r.API.CreateRedisUser(user.Spec.ToInstAPI(password, clusterID, username))
+			if err != nil {
+				l.Error(err, "Cannot create a user for the Redis cluster",
+					"cluster ID", clusterID,
+					"username", username)
+				r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
+					"Cannot create user. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			event = models.Created
+			user.Status.ClustersEvents[clusterID] = event
+
+			err = r.Status().Patch(ctx, user, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Redis user status", "user", user.Name)
+				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("User has been created for a Redis cluster", "username", username)
+			r.EventRecorder.Eventf(user, models.Normal, models.Created,
+				"User has been created for a Redis cluster. Cluster ID: %s, username: %s",
+				clusterID, username)
+
+			finalizerNeeded := controllerutil.AddFinalizer(secret, models.DeletionFinalizer)
+			if finalizerNeeded {
+				err = r.Update(ctx, secret)
+				if err != nil {
+					l.Error(err, "Cannot update Cassandra user secret",
+						"secret name", secret.Name,
+						"secret namespace", secret.Namespace)
+					r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
+						"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
+
+					return models.ReconcileRequeue, nil
+				}
+			}
+
+			controllerutil.AddFinalizer(user, models.DeletionUserFinalizer+clusterID)
+			err = r.Patch(ctx, user, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Cassandra user resource",
+					"secret name", secret.Name,
+					"secret namespace", secret.Namespace)
+				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			continue
+		}
+
+		if event == models.DeletingEvent {
+			patch := user.NewPatch()
+
+			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
+			err = r.API.DeleteRedisUser(userID)
+			if err != nil {
+				l.Error(err, "Cannot delete Redis user", "user", user.Name)
+				r.EventRecorder.Eventf(user, models.Warning, models.DeletingEvent,
+					"Cannot delete user. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("User has been deleted for cluster", "username", username,
+				"cluster ID", clusterID)
+			r.EventRecorder.Eventf(user, models.Normal, models.Deleted,
+				"User has been deleted for a cluster. Cluster ID: %s, username: %s",
+				clusterID, username)
+
+			delete(user.Status.ClustersEvents, clusterID)
+
+			err = r.Status().Patch(ctx, user, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Redis user status", "user", user.Name)
+				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			controllerutil.RemoveFinalizer(user, models.DeletionUserFinalizer+clusterID)
+			err = r.Patch(ctx, user, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Cassandra user resource",
+					"secret name", secret.Name,
+					"secret namespace", secret.Namespace)
+				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			continue
+		}
+
+		if event == models.UpdatingEvent {
+			user.Status.ID = clusterID
+			err = r.API.UpdateRedisUser(user.ToInstAPIUpdate(password, clusterID))
+			if err != nil {
+				l.Error(err, "Cannot update redis user",
+					"secret name", user.Spec.SecretRef.Name,
+					"secret namespace", user.Spec.SecretRef.Namespace,
+					"username", username,
+					"user ID", user.Status.ID,
+				)
+
+				r.EventRecorder.Eventf(
+					user, models.Warning, models.UpdateFailed,
+					"Resource update on the Instacluter is failed. Reason: %v",
+					err,
+				)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("Redis user is updated",
+				"secret name", user.Spec.SecretRef.Name,
+				"secret namespace", user.Spec.SecretRef.Namespace,
+				"username", username,
+				"user ID", user.Status.ID,
+			)
+
+			return models.ExitReconcile, nil
+		}
+	}
+
+	if user.DeletionTimestamp != nil {
+		err = r.handleDeleteUser(ctx, l, secret, user)
+		if err != nil {
+			return models.ReconcileRequeue, nil
+		}
+	}
 
 	return models.ExitReconcile, nil
 }
 
-func (r *RedisUserReconciler) getPassword(secret *k8sCore.Secret) string {
-	password := secret.Data[models.Password]
-
-	return string(password[:len(password)-1])
-}
-
-func (r *RedisUserReconciler) newUserReconcileRequest(secretObj client.Object) []reconcile.Request {
-	user := &v1beta1.RedisUser{}
-	userNamespacedName := types.NamespacedName{
-		Namespace: secretObj.GetLabels()[models.RedisUserNamespaceLabel],
-		Name:      secretObj.GetLabels()[models.ControlledByLabel],
-	}
-
-	err := r.Get(context.TODO(), userNamespacedName, user)
+func (r *RedisUserReconciler) handleDeleteUser(
+	ctx context.Context,
+	l logr.Logger,
+	s *k8sCore.Secret,
+	u *v1beta1.RedisUser,
+) error {
+	username, _, err := getUserCreds(s)
 	if err != nil {
-		return nil
+		l.Error(err, "Cannot get user credentials", "user", u.Name)
+		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
+			"Cannot get user credentials. Reason: %v", err)
+
+		return err
 	}
 
-	return []reconcile.Request{
-		{
-			NamespacedName: userNamespacedName,
-		},
+	for clusterID, event := range u.Status.ClustersEvents {
+		if event == models.Created || event == models.CreatingEvent {
+			l.Error(models.ErrUserStillExist, "please remove the user from the cluster specification",
+				"username", username, "cluster ID", clusterID)
+			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent,
+				"The user is still attached to cluster, please remove the user from the cluster specification.")
+
+			return models.ErrUserStillExist
+		}
 	}
+
+	controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
+	err = r.Update(ctx, s)
+	if err != nil {
+		l.Error(err, "Cannot remove finalizer from secret", "secret name", s.Name)
+
+		r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v", err)
+
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.RedisUser{}, builder.WithPredicates(predicate.Funcs{
-			UpdateFunc: func(event event.UpdateEvent) bool {
-				return event.ObjectNew.GetGeneration() != event.ObjectOld.GetGeneration()
-			},
-		})).
-		Watches(
-			&source.Kind{Type: &k8sCore.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.newUserReconcileRequest),
-		).
+		For(&v1beta1.RedisUser{}).
 		Complete(r)
 }

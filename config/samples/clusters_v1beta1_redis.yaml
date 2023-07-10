@@ -10,12 +10,19 @@ metadata:
   name: redis-sample
 spec:
   name: "testRedis"
-  version: "7.0.9"
+  version: "7.0.11"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
-  passwordAndUserAuth: false
-  #  twoFactorDelete:
-  #    - email: "rostyslp@netapp.com"
+  passwordAndUserAuth: true
+  userRefs:
+#    - name: redisuser-sample-1
+#      namespace: default
+#    - name: redisuser-sample-2
+#      namespace: default
+#    - name: redisuser-sample-3
+#      namespace: default
+#  twoFactorDelete:
+#    - email: "rostyslp@netapp.com"
   dataCentres:
     - region: "US_WEST_2"
       cloudProvider: "AWS_VPC"

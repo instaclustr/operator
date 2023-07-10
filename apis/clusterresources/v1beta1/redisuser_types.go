@@ -25,16 +25,14 @@ import (
 
 // RedisUserSpec defines the desired state of RedisUser
 type RedisUserSpec struct {
-	ClusterID               string `json:"clusterId"`
-	Username                string `json:"username"`
-	PasswordSecretName      string `json:"passwordSecretName"`
-	PasswordSecretNamespace string `json:"passwordSecretNamespace"`
-	InitialPermissions      string `json:"initialPermissions"`
+	SecretRef          *SecretReference `json:"secretRef"`
+	InitialPermissions string           `json:"initialPermissions"`
 }
 
 // RedisUserStatus defines the observed state of RedisUser
 type RedisUserStatus struct {
-	ID string `json:"ID,omitempty"`
+	ID             string            `json:"ID,omitempty"`
+	ClustersEvents map[string]string `json:"clustersEvents,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -58,18 +56,18 @@ type RedisUserList struct {
 	Items           []RedisUser `json:"items"`
 }
 
-func (rs *RedisUserSpec) ToInstAPI(password string) *models.RedisUser {
+func (rs *RedisUserSpec) ToInstAPI(password, clusterID, username string) *models.RedisUser {
 	return &models.RedisUser{
-		ClusterID:          rs.ClusterID,
-		Username:           rs.Username,
+		ClusterID:          clusterID,
+		Username:           username,
 		Password:           password,
 		InitialPermissions: rs.InitialPermissions,
 	}
 }
 
-func (r *RedisUser) ToInstAPIUpdate(password string) *models.RedisUserUpdate {
+func (r *RedisUser) ToInstAPIUpdate(password, id string) *models.RedisUserUpdate {
 	return &models.RedisUserUpdate{
-		ID:       r.Status.ID,
+		ID:       id,
 		Password: password,
 	}
 }

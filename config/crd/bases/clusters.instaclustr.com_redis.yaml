@@ -155,6 +155,18 @@ spec:
                   - email
                   type: object
                 type: array
+              userRef:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - name
+                  - namespace
+                  type: object
+                type: array
               version:
                 type: string
             type: object

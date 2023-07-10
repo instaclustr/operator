@@ -35,28 +35,31 @@ spec:
           spec:
             description: RedisUserSpec defines the desired state of RedisUser
             properties:
-              clusterId:
-                type: string
               initialPermissions:
                 type: string
-              passwordSecretName:
-                type: string
-              passwordSecretNamespace:
-                type: string
-              username:
-                type: string
+              secretRef:
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
             required:
-            - clusterId
             - initialPermissions
-            - passwordSecretName
-            - passwordSecretNamespace
-            - username
+            - secretRef
             type: object
           status:
             description: RedisUserStatus defines the observed state of RedisUser
             properties:
               ID:
                 type: string
+              clustersEvents:
+                additionalProperties:
+                  type: string
+                type: object
             type: object
         type: object
     served: true
