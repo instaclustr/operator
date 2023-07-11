@@ -90,6 +90,27 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return models.ErrZeroDataCentres
 	}
 
+	for _, dc := range k.Spec.DataCentres {
+		err := dc.DataCentre.ValidateCreation()
+		if err != nil {
+			return err
+		}
+
+		if len(dc.PrivateLink) > 1 {
+			return fmt.Errorf("private link should not have more than 1 item")
+		}
+
+		for _, pl := range dc.PrivateLink {
+			if len(pl.AdvertisedHostname) < 3 {
+				return fmt.Errorf("the advertised hostname must be at least 3 characters. Provided hostname: %s", pl.AdvertisedHostname)
+			}
+		}
+
+		if ((dc.NodesNumber*k.Spec.ReplicationFactor)/k.Spec.ReplicationFactor)%k.Spec.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", k.Spec.ReplicationFactor)
+		}
+	}
+
 	return nil
 }
 
@@ -121,6 +142,10 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return fmt.Errorf("cannot update, error: %v", err)
 	}
 
+	if k.Status.ID == "" {
+		return kv.ValidateCreate(ctx, k)
+	}
+
 	return nil
 }
 
@@ -144,6 +169,21 @@ func (ks *KafkaSpec) validateUpdate(old *KafkaSpec) error {
 	if newImmut.cluster != oldImmut.cluster ||
 		newImmut.specificFields != oldImmut.specificFields {
 		return fmt.Errorf("immutable fields have been changed, old spec: %+v: new spec: %+v", oldImmut, newImmut)
+	}
+
+	if len(ks.DataCentres) != len(old.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for _, dc := range ks.DataCentres {
+		if ((dc.NodesNumber*ks.ReplicationFactor)/ks.ReplicationFactor)%ks.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", ks.ReplicationFactor)
+		}
+	}
+
+	err := ks.validateImmutableDataCentresFieldsUpdate(old)
+	if err != nil {
+		return err
 	}
 
 	if err := validateTwoFactorDelete(ks.TwoFactorDelete, old.TwoFactorDelete); err != nil {
@@ -205,13 +245,69 @@ func validateZookeeperUpdate(new, old []*DedicatedZookeeper) bool {
 	return true
 }
 
+func isPrivateLinkValid(new, old []*KafkaPrivateLink) bool {
+	if new == nil && old == nil {
+		return true
+	}
+
+	if len(new) != len(old) {
+		return false
+	}
+
+	for i := range new {
+		if new[i].AdvertisedHostname != old[i].AdvertisedHostname {
+			return false
+		}
+	}
+	return true
+}
+
+func (ks *KafkaSpec) validateImmutableDataCentresFieldsUpdate(oldSpec *KafkaSpec) error {
+	if len(ks.DataCentres) < len(oldSpec.DataCentres) {
+		return models.ErrDecreasedDataCentresNumber
+	}
+
+	for _, newDC := range ks.DataCentres {
+		for _, oldDC := range oldSpec.DataCentres {
+			if oldDC.Name == newDC.Name {
+				newDCImmutableFields := newDC.newImmutableFields()
+				oldDCImmutableFields := oldDC.newImmutableFields()
+
+				if *newDCImmutableFields != *oldDCImmutableFields {
+					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
+
+				if newDC.NodesNumber < oldDC.NodesNumber {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+
+				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				if err != nil {
+					return err
+				}
+
+				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+				if err != nil {
+					return err
+				}
+
+				if ok := isPrivateLinkValid(newDC.PrivateLink, oldDC.PrivateLink); !ok {
+					return fmt.Errorf("advertisedHostname field cannot be changed")
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 type immutableKafkaFields struct {
 	specificFields specificKafkaFields
 	cluster        immutableCluster
 }
 
 type specificKafkaFields struct {
-	replicationFactorNumber   int
+	replicationFactor         int
 	partitionsNumber          int
 	allowDeleteTopics         bool
 	autoCreateTopics          bool
@@ -222,7 +318,7 @@ type specificKafkaFields struct {
 func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
 	return &immutableKafkaFields{
 		specificFields: specificKafkaFields{
-			replicationFactorNumber:   ks.ReplicationFactorNumber,
+			replicationFactor:         ks.ReplicationFactor,
 			partitionsNumber:          ks.PartitionsNumber,
 			allowDeleteTopics:         ks.AllowDeleteTopics,
 			autoCreateTopics:          ks.AutoCreateTopics,
@@ -231,4 +327,20 @@ func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
 		},
 		cluster: ks.Cluster.newImmutableFields(),
 	}
+}
+
+func (ksdc *KafkaDataCentre) newImmutableFields() *immutableKakfaDCFields {
+	return &immutableKakfaDCFields{
+		immutableDC{
+			Name:                ksdc.Name,
+			Region:              ksdc.Region,
+			CloudProvider:       ksdc.CloudProvider,
+			ProviderAccountName: ksdc.ProviderAccountName,
+			Network:             ksdc.Network,
+		},
+	}
+}
+
+type immutableKakfaDCFields struct {
+	immutableDC
 }

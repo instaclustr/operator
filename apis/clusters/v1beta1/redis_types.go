@@ -320,6 +320,11 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 		if err != nil {
 			return err
 		}
+
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		}
+
 	}
 
 	for i := len(oldSpec.DataCentres); i < len(rs.DataCentres); i++ {

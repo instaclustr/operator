@@ -6,7 +6,7 @@ spec:
   name: "rostyslp-Kafka"
   version: "3.0.2"
   pciCompliance: false
-  replicationFactorNumber: 3
+  replicationFactor: 3
   partitionsNumber: 3
   allowDeleteTopics: true
   autoCreateTopics: true

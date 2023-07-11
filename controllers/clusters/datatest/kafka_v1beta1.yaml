@@ -6,7 +6,7 @@ spec:
   name: "kafka"
   version: "2.8.2"
   pciCompliance: true
-  replicationFactorNumber: 3
+  replicationFactor: 3
   partitionsNumber: 3
   allowDeleteTopics: true
   autoCreateTopics: true

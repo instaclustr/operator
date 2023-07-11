@@ -217,6 +217,10 @@ func (kc *KafkaConnectSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Kaf
 			return err
 		}
 
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		}
+
 		if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
 		}

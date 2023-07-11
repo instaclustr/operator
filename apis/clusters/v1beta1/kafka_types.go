@@ -65,9 +65,9 @@ type KafkaSpec struct {
 	Cluster        `json:",inline"`
 	SchemaRegistry []*SchemaRegistry `json:"schemaRegistry,omitempty"`
 
-	// ReplicationFactorNumber to use for new topic.
+	// ReplicationFactor to use for new topic.
 	// Also represents the number of racks to use when allocating nodes.
-	ReplicationFactorNumber int `json:"replicationFactorNumber"`
+	ReplicationFactor int `json:"replicationFactor"`
 
 	// PartitionsNumber number of partitions to use when created new topics.
 	PartitionsNumber          int                `json:"partitionsNumber"`
@@ -142,7 +142,7 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
 		SchemaRegistry:                    k.schemaRegistryToInstAPI(),
 		RestProxy:                         k.restProxyToInstAPI(),
 		PCIComplianceMode:                 k.PCICompliance,
-		DefaultReplicationFactor:          k.ReplicationFactorNumber,
+		DefaultReplicationFactor:          k.ReplicationFactor,
 		DefaultNumberOfPartitions:         k.PartitionsNumber,
 		TwoFactorDelete:                   k.TwoFactorDeletesToInstAPI(),
 		AllowDeleteTopics:                 k.AllowDeleteTopics,
@@ -283,7 +283,7 @@ func (ks *KafkaSpec) FromInstAPI(iKafka *models.KafkaCluster) KafkaSpec {
 			TwoFactorDelete:       ks.Cluster.TwoFactorDeleteFromInstAPI(iKafka.TwoFactorDelete),
 		},
 		SchemaRegistry:                    ks.SchemaRegistryFromInstAPI(iKafka.SchemaRegistry),
-		ReplicationFactorNumber:           iKafka.DefaultReplicationFactor,
+		ReplicationFactor:                 iKafka.DefaultReplicationFactor,
 		PartitionsNumber:                  iKafka.DefaultNumberOfPartitions,
 		RestProxy:                         ks.RestProxyFromInstAPI(iKafka.RestProxy),
 		AllowDeleteTopics:                 iKafka.AllowDeleteTopics,
@@ -392,7 +392,7 @@ func (ks *KafkaStatus) DCsFromInstAPI(iDCs []*models.KafkaDataCentre) (dcs []*Da
 
 func (a *KafkaSpec) IsEqual(b KafkaSpec) bool {
 	return a.Cluster.IsEqual(b.Cluster) &&
-		a.ReplicationFactorNumber == b.ReplicationFactorNumber &&
+		a.ReplicationFactor == b.ReplicationFactor &&
 		a.PartitionsNumber == b.PartitionsNumber &&
 		a.AllowDeleteTopics == b.AllowDeleteTopics &&
 		a.AutoCreateTopics == b.AutoCreateTopics &&

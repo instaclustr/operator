@@ -452,6 +452,11 @@ func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 		if err != nil {
 			return nil
 		}
+
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		}
+
 	}
 
 	return nil

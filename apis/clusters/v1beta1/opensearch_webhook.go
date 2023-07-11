@@ -103,6 +103,11 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		if err != nil {
 			return err
 		}
+
+		if ((dataCentre.NodesNumber*dataCentre.ReplicationFactor)/dataCentre.ReplicationFactor)%dataCentre.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dataCentre.ReplicationFactor)
+		}
+
 	}
 
 	appVersions, err := osv.API.ListAppVersions(models.OpenSearchAppKind)
@@ -271,6 +276,14 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSear
 
 				if *newDCImmutableFields != *oldDCImmutableFields {
 					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
+
+				if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+					return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+				}
+
+				if newDC.NodesNumber < oldDC.NodesNumber {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
 				}
 
 				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
