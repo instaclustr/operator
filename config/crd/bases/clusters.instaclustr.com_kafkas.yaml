@@ -154,8 +154,8 @@ spec:
                 type: boolean
               privateNetworkCluster:
                 type: boolean
-              replicationFactorNumber:
-                description: ReplicationFactorNumber to use for new topic. Also represents
+              replicationFactor:
+                description: ReplicationFactor to use for new topic. Also represents
                   the number of racks to use when allocating nodes.
                 type: integer
               restProxy:
@@ -214,7 +214,7 @@ spec:
             - clientToClusterEncryption
             - dataCentres
             - partitionsNumber
-            - replicationFactorNumber
+            - replicationFactor
             type: object
           status:
             description: KafkaStatus defines the observed state of Kafka

@@ -236,6 +236,14 @@ func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Cassan
 					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 				}
 
+				if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+					return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+				}
+
+				if newDC.NodesNumber < oldDC.NodesNumber {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+
 				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
 				if err != nil {
 					return err

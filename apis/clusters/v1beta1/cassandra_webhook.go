@@ -114,6 +114,11 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		if !c.Spec.PrivateNetworkCluster && dc.PrivateIPBroadcastForDiscovery {
 			return fmt.Errorf("cannot use private ip broadcast for discovery on public network cluster")
 		}
+
+		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
+		}
+
 	}
 
 	return nil

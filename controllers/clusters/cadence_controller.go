@@ -957,7 +957,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence) (*v1beta1.Kaf
 			PCICompliance:         pciCompliance,
 		},
 		DataCentres:               kafkaDataCentres,
-		ReplicationFactorNumber:   bundledKafkaSpec.ReplicationFactor,
+		ReplicationFactor:         bundledKafkaSpec.ReplicationFactor,
 		PartitionsNumber:          bundledKafkaSpec.PartitionsNumber,
 		AllowDeleteTopics:         true,
 		AutoCreateTopics:          true,
