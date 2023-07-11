@@ -138,7 +138,8 @@ var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via e
 	"If you have canceled a cluster deletion and want to put the cluster on deletion again, " +
 	"remove \"triggered\" from Instaclustr.com/clusterDeletion annotation."
 
-var msgExternalChanges = "The k8s specification is different from Instaclustr. Please reconcile the specs manually, " +
-	"add \"instaclustr.com/allowSpecAmend: \"true\" \" annotation to be able to change the k8s resource spec."
+var msgExternalChanges = "The k8s specification is different from Instaclustr Console. " +
+	"Update operations are blocked. Please check operator logs and edit the cluster spec manually, " +
+	"so that it would corresponds to the data from Instaclustr."
 
 var msgSpecStillNoMatch = "k8s specification still don't match with Instaclustr Console. Double check the difference."
