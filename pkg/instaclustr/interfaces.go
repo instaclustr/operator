@@ -94,4 +94,5 @@ type API interface {
 	DeleteEncryptionKey(encryptionKeyID string) error
 	CreateUser(userSpec any, clusterID, app string) error
 	DeleteUser(username, clusterID, app string) error
+	ListAppVersions(app string) ([]*models.AppVersions, error)
 }

@@ -48,7 +48,7 @@ type OpenSearchSpec struct {
 	NotificationsPlugin      bool                    `json:"notificationsPlugin,omitempty"`
 	AnomalyDetectionPlugin   bool                    `json:"anomalyDetectionPlugin,omitempty"`
 	LoadBalancer             bool                    `json:"loadBalancer,omitempty"`
-	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes"`
+	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes,omitempty"`
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundleUseOnly,omitempty"`
