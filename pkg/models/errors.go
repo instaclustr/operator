@@ -50,6 +50,7 @@ var (
 	ErrImmutablePackagedProvisioning         = errors.New("PackagedProvisioning array is immutable")
 	ErrImmutableAdvancedVisibility           = errors.New("AdvancedVisibility array is immutable")
 	ErrImmutablePrivateLink                  = errors.New("PrivateLink array is immutable")
+	ErrImmutableNodesNumber                  = errors.New("nodes number is immutable")
 	ErrMissingSecretKeys                     = errors.New("the secret is missing the correct keys for the user")
 	ErrUserStillExist                        = errors.New("the user is still attached to cluster")
 )
