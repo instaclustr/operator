@@ -236,7 +236,7 @@ func (dc *DataCentre) CloudProviderSettingsToInstAPI() *models.CloudProviderSett
 			awsSettings = append(awsSettings, providerSettings.AWSToInstAPI())
 		}
 		iSettings.AWSSettings = awsSettings
-	case models.AZURE, models.AZUREAZ:
+	case models.AZUREAZ:
 		azureSettings := []*models.AzureSetting{}
 		for _, providerSettings := range dc.CloudProviderSettings {
 			azureSettings = append(azureSettings, providerSettings.AzureToInstAPI())
@@ -423,7 +423,7 @@ func (c *Cluster) CloudProviderSettingsFromInstAPI(iDC models.DataCentre) (setti
 				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
 			})
 		}
-	case models.AZURE, models.AZUREAZ:
+	case models.AZUREAZ:
 		for _, azureSetting := range iDC.AzureSettings {
 			settings = append(settings, &CloudProviderSettings{
 				ResourceGroup: azureSetting.ResourceGroup,
@@ -446,7 +446,7 @@ func (c *Cluster) CloudProviderSettingsFromInstAPIv1(iProviders []*models.Cluste
 			settings = append(settings, &CloudProviderSettings{
 				CustomVirtualNetworkID: iProvider.CustomVirtualNetworkID,
 			})
-		case models.AZURE, models.AZUREAZ:
+		case models.AZUREAZ:
 			settings = append(settings, &CloudProviderSettings{
 				ResourceGroup: iProvider.ResourceGroup,
 			})

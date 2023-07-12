@@ -23,7 +23,6 @@ const (
 
 	AWSVPC  = "AWS_VPC"
 	GCP     = "GCP"
-	AZURE   = "AZURE"
 	AZUREAZ = "AZURE_AZ"
 )
 

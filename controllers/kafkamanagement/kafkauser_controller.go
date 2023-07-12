@@ -315,7 +315,7 @@ func (r *KafkaUserReconciler) handleDeleteKafkaUser(
 	if status != nil {
 		err = r.API.DeleteKafkaUser(user.Status.ID, instaclustr.KafkaUserEndpoint)
 		if err != nil {
-			l.Error(err, "cannot update Kafka User resource statuss",
+			l.Error(err, "cannot update Kafka User resource status",
 				"kafka cluster ID", user.Spec.ClusterID,
 				"initial permissions", user.Spec.InitialPermissions,
 				"kafka user options", user.Spec.Options,

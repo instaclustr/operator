@@ -55,7 +55,7 @@ func (dc *DataCentre) ValidateCreation() error {
 			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
 				dc.Region, models.AWSRegions)
 		}
-	case "AZURE", "AZURE_AZ":
+	case "AZURE_AZ":
 		if !validation.Contains(dc.Region, models.AzureRegions) {
 			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
 				dc.Region, models.AzureRegions)
