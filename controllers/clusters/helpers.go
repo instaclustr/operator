@@ -17,6 +17,9 @@ limitations under the License.
 package clusters
 
 import (
+	"sort"
+
+	"github.com/hashicorp/go-version"
 	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -132,6 +135,24 @@ func isClusterActive(clusterID string, activeClusters []*models.ActiveClusters) 
 	}
 
 	return false
+}
+
+func getSortedAppVersions(versions []*models.AppVersions, appType string) []*version.Version {
+	for _, apps := range versions {
+		if apps.Application == appType {
+			newVersions := make([]*version.Version, len(apps.Versions))
+			for i, versionStr := range apps.Versions {
+				v, _ := version.NewVersion(versionStr)
+				newVersions[i] = v
+			}
+
+			sort.Sort(version.Collection(newVersions))
+
+			return newVersions
+		}
+	}
+
+	return nil
 }
 
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +

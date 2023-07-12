@@ -527,7 +527,19 @@ func (r *CadenceReconciler) preparePackagedSolution(
 	}
 
 	if len(cassandraList.Items) == 0 {
-		cassandraSpec, err := r.newCassandraSpec(cluster)
+		appVersions, err := r.API.ListAppVersions(models.CassandraAppKind)
+		if err != nil {
+			return false, fmt.Errorf("cannot list versions for kind: %v, err: %w",
+				models.CassandraAppKind, err)
+		}
+
+		cassandraVersions := getSortedAppVersions(appVersions, models.CassandraAppType)
+		if len(cassandraVersions) == 0 {
+			return false, fmt.Errorf("there are no versions for %v kind",
+				models.CassandraAppKind)
+		}
+
+		cassandraSpec, err := r.newCassandraSpec(cluster, cassandraVersions[len(cassandraVersions)-1].String())
 		if err != nil {
 			return false, err
 		}
@@ -553,7 +565,19 @@ func (r *CadenceReconciler) preparePackagedSolution(
 			return false, err
 		}
 		if len(kafkaList.Items) == 0 {
-			kafkaSpec, err := r.newKafkaSpec(cluster)
+			appVersions, err := r.API.ListAppVersions(models.KafkaAppKind)
+			if err != nil {
+				return false, fmt.Errorf("cannot list versions for kind: %v, err: %w",
+					models.KafkaAppKind, err)
+			}
+
+			kafkaVersions := getSortedAppVersions(appVersions, models.KafkaAppType)
+			if len(kafkaVersions) == 0 {
+				return false, fmt.Errorf("there are no versions for %v kind",
+					models.KafkaAppType)
+			}
+
+			kafkaSpec, err := r.newKafkaSpec(cluster, kafkaVersions[len(kafkaVersions)-1].String())
 			if err != nil {
 				return false, err
 			}
@@ -578,7 +602,20 @@ func (r *CadenceReconciler) preparePackagedSolution(
 			return false, err
 		}
 		if len(osList.Items) == 0 {
-			osSpec, err := r.newOpenSearchSpec(cluster)
+			appVersions, err := r.API.ListAppVersions(models.OpenSearchAppKind)
+			if err != nil {
+				return false, fmt.Errorf("cannot list versions for kind: %v, err: %w",
+					models.OpenSearchAppKind, err)
+			}
+
+			openSearchVersions := getSortedAppVersions(appVersions, models.OpenSearchAppType)
+			if len(openSearchVersions) == 0 {
+				return false, fmt.Errorf("there are no versions for %v kind",
+					models.OpenSearchAppType)
+			}
+
+			// For OpenSearch we cannot use the latest version because is not supported by Cadence. So we use the oldest one.
+			osSpec, err := r.newOpenSearchSpec(cluster, openSearchVersions[0].String())
 			if err != nil {
 				return false, err
 			}
@@ -615,7 +652,7 @@ func (r *CadenceReconciler) preparePackagedSolution(
 	return false, nil
 }
 
-func (r *CadenceReconciler) newCassandraSpec(cadence *v1beta1.Cadence) (*v1beta1.Cassandra, error) {
+func (r *CadenceReconciler) newCassandraSpec(cadence *v1beta1.Cadence, latestCassandraVersion string) (*v1beta1.Cassandra, error) {
 	typeMeta := v1.TypeMeta{
 		Kind:       models.CassandraKind,
 		APIVersion: models.ClustersV1beta1APIVersion,
@@ -691,7 +728,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *v1beta1.Cadence) (*v1beta1
 	spec := v1beta1.CassandraSpec{
 		Cluster: v1beta1.Cluster{
 			Name:                  models.CassandraChildPrefix + cadence.Name,
-			Version:               models.CassandraV3_11_13,
+			Version:               latestCassandraVersion,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       twoFactorDelete,
@@ -884,7 +921,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 	}
 }
 
-func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence) (*v1beta1.Kafka, error) {
+func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence, latestKafkaVersion string) (*v1beta1.Kafka, error) {
 	typeMeta := v1.TypeMeta{
 		Kind:       models.KafkaKind,
 		APIVersion: models.ClustersV1beta1APIVersion,
@@ -950,7 +987,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence) (*v1beta1.Kaf
 	spec := v1beta1.KafkaSpec{
 		Cluster: v1beta1.Cluster{
 			Name:                  models.KafkaChildPrefix + cadence.Name,
-			Version:               models.KafkaV3_1_2,
+			Version:               latestKafkaVersion,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       kafkaTFD,
@@ -971,7 +1008,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence) (*v1beta1.Kaf
 	}, nil
 }
 
-func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence) (*v1beta1.OpenSearch, error) {
+func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence, oldestOpenSearchVersion string) (*v1beta1.OpenSearch, error) {
 	typeMeta := v1.TypeMeta{
 		Kind:       models.OpenSearchKind,
 		APIVersion: models.ClustersV1beta1APIVersion,
@@ -1039,11 +1076,17 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence) (*v1beta
 	spec := v1beta1.OpenSearchSpec{
 		Cluster: v1beta1.Cluster{
 			Name:                  models.OpenSearchChildPrefix + cadence.Name,
-			Version:               models.OpenSearchV1_3_7,
+			Version:               oldestOpenSearchVersion,
 			SLATier:               slaTier,
 			PrivateNetworkCluster: privateClusterNetwork,
 			TwoFactorDelete:       twoFactorDelete,
 			PCICompliance:         pciCompliance,
+		},
+		ClusterManagerNodes: []*v1beta1.ClusterManagerNodes{
+			{
+				NodeSize:         osNodeSize,
+				DedicatedManager: false,
+			},
 		},
 		DataCentres: osDataCentres,
 	}
