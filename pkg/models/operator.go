@@ -30,6 +30,7 @@ const (
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	DeletionUserFinalizer     = "instaclustr.com/dependsOnCluster_"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
+	ResizeQueuedAnnotation    = "instaclustr.com/resizeQueued"
 
 	DefaultSecretLabel                = "instaclustr.com/defaultSecret"
 	ControlledByLabel                 = "instaclustr.com/controlledBy"
@@ -38,7 +39,6 @@ const (
 	ClustersV1beta1APIVersion         = "clusters.instaclustr.com/v1beta1"
 	ClusterresourcesV1beta1APIVersion = "clusterresources.instaclustr.com/v1beta1"
 	RedisUserNamespaceLabel           = "instaclustr.com/redisUserNamespace"
-	CassandraUserNamespaceLabel       = "instaclustr.com/cassandraUserNamespace"
 	OpenSearchUserNamespaceLabel      = "instaclustr.com/openSearchUserNamespace"
 
 	CassandraKind        = "Cassandra"
@@ -121,22 +121,20 @@ const (
 )
 
 const (
-	Normal            = "Normal"
-	Warning           = "Warning"
-	Created           = "Created"
-	PatchFailed       = "PatchFailed"
-	NotFound          = "NotFound"
-	CreationFailed    = "CreationFailed"
-	FetchFailed       = "FetchFailed"
-	FetchSecretFailed = "FetchSecretFailed"
-	ConvertionFailed  = "ConvertionFailed"
-	ValidationFailed  = "ValidationFailed"
-	UpdateFailed      = "UpdateFailed"
-	UpdatedSecret     = "UpdatedSecret"
-	ExternalChanges   = "ExternalChanges"
-	DeletionStarted   = "DeletionStarted"
-	DeletionFailed    = "DeletionFailed"
-	Deleted           = "Deleted"
+	Normal           = "Normal"
+	Warning          = "Warning"
+	Created          = "Created"
+	PatchFailed      = "PatchFailed"
+	NotFound         = "NotFound"
+	CreationFailed   = "CreationFailed"
+	FetchFailed      = "FetchFailed"
+	ConvertionFailed = "ConvertionFailed"
+	ValidationFailed = "ValidationFailed"
+	UpdateFailed     = "UpdateFailed"
+	ExternalChanges  = "ExternalChanges"
+	DeletionStarted  = "DeletionStarted"
+	DeletionFailed   = "DeletionFailed"
+	Deleted          = "Deleted"
 )
 
 const (
