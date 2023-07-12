@@ -58,4 +58,9 @@ var (
 	S3URIRegExp              = "^s3:\\/\\/[a-zA-Z0-9_-]+[^\\/]$"
 	DependencyVPCs           = []string{"TARGET_VPC", "VPC_PEERED", "SEPARATE_VPC"}
 	EncryptionKeyAliasRegExp = "^[a-zA-Z0-9_-]{1}[a-zA-Z0-9 _-]*$"
+
+	CassandraReplicationFactors    = []int{2, 3, 5}
+	KafkaReplicationFactors        = []int{3, 5}
+	KafkaConnectReplicationFactors = []int{3}
+	OpenSearchReplicationFactors   = []int{3}
 )

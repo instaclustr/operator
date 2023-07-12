@@ -93,21 +93,25 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		return err
 	}
 
-	for _, dataCentre := range os.Spec.DataCentres {
-		err = dataCentre.ValidateCreation()
+	for _, dc := range os.Spec.DataCentres {
+		err = dc.ValidateCreation()
 		if err != nil {
 			return err
 		}
 
-		err = dataCentre.validateDataNode(os.Spec.DataNodes)
+		err = dc.validateDataNode(os.Spec.DataNodes)
 		if err != nil {
 			return err
 		}
 
-		if ((dataCentre.NodesNumber*dataCentre.ReplicationFactor)/dataCentre.ReplicationFactor)%dataCentre.ReplicationFactor != 0 {
-			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dataCentre.ReplicationFactor)
+		err = validateReplicationFactor(models.OpenSearchReplicationFactors, dc.ReplicationFactor)
+		if err != nil {
+			return err
 		}
 
+		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
+		}
 	}
 
 	appVersions, err := osv.API.ListAppVersions(models.OpenSearchAppKind)

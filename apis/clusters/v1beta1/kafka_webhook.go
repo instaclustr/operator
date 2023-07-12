@@ -106,6 +106,11 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 			}
 		}
 
+		err = validateReplicationFactor(models.KafkaReplicationFactors, k.Spec.ReplicationFactor)
+		if err != nil {
+			return err
+		}
+
 		if ((dc.NodesNumber*k.Spec.ReplicationFactor)/k.Spec.ReplicationFactor)%k.Spec.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", k.Spec.ReplicationFactor)
 		}
