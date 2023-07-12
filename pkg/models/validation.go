@@ -21,7 +21,7 @@ var (
 	KafkaConnectVPCTypes = []string{"KAFKA_VPC", "VPC_PEERED", "SEPARATE_VPC"}
 	PoolModes            = []string{"TRANSACTION", "SESSION", "STATEMENT"}
 	ReplicationModes     = []string{"ASYNCHRONOUS", "SYNCHRONOUS"}
-	CloudProviders       = []string{"AWS_VPC", "GCP", "AZURE", "AZURE_AZ"}
+	CloudProviders       = []string{"AWS_VPC", "GCP", "AZURE_AZ"}
 	SLATiers             = []string{"PRODUCTION", "NON_PRODUCTION"}
 	ClusterNameRegExp    = "^[a-zA-Z0-9][a-zA-Z0-9_-]{2,31}$"
 	BundleTypes          = []string{"APACHE_ZOOKEEPER", "CADENCE", "CADENCE_GRPC",

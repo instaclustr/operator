@@ -61,8 +61,8 @@ type GCPVPCPeeringReconciler struct {
 func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var gcp v1beta1.GCPVPCPeering
-	err := r.Client.Get(ctx, req.NamespacedName, &gcp)
+	gcp := &v1beta1.GCPVPCPeering{}
+	err := r.Client.Get(ctx, req.NamespacedName, gcp)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "GCP VPC Peering resource is not found", "request", req)
@@ -74,13 +74,13 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	switch gcp.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, &gcp, l), nil
+		return r.handleCreateCluster(ctx, gcp, l), nil
 
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &gcp, l), nil
+		return r.handleUpdateCluster(ctx, gcp, l), nil
 
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, &gcp, l), nil
+		return r.handleDeleteCluster(ctx, gcp, l), nil
 	default:
 		l.Info("Event isn't handled",
 			"project ID", gcp.Spec.PeerProjectID,
@@ -199,22 +199,6 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
-	patch := gcp.NewPatch()
-	err := r.Patch(ctx, gcp, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch GCP VPC Peering resource metadata",
-			"project ID", gcp.Spec.PeerProjectID,
-			"network name", gcp.Spec.PeerVPCNetworkName,
-			"metadata", gcp.ObjectMeta,
-		)
-		r.EventRecorder.Eventf(
-			gcp, models.Warning, models.PatchFailed,
-			"Resource patch is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
 	status, err := r.API.GetPeeringStatus(gcp.Status.ID, instaclustr.GCPPeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -234,7 +218,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	if status != nil {
 		err = r.API.DeletePeering(gcp.Status.ID, instaclustr.GCPPeeringEndpoint)
 		if err != nil {
-			l.Error(err, "Cannot update GCP VPC Peering resource statuss",
+			l.Error(err, "Cannot update GCP VPC Peering resource status",
 				"id", gcp.Status.ID,
 				"project ID", gcp.Spec.PeerProjectID,
 				"network ame", gcp.Spec.PeerVPCNetworkName,
@@ -253,6 +237,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 		)
 	}
 
+	patch := gcp.NewPatch()
 	r.Scheduler.RemoveJob(gcp.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(gcp, models.DeletionFinalizer)
 	gcp.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
