@@ -126,6 +126,11 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 			return err
 		}
 
+		err = validateReplicationFactor(models.KafkaConnectReplicationFactors, dc.ReplicationFactor)
+		if err != nil {
+			return err
+		}
+
 		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
 		}

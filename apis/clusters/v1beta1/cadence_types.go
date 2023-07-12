@@ -660,6 +660,11 @@ func (b *BundledKafkaSpec) validate() error {
 		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", b.Network, err)
 	}
 
+	err = validateReplicationFactor(models.KafkaReplicationFactors, b.ReplicationFactor)
+	if err != nil {
+		return err
+	}
+
 	if ((b.NodesNumber*b.ReplicationFactor)/b.ReplicationFactor)%b.ReplicationFactor != 0 {
 		return fmt.Errorf("kafka: number of nodes must be a multiple of replication factor: %v", b.ReplicationFactor)
 	}
@@ -673,6 +678,11 @@ func (c *BundledCassandraSpec) validate() error {
 		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", c.Network, err)
 	}
 
+	err = validateReplicationFactor(models.CassandraReplicationFactors, c.ReplicationFactor)
+	if err != nil {
+		return err
+	}
+
 	if ((c.NodesNumber*c.ReplicationFactor)/c.ReplicationFactor)%c.ReplicationFactor != 0 {
 		return fmt.Errorf("cassandra: number of nodes must be a multiple of replication factor: %v", c.ReplicationFactor)
 	}
@@ -684,6 +694,15 @@ func (o *BundledOpenSearchSpec) validate() error {
 	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(o.Network))
 	if !networkMatched || err != nil {
 		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", o.Network, err)
+	}
+
+	err = validateReplicationFactor(models.OpenSearchReplicationFactors, o.ReplicationFactor)
+	if err != nil {
+		return err
+	}
+
+	if ((o.NodesPerReplicationFactor*o.ReplicationFactor)/o.ReplicationFactor)%o.ReplicationFactor != 0 {
+		return fmt.Errorf("openSearch: number of nodes must be a multiple of replication factor: %v", o.ReplicationFactor)
 	}
 
 	return nil

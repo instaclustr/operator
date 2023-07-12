@@ -109,6 +109,22 @@ func (cps *CloudProviderSettings) ValidateCreation() error {
 	return nil
 }
 
+func validateReplicationFactor(availableReplicationFactors []int, rf int) error {
+	if rf <= 0 || rf > 300 {
+		return fmt.Errorf("replication factor must be a multiple of %v, up to a maximum value of 300",
+			availableReplicationFactors)
+	}
+
+	for _, availableRf := range availableReplicationFactors {
+		if availableRf == rf {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("replication factor must be a multiple of %v, up to a maximum value of 300",
+		availableReplicationFactors)
+}
+
 func validateAppVersion(
 	versions []*models.AppVersions,
 	appType string,
