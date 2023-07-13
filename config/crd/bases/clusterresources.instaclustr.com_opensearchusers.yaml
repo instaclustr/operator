@@ -51,13 +51,10 @@ spec:
           status:
             description: OpenSearchUserStatus defines the observed state of OpenSearchUser
             properties:
-              clusterId:
-                type: string
-              state:
-                type: string
-            required:
-            - clusterId
-            - state
+              clustersEvents:
+                additionalProperties:
+                  type: string
+                type: object
             type: object
         type: object
     served: true

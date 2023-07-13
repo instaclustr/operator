@@ -30,8 +30,7 @@ type OpenSearchUserSpec struct {
 
 // OpenSearchUserStatus defines the observed state of OpenSearchUser
 type OpenSearchUserStatus struct {
-	State     string `json:"state"`
-	ClusterID string `json:"clusterId"`
+	ClustersEvents map[string]string `json:"clustersEvents,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -68,6 +67,10 @@ func (u *OpenSearchUser) ToInstaAPI(username, password string) *models.InstaOpen
 func (u *OpenSearchUser) NewPatch() client.Patch {
 	old := u.DeepCopy()
 	return client.MergeFrom(old)
+}
+
+func (u *OpenSearchUser) GetDeletionFinalizer() string {
+	return models.DeletionFinalizer + "_" + u.Namespace + "_" + u.Name
 }
 
 func init() {
