@@ -56,8 +56,14 @@ type OpenSearchSpec struct {
 }
 
 type OpenSearchDataCentre struct {
-	DataCentre  `json:",inline"`
-	PrivateLink bool `json:"privateLink,omitempty"`
+	PrivateLink           bool                     `json:"privateLink,omitempty"`
+	Name                  string                   `json:"name,omitempty"`
+	Region                string                   `json:"region"`
+	CloudProvider         string                   `json:"cloudProvider"`
+	ProviderAccountName   string                   `json:"accountName,omitempty"`
+	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
+	Network               string                   `json:"network"`
+	Tags                  map[string]string        `json:"tags,omitempty"`
 
 	// ReplicationFactor is a number of racks to use when allocating data nodes.
 	ReplicationFactor int `json:"replicationFactor"`
@@ -107,10 +113,59 @@ func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 
 func (oss *OpenSearchSpec) dcsToInstAPI() (iDCs []*models.OpenSearchDataCentre) {
 	for _, dc := range oss.DataCentres {
+		providerSettings := cloudProviderSettingsToInstAPI(dc)
+
 		iDCs = append(iDCs, &models.OpenSearchDataCentre{
-			DataCentre:    dc.DataCentre.ToInstAPI(),
+			DataCentre: models.DataCentre{
+				Name:                dc.Name,
+				Network:             dc.Network,
+				AWSSettings:         providerSettings.AWSSettings,
+				GCPSettings:         providerSettings.GCPSettings,
+				AzureSettings:       providerSettings.AzureSettings,
+				Tags:                tagsToInstAPI(dc.Tags),
+				CloudProvider:       dc.CloudProvider,
+				Region:              dc.Region,
+				ProviderAccountName: dc.ProviderAccountName,
+			},
 			PrivateLink:   dc.PrivateLink,
 			NumberOfRacks: dc.ReplicationFactor,
+		})
+	}
+
+	return
+}
+
+func cloudProviderSettingsToInstAPI(dc *OpenSearchDataCentre) *models.CloudProviderSettings {
+	iSettings := &models.CloudProviderSettings{}
+	switch dc.CloudProvider {
+	case models.AWSVPC:
+		awsSettings := []*models.AWSSetting{}
+		for _, providerSettings := range dc.CloudProviderSettings {
+			awsSettings = append(awsSettings, providerSettings.AWSToInstAPI())
+		}
+		iSettings.AWSSettings = awsSettings
+	case models.AZUREAZ:
+		azureSettings := []*models.AzureSetting{}
+		for _, providerSettings := range dc.CloudProviderSettings {
+			azureSettings = append(azureSettings, providerSettings.AzureToInstAPI())
+		}
+		iSettings.AzureSettings = azureSettings
+	case models.GCP:
+		gcpSettings := []*models.GCPSetting{}
+		for _, providerSettings := range dc.CloudProviderSettings {
+			gcpSettings = append(gcpSettings, providerSettings.GCPToInstAPI())
+		}
+		iSettings.GCPSettings = gcpSettings
+	}
+
+	return iSettings
+}
+
+func tagsToInstAPI(k8sTags map[string]string) (iTags []*models.Tag) {
+	for key, value := range k8sTags {
+		iTags = append(iTags, &models.Tag{
+			Key:   key,
+			Value: value,
 		})
 	}
 
@@ -197,12 +252,51 @@ func (oss *OpenSearchSpec) FromInstAPI(iOpenSearch *models.OpenSearchCluster) Op
 func (oss *OpenSearchSpec) DCsFromInstAPI(iDCs []*models.OpenSearchDataCentre) (dcs []*OpenSearchDataCentre) {
 	for _, iDC := range iDCs {
 		dcs = append(dcs, &OpenSearchDataCentre{
-			DataCentre:        oss.Cluster.DCFromInstAPI(iDC.DataCentre),
-			PrivateLink:       iDC.PrivateLink,
-			ReplicationFactor: iDC.NumberOfRacks,
+			Name:                  iDC.Name,
+			Region:                iDC.Region,
+			CloudProvider:         iDC.CloudProvider,
+			ProviderAccountName:   iDC.ProviderAccountName,
+			CloudProviderSettings: cloudProviderSettingsFromInstAPI(iDC),
+			Network:               iDC.Network,
+			Tags:                  tagsFromInstAPI(iDC.Tags),
+			PrivateLink:           iDC.PrivateLink,
+			ReplicationFactor:     iDC.NumberOfRacks,
 		})
 	}
 
+	return
+}
+
+func tagsFromInstAPI(iTags []*models.Tag) map[string]string {
+	newTags := map[string]string{}
+	for _, iTag := range iTags {
+		newTags[iTag.Key] = iTag.Value
+	}
+	return newTags
+}
+
+func cloudProviderSettingsFromInstAPI(iDC *models.OpenSearchDataCentre) (settings []*CloudProviderSettings) {
+	switch iDC.CloudProvider {
+	case models.AWSVPC:
+		for _, awsSetting := range iDC.AWSSettings {
+			settings = append(settings, &CloudProviderSettings{
+				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
+				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
+			})
+		}
+	case models.GCP:
+		for _, gcpSetting := range iDC.GCPSettings {
+			settings = append(settings, &CloudProviderSettings{
+				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
+			})
+		}
+	case models.AZUREAZ:
+		for _, azureSetting := range iDC.AzureSettings {
+			settings = append(settings, &CloudProviderSettings{
+				ResourceGroup: azureSetting.ResourceGroup,
+			})
+		}
+	}
 	return
 }
 
@@ -283,9 +377,43 @@ func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
 	}
 
 	for i := range b {
-		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
+		if a[i].Name != b[i].Name &&
+			a[i].Region != b[i].Region &&
+			a[i].CloudProvider != b[i].CloudProvider &&
+			a[i].ProviderAccountName != b[i].ProviderAccountName &&
+			areCloudProviderSettingsEqual(a[i].CloudProviderSettings, b[i].CloudProviderSettings) &&
+			a[i].Network != b[i].Network &&
+			areTagsEqual(a[i].Tags, b[i].Tags) &&
 			a[i].PrivateLink != b[i].PrivateLink ||
 			a[i].ReplicationFactor != b[i].ReplicationFactor {
+			return false
+		}
+	}
+
+	return true
+}
+
+func areCloudProviderSettingsEqual(a, b []*CloudProviderSettings) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range b {
+		if *a[i] != *b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func areTagsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for bKey, bValue := range b {
+		if aValue, exists := a[bKey]; !exists || aValue != bValue {
 			return false
 		}
 	}

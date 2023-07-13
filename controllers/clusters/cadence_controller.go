@@ -1028,9 +1028,12 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence, oldestOp
 
 	bundledOpenSearchSpec := cadence.Spec.PackagedProvisioning[0].BundledOpenSearchSpec
 
-	osNodeSize := bundledOpenSearchSpec.NodeSize
+	managerNodes := []*v1beta1.ClusterManagerNodes{{
+		NodeSize:         bundledOpenSearchSpec.NodeSize,
+		DedicatedManager: false,
+	}}
+
 	osReplicationFactor := bundledOpenSearchSpec.ReplicationFactor
-	osNodesNumber := bundledOpenSearchSpec.NodesPerReplicationFactor
 	slaTier := cadence.Spec.SLATier
 	privateClusterNetwork := cadence.Spec.PrivateNetworkCluster
 	pciCompliance := cadence.Spec.PCICompliance
@@ -1061,16 +1064,12 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence, oldestOp
 
 	osDataCentres := []*v1beta1.OpenSearchDataCentre{
 		{
-			DataCentre: v1beta1.DataCentre{
-				Name:                dcName,
-				Region:              dcRegion,
-				CloudProvider:       cloudProvider,
-				ProviderAccountName: providerAccountName,
-				NodeSize:            osNodeSize,
-				NodesNumber:         osNodesNumber,
-				Network:             osNetwork,
-			},
-			ReplicationFactor: osReplicationFactor,
+			Name:                dcName,
+			Region:              dcRegion,
+			CloudProvider:       cloudProvider,
+			ProviderAccountName: providerAccountName,
+			Network:             osNetwork,
+			ReplicationFactor:   osReplicationFactor,
 		},
 	}
 	spec := v1beta1.OpenSearchSpec{
@@ -1082,13 +1081,8 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence, oldestOp
 			TwoFactorDelete:       twoFactorDelete,
 			PCICompliance:         pciCompliance,
 		},
-		ClusterManagerNodes: []*v1beta1.ClusterManagerNodes{
-			{
-				NodeSize:         osNodeSize,
-				DedicatedManager: false,
-			},
-		},
-		DataCentres: osDataCentres,
+		DataCentres:         osDataCentres,
+		ClusterManagerNodes: managerNodes,
 	}
 
 	return &v1beta1.OpenSearch{

@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,7 +53,7 @@ var _ webhook.Defaulter = &OpenSearch{}
 
 func (os *OpenSearch) Default() {
 	for _, dataCentre := range os.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
+		setDefaultValues(dataCentre)
 
 		if dataCentre.Name == "" {
 			dataCentre.Name = dataCentre.Region
@@ -60,6 +61,20 @@ func (os *OpenSearch) Default() {
 	}
 
 	opensearchlog.Info("default values are set", "name", os.Name)
+}
+
+func setDefaultValues(dc *OpenSearchDataCentre) {
+	if dc.ProviderAccountName == "" {
+		dc.ProviderAccountName = models.DefaultAccountName
+	}
+
+	if len(dc.CloudProviderSettings) == 0 {
+		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
+			CustomVirtualNetworkID: "",
+			ResourceGroup:          "",
+			DiskEncryptionKey:      "",
+		})
+	}
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
@@ -94,7 +109,7 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 	}
 
 	for _, dc := range os.Spec.DataCentres {
-		err = dc.ValidateCreation()
+		err = validateCreation(dc)
 		if err != nil {
 			return err
 		}
@@ -108,10 +123,6 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		if err != nil {
 			return err
 		}
-
-		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
-			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
-		}
 	}
 
 	appVersions, err := osv.API.ListAppVersions(models.OpenSearchAppKind)
@@ -123,6 +134,49 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 	err = validateAppVersion(appVersions, models.OpenSearchAppType, os.Spec.Version)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func validateCreation(dc *OpenSearchDataCentre) error {
+	if !validation.Contains(dc.CloudProvider, models.CloudProviders) {
+		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
+			dc.CloudProvider, dc.Name, models.CloudProviders)
+	}
+
+	switch dc.CloudProvider {
+	case "AWS_VPC":
+		if !validation.Contains(dc.Region, models.AWSRegions) {
+			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
+				dc.Region, models.AWSRegions)
+		}
+	case "AZURE_AZ":
+		if !validation.Contains(dc.Region, models.AzureRegions) {
+			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
+				dc.Region, models.AzureRegions)
+		}
+	case "GCP":
+		if !validation.Contains(dc.Region, models.GCPRegions) {
+			return fmt.Errorf("GCP Region: %s is unavailable, available regions: %v",
+				dc.Region, models.GCPRegions)
+		}
+	}
+
+	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
+	if !networkMatched || err != nil {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", dc.Network, err)
+	}
+
+	if len(dc.CloudProviderSettings) > 1 {
+		return fmt.Errorf("cloud provider settings should not have more than 1 item")
+	}
+
+	for _, cp := range dc.CloudProviderSettings {
+		err := cp.ValidateCreation()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -262,6 +316,10 @@ func (oss *OpenSearchSpec) validateUpdate(oldSpec OpenSearchSpec) error {
 	if err != nil {
 		return err
 	}
+	err = validateDataNode(oss.DataNodes, oldSpec.DataNodes)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -282,15 +340,7 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSear
 					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 				}
 
-				if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
-					return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
-				}
-
-				if newDC.NodesNumber < oldDC.NodesNumber {
-					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
-				}
-
-				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				err := validateImmutableCloudProviderSettingsUpdate(newDC.CloudProviderSettings, oldDC.CloudProviderSettings)
 				if err != nil {
 					return err
 				}
@@ -315,6 +365,30 @@ func (dc *OpenSearchDataCentre) validateDataNode(nodes []*OpenSearchDataNodes) e
 	for _, node := range nodes {
 		if node.NodesNumber%dc.ReplicationFactor != 0 {
 			return fmt.Errorf("number of data nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
+		}
+	}
+
+	return nil
+}
+
+func validateImmutableCloudProviderSettingsUpdate(newSettings, oldSettings []*CloudProviderSettings) error {
+	if len(oldSettings) != len(newSettings) {
+		return models.ErrImmutableCloudProviderSettings
+	}
+
+	for i := range newSettings {
+		if *newSettings[i] != *oldSettings[i] {
+			return models.ErrImmutableCloudProviderSettings
+		}
+	}
+
+	return nil
+}
+
+func validateDataNode(newNodes, oldNodes []*OpenSearchDataNodes) error {
+	for i := range oldNodes {
+		if oldNodes[i].NodesNumber > newNodes[i].NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldNodes[i].NodesNumber)
 		}
 	}
 

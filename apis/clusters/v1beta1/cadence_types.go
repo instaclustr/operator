@@ -55,10 +55,9 @@ type BundledKafkaSpec struct {
 }
 
 type BundledOpenSearchSpec struct {
-	NodeSize                  string `json:"nodeSize"`
-	ReplicationFactor         int    `json:"replicationFactor"`
-	NodesPerReplicationFactor int    `json:"nodesPerReplicationFactor"`
-	Network                   string `json:"network"`
+	NodeSize          string `json:"nodeSize"`
+	ReplicationFactor int    `json:"replicationFactor"`
+	Network           string `json:"network"`
 }
 
 // CadenceSpec defines the desired state of Cadence
@@ -699,10 +698,6 @@ func (o *BundledOpenSearchSpec) validate() error {
 	err = validateReplicationFactor(models.OpenSearchReplicationFactors, o.ReplicationFactor)
 	if err != nil {
 		return err
-	}
-
-	if ((o.NodesPerReplicationFactor*o.ReplicationFactor)/o.ReplicationFactor)%o.ReplicationFactor != 0 {
-		return fmt.Errorf("openSearch: number of nodes must be a multiple of replication factor: %v", o.ReplicationFactor)
 	}
 
 	return nil

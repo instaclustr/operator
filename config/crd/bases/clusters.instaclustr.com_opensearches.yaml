@@ -91,10 +91,6 @@ spec:
                       type: string
                     network:
                       type: string
-                    nodeSize:
-                      type: string
-                    nodesNumber:
-                      type: integer
                     privateLink:
                       type: boolean
                     region:
@@ -110,8 +106,6 @@ spec:
                   required:
                   - cloudProvider
                   - network
-                  - nodeSize
-                  - nodesNumber
                   - region
                   - replicationFactor
                   type: object
