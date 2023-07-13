@@ -4,7 +4,7 @@ replicaCount: 1
 image:
   repository: icoperator/instaclustr-operator
   pullPolicy: IfNotPresent
-  tag: v0.0.6
+  tag: v0.1.0
 
 port: 8080
 
@@ -364,7 +364,6 @@ rbac:
       resources:
         - opensearchusers/finalizers
       verbs:
-        - patch
         - update
     - apiGroups:
         - clusterresources.instaclustr.com
