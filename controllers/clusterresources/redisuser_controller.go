@@ -153,7 +153,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				}
 			}
 
-			controllerutil.AddFinalizer(user, models.DeletionUserFinalizer+clusterID)
+			controllerutil.AddFinalizer(user, user.DeletionUserFinalizer(clusterID, username))
 			err = r.Patch(ctx, user, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cassandra user resource",
@@ -171,7 +171,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if event == models.DeletingEvent {
 			patch := user.NewPatch()
 
-			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
+			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, user.Namespace)
 			err = r.API.DeleteRedisUser(userID)
 			if err != nil {
 				l.Error(err, "Cannot delete Redis user", "user", user.Name)
@@ -198,7 +198,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				return models.ReconcileRequeue, nil
 			}
 
-			controllerutil.RemoveFinalizer(user, models.DeletionUserFinalizer+clusterID)
+			controllerutil.RemoveFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
 			err = r.Patch(ctx, user, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cassandra user resource",
@@ -213,35 +213,35 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			continue
 		}
 
-		if event == models.UpdatingEvent {
-			user.Status.ID = clusterID
-			err = r.API.UpdateRedisUser(user.ToInstAPIUpdate(password, clusterID))
-			if err != nil {
-				l.Error(err, "Cannot update redis user",
-					"secret name", user.Spec.SecretRef.Name,
-					"secret namespace", user.Spec.SecretRef.Namespace,
-					"username", username,
-					"user ID", user.Status.ID,
-				)
-
-				r.EventRecorder.Eventf(
-					user, models.Warning, models.UpdateFailed,
-					"Resource update on the Instacluter is failed. Reason: %v",
-					err,
-				)
-
-				return models.ReconcileRequeue, nil
-			}
-
-			l.Info("Redis user is updated",
+		userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
+		err = r.API.UpdateRedisUser(user.ToInstAPIUpdate(password, userID))
+		if err != nil {
+			l.Error(err, "Cannot update redis user",
 				"secret name", user.Spec.SecretRef.Name,
 				"secret namespace", user.Spec.SecretRef.Namespace,
 				"username", username,
-				"user ID", user.Status.ID,
+				"cluster ID", clusterID,
+				"user ID", userID,
 			)
 
-			return models.ExitReconcile, nil
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.UpdateFailed,
+				"Resource update on the Instacluter is failed. Reason: %v",
+				err,
+			)
+
+			return models.ReconcileRequeue, nil
 		}
+
+		l.Info("Redis user has been updated",
+			"secret name", user.Spec.SecretRef.Name,
+			"secret namespace", user.Spec.SecretRef.Namespace,
+			"username", username,
+			"cluster ID", clusterID,
+			"user ID", userID,
+		)
+
+		return models.ExitReconcile, nil
 	}
 
 	if user.DeletionTimestamp != nil {

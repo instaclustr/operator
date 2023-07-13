@@ -65,6 +65,10 @@ func (rs *RedisUserSpec) ToInstAPI(password, clusterID, username string) *models
 	}
 }
 
+func (r *RedisUser) DeletionUserFinalizer(clusterID, namespace string) string {
+	return models.DeletionUserFinalizer + clusterID + "_" + namespace
+}
+
 func (r *RedisUser) ToInstAPIUpdate(password, id string) *models.RedisUserUpdate {
 	return &models.RedisUserUpdate{
 		ID:       id,
