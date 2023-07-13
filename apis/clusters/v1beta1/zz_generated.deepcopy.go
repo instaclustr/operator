@@ -1409,10 +1409,16 @@ func (in *OpenSearchSpec) DeepCopyInto(out *OpenSearchSpec) {
 			}
 		}
 	}
-	if in.UserRef != nil {
-		in, out := &in.UserRef, &out.UserRef
-		*out = new(UserReference)
-		**out = **in
+	if in.UserRefs != nil {
+		in, out := &in.UserRefs, &out.UserRefs
+		*out = make([]*UserReference, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(UserReference)
+				**out = **in
+			}
+		}
 	}
 }
 

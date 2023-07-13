@@ -52,7 +52,7 @@ type OpenSearchSpec struct {
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundleUseOnly,omitempty"`
-	UserRef                  *UserReference          `json:"userRef,omitempty"`
+	UserRefs                 []*UserReference        `json:"userRefs,omitempty"`
 }
 
 type OpenSearchDataCentre struct {

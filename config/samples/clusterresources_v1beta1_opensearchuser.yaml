@@ -14,3 +14,20 @@ spec:
   secretRef:
     name: "test-secret-1"
     namespace: "default"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret-2
+data:
+  username: dGVzdC11c2VyLTIK # test-user-2
+  password: VGVzdFBhc3MxMjMhCg== # TestPass123!
+---
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: OpenSearchUser
+metadata:
+  name: test-user-2
+spec:
+  secretRef:
+    name: "test-secret-2"
+    namespace: "default"

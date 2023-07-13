@@ -14,9 +14,11 @@ spec:
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
-#  userRef:
-#    name: "test-user-1"
-#    namespace: "default"
+#  userRefs:
+#    - name: "test-user-1"
+#      namespace: "default"
+#    - name: "test-user-2"
+#      namespace: "default"
   clusterManagerNodes:
     - dedicatedManager: false
       nodeSize: SRH-DEV-t4g.small-5
@@ -34,7 +36,7 @@ spec:
   indexManagementPlugin: true
   knnPlugin: false
   loadBalancer: false
-  name: bohdan-test
+  name: OpenSearch-example
   notificationsPlugin: false
   #  opensearchDashboards:
   #    - nodeSize: SRH-DEV-t4g.small-5

@@ -107,14 +107,15 @@ const (
 )
 
 const (
-	CreatingEvent = "creating"
-	CreatedEvent  = "created"
-	UpdatingEvent = "updating"
-	UpdatedEvent  = "updated"
-	DeletingEvent = "deleting"
-	DeletedEvent  = "deleted"
-	GenericEvent  = "generic"
-	SecretEvent   = "secret"
+	CreatingEvent        = "creating"
+	CreatedEvent         = "created"
+	UpdatingEvent        = "updating"
+	UpdatedEvent         = "updated"
+	DeletingEvent        = "deleting"
+	DeletedEvent         = "deleted"
+	GenericEvent         = "generic"
+	SecretEvent          = "secret"
+	ClusterDeletingEvent = "cluster deleting"
 )
 
 const (

@@ -75,3 +75,7 @@ func getUserCreds(secret *k8sCore.Secret) (username, password string, err error)
 
 	return username[:len(username)-1], password[:len(password)-1], nil
 }
+
+func getDeletionUserFinalizer(clusterID string) string {
+	return models.DeletionUserFinalizer + clusterID
+}
