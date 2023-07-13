@@ -159,14 +159,11 @@ spec:
                           type: string
                         nodeSize:
                           type: string
-                        nodesPerReplicationFactor:
-                          type: integer
                         replicationFactor:
                           type: integer
                       required:
                       - network
                       - nodeSize
-                      - nodesPerReplicationFactor
                       - replicationFactor
                       type: object
                     useAdvancedVisibility:

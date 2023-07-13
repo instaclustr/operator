@@ -35,7 +35,6 @@ spec:
 #      bundledOpenSearchSpec:
 #        nodeSize: "SRH-DEV-t4g.small-5"
 #        replicationFactor: 3
-#        nodesPerReplicationFactor: 3
 #        network: "10.4.0.0/16"
   #  twoFactorDelete:
   #  - email: "rostyslp@netapp.com"
