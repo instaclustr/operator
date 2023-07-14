@@ -27,7 +27,9 @@ import (
 
 type ZookeeperDataCentre struct {
 	DataCentre               `json:",inline"`
-	ClientToServerEncryption bool `json:"clientToServerEncryption"`
+	ClientToServerEncryption bool     `json:"clientToServerEncryption"`
+	EnforceAuthSchemes       []string `json:"enforceAuthSchemes,omitempty"`
+	EnforceAuthEnabled       bool     `json:"enforceAuthEnabled,omitempty"`
 }
 
 // ZookeeperSpec defines the desired state of Zookeeper
@@ -158,6 +160,8 @@ func (zdc *ZookeeperDataCentre) ToInstAPI() *models.ZookeeperDataCentre {
 	return &models.ZookeeperDataCentre{
 		DataCentre:               zdc.DataCentre.ToInstAPI(),
 		ClientToServerEncryption: zdc.ClientToServerEncryption,
+		EnforceAuthSchemes:       zdc.EnforceAuthSchemes,
+		EnforceAuthEnabled:       zdc.EnforceAuthEnabled,
 	}
 }
 

@@ -11,6 +11,7 @@ metadata:
   annotations:
     test.annotation/first: testAnnotation
 spec:
+  name: OpenSearch-example
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
@@ -21,7 +22,7 @@ spec:
 #      namespace: "default"
   clusterManagerNodes:
     - dedicatedManager: false
-      nodeSize: SRH-DEV-t4g.small-5
+      nodeSize: SRH-DEV-t4g.small-30
   dataCentres:
     - cloudProvider: AWS_VPC
       name: AWS_VPC_US_EAST_1
@@ -36,7 +37,6 @@ spec:
   indexManagementPlugin: true
   knnPlugin: false
   loadBalancer: false
-  name: OpenSearch-example
   notificationsPlugin: false
   #  opensearchDashboards:
   #    - nodeSize: SRH-DEV-t4g.small-5

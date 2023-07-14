@@ -3,7 +3,7 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  name: "rostyslp-Kafka"
+  name: "Username-Kafka"
   version: "3.0.2"
   pciCompliance: false
   replicationFactor: 3

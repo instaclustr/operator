@@ -314,7 +314,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 	}
 
 	if !redis.Spec.IsEqual(iRedis.Spec) {
-		err = r.API.UpdateCluster(redis.Status.ID, instaclustr.RedisEndpoint, redis.Spec.DCsToInstAPIUpdate())
+		err = r.API.UpdateRedis(redis.Status.ID, redis.Spec.DCsToInstAPIUpdate())
 		if err != nil {
 			logger.Error(err, "Cannot update Redis cluster data centres",
 				"cluster name", redis.Spec.Name,
@@ -327,12 +327,30 @@ func (r *RedisReconciler) handleUpdateCluster(
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
+
+			patch := redis.NewPatch()
+			redis.Annotations[models.UpdateQueuedAnnotation] = models.True
+			err = r.Patch(ctx, redis, patch)
+			if err != nil {
+				logger.Error(err, "Cannot patch metadata",
+					"cluster name", redis.Spec.Name,
+					"cluster metadata", redis.ObjectMeta,
+				)
+
+				r.EventRecorder.Eventf(
+					redis, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err,
+				)
+				return models.ReconcileRequeue
+			}
 			return models.ReconcileRequeue
 		}
 	}
 
 	patch := redis.NewPatch()
 	redis.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	redis.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, redis, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch Redis cluster after update",
@@ -904,6 +922,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 
 		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			redis.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			redis.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!redis.Spec.IsEqual(iRedis.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
 

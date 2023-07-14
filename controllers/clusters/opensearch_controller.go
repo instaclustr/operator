@@ -283,6 +283,22 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			"reason", instaclustr.ClusterNotRunning,
 		)
 
+		patch := o.NewPatch()
+		o.Annotations[models.UpdateQueuedAnnotation] = models.True
+		err = r.Patch(ctx, o, patch)
+		if err != nil {
+			logger.Error(err, "Cannot patch OpenSearch metadata",
+				"cluster name", o.Spec.Name,
+				"cluster metadata", o.ObjectMeta,
+			)
+
+			r.EventRecorder.Eventf(
+				o, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 		return models.ReconcileRequeue
 	}
 
@@ -300,12 +316,34 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 
 			r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
+
+			patch := o.NewPatch()
+			o.Annotations[models.UpdateQueuedAnnotation] = models.True
+			err = r.Patch(ctx, o, patch)
+			if err != nil {
+				logger.Error(err, "Cannot patch OpenSearch metadata",
+					"cluster name", o.Spec.Name,
+					"cluster metadata", o.ObjectMeta,
+				)
+
+				r.EventRecorder.Eventf(
+					o, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err,
+				)
+				return models.ReconcileRequeue
+			}
 			return models.ReconcileRequeue
 		}
+
+		logger.Info("OpenSearch cluster update request is sent",
+			"cluster name", o.Spec.Name,
+			"cluster ID", o.Status.ID)
 	}
 
 	patch := o.NewPatch()
 	o.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	o.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, o, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch OpenSearch metadata",
@@ -659,6 +697,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 
 		if iO.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			o.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			o.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!o.Spec.IsEqual(iO.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iO.Spec, "k8s resource spec", o.Spec)
 

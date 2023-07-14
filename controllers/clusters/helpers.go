@@ -56,6 +56,7 @@ func areStatusesEqual(a, b *v1beta1.ClusterStatus) bool {
 		a.State != b.State ||
 		a.CDCID != b.CDCID ||
 		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
+		a.CurrentClusterOperationStatus != b.CurrentClusterOperationStatus ||
 		!areDataCentresEqual(a.DataCentres, b.DataCentres) ||
 		!areDataCentreOptionsEqual(a.Options, b.Options) {
 		return false

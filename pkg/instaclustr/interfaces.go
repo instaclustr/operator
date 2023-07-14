@@ -66,6 +66,7 @@ type API interface {
 	CreateNodeReload(nr *clusterresourcesv1beta1.Node) error
 	GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error)
 	GetRedis(id string) ([]byte, error)
+	UpdateRedis(id string, r *models.RedisDataCentreUpdate) error
 	CreateRedisUser(user *models.RedisUser) (string, error)
 	UpdateRedisUser(user *models.RedisUserUpdate) error
 	DeleteRedisUser(id string) error

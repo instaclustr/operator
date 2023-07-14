@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: redis-sample
 spec:
-  name: "testRedis"
+  name: "Username-redis"
   version: "7.0.11"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
@@ -27,8 +27,8 @@ spec:
     - region: "US_WEST_2"
       cloudProvider: "AWS_VPC"
       network: "10.1.0.0/16"
-      #      nodeSize: "t3.medium-80-r"
-      nodeSize: "t3.small-20-r"
+#      nodeSize: "RDS-DEV-t4g.medium-80"
+      nodeSize: "RDS-DEV-t4g.small-20"
       masterNodes: 3
       nodesNumber: 0
 #    - region: "US_WEST_2"
