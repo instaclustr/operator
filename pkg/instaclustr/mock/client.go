@@ -232,6 +232,10 @@ func (c *mockClient) GetRedis(id string) ([]byte, error) {
 	panic("GetRedis: is not implemented")
 }
 
+func (c *mockClient) UpdateRedis(id string, r *models.RedisDataCentreUpdate) error {
+	panic("UpdateRedis: is not implemented")
+}
+
 func (c *mockClient) GetKafka(id string) ([]byte, error) {
 	panic("GetKafka: is not implemented")
 }

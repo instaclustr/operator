@@ -24,6 +24,9 @@ type ApacheZookeeperDataCentreV2 struct {
 	// List of tags to apply to the Data Centre. Tags are metadata labels which  allow you to identify, categorize and filter clusters. This can be useful for grouping together clusters into applications, environments, or any category that you require.
 	Tags []ProviderTagV2 `json:"tags,omitempty"`
 
+	EnforceAuthSchemes []string `json:"enforceAuthSchemes,omitempty"`
+	EnforceAuthEnabled bool     `json:"enforceAuthEnabled"`
+
 	// GCP specific settings for the Data Centre. Cannot be provided with AWS or Azure settings.
 	GcpSettings []ProviderGcpSettingsV2 `json:"gcpSettings,omitempty"`
 

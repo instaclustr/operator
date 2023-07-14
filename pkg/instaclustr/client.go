@@ -177,6 +177,31 @@ func (c *Client) GetRedis(id string) ([]byte, error) {
 	return body, nil
 }
 
+func (c *Client) UpdateRedis(id string, r *models.RedisDataCentreUpdate) error {
+	url := c.serverHostname + RedisEndpoint + id
+	data, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
 func (c *Client) CreateRedisUser(user *models.RedisUser) (string, error) {
 	data, err := json.Marshal(user)
 	if err != nil {
@@ -384,10 +409,6 @@ func (c *Client) UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
-	}
-
-	if resp.StatusCode == http.StatusConflict {
-		return ClusterIsNotReadyToResize
 	}
 
 	if resp.StatusCode != http.StatusAccepted {

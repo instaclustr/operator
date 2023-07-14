@@ -55,6 +55,12 @@ spec:
                             type: string
                         type: object
                       type: array
+                    enforceAuthEnabled:
+                      type: boolean
+                    enforceAuthSchemes:
+                      items:
+                        type: string
+                      type: array
                     name:
                       type: string
                     network:

@@ -2,17 +2,18 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
   name: postgresql-sample
-  annotations:
-    testAnnotation: test
+# TODO https://github.com/instaclustr/operator/issues/472
+#  annotations:
+#    testAnnotation: test
 spec:
-  name: "testPostgre"
+  name: "username-test"
   version: "14.6.0"
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
       cloudProvider: "AWS_VPC"
-      #      nodeSize: "PGS-DEV-t4g.medium-30"
-      nodeSize: "PGS-DEV-t4g.small-5"
+      nodeSize: "PGS-DEV-t4g.medium-30"
+#      nodeSize: "PGS-DEV-t4g.small-5"
       nodesNumber: 2
       clientEncryption: false
       name: "testDC1"

@@ -30,7 +30,7 @@ const (
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	DeletionUserFinalizer     = "instaclustr.com/dependsOnCluster_"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
-	ResizeQueuedAnnotation    = "instaclustr.com/resizeQueued"
+	UpdateQueuedAnnotation    = "instaclustr.com/updateQueued"
 
 	DefaultSecretLabel                = "instaclustr.com/defaultSecret"
 	ControlledByLabel                 = "instaclustr.com/controlledBy"

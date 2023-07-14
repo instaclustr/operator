@@ -336,7 +336,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 			if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
 				patch := cassandra.NewPatch()
-				cassandra.Annotations[models.ResizeQueuedAnnotation] = models.True
+				cassandra.Annotations[models.UpdateQueuedAnnotation] = models.True
 				err = r.Patch(ctx, cassandra, patch)
 				if err != nil {
 					l.Error(err, "Cannot patch cluster resource",
@@ -361,7 +361,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 	patch := cassandra.NewPatch()
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	cassandra.Annotations[models.ResizeQueuedAnnotation] = ""
+	cassandra.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, cassandra, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
@@ -878,7 +878,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 
 		if iCassandra.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			cassandra.Annotations[models.ExternalChangesAnnotation] != models.True &&
-			cassandra.Annotations[models.ResizeQueuedAnnotation] != models.True &&
+			cassandra.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!cassandra.Spec.IsEqual(iCassandra.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
 

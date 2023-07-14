@@ -197,6 +197,21 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
 			"cluster name", k.Spec.Name,
 			"cluster state", iKafka.Status.ClusterStatus.State)
+
+		patch := k.NewPatch()
+		k.Annotations[models.UpdateQueuedAnnotation] = models.True
+		err = r.Patch(ctx, k, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
+
+			r.EventRecorder.Eventf(
+				k, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 		return models.ReconcileRequeue
 	}
 
@@ -218,11 +233,27 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		r.EventRecorder.Eventf(k, models.Warning, models.UpdateFailed,
 			"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
+		patch := k.NewPatch()
+		k.Annotations[models.UpdateQueuedAnnotation] = models.True
+		err = r.Patch(ctx, k, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch cluster resource",
+				"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
+
+			r.EventRecorder.Eventf(
+				k, models.Warning, models.PatchFailed,
+				"Cluster resource patch is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
+
 		return models.ReconcileRequeue
 	}
 
 	patch := k.NewPatch()
 	k.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	k.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, k, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
@@ -452,6 +483,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 
 		if iKafka.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			kafka.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			kafka.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!kafka.Spec.IsEqual(iKafka.Spec) {
 
 			patch := kafka.NewPatch()

@@ -205,12 +205,29 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
+
+			patch := kc.NewPatch()
+			kc.Annotations[models.UpdateQueuedAnnotation] = models.True
+			kc.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+			err = r.Patch(ctx, kc, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch cluster resource",
+					"cluster name", kc.Spec.Name, "cluster ID", kc.Status.ID)
+
+				r.EventRecorder.Eventf(
+					kc, models.Warning, models.PatchFailed,
+					"Cluster resource patch is failed. Reason: %v",
+					err,
+				)
+				return models.ReconcileRequeue
+			}
 			return models.ReconcileRequeue
 		}
 	}
 
 	patch := kc.NewPatch()
 	kc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	kc.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, kc, patch)
 	if err != nil {
 		l.Error(err, "Unable to patch Kafka Connect cluster",
@@ -495,6 +512,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 
 		if iKC.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			kc.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			kc.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!kc.Spec.IsEqual(iKC.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iKC.Spec, "k8s resource spec", kc.Spec)
 

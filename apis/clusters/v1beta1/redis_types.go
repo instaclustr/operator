@@ -120,6 +120,7 @@ func (r *Redis) GetJobID(jobName string) string {
 
 func (r *Redis) NewPatch() client.Patch {
 	old := r.DeepCopy()
+	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 
