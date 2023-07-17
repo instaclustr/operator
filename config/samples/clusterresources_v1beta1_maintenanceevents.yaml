@@ -3,7 +3,7 @@ kind: MaintenanceEvents
 metadata:
   name: maintenanceevents-sample
 spec:
-  clusterId: "917062a6-a449-4527-a3aa-e3904b04b39f"
+  clusterId: "2ae611cf-ac91-4325-941c-a35c043f9c34"
   exclusionWindows:
     - dayOfWeek: "MONDAY"
       startHour: 1

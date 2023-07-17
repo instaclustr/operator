@@ -193,7 +193,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	r.EventRecorder.Eventf(
 		me, models.Normal, models.Created,
-		"Cluster backups check job is started",
+		"Cluster maintenance events check job is started",
 	)
 
 	l.Info("Maintenance Event resource was reconciled",

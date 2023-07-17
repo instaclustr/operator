@@ -3,5 +3,5 @@ kind: ClusterBackup
 metadata:
   name: clusterbackup-sample
 spec:
-  clusterId: b3eb2b51-1b89-45a1-906d-10cf340c7bd7
+  clusterId: 2ae611cf-ac91-4325-941c-a35c043f9c34
   clusterKind: PostgreSQl

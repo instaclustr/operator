@@ -122,7 +122,6 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	if r.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
-
 	oldRedis, ok := old.(*Redis)
 	if !ok {
 		return models.ErrTypeAssertion
