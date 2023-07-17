@@ -308,24 +308,30 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 		return models.ErrDecreasedDataCentresNumber
 	}
 
-	for i, oldDC := range oldSpec.DataCentres {
-		newDC := oldSpec.DataCentres[i]
-		newDCImmutableFields := newDC.newImmutableFields()
-		oldDCImmutableFields := oldDC.newImmutableFields()
+	for _, newDC := range rs.DataCentres {
+		for _, oldDC := range oldSpec.DataCentres {
+			if newDC.Name == oldDC.Name {
+				newDCImmutableFields := newDC.newImmutableFields()
+				oldDCImmutableFields := oldDC.newImmutableFields()
 
-		if *newDCImmutableFields != *oldDCImmutableFields {
-			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				if *newDCImmutableFields != *oldDCImmutableFields {
+					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
+
+				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				if err != nil {
+					return err
+				}
+
+				if newDC.MasterNodes < oldDC.MasterNodes {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+
+				if newDC.NodesNumber < oldDC.NodesNumber {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+			}
 		}
-
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
-		if err != nil {
-			return err
-		}
-
-		if newDC.NodesNumber < oldDC.NodesNumber {
-			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
-		}
-
 	}
 
 	for i := len(oldSpec.DataCentres); i < len(rs.DataCentres); i++ {
