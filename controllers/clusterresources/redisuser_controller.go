@@ -139,28 +139,28 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"User has been created for a Redis cluster. Cluster ID: %s, username: %s",
 				clusterID, username)
 
-			finalizerNeeded := controllerutil.AddFinalizer(secret, models.DeletionFinalizer)
+			finalizerNeeded := controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer())
 			if finalizerNeeded {
 				err = r.Update(ctx, secret)
 				if err != nil {
-					l.Error(err, "Cannot update Cassandra user secret",
+					l.Error(err, "Cannot update Redis user secret with deletion finalizer",
 						"secret name", secret.Name,
 						"secret namespace", secret.Namespace)
 					r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
-						"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
+						"Cannot assign k8s secret to a Redis user. Reason: %v", err)
 
 					return models.ReconcileRequeue, nil
 				}
 			}
 
-			controllerutil.AddFinalizer(user, user.DeletionUserFinalizer(clusterID, username))
+			controllerutil.AddFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
 			err = r.Patch(ctx, user, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Cassandra user resource",
+				l.Error(err, "Cannot patch Redis user resource with deletion finalizer",
 					"secret name", secret.Name,
 					"secret namespace", secret.Namespace)
 				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v", err)
+					"Resource patch with deletion user finalizer is failed. Reason: %v", err)
 
 				return models.ReconcileRequeue, nil
 			}
@@ -174,9 +174,9 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, user.Namespace)
 			err = r.API.DeleteRedisUser(userID)
 			if err != nil {
-				l.Error(err, "Cannot delete Redis user", "user", user.Name)
+				l.Error(err, "Cannot delete Redis user from the cluster. Cluster ID: %s.", "user", clusterID, user.Name)
 				r.EventRecorder.Eventf(user, models.Warning, models.DeletingEvent,
-					"Cannot delete user. Reason: %v", err)
+					"Cannot delete Redis user from the cluster. Cluster ID: %s. Reason: %v", clusterID, err)
 
 				return models.ReconcileRequeue, nil
 			}
@@ -201,7 +201,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			controllerutil.RemoveFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
 			err = r.Patch(ctx, user, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Cassandra user resource",
+				l.Error(err, "Cannot patch Redis user resource",
 					"secret name", secret.Name,
 					"secret namespace", secret.Namespace)
 				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
@@ -213,10 +213,23 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			continue
 		}
 
+		if event == models.ClusterDeletingEvent {
+			err = r.detachUserFromDeletedCluster(ctx, clusterID, user, l)
+			if err != nil {
+				l.Error(err, "Cannot detach Redis user resource",
+					"secret name", secret.Name,
+					"secret namespace", secret.Namespace)
+				r.EventRecorder.Eventf(user, models.Warning, models.DeletionFailed,
+					"Resource detach is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+		}
+
 		userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
 		err = r.API.UpdateRedisUser(user.ToInstAPIUpdate(password, userID))
 		if err != nil {
-			l.Error(err, "Cannot update redis user",
+			l.Error(err, "Cannot update redis user password",
 				"secret name", user.Spec.SecretRef.Name,
 				"secret namespace", user.Spec.SecretRef.Namespace,
 				"username", username,
@@ -254,6 +267,55 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return models.ExitReconcile, nil
 }
 
+func (r *RedisUserReconciler) detachUserFromDeletedCluster(
+	ctx context.Context,
+	clusterID string,
+	user *v1beta1.RedisUser,
+	logger logr.Logger,
+) error {
+
+	patch := user.NewPatch()
+	delete(user.Status.ClustersEvents, clusterID)
+
+	err := r.Status().Patch(ctx, user, patch)
+	if err != nil {
+		logger.Error(err, "Cannot detach clusterID from the Redis user resource",
+			"cluster ID", clusterID,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.PatchFailed,
+			"Detaching clusterID from the Redis user resource has been failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	controllerutil.RemoveFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
+
+	err = r.Patch(ctx, user, patch)
+	if err != nil {
+		logger.Error(err, "Cannot delete finalizer from the Redis user resource",
+			"cluster ID", clusterID,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.PatchFailed,
+			"Deleting finalizer from the Redis user resource has been failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	logger.Info("Redis user has been deleted from the cluster",
+		"cluster ID", clusterID,
+	)
+	r.EventRecorder.Eventf(
+		user, models.Normal, models.Deleted,
+		"Redis user resource has been deleted from the cluster (clusterID: %v)", clusterID,
+	)
+
+	return err
+}
+
 func (r *RedisUserReconciler) handleDeleteUser(
 	ctx context.Context,
 	l logr.Logger,
@@ -280,7 +342,7 @@ func (r *RedisUserReconciler) handleDeleteUser(
 		}
 	}
 
-	controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
+	controllerutil.RemoveFinalizer(s, u.GetDeletionFinalizer())
 	err = r.Update(ctx, s)
 	if err != nil {
 		l.Error(err, "Cannot remove finalizer from secret", "secret name", s.Name)

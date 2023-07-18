@@ -461,6 +461,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 	redis *v1beta1.Redis,
 	logger logr.Logger,
 ) reconcile.Result {
+
 	_, err := r.API.GetRedis(redis.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "Cannot get Redis cluster status from Instaclustr",
@@ -474,6 +475,23 @@ func (r *RedisReconciler) handleDeleteCluster(
 			err,
 		)
 		return models.ReconcileRequeue
+	}
+
+	for _, ref := range redis.Spec.UserRefs {
+		err = r.detachUserResource(ctx, logger, redis, ref)
+		if err != nil {
+			logger.Error(err, "Cannot detach Redis user",
+				"cluster name", redis.Spec.Name,
+				"cluster status", redis.Status.State,
+			)
+
+			r.EventRecorder.Eventf(
+				redis, models.Warning, models.DeletionFailed,
+				"Cluster detaching on the Instaclustr is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 	}
 
 	if !errors.Is(err, instaclustr.NotFound) {
@@ -594,6 +612,52 @@ func (r *RedisReconciler) handleDeleteCluster(
 	)
 
 	return models.ExitReconcile
+}
+
+func (r *RedisReconciler) detachUserResource(
+	ctx context.Context,
+	l logr.Logger,
+	redis *v1beta1.Redis,
+	uRef *v1beta1.UserReference,
+) error {
+	req := types.NamespacedName{
+		Namespace: uRef.Namespace,
+		Name:      uRef.Name,
+	}
+
+	u := &clusterresourcesv1beta1.RedisUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Error(err, "Redis user is not found", "request", req)
+			r.EventRecorder.Eventf(redis, models.Warning, models.NotFound,
+				"User resource is not found, please provide correct userRef."+
+					"Current provided reference: %v", uRef)
+			return err
+		}
+
+		l.Error(err, "Cannot get Redis user", "user", u.Spec)
+		r.EventRecorder.Eventf(redis, models.Warning, models.DeletionFailed,
+			"Cannot get Redis user. User reference: %v", uRef)
+		return err
+	}
+
+	if _, exist := u.Status.ClustersEvents[redis.Status.ID]; !exist {
+		return nil
+	}
+
+	patch := u.NewPatch()
+	u.Status.ClustersEvents[redis.Status.ID] = models.ClusterDeletingEvent
+	err = r.Status().Patch(ctx, u, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch the Redis user status with the ClusterDeletingEvent",
+			"cluster name", redis.Spec.Name, "cluster ID", redis.Status.ID)
+		r.EventRecorder.Eventf(redis, models.Warning, models.DeletionFailed,
+			"Cannot patch the Redis user status with the ClusterDeletingEvent. Reason: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (r *RedisReconciler) handleUserEvent(

@@ -30,7 +30,7 @@ spec:
       #      nodeSize: "t3.medium-80-r"
       nodeSize: "t3.small-20-r"
       masterNodes: 3
-      nodesNumber: 3
+      nodesNumber: 0
 #    - region: "US_WEST_2"
 #      name: "testDC2"
 #      cloudProvider: "AWS_VPC"
