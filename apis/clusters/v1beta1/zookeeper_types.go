@@ -126,6 +126,8 @@ func (zs *ZookeeperSpec) DCsFromInstAPI(iDCs []*models.ZookeeperDataCentre) (dcs
 		dcs = append(dcs, &ZookeeperDataCentre{
 			DataCentre:               zs.Cluster.DCFromInstAPI(iDC.DataCentre),
 			ClientToServerEncryption: iDC.ClientToServerEncryption,
+			EnforceAuthSchemes:       iDC.EnforceAuthSchemes,
+			EnforceAuthEnabled:       iDC.EnforceAuthEnabled,
 		})
 	}
 	return

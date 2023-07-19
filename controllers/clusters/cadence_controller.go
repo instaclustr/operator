@@ -353,46 +353,41 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 }
 
 func (r *CadenceReconciler) handleExternalChanges(cadence, iCadence *v1beta1.Cadence, l logr.Logger) reconcile.Result {
-	if cadence.Annotations[models.AllowSpecAmendAnnotation] != models.True {
-		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
-			"specification of k8s resource", cadence.Spec,
-			"data from Instaclustr ", iCadence.Spec)
+	if !cadence.Spec.AreDCsEqual(iCadence.Spec.DataCentres) {
+		l.Info(msgExternalChanges,
+			"instaclustr data", iCadence.Spec.DataCentres,
+			"k8s resource spec", cadence.Spec.DataCentres)
 
-		r.EventRecorder.Event(cadence, models.Warning, models.UpdateFailed,
-			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
-
-		return models.ExitReconcile
-	} else {
-		if !cadence.Spec.IsEqual(iCadence.Spec) {
-			l.Info(msgSpecStillNoMatch,
-				"specification of k8s resource", cadence.Spec,
-				"data from Instaclustr ", iCadence.Spec)
-			r.EventRecorder.Event(cadence, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
-
+		msgDiffSpecs, err := createSpecDifferenceMessage(cadence.Spec.DataCentres, iCadence.Spec.DataCentres)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", iCadence.Spec, "k8s resource spec", cadence.Spec)
 			return models.ExitReconcile
 		}
-
-		patch := cadence.NewPatch()
-
-		cadence.Annotations[models.ExternalChangesAnnotation] = ""
-		cadence.Annotations[models.AllowSpecAmendAnnotation] = ""
-
-		err := r.Patch(context.Background(), cadence, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", cadence.Spec.Name, "cluster ID", cadence.Status.ID)
-
-			r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		l.Info("External changes have been reconciled", "resource ID", cadence.Status.ID)
-		r.EventRecorder.Event(cadence, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+		r.EventRecorder.Eventf(cadence, models.Warning, models.ExternalChanges, msgDiffSpecs)
 
 		return models.ExitReconcile
 	}
+
+	patch := cadence.NewPatch()
+
+	cadence.Annotations[models.ExternalChangesAnnotation] = ""
+
+	err := r.Patch(context.Background(), cadence, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", cadence.Spec.Name, "cluster ID", cadence.Status.ID)
+
+		r.EventRecorder.Eventf(cadence, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return models.ReconcileRequeue
+	}
+
+	l.Info("External changes have been reconciled", "resource ID", cadence.Status.ID)
+	r.EventRecorder.Event(cadence, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+	return models.ExitReconcile
 }
 
 func (r *CadenceReconciler) HandleDeleteCluster(
@@ -882,10 +877,11 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 		}
 
 		if iCadence.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			cadence.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			cadence.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!cadence.Spec.IsEqual(iCadence.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iCadence.Spec, "k8s resource spec", cadence.Spec)
+			!cadence.Spec.AreDCsEqual(iCadence.Spec.DataCentres) {
+			l.Info(msgExternalChanges,
+				"instaclustr data", iCadence.Spec.DataCentres,
+				"k8s resource spec", cadence.Spec.DataCentres)
 
 			patch := cadence.NewPatch()
 			cadence.Annotations[models.ExternalChangesAnnotation] = models.True
@@ -897,8 +893,13 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 				return err
 			}
 
-			r.EventRecorder.Event(cadence, models.Warning, models.ExternalChanges,
-				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+			msgDiffSpecs, err := createSpecDifferenceMessage(cadence.Spec.DataCentres, iCadence.Spec.DataCentres)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iCadence.Spec, "k8s resource spec", cadence.Spec)
+				return err
+			}
+			r.EventRecorder.Eventf(cadence, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(cadence.Status.ID)

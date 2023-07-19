@@ -51,7 +51,7 @@ type TwoFactorDeleteV1 struct {
 	DeleteVerifyPhone string `json:"deleteVerifyPhone,omitempty"`
 }
 
-type PrivateLink struct {
+type PrivateLinkV1 struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
 
@@ -74,7 +74,7 @@ type DataCentreV1 struct {
 	EncryptionKeyID               string          `json:"encryptionKeyId,omitempty"`
 	NodeCount                     int             `json:"nodeCount,omitempty"`
 	Nodes                         []*NodeStatusV1 `json:"nodes"`
-	PrivateLink                   *PrivateLink    `json:"privateLink,omitempty"`
+	PrivateLink                   *PrivateLinkV1  `json:"privateLink,omitempty"`
 	CDCStatus                     string          `json:"cdcStatus,omitempty"`
 }
 

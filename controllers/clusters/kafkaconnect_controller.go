@@ -250,46 +250,40 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 }
 
 func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
-	if k.Annotations[models.AllowSpecAmendAnnotation] != models.True {
-		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+	if !k.Spec.IsEqual(ik.Spec) {
+		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", k.Spec,
 			"data from Instaclustr ", ik.Spec)
 
-		r.EventRecorder.Event(k, models.Warning, models.UpdateFailed,
-			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
-
-		return models.ExitReconcile
-	} else {
-		if !k.Spec.IsEqual(ik.Spec) {
-			l.Info(msgSpecStillNoMatch,
-				"specification of k8s resource", k.Spec,
-				"data from Instaclustr ", ik.Spec)
-			r.EventRecorder.Event(k, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
-
+		msgDiffSpecs, err := createSpecDifferenceMessage(k.Spec, ik.Spec)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", ik.Spec, "k8s resource spec", k.Spec)
 			return models.ExitReconcile
 		}
-
-		patch := k.NewPatch()
-
-		k.Annotations[models.ExternalChangesAnnotation] = ""
-		k.Annotations[models.AllowSpecAmendAnnotation] = ""
-
-		err := r.Patch(context.Background(), k, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
-
-			r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		l.Info("External changes have been reconciled", "resource ID", k.Status.ID)
-		r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
-
+		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		return models.ExitReconcile
 	}
+
+	patch := k.NewPatch()
+
+	k.Annotations[models.ExternalChangesAnnotation] = ""
+
+	err := r.Patch(context.Background(), k, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
+
+		r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return models.ReconcileRequeue
+	}
+
+	l.Info("External changes have been reconciled", "resource ID", k.Status.ID)
+	r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+	return models.ExitReconcile
 }
 
 func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
@@ -511,7 +505,6 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 		}
 
 		if iKC.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			kc.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			kc.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!kc.Spec.IsEqual(iKC.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iKC.Spec, "k8s resource spec", kc.Spec)
@@ -526,8 +519,13 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 				return err
 			}
 
-			r.EventRecorder.Event(kc, models.Warning, models.ExternalChanges,
-				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+			msgDiffSpecs, err := createSpecDifferenceMessage(kc.Spec, iKC.Spec)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iKC.Spec, "k8s resource spec", kc.Spec)
+				return err
+			}
+			r.EventRecorder.Eventf(kc, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(kc.Status.ID)

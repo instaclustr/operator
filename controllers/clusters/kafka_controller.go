@@ -273,8 +273,14 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Log
 		l.Info("The k8s specification is different from Instaclustr Console. Update operations are blocked.",
 			"specification of k8s resource", k.Spec,
 			"data from Instaclustr ", ik.Spec)
-		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgExternalChanges)
 
+		msgDiffSpecs, err := createSpecDifferenceMessage(k.Spec, ik.Spec)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", ik.Spec, "k8s resource spec", k.Spec)
+			return models.ExitReconcile
+		}
+		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		return models.ExitReconcile
 	}
 
@@ -482,7 +488,6 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 		}
 
 		if iKafka.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			kafka.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			kafka.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!kafka.Spec.IsEqual(iKafka.Spec) {
 
@@ -498,7 +503,14 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 
 			l.Info("The k8s specification is different from Instaclustr Console. Update operations are blocked.",
 				"instaclustr data", iKafka.Spec, "k8s resource spec", kafka.Spec)
-			r.EventRecorder.Event(kafka, models.Warning, models.ExternalChanges, msgExternalChanges)
+
+			msgDiffSpecs, err := createSpecDifferenceMessage(kafka.Spec, iKafka.Spec)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iKafka.Spec, "k8s resource spec", kafka.Spec)
+				return err
+			}
+			r.EventRecorder.Eventf(kafka, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)

@@ -17,6 +17,8 @@ limitations under the License.
 package clusters
 
 import (
+	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/hashicorp/go-version"
@@ -156,6 +158,23 @@ func getSortedAppVersions(versions []*models.AppVersions, appType string) []*ver
 	return nil
 }
 
+func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
+	k8sData, err := json.Marshal(k8sSpec)
+	if err != nil {
+		return "", err
+	}
+
+	iData, err := json.Marshal(iSpec)
+	if err != nil {
+		return "", err
+	}
+
+	msg := "There are external changes on the Instaclustr console. Please reconcile the specification manually. "
+	specDifference := fmt.Sprintf("k8s spec: %s; data from instaclustr: %s", k8sData, iData)
+
+	return msg + specDifference, nil
+}
+
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +
 	"If you have canceled a cluster deletion and want to put the cluster on deletion again, " +
 	"remove \"triggered\" from Instaclustr.com/clusterDeletion annotation."
@@ -164,4 +183,4 @@ var msgExternalChanges = "The k8s specification is different from Instaclustr Co
 	"Update operations are blocked. Please check operator logs and edit the cluster spec manually, " +
 	"so that it would corresponds to the data from Instaclustr."
 
-var msgSpecStillNoMatch = "k8s specification still don't match with Instaclustr Console. Double check the difference."
+var msgSpecStillNoMatch = "k8s resource specification still doesn't match with data on the Instaclustr Console. Double check the difference."

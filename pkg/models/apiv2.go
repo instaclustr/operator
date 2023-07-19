@@ -115,3 +115,7 @@ type AppVersions struct {
 	Application string   `json:"application"`
 	Versions    []string `json:"versions"`
 }
+
+type PrivateLink struct {
+	AdvertisedHostname string `json:"advertisedHostname"`
+}
