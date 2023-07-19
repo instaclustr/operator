@@ -205,46 +205,41 @@ func (r *ZookeeperReconciler) handleExternalChanges(zook *v1beta1.Zookeeper, l l
 		return models.ReconcileRequeue
 	}
 
-	if zook.Annotations[models.AllowSpecAmendAnnotation] != models.True {
-		l.Info("k8s resource spec is different from Instaclustr",
+	if !zook.Spec.IsEqual(iZook.Spec) {
+		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", zook.Spec,
 			"data from Instaclustr ", iZook.Spec)
 
-		r.EventRecorder.Event(zook, models.Warning, models.UpdateFailed,
-			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
-
-		return models.ExitReconcile
-	} else {
-		if !zook.Spec.IsEqual(iZook.Spec) {
-			l.Info(msgSpecStillNoMatch,
-				"specification of k8s resource", zook.Spec,
-				"data from Instaclustr ", iZook.Spec)
-			r.EventRecorder.Event(zook, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
-
+		msgDiffSpecs, err := createSpecDifferenceMessage(zook.Spec, iZook.Spec)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", iZook.Spec, "k8s resource spec", zook.Spec)
 			return models.ExitReconcile
 		}
-
-		patch := zook.NewPatch()
-
-		zook.Annotations[models.ExternalChangesAnnotation] = ""
-		zook.Annotations[models.AllowSpecAmendAnnotation] = ""
-
-		err := r.Patch(context.Background(), zook, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", zook.Spec.Name, "cluster ID", zook.Status.ID)
-
-			r.EventRecorder.Eventf(zook, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		l.Info("External changes have been reconciled", "resource ID", zook.Status.ID)
-		r.EventRecorder.Event(zook, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+		r.EventRecorder.Eventf(zook, models.Warning, models.ExternalChanges, msgDiffSpecs)
 
 		return models.ExitReconcile
 	}
+
+	patch := zook.NewPatch()
+
+	zook.Annotations[models.ExternalChangesAnnotation] = ""
+
+	err = r.Patch(context.Background(), zook, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", zook.Spec.Name, "cluster ID", zook.Status.ID)
+
+		r.EventRecorder.Eventf(zook, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return models.ReconcileRequeue
+	}
+
+	l.Info("External changes have been reconciled", "resource ID", zook.Status.ID)
+	r.EventRecorder.Event(zook, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+	return models.ExitReconcile
 }
 
 func (r *ZookeeperReconciler) handleDeleteCluster(
@@ -433,7 +428,6 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 		}
 
 		if iZook.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			zook.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			!zook.Spec.IsEqual(iZook.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iZook.Spec, "k8s resource spec", zook.Spec)
 
@@ -446,8 +440,13 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 				return err
 			}
 
-			r.EventRecorder.Event(zook, models.Warning, models.ExternalChanges,
-				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+			msgDiffSpecs, err := createSpecDifferenceMessage(zook.Spec, iZook.Spec)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iZook.Spec, "k8s resource spec", zook.Spec)
+				return err
+			}
+			r.EventRecorder.Eventf(zook, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(zook.Status.ID)

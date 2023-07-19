@@ -236,7 +236,9 @@ func (pdc *PgDataCentre) PGBouncerToInstAPI() (iPgB []*models.PGBouncer) {
 }
 
 func (pgs *PgSpec) IsEqual(iPG PgSpec) bool {
-	return pgs.Cluster.IsEqual(iPG.Cluster) && pgs.SynchronousModeStrict == iPG.SynchronousModeStrict
+	return pgs.Cluster.IsEqual(iPG.Cluster) &&
+		pgs.SynchronousModeStrict == iPG.SynchronousModeStrict &&
+		pgs.AreDCsEqual(iPG.DataCentres)
 }
 
 func (pgs *PgSpec) AreDCsEqual(iDCs []*PgDataCentre) bool {

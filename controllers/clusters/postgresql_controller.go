@@ -469,46 +469,40 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 }
 
 func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *v1beta1.PostgreSQL, l logr.Logger) reconcile.Result {
-	if pg.Annotations[models.AllowSpecAmendAnnotation] != models.True {
-		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+	if !pg.Spec.IsEqual(iPg.Spec) {
+		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", pg.Spec,
 			"data from Instaclustr ", iPg.Spec)
-
-		r.EventRecorder.Event(pg, models.Warning, models.UpdateFailed,
-			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
-
-		return models.ExitReconcile
-	} else {
-		if !pg.Spec.IsEqual(iPg.Spec) {
-			l.Info(msgSpecStillNoMatch,
-				"specification of k8s resource", pg.Spec,
-				"data from Instaclustr ", iPg.Spec)
-			r.EventRecorder.Event(pg, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
-
+		msgDiffSpecs, err := createSpecDifferenceMessage(pg.Spec, iPg.Spec)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", iPg.Spec, "k8s resource spec", pg.Spec)
 			return models.ExitReconcile
 		}
-
-		patch := pg.NewPatch()
-
-		pg.Annotations[models.ExternalChangesAnnotation] = ""
-		pg.Annotations[models.AllowSpecAmendAnnotation] = ""
-
-		err := r.Patch(context.Background(), pg, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
-
-			r.EventRecorder.Eventf(pg, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		l.Info("External changes have been reconciled", "resource ID", pg.Status.ID)
-		r.EventRecorder.Event(pg, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+		r.EventRecorder.Eventf(pg, models.Warning, models.ExternalChanges, msgDiffSpecs)
 
 		return models.ExitReconcile
 	}
+
+	patch := pg.NewPatch()
+
+	pg.Annotations[models.ExternalChangesAnnotation] = ""
+
+	err := r.Patch(context.Background(), pg, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
+
+		r.EventRecorder.Eventf(pg, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return models.ReconcileRequeue
+	}
+
+	l.Info("External changes have been reconciled", "resource ID", pg.Status.ID)
+	r.EventRecorder.Event(pg, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+	return models.ExitReconcile
 }
 
 func (r *PostgreSQLReconciler) handleDeleteCluster(
@@ -917,7 +911,6 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 		}
 
 		if iPg.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			pg.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			pg.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!pg.Spec.IsEqual(iPg.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iPg.Spec, "k8s resource spec", pg.Spec)
@@ -932,8 +925,13 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 				return err
 			}
 
-			r.EventRecorder.Event(pg, models.Warning, models.ExternalChanges,
-				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+			msgDiffSpecs, err := createSpecDifferenceMessage(pg.Spec, iPg.Spec)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iPg.Spec, "k8s resource spec", pg.Spec)
+				return err
+			}
+			r.EventRecorder.Eventf(pg, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		if !pg.Status.AreMaintenanceEventsEqual(maintEvents) {

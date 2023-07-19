@@ -432,46 +432,40 @@ func (r *RedisReconciler) handleCreateUsers(
 }
 
 func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l logr.Logger) reconcile.Result {
-	if redis.Annotations[models.AllowSpecAmendAnnotation] != models.True {
-		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+	if !redis.Spec.IsEqual(iRedis.Spec) {
+		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", redis.Spec,
 			"data from Instaclustr ", iRedis.Spec)
 
-		r.EventRecorder.Event(redis, models.Warning, models.UpdateFailed,
-			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
-
-		return models.ExitReconcile
-	} else {
-		if !redis.Spec.IsEqual(iRedis.Spec) {
-			l.Info(msgSpecStillNoMatch,
-				"specification of k8s resource", redis.Spec,
-				"data from Instaclustr ", iRedis.Spec)
-			r.EventRecorder.Event(redis, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
-
+		msgDiffSpecs, err := createSpecDifferenceMessage(redis.Spec, iRedis.Spec)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
 			return models.ExitReconcile
 		}
-
-		patch := redis.NewPatch()
-
-		redis.Annotations[models.ExternalChangesAnnotation] = ""
-		redis.Annotations[models.AllowSpecAmendAnnotation] = ""
-
-		err := r.Patch(context.Background(), redis, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", redis.Spec.Name, "cluster ID", redis.Status.ID)
-
-			r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		l.Info("External changes have been reconciled", "resource ID", redis.Status.ID)
-		r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges, "External changes have been reconciled")
-
+		r.EventRecorder.Eventf(redis, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		return models.ExitReconcile
 	}
+
+	patch := redis.NewPatch()
+
+	redis.Annotations[models.ExternalChangesAnnotation] = ""
+
+	err := r.Patch(context.Background(), redis, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", redis.Spec.Name, "cluster ID", redis.Status.ID)
+
+		r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return models.ReconcileRequeue
+	}
+
+	l.Info("External changes have been reconciled", "resource ID", redis.Status.ID)
+	r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+	return models.ExitReconcile
 }
 
 func (r *RedisReconciler) handleDeleteCluster(
@@ -921,7 +915,6 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 		}
 
 		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			redis.Annotations[models.ExternalChangesAnnotation] != models.True &&
 			redis.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!redis.Spec.IsEqual(iRedis.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
@@ -936,8 +929,13 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 				return err
 			}
 
-			r.EventRecorder.Event(redis, models.Warning, models.ExternalChanges,
-				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+			msgDiffSpecs, err := createSpecDifferenceMessage(redis.Spec, iRedis.Spec)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
+				return err
+			}
+			r.EventRecorder.Eventf(redis, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(redis.Status.ID)

@@ -277,6 +277,7 @@ func getSecret(ctx context.Context, k8sClient client.Client, aws *AWSArchival) (
 func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
 	cloudProviderSettings := cdc.CloudProviderSettingsToInstAPI()
 	return &models.CadenceDataCentre{
+		PrivateLink:               cdc.privateLinkToInstAPI(),
 		ClientToClusterEncryption: cdc.ClientEncryption,
 		DataCentre: models.DataCentre{
 			CloudProvider:       cdc.CloudProvider,
@@ -292,6 +293,16 @@ func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
 			Tags:                cdc.TagsToInstAPI(),
 		},
 	}
+}
+
+func (cd *CadenceDataCentre) privateLinkToInstAPI() (iPrivateLink []*models.PrivateLink) {
+	for _, link := range cd.PrivateLink {
+		iPrivateLink = append(iPrivateLink, &models.PrivateLink{
+			AdvertisedHostname: link.AdvertisedHostname,
+		})
+	}
+
+	return
 }
 
 func (cs *CadenceSpec) DCsToInstAPI() (iDCs []*models.CadenceDataCentre) {
@@ -328,16 +339,24 @@ func (cs *CadenceSpec) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*
 		dcs = append(dcs, &CadenceDataCentre{
 			DataCentre:       cs.Cluster.DCFromInstAPI(iDC.DataCentre),
 			ClientEncryption: iDC.ClientToClusterEncryption,
+			PrivateLink:      cs.PrivateLinkFromInstAPI(iDC.PrivateLink),
 		})
 	}
 
 	return
 }
 
+func (cs *CadenceSpec) PrivateLinkFromInstAPI(iPLs []*models.PrivateLink) (pls []*PrivateLink) {
+	for _, iPL := range iPLs {
+		pls = append(pls, &PrivateLink{
+			AdvertisedHostname: iPL.AdvertisedHostname,
+		})
+	}
+	return
+}
+
 func (cs *CadenceSpec) IsEqual(spec CadenceSpec) bool {
-	return cs.Cluster.IsEqual(spec.Cluster) &&
-		cs.AreDCsEqual(spec.DataCentres) &&
-		cs.UseCadenceWebAuth == spec.UseCadenceWebAuth
+	return cs.AreDCsEqual(spec.DataCentres)
 }
 
 func (cs *CadenceSpec) AreDCsEqual(dcs []*CadenceDataCentre) bool {

@@ -392,46 +392,42 @@ func (r *CassandraReconciler) handleUpdateCluster(
 }
 
 func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *v1beta1.Cassandra, l logr.Logger) reconcile.Result {
-	if cassandra.Annotations[models.AllowSpecAmendAnnotation] != models.True {
-		l.Info("Update is blocked until k8s resource specification is equal with Instaclustr",
+	if !cassandra.Spec.IsEqual(iCassandra.Spec) {
+		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", cassandra.Spec,
 			"data from Instaclustr ", iCassandra.Spec)
 
-		r.EventRecorder.Event(cassandra, models.Warning, models.UpdateFailed,
-			"There are external changes on the Instaclustr console. Please reconcile the specification manually")
-
-		return models.ExitReconcile
-	} else {
-		if !cassandra.Spec.IsEqual(iCassandra.Spec) {
-			l.Info(msgSpecStillNoMatch,
-				"specification of k8s resource", cassandra.Spec,
-				"data from Instaclustr ", iCassandra.Spec)
-			r.EventRecorder.Event(cassandra, models.Warning, models.ExternalChanges, msgSpecStillNoMatch)
-
+		msgDiffSpecs, err := createSpecDifferenceMessage(cassandra.Spec, iCassandra.Spec)
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
 			return models.ExitReconcile
 		}
 
-		patch := cassandra.NewPatch()
-
-		cassandra.Annotations[models.ExternalChangesAnnotation] = ""
-		cassandra.Annotations[models.AllowSpecAmendAnnotation] = ""
-
-		err := r.Patch(context.Background(), cassandra, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", cassandra.Spec.Name, "cluster ID", cassandra.Status.ID)
-
-			r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		l.Info("External changes have been reconciled", "resource ID", cassandra.Status.ID)
-		r.EventRecorder.Event(cassandra, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+		r.EventRecorder.Eventf(cassandra, models.Warning, models.ExternalChanges, msgDiffSpecs)
 
 		return models.ExitReconcile
 	}
+
+	patch := cassandra.NewPatch()
+
+	cassandra.Annotations[models.ExternalChangesAnnotation] = ""
+
+	err := r.Patch(context.Background(), cassandra, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", cassandra.Spec.Name, "cluster ID", cassandra.Status.ID)
+
+		r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return models.ReconcileRequeue
+	}
+
+	l.Info("External changes have been reconciled", "resource ID", cassandra.Status.ID)
+	r.EventRecorder.Event(cassandra, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+
+	return models.ExitReconcile
 }
 
 func (r *CassandraReconciler) handleDeleteCluster(
@@ -892,8 +888,14 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				return err
 			}
 
-			r.EventRecorder.Event(cassandra, models.Warning, models.ExternalChanges,
-				"There are external changes on the Instaclustr console. Please reconcile the specification manually")
+			msgDiffSpecs, err := createSpecDifferenceMessage(cassandra.Spec, iCassandra.Spec)
+			if err != nil {
+				l.Error(err, "Cannot create specification difference message",
+					"instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
+				return err
+			}
+
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		maintEvents, err := r.API.GetMaintenanceEvents(cassandra.Status.ID)
