@@ -71,6 +71,8 @@ func main() {
 		"An interval to check cluster status")
 	flag.DurationVar(&scheduler.ClusterBackupsInterval, "cluster-backups-interval", 60*time.Second,
 		"An interval to check cluster backups")
+	flag.DurationVar(&scheduler.UserCreationInterval, "user-creation-interval", 60*time.Second,
+		"An interval to try to create user during cluster creation")
 	opts := zap.Options{
 		Development: true,
 	}
