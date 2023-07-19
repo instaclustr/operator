@@ -227,13 +227,18 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		"cluster name", o.Name, "cluster ID", o.Status.ID,
 		"api version", o.APIVersion, "namespace", o.Namespace)
 
-	for _, ref := range o.Spec.UserRefs {
-		err = r.createUser(ctx, logger, o, ref)
+	if o.Spec.UserRefs != nil {
+		err = r.startUsersCreationJob(o)
 		if err != nil {
-			logger.Error(err, "Cannot create OpenSearch user", "user", ref)
-			r.EventRecorder.Eventf(o, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
+			logger.Error(err, "Failed to start user creation job")
+			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+				"User creation job is failed. Reason: %v", err,
+			)
+			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Event(o, models.Normal, models.Created,
+			"Cluster user creation job is started")
 	}
 
 	return models.ExitReconcile
@@ -516,6 +521,17 @@ func (r *OpenSearchReconciler) startClusterBackupsJob(cluster *v1beta1.OpenSearc
 	return nil
 }
 
+func (r *OpenSearchReconciler) startUsersCreationJob(cluster *v1beta1.OpenSearch) error {
+	job := r.newUsersCreationJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) scheduler.Job {
 	l := log.Log.WithValues("component", "openSearchStatusClusterJob")
 	return func() error {
@@ -785,6 +801,57 @@ func (r *OpenSearchReconciler) newWatchBackupsJob(o *v1beta1.OpenSearch) schedul
 				"backup resource name", backupSpec.Name,
 			)
 		}
+
+		return nil
+	}
+}
+
+func (r *OpenSearchReconciler) newUsersCreationJob(o *v1beta1.OpenSearch) scheduler.Job {
+	logger := log.Log.WithValues("component", "openSearchUsersCreationJob")
+
+	return func() error {
+		ctx := context.Background()
+
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: o.Namespace,
+			Name:      o.Name,
+		}, o)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				logger.Info("OpenSearch cluster resource is not found. Stopping user creation job...")
+				r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
+				return nil
+			}
+			return err
+		}
+
+		if o.Status.State != models.RunningStatus {
+			logger.Info("User creation job is scheduled")
+			r.EventRecorder.Eventf(o, models.Normal, models.CreationFailed,
+				"User creation job is scheduled, cluster is not in the running state",
+			)
+			return nil
+		}
+
+		for _, ref := range o.Spec.UserRefs {
+			err = r.createUser(ctx, logger, o, ref)
+			if err != nil {
+				logger.Error(err, "Failed to create a user for the cluster",
+					"user ref", ref,
+				)
+				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+					"Failed to create a user for the cluster. Reason: %v", err,
+				)
+				return err
+			}
+		}
+
+		r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
+
+		logger.Info("User creation job successfully finished")
+		r.EventRecorder.Eventf(o, models.Normal, models.Created,
+			"User creation job successfully finished",
+		)
 
 		return nil
 	}

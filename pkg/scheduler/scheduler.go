@@ -26,9 +26,11 @@ import (
 
 var ClusterStatusInterval time.Duration
 var ClusterBackupsInterval time.Duration
+var UserCreationInterval time.Duration
 
 const StatusChecker = "statusChecker"
 const BackupsChecker = "backupsChecker"
+const UserCreator = "userCreator"
 
 type Job func() error
 

@@ -272,7 +272,7 @@ func (r *OpenSearchUserReconciler) deleteUser(
 			user, models.Warning, models.DeletingEvent,
 			"Resource deleting has been failed. Reason: %v", err,
 		)
-		return nil
+		return err
 	}
 
 	err = r.API.DeleteUser(username, clusterID, models.OpenSearchAppKind)
@@ -285,7 +285,7 @@ func (r *OpenSearchUserReconciler) deleteUser(
 			"Resource deletion on Instaclustr has been failed. Reason: %v",
 			err,
 		)
-		return nil
+		return err
 	}
 
 	r.EventRecorder.Eventf(
@@ -305,7 +305,7 @@ func (r *OpenSearchUserReconciler) deleteUser(
 			"Deleting clusterID from the OpenSearch user resource has been failed. Reason: %v",
 			err,
 		)
-		return nil
+		return err
 	}
 
 	patch = user.NewPatch()
@@ -320,7 +320,7 @@ func (r *OpenSearchUserReconciler) deleteUser(
 			"Deleting finalizer from the OpenSearch user resource has been failed. Reason: %v",
 			err,
 		)
-		return nil
+		return err
 	}
 
 	logger.Info("OpenSearch user has been deleted from the cluster",
@@ -352,7 +352,7 @@ func (r *OpenSearchUserReconciler) detachUserFromDeletedCluster(
 			"Detaching clusterID from the OpenSearch user resource has been failed. Reason: %v",
 			err,
 		)
-		return nil
+		return err
 	}
 
 	patch = user.NewPatch()
@@ -367,7 +367,7 @@ func (r *OpenSearchUserReconciler) detachUserFromDeletedCluster(
 			"Deleting finalizer from the OpenSearch user resource has been failed. Reason: %v",
 			err,
 		)
-		return nil
+		return err
 	}
 
 	logger.Info("OpenSearch user has been deleted from the cluster",
