@@ -159,6 +159,21 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 		"Cluster status check job is started",
 	)
 
+	err = r.createDefaultSecret(ctx, kc, l)
+	if err != nil {
+		l.Error(err, "Cannot create default secret for Kafka Connect",
+			"cluster name", kc.Spec.Name,
+			"clusterID", kc.Status.ID,
+		)
+		r.EventRecorder.Eventf(
+			kc, models.Warning, models.CreationFailed,
+			"Default user secret creation on the Instaclustr is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	return models.ExitReconcile
 }
 
@@ -384,6 +399,35 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 	)
 
 	return models.ExitReconcile
+}
+
+func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) error {
+	username, password, err := r.API.GetDefaultCredentialsV1(kc.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get default user creds for Kafka Connect cluster from the Instaclustr API",
+			"cluster ID", kc.Status.ID,
+		)
+		r.EventRecorder.Eventf(kc, models.Warning, models.FetchFailed,
+			"Default user password fetch from the Instaclustr API is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
+	secret := kc.NewDefaultUserSecret(username, password)
+	err = r.Create(ctx, secret)
+	if err != nil {
+		l.Error(err, "Cannot create secret with default user credentials",
+			"cluster ID", kc.Status.ID,
+		)
+		r.EventRecorder.Eventf(kc, models.Warning, models.CreationFailed,
+			"Creating secret with default user credentials is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
+	return nil
 }
 
 func (r *KafkaConnectReconciler) startClusterStatusJob(kc *v1beta1.KafkaConnect) error {
