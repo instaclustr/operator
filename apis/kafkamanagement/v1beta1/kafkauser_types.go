@@ -20,16 +20,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 // KafkaUserSpec defines the desired state of KafkaUser
 type KafkaUserSpec struct {
-	Options                  *KafkaUserOptions `json:"options"`
-	KafkaUserSecretName      string            `json:"kafkaUserSecretName"`
-	KafkaUserSecretNamespace string            `json:"kafkaUserSecretNamespace"`
-	ClusterID                string            `json:"clusterId"`
-	InitialPermissions       string            `json:"initialPermissions"`
+	Options            *KafkaUserOptions        `json:"options"`
+	SecretRef          *v1beta1.SecretReference `json:"secretRef"`
+	InitialPermissions string                   `json:"initialPermissions"`
 }
 
 type KafkaUserOptions struct {
@@ -39,7 +38,7 @@ type KafkaUserOptions struct {
 
 // KafkaUserStatus defines the observed state of KafkaUser
 type KafkaUserStatus struct {
-	ID string `json:"id"`
+	ClustersEvents map[string]string `json:"clustersEvents,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -73,15 +72,29 @@ func (ku *KafkaUser) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (ku *KafkaUser) GetDeletionFinalizer() string {
+	return models.DeletionFinalizer + "_" + ku.Namespace + "_" + ku.Name
+}
+
+func (ku *KafkaUser) GetDeletionUserFinalizer(clusterID string) string {
+	return models.DeletionUserFinalizer + clusterID
+}
+
+func (ku *KafkaUser) GetID(clusterID, name string) string {
+	return clusterID + "_" + name
+}
+
 func init() {
 	SchemeBuilder.Register(&KafkaUser{}, &KafkaUserList{})
 }
 
-func (ks *KafkaUserSpec) ToInstAPI() *models.KafkaUser {
+func (ks *KafkaUserSpec) ToInstAPI(clusterID string, username string, password string) *models.KafkaUser {
 	return &models.KafkaUser{
-		ClusterID:          ks.ClusterID,
+		ClusterID:          clusterID,
 		InitialPermissions: ks.InitialPermissions,
 		Options:            ks.Options.ToInstAPI(),
+		Username:           username,
+		Password:           password,
 	}
 }
 

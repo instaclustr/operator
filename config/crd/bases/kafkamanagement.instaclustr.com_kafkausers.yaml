@@ -35,13 +35,7 @@ spec:
           spec:
             description: KafkaUserSpec defines the desired state of KafkaUser
             properties:
-              clusterId:
-                type: string
               initialPermissions:
-                type: string
-              kafkaUserSecretName:
-                type: string
-              kafkaUserSecretNamespace:
                 type: string
               options:
                 properties:
@@ -52,20 +46,28 @@ spec:
                 required:
                 - saslScramMechanism
                 type: object
+              secretRef:
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
             required:
-            - clusterId
             - initialPermissions
-            - kafkaUserSecretName
-            - kafkaUserSecretNamespace
             - options
+            - secretRef
             type: object
           status:
             description: KafkaUserStatus defines the observed state of KafkaUser
             properties:
-              id:
-                type: string
-            required:
-            - id
+              clustersEvents:
+                additionalProperties:
+                  type: string
+                type: object
             type: object
         type: object
     served: true
