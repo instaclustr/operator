@@ -343,3 +343,7 @@ func (c *mockClient) CreateUser(userSpec any, clusterID, app string) error {
 func (c *mockClient) DeleteUser(username, clusterID, app string) error {
 	panic("DeleteUser: is not implemented")
 }
+
+func (c *mockClient) GetDefaultCredentialsV1(clusterID string) (string, string, error) {
+	panic("GetDefaultCredentialsV1: is not implemented")
+}

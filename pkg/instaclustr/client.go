@@ -2184,3 +2184,35 @@ func (c *Client) DeleteUser(username, clusterID, app string) error {
 
 	return nil
 }
+
+func (c *Client) GetDefaultCredentialsV1(clusterID string) (string, string, error) {
+	url := c.serverHostname + ClustersEndpointV1 + clusterID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return "", "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	type credentials struct {
+		Username                string `json:"username"`
+		InstaclustrUserPassword string `json:"instaclustrUserPassword"`
+	}
+
+	var creds credentials
+	err = json.Unmarshal(b, &creds)
+	if err != nil {
+		return "", "", err
+	}
+
+	return creds.Username, creds.InstaclustrUserPassword, nil
+}

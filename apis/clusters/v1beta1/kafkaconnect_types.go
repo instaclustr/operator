@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -686,4 +687,25 @@ func (tc *TargetCluster) ManagedClustersToInstAPI() (iClusters []*models.Managed
 		})
 	}
 	return
+}
+
+func (k *KafkaConnect) NewDefaultUserSecret(username, password string) *v1.Secret {
+	return &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       models.SecretKind,
+			APIVersion: models.K8sAPIVersionV1,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, k.Name),
+			Namespace: k.Namespace,
+			Labels: map[string]string{
+				models.ControlledByLabel:  k.Name,
+				models.DefaultSecretLabel: "true",
+			},
+		},
+		StringData: map[string]string{
+			models.Username: username,
+			models.Password: password,
+		},
+	}
 }
