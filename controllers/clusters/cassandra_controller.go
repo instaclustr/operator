@@ -1098,6 +1098,9 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
+				if event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] == models.DeletedEvent {
+					return false
+				}
 				if deleting := confirmDeletion(event.ObjectNew); deleting {
 					return true
 				}
