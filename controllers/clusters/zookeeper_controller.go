@@ -542,6 +542,9 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.Zookeeper)
 
+				if event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] == models.DeletedEvent {
+					return false
+				}
 				if deleting := confirmDeletion(newObj); deleting {
 					return true
 				}

@@ -1193,6 +1193,9 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
+				if event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] == models.DeletedEvent {
+					return false
+				}
 				if deleting := confirmDeletion(event.ObjectNew); deleting {
 					return true
 				}
@@ -1219,6 +1222,9 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				annotations[models.ResourceStateAnnotation] = models.GenericEvent
 				genericEvent.Object.SetAnnotations(annotations)
 				return true
+			},
+			DeleteFunc: func(event event.DeleteEvent) bool {
+				return false
 			},
 		})).
 		Complete(r)

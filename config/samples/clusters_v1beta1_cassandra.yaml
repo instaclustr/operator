@@ -3,7 +3,7 @@ kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
-  name: "Username-Cassandra"
+  name: "username-Cassandra"
   version: "4.0.10"
   dataCentres:
     - name: "AWS_cassandra"
