@@ -100,44 +100,6 @@ func (r *OpenSearchUserReconciler) Reconcile(
 		return models.ReconcileRequeue, nil
 	}
 
-	if user.DeletionTimestamp != nil {
-		if user.Status.ClustersEvents != nil {
-			logger.Error(models.ErrUserStillExist, "please remove the user from the cluster specification")
-			r.EventRecorder.Event(user, models.Warning, models.DeletingEvent,
-				"The user is still attached to cluster, please remove the user from the cluster specification.",
-			)
-
-			return models.ExitReconcile, nil
-		}
-
-		patch := client.MergeFrom(secret.DeepCopy())
-		controllerutil.RemoveFinalizer(secret, user.GetDeletionFinalizer())
-		err = r.Patch(ctx, secret, patch)
-		if err != nil {
-			logger.Error(err, "Cannot delete finalizer from the user's secret")
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.PatchFailed,
-				"Deleting finalizer from the user's secret has been failed. Reason: %v", err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		patch = user.NewPatch()
-		controllerutil.RemoveFinalizer(user, user.GetDeletionFinalizer())
-		err = r.Patch(ctx, user, patch)
-		if err != nil {
-			logger.Error(err, "Cannot delete finalizer from the OpenSearch user resource")
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.PatchFailed,
-				"Deleting finalizer  from the OpenSearch user resource has been failed. Reason: %v", err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
-		logger.Info("The user resource has been deleted")
-		return models.ExitReconcile, nil
-	}
-
 	patch := client.MergeFrom(secret.DeepCopy())
 	if controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer()) {
 		err = r.Patch(ctx, secret, patch)
@@ -186,6 +148,43 @@ func (r *OpenSearchUserReconciler) Reconcile(
 
 	if errorOccurred {
 		return models.ReconcileRequeue, nil
+	}
+
+	if user.DeletionTimestamp != nil {
+		if user.Status.ClustersEvents != nil {
+			logger.Error(models.ErrUserStillExist, "please remove the user from the cluster specification")
+			r.EventRecorder.Event(user, models.Warning, models.DeletingEvent,
+				"The user is still attached to cluster, please remove the user from the cluster specification.",
+			)
+
+			return models.ExitReconcile, nil
+		}
+
+		patch = client.MergeFrom(secret.DeepCopy())
+		controllerutil.RemoveFinalizer(secret, user.GetDeletionFinalizer())
+		err = r.Patch(ctx, secret, patch)
+		if err != nil {
+			logger.Error(err, "Cannot delete finalizer from the user's secret")
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.PatchFailed,
+				"Deleting finalizer from the user's secret has been failed. Reason: %v", err,
+			)
+			return models.ReconcileRequeue, nil
+		}
+
+		patch = user.NewPatch()
+		controllerutil.RemoveFinalizer(user, user.GetDeletionFinalizer())
+		err = r.Patch(ctx, user, patch)
+		if err != nil {
+			logger.Error(err, "Cannot delete finalizer from the OpenSearch user resource")
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.PatchFailed,
+				"Deleting finalizer  from the OpenSearch user resource has been failed. Reason: %v", err,
+			)
+			return models.ReconcileRequeue, nil
+		}
+
+		logger.Info("The user resource has been deleted")
 	}
 
 	return models.ExitReconcile, nil
@@ -310,7 +309,7 @@ func (r *OpenSearchUserReconciler) deleteUser(
 
 	patch = user.NewPatch()
 	controllerutil.RemoveFinalizer(user, getDeletionUserFinalizer(clusterID))
-	err = r.Status().Patch(ctx, user, patch)
+	err = r.Patch(ctx, user, patch)
 	if err != nil {
 		logger.Error(err, "Cannot delete finalizer from the OpenSearch user resource",
 			"cluster ID", clusterID,
