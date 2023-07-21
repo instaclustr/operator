@@ -3,8 +3,8 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  name: "Username-Kafka"
-  version: "3.0.2"
+  name: "Kafka-example"
+  version: "3.3.1"
   pciCompliance: false
   replicationFactor: 3
   partitionsNumber: 3

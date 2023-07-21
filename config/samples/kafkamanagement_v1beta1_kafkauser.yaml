@@ -3,18 +3,18 @@ kind: Secret
 metadata:
   name: secret-test
 data:
-  Username: "U2FuY2hv"
-  Password: "ZnJlaGcxX3BpbmRmNTRfaW9rMDk="
+  username: "U2FuY2gtdHdvCg=="
+  password: "Qm9oZGFuXyF1YmVyX3VudGVyX3ZhZmVsb2sxNDg4X2lnb3JfdG9saWsxNDg4Cg=="
 ---
 apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: KafkaUser
 metadata:
   name: kafkauser-sample
 spec:
-  kafkaUserSecretName: "secret-test"
-  kafkaUserSecretNamespace: "default"
-  clusterId: "d89ae745-8e48-4169-99dd-e2adc946d014"
+  secretRef:
+    name: "secret-test"
+    namespace: "default"
   initialPermissions: "standard"
   options:
     overrideExistingUser: true
-    saslScramMechanism: "SCRAM-SHA-512"
+    saslScramMechanism: "SCRAM-SHA-256"
