@@ -588,7 +588,7 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 
 		r.EventRecorder.Eventf(
 			pg, models.Warning, models.DeletionFailed,
-			"Default user secret deletion is failed. Secret name: %s. Reason: %v",
+			"Default user secret deletion is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -600,7 +600,8 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 
 	r.EventRecorder.Eventf(
 		pg, models.Normal, models.Deleted,
-		"Default user secret is deleted. Secret name: %s",
+		"Default user secret is deleted. Cluster ID: %s",
+		pg.Status.ID,
 	)
 
 	logger.Info("Deleting cluster backup resources",

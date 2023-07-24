@@ -325,7 +325,7 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 				}
 
 				if newDC.MasterNodes < oldDC.MasterNodes {
-					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+					return fmt.Errorf("deleting nodes is not supported. Master nodes number must be greater than: %v", oldDC.MasterNodes)
 				}
 
 				if newDC.NodesNumber < oldDC.NodesNumber {
