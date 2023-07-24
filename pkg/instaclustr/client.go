@@ -2203,12 +2203,11 @@ func (c *Client) GetDefaultCredentialsV1(clusterID string) (string, string, erro
 		return "", "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
 	}
 
-	type credentials struct {
+	creds := &struct {
 		Username                string `json:"username"`
 		InstaclustrUserPassword string `json:"instaclustrUserPassword"`
-	}
+	}{}
 
-	var creds credentials
 	err = json.Unmarshal(b, &creds)
 	if err != nil {
 		return "", "", err
