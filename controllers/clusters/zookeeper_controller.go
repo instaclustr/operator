@@ -174,7 +174,51 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 
 	l.Info("Zookeeper cluster has been created", "cluster ID", zook.Status.ID)
 
+	err = r.createDefaultSecret(ctx, zook, l)
+	if err != nil {
+		l.Error(err, "Cannot create default secret for Zookeeper cluster",
+			"cluster name", zook.Spec.Name,
+			"clusterID", zook.Status.ID,
+		)
+		r.EventRecorder.Eventf(
+			zook, models.Warning, models.CreationFailed,
+			"Default user secret creation on the Instaclustr is failed. Reason: %v",
+			err,
+		)
+
+		return models.ReconcileRequeue
+	}
+
 	return models.ExitReconcile
+}
+
+func (r *ZookeeperReconciler) createDefaultSecret(ctx context.Context, zk *v1beta1.Zookeeper, l logr.Logger) error {
+	username, password, err := r.API.GetDefaultCredentialsV1(zk.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get default user creds for Zookeeper cluster from the Instaclustr API",
+			"cluster ID", zk.Status.ID,
+		)
+		r.EventRecorder.Eventf(zk, models.Warning, models.FetchFailed,
+			"Default user password fetch from the Instaclustr API is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
+	secret := zk.NewDefaultUserSecret(username, password)
+	err = r.Create(ctx, secret)
+	if err != nil {
+		l.Error(err, "Cannot create secret with default user credentials",
+			"cluster ID", zk.Status.ID,
+		)
+		r.EventRecorder.Eventf(zk, models.Warning, models.CreationFailed,
+			"Creating secret with default user credentials is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
+	return nil
 }
 
 func (r *ZookeeperReconciler) handleUpdateCluster(
