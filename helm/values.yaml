@@ -4,7 +4,7 @@ replicaCount: 1
 image:
   repository: icoperator/instaclustr-operator
   pullPolicy: IfNotPresent
-  tag: v0.1.0
+  tag: v0.1.1
 
 port: 8080
 
