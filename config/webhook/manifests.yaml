@@ -338,6 +338,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-clusterresources-instaclustr-com-v1beta1-opensearchuser
+  failurePolicy: Fail
+  name: vopensearchuser.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - opensearchusers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-clusters-instaclustr-com-v1beta1-cadence
   failurePolicy: Fail
   name: vcadence.kb.io
