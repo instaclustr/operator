@@ -49,6 +49,14 @@ var _ webhook.Defaulter = &Zookeeper{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (z *Zookeeper) Default() {
+	redislog.Info("default", "name", z.Name)
+
+	if z.GetAnnotations() == nil {
+		z.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+
 	for _, dataCentre := range z.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}

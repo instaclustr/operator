@@ -51,6 +51,12 @@ var _ webhook.Defaulter = &Cadence{}
 func (c *Cadence) Default() {
 	cadencelog.Info("default", "name", c.Name)
 
+	if c.GetAnnotations() == nil {
+		c.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+
 	for _, dataCentre := range c.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}

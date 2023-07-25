@@ -44,7 +44,7 @@ func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Val
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1beta1-cassandra,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=vcassandra.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1beta1-cassandra,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=mcassandra.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1beta1-cassandra,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=vcassandra.kb.io,admissionReviewVersions=v1
 
 var _ webhook.CustomValidator = &cassandraValidator{}
@@ -52,6 +52,14 @@ var _ webhook.Defaulter = &Cassandra{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (c *Cassandra) Default() {
+	cassandralog.Info("default", "name", c.Name)
+
+	if c.GetAnnotations() == nil {
+		c.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+
 	for _, dataCentre := range c.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}

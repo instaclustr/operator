@@ -49,6 +49,14 @@ var _ webhook.Defaulter = &Redis{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Redis) Default() {
+	redislog.Info("default", "name", r.Name)
+
+	if r.GetAnnotations() == nil {
+		r.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+
 	for _, dataCentre := range r.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}

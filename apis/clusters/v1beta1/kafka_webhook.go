@@ -51,6 +51,12 @@ var _ webhook.Defaulter = &Kafka{}
 func (k *Kafka) Default() {
 	kafkalog.Info("default", "name", k.Name)
 
+	if k.GetAnnotations() == nil {
+		k.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+
 	for _, dataCentre := range k.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}
