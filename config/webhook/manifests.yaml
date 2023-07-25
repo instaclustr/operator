@@ -33,7 +33,7 @@ webhooks:
       namespace: system
       path: /mutate-clusters-instaclustr-com-v1beta1-cassandra
   failurePolicy: Fail
-  name: vcassandra.kb.io
+  name: mcassandra.kb.io
   rules:
   - apiGroups:
     - clusters.instaclustr.com

@@ -55,6 +55,12 @@ func (os *OpenSearch) Default() {
 	for _, dataCentre := range os.Spec.DataCentres {
 		setDefaultValues(dataCentre)
 
+		if os.GetAnnotations() == nil {
+			os.SetAnnotations(map[string]string{
+				models.ResourceStateAnnotation: "",
+			})
+		}
+
 		if dataCentre.Name == "" {
 			dataCentre.Name = dataCentre.Region
 		}

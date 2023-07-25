@@ -52,6 +52,14 @@ var _ webhook.Defaulter = &PostgreSQL{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (pg *PostgreSQL) Default() {
+	postgresqllog.Info("default", "name", pg.Name)
+
+	if pg.GetAnnotations() == nil {
+		pg.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+
 	for _, dataCentre := range pg.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}
