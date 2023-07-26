@@ -19,7 +19,6 @@ package clusterresources
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	k8sCore "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,7 +88,27 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return models.ReconcileRequeue, nil
 	}
 
+	if controllerutil.AddFinalizer(s, u.GetDeletionFinalizer()) {
+		err = r.Update(ctx, s)
+		if err != nil {
+			l.Error(err, "Cannot update Cassandra user's secret with deletion finalizer",
+				"secret name", s.Name, "secret namespace", s.Namespace)
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Update secret with deletion finalizer has been failed. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+	}
+
 	patch := u.NewPatch()
+	if controllerutil.AddFinalizer(u, u.GetDeletionFinalizer()) {
+		err = r.Patch(ctx, u, patch)
+		if err != nil {
+			l.Error(err, "Cannot patch Cassandra user with deletion finalizer")
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Patching Cassandra user with deletion finalizer has been failed. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+	}
 
 	username, password, err := getUserCreds(s)
 	if err != nil {
@@ -132,21 +151,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"User has been created for a cluster. Cluster ID: %s, username: %s",
 				clusterID, username)
 
-			finalizerNeeded := controllerutil.AddFinalizer(s, models.DeletionFinalizer)
-			if finalizerNeeded {
-				err = r.Update(ctx, s)
-				if err != nil {
-					l.Error(err, "Cannot update Cassandra user secret",
-						"secret name", s.Name,
-						"secret namespace", s.Namespace)
-					r.EventRecorder.Eventf(u, models.Warning, models.UpdatedEvent,
-						"Cannot assign Cassandra user to a k8s secret. Reason: %v", err)
-
-					return models.ReconcileRequeue, nil
-				}
-			}
-
-			controllerutil.AddFinalizer(u, models.DeletionUserFinalizer+clusterID)
+			controllerutil.AddFinalizer(u, getDeletionUserFinalizer(clusterID))
 			err = r.Patch(ctx, u, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cassandra user resource",
@@ -188,7 +193,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return models.ReconcileRequeue, nil
 			}
 
-			controllerutil.RemoveFinalizer(u, models.DeletionUserFinalizer+clusterID)
+			controllerutil.RemoveFinalizer(u, getDeletionUserFinalizer(clusterID))
 			err = r.Patch(ctx, u, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cassandra user resource",
@@ -202,58 +207,66 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 			continue
 		}
+
+		if event == models.ClusterDeletingEvent {
+			delete(u.Status.ClustersEvents, clusterID)
+			err = r.Status().Patch(ctx, u, patch)
+			if err != nil {
+				l.Error(err, "Cannot detach clusterID from the Cassandra user resource",
+					"cluster ID", clusterID)
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Detaching clusterID from the OpenSearch user resource has been failed. Reason: %v", err)
+				return models.ReconcileRequeue, nil
+			}
+
+			controllerutil.RemoveFinalizer(u, getDeletionUserFinalizer(clusterID))
+			err = r.Patch(ctx, u, patch)
+			if err != nil {
+				l.Error(err, "Cannot delete finalizer from the Cassandra user resource",
+					"cluster ID", clusterID)
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Deleting finalizer from the Cassandra user resource has been failed. Reason: %v", err)
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("Cassandra user has been detached from the cluster", "cluster ID", clusterID)
+			r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
+				"User has been detached from the cluster. ClusterID: %v", clusterID)
+		}
 	}
 
 	if u.DeletionTimestamp != nil {
-		err = r.handleDeleteUser(ctx, l, s, u)
-		if err != nil {
-			return models.ReconcileRequeue, nil
-		}
-	}
-
-	return models.ExitReconcile, nil
-}
-
-func (r *CassandraUserReconciler) handleDeleteUser(
-	ctx context.Context,
-	l logr.Logger,
-	s *k8sCore.Secret,
-	u *v1beta1.CassandraUser,
-) error {
-	username, _, err := getUserCreds(s)
-	if err != nil {
-		l.Error(err, "Cannot get user credentials")
-		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
-			"Cannot get user credentials. Reason: %v", err)
-
-		return err
-	}
-
-	for clusterID, event := range u.Status.ClustersEvents {
-		if event == models.Created || event == models.CreatingEvent {
-			l.Error(models.ErrUserStillExist, "please remove the user from the cluster specification",
-				"username", username, "cluster ID", clusterID)
+		if u.Status.ClustersEvents != nil {
+			l.Error(models.ErrUserStillExist, "Please remove the user from the cluster specification")
 			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent,
 				"The user is still attached to cluster, please remove the user from the cluster specification.")
 
-			return models.ErrUserStillExist
+			return models.ExitReconcile, nil
 		}
+
+		controllerutil.RemoveFinalizer(s, u.GetDeletionFinalizer())
+		err = r.Update(ctx, s)
+		if err != nil {
+			l.Error(err, "Cannot delete finalizer from the user's secret")
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Deleting finalizer from the user's secret has been failed. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+
+		controllerutil.RemoveFinalizer(u, u.GetDeletionFinalizer())
+		err = r.Patch(ctx, u, patch)
+		if err != nil {
+			l.Error(err, "Cannot delete finalizer from the Cassandra user resource")
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Deleting finalizer  from the OpenSearch user resource has been failed. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+
+		l.Info("The user resource has been deleted")
+		return models.ExitReconcile, nil
 	}
 
-	l.Info("Cassandra user has been deleted", "username", username)
-
-	controllerutil.RemoveFinalizer(s, models.DeletionFinalizer)
-	err = r.Update(ctx, s)
-	if err != nil {
-		l.Error(err, "Cannot remove finalizer from secret", "secret name", s.Name)
-
-		r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-			"Resource patch is failed. Reason: %v", err)
-
-		return err
-	}
-
-	return nil
+	return models.ExitReconcile, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
