@@ -466,7 +466,9 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		}
 	}
 
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(o.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
 
 	logger.Info("Deleting cluster backup resources",
 		"cluster ID", o.Status.ID,
@@ -495,7 +497,6 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		}
 	}
 
-	r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(o, models.DeletionFinalizer)
 	err = r.Patch(ctx, o, patch)
 	if err != nil {
@@ -573,6 +574,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(o.GetJobID(scheduler.BackupsChecker))
 			r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
 			return nil
@@ -857,8 +859,6 @@ func (r *OpenSearchReconciler) newUsersCreationJob(o *v1beta1.OpenSearch) schedu
 		}, o)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				logger.Info("OpenSearch cluster resource is not found. Stopping user creation job...")
-				r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 				return nil
 			}
 			return err
@@ -885,12 +885,12 @@ func (r *OpenSearchReconciler) newUsersCreationJob(o *v1beta1.OpenSearch) schedu
 			}
 		}
 
-		r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
-
 		logger.Info("User creation job successfully finished")
 		r.EventRecorder.Eventf(o, models.Normal, models.Created,
 			"User creation job successfully finished",
 		)
+
+		go r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}
@@ -1092,6 +1092,8 @@ func (r *OpenSearchReconciler) detachUserResource(
 			"Cannot patch the OpenSearch user status with the ClusterDeletingEvent. Reason: %v", err)
 		return err
 	}
+
+	l.Info("The user has been detached from the cluster")
 
 	return nil
 }
