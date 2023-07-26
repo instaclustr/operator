@@ -253,6 +253,10 @@ func (r *OpenSearchUserReconciler) createUser(
 	logger.Info("OpenSearch user has been created",
 		"cluster ID", clusterID,
 	)
+	r.EventRecorder.Eventf(user, models.Normal, models.Created,
+		"OpenSearch user resource has been created on the cluster with ID: %v",
+		clusterID,
+	)
 
 	return nil
 }
