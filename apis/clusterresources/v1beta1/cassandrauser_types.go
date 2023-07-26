@@ -73,3 +73,7 @@ func (r *CassandraUser) ToInstAPI(username, password string) *models.InstaUser {
 		InitialPermission: "standard",
 	}
 }
+
+func (r *CassandraUser) GetDeletionFinalizer() string {
+	return models.DeletionFinalizer + "_" + r.Namespace + "_" + r.Name
+}

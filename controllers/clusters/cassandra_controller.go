@@ -258,19 +258,17 @@ func (r *CassandraReconciler) handleCreateCluster(
 		"Cluster backups check job is started",
 	)
 
-	if cassandra.Spec.UserRef != nil {
-		for _, uRef := range cassandra.Spec.UserRef {
-			// TODO: manage the graceful creation of users in a cluster that is not yet running.
-			// Adding users to the creating cluster; errors are potentially encountered,
-			// need to wait before the cluster is created
-
-			err = r.handleUsersCreate(ctx, l, cassandra, uRef)
-			if err != nil {
-				l.Error(err, "Cannot create Cassandra user", "user", uRef)
-				r.EventRecorder.Eventf(cassandra, models.Warning, models.CreatingEvent,
-					"Cannot create user. Reason: %v", err)
-			}
+	if cassandra.Spec.UserRefs != nil {
+		err = r.startUsersCreationJob(cassandra)
+		if err != nil {
+			l.Error(err, "Failed to start user creation job")
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.CreationFailed,
+				"User creation job is failed. Reason: %v", err)
+			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Event(cassandra, models.Normal, models.Created,
+			"Cluster user creation job is started")
 	}
 
 	return models.ExitReconcile
@@ -505,12 +503,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		}
 	}
 
-	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
 
-	l.Info("Deleting cluster backup resources",
-		"cluster ID", cassandra.Status.ID,
-	)
+	l.Info("Deleting cluster backup resources", "cluster ID", cassandra.Status.ID)
 
 	err = r.deleteBackups(ctx, cassandra.Status.ID, cassandra.Namespace)
 	if err != nil {
@@ -533,6 +530,13 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		cassandra, models.Normal, models.Deleted,
 		"Cluster backup resources are deleted",
 	)
+
+	for _, ref := range cassandra.Spec.UserRefs {
+		err = r.handleUsersDetach(ctx, l, cassandra, ref)
+		if err != nil {
+			return models.ReconcileRequeue
+		}
+	}
 
 	controllerutil.RemoveFinalizer(cassandra, models.DeletionFinalizer)
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -691,6 +695,55 @@ func (r *CassandraReconciler) handleUsersDelete(
 	return nil
 }
 
+func (r *CassandraReconciler) handleUsersDetach(
+	ctx context.Context,
+	l logr.Logger,
+	c *v1beta1.Cassandra,
+	uRef *v1beta1.UserReference,
+) error {
+	req := types.NamespacedName{
+		Namespace: uRef.Namespace,
+		Name:      uRef.Name,
+	}
+
+	u := &clusterresourcesv1beta1.CassandraUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Error(err, "Cassandra user is not found", "request", req)
+			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
+				"User resource is not found, please provide correct userRef."+
+					"Current provided reference: %v", uRef)
+			return err
+		}
+
+		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
+		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
+			"Cannot get Cassandra user. user reference: %v", uRef)
+		return err
+	}
+
+	if _, exist := u.Status.ClustersEvents[c.Status.ID]; !exist {
+		l.Info("User is not existing in the cluster", "user reference", uRef)
+		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
+			"User is not existing in the cluster. User reference: %v", uRef)
+		return nil
+	}
+
+	patch := u.NewPatch()
+	u.Status.ClustersEvents[c.Status.ID] = models.ClusterDeletingEvent
+	err = r.Status().Patch(ctx, u, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch the Cassandra user status with the ClusterDeletingEvent",
+			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
+		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
+			"Cannot patch the Cassandra user status with the ClusterDeletingEvent. Reason: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 func (r *CassandraReconciler) handleUserEvent(
 	newObj *v1beta1.Cassandra,
 	oldUsers []*v1beta1.UserReference,
@@ -698,7 +751,7 @@ func (r *CassandraReconciler) handleUserEvent(
 	ctx := context.TODO()
 	l := log.FromContext(ctx)
 
-	for _, newUser := range newObj.Spec.UserRef {
+	for _, newUser := range newObj.Spec.UserRefs {
 		var exist bool
 
 		for _, oldUser := range oldUsers {
@@ -726,7 +779,7 @@ func (r *CassandraReconciler) handleUserEvent(
 	for _, oldUser := range oldUsers {
 		var exist bool
 
-		for _, newUser := range newObj.Spec.UserRef {
+		for _, newUser := range newObj.Spec.UserRefs {
 
 			if *oldUser == *newUser {
 				exist = true
@@ -769,6 +822,17 @@ func (r *CassandraReconciler) startClusterBackupsJob(cluster *v1beta1.Cassandra)
 	return nil
 }
 
+func (r *CassandraReconciler) startUsersCreationJob(cluster *v1beta1.Cassandra) error {
+	job := r.newUsersCreationJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "CassandraStatusClusterJob")
 	return func() error {
@@ -778,6 +842,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.BackupsChecker))
+			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
@@ -1039,6 +1104,49 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) sch
 	}
 }
 
+func (r *CassandraReconciler) newUsersCreationJob(c *v1beta1.Cassandra) scheduler.Job {
+	l := log.Log.WithValues("component", "cassandraUsersCreationJob")
+
+	return func() error {
+		ctx := context.Background()
+
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: c.Namespace,
+			Name:      c.Name,
+		}, c)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		if c.Status.State != models.RunningStatus {
+			l.Info("User creation job is scheduled")
+			r.EventRecorder.Event(c, models.Normal, models.CreationFailed,
+				"User creation job is scheduled, cluster is not in the running state")
+			return nil
+		}
+
+		for _, ref := range c.Spec.UserRefs {
+			err = r.handleUsersCreate(ctx, l, c, ref)
+			if err != nil {
+				l.Error(err, "Failed to create a user for the cluster", "user ref", ref)
+				r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
+					"Failed to create a user for the cluster. Reason: %v", err)
+				return err
+			}
+		}
+
+		l.Info("User creation job successfully finished", "resource name", c.Name)
+		r.EventRecorder.Eventf(c, models.Normal, models.Created, "User creation job successfully finished")
+
+		go r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
+
+		return nil
+	}
+}
+
 func (r *CassandraReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*clusterresourcesv1beta1.ClusterBackupList, error) {
 	backupsList := &clusterresourcesv1beta1.ClusterBackupList{}
 	listOpts := []client.ListOption{
@@ -1118,7 +1226,7 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				oldObj := event.ObjectOld.(*v1beta1.Cassandra)
 
-				r.handleUserEvent(newObj, oldObj.Spec.UserRef)
+				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

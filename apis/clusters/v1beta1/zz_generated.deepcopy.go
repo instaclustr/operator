@@ -455,8 +455,8 @@ func (in *CassandraSpec) DeepCopyInto(out *CassandraSpec) {
 			}
 		}
 	}
-	if in.UserRef != nil {
-		in, out := &in.UserRef, &out.UserRef
+	if in.UserRefs != nil {
+		in, out := &in.UserRefs, &out.UserRefs
 		*out = make([]*UserReference, len(*in))
 		for i := range *in {
 			if (*in)[i] != nil {

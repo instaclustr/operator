@@ -69,7 +69,7 @@ type CassandraSpec struct {
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	Spark               []*Spark               `json:"spark,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
-	UserRef             []*UserReference       `json:"userRef,omitempty"`
+	UserRefs            []*UserReference       `json:"userRefs,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
