@@ -26,21 +26,22 @@ import (
 )
 
 // log is for logging in this package.
-var opensearchuserlog = logf.Log.WithName("opensearchuser-resource")
+var cassandrauserlog = logf.Log.WithName("cassandrauser-resource")
 
-func (u *OpenSearchUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (r *CassandraUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(u).
+		For(r).
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1beta1-opensearchuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=opensearchusers,verbs=create;update,versions=v1beta1,name=vopensearchuser.kb.io,admissionReviewVersions=v1
+// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+//+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1beta1-cassandrauser,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=cassandrausers,verbs=create;update,versions=v1beta1,name=vcassandrauser.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &OpenSearchUser{}
+var _ webhook.Validator = &CassandraUser{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (u *OpenSearchUser) ValidateCreate() error {
-	opensearchuserlog.Info("validate create", "name", u.Name)
+func (u *CassandraUser) ValidateCreate() error {
+	cassandrauserlog.Info("validate create", "name", u.Name)
 
 	if u.Spec.SecretRef.Name == "" || u.Spec.SecretRef.Namespace == "" {
 		return models.ErrEmptySecretRef
@@ -50,10 +51,10 @@ func (u *OpenSearchUser) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (u *OpenSearchUser) ValidateUpdate(old runtime.Object) error {
-	opensearchuserlog.Info("validate update", "name", u.Name)
+func (u *CassandraUser) ValidateUpdate(old runtime.Object) error {
+	cassandrauserlog.Info("validate update", "name", u.Name)
 
-	oldUser := old.(*OpenSearchUser)
+	oldUser := old.(*CassandraUser)
 	if *u.Spec.SecretRef != *oldUser.Spec.SecretRef {
 		return models.ErrImmutableSecretRef
 	}
@@ -62,6 +63,9 @@ func (u *OpenSearchUser) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (u *OpenSearchUser) ValidateDelete() error {
+func (r *CassandraUser) ValidateDelete() error {
+	cassandrauserlog.Info("validate delete", "name", r.Name)
+
+	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
