@@ -173,6 +173,17 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 	l.Info("Cluster has been created",
 		"cluster ID", kafka.Status.ID)
 
+	if kafka.Spec.UserRefs != nil {
+		err = r.startUsersCreationJob(kafka)
+		if err != nil {
+			l.Error(err, "Failed to start user creation job")
+			r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
+				"User creation job is failed. Reason: %v", err,
+			)
+			return models.ReconcileRequeue
+		}
+	}
+
 	return models.ExitReconcile
 }
 
@@ -382,6 +393,55 @@ func (r *KafkaReconciler) handleDeleteUser(
 	return nil
 }
 
+func (r *KafkaReconciler) detachUser(
+	ctx context.Context,
+	kafka *v1beta1.Kafka,
+	l logr.Logger,
+	userRef *v1beta1.UserReference) error {
+	req := types.NamespacedName{
+		Namespace: userRef.Namespace,
+		Name:      userRef.Name,
+	}
+
+	u := &kafkamanagementv1beta1.KafkaUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Info("Kafka user is not found", "request", req)
+			r.EventRecorder.Event(kafka, models.Warning, "Not Found",
+				"User is not found, please provide correct userRef.")
+
+			return err
+		}
+
+		l.Error(err, "Cannot get Kafka user", "user", u.Spec)
+		r.EventRecorder.Eventf(kafka, models.Warning, models.DeletionFailed,
+			"Cannot get Kafka user. user reference: %v", userRef)
+
+		return err
+	}
+
+	if _, exist := u.Status.ClustersEvents[kafka.Status.ID]; !exist {
+
+		return nil
+	}
+
+	patch := u.NewPatch()
+
+	u.Status.ClustersEvents[kafka.Status.ID] = models.ClusterDeletingEvent
+	err = r.Status().Patch(ctx, u, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch the Kafka user status with the ClusterDeletingEvent",
+			"cluster name", kafka.Spec.Name, "cluster ID", kafka.Status.ID)
+		r.EventRecorder.Eventf(kafka, models.Warning, models.DeletionFailed,
+			"Cannot patch the Kafka user status with the ClusterDeletingEvent. Reason: %v", err)
+
+		return err
+	}
+
+	return nil
+}
+
 func (r *KafkaReconciler) handleUserEvent(
 	newObj *v1beta1.Kafka,
 	oldUsers []*v1beta1.UserReference,
@@ -534,7 +594,16 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 		}
 	}
 
+	for _, ref := range kafka.Spec.UserRefs {
+		err = r.detachUser(ctx, kafka, l, ref)
+		if err != nil {
+
+			return models.ReconcileRequeue
+		}
+	}
+
 	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
 	controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
 	kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, kafka, patch)
@@ -591,6 +660,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
 			return nil
 		}
 		if err != nil {
@@ -705,6 +775,69 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 				"events", kafka.Status.MaintenanceEvents,
 			)
 		}
+
+		return nil
+	}
+}
+
+func (r *KafkaReconciler) startUsersCreationJob(kafka *v1beta1.Kafka) error {
+	job := r.newUsersCreationJob(kafka)
+
+	err := r.Scheduler.ScheduleJob(kafka.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *KafkaReconciler) newUsersCreationJob(kafka *v1beta1.Kafka) scheduler.Job {
+	l := log.Log.WithValues("component", "kafkaUsersCreationJob")
+	return func() error {
+		ctx := context.Background()
+
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: kafka.Namespace,
+			Name:      kafka.Name,
+		}, kafka)
+
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+
+			return err
+		}
+
+		if kafka.Status.State != models.RunningStatus {
+			l.Info("User creation job is scheduled")
+			r.EventRecorder.Eventf(kafka, models.Normal, models.CreationFailed,
+				"User creation job is scheduled, cluster is not in the running state",
+			)
+
+			return nil
+		}
+
+		for _, ref := range kafka.Spec.UserRefs {
+			err = r.handleCreateUser(ctx, kafka, l, ref)
+			if err != nil {
+				l.Error(err, "Failed to create a user for the cluster",
+					"user ref", ref,
+				)
+				r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
+					"Failed to create a user for the cluster. Reason: %v", err,
+				)
+
+				return err
+			}
+
+		}
+
+		l.Info("User creation job successfully finished")
+		r.EventRecorder.Eventf(kafka, models.Normal, models.Created,
+			"User creation job successfully finished",
+		)
+
+		go r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}

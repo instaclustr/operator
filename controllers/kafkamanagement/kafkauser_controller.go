@@ -297,6 +297,60 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			continue
 		}
 
+		if clusterEvent == models.ClusterDeletingEvent {
+			patch = user.NewPatch()
+			delete(user.Status.ClustersEvents, clusterID)
+			err = r.Status().Patch(ctx, user, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch Kafka user resource status",
+					"initial permissions", user.Spec.InitialPermissions,
+					"kafka user options", user.Spec.Options,
+					"kafka user metadata", user.ObjectMeta,
+				)
+				r.EventRecorder.Eventf(
+					user, models.Warning, models.PatchFailed,
+					"Resource status patch is failed. Reason: %v",
+					err,
+				)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("Kafka user has been detached",
+				"initial permissions", user.Spec.InitialPermissions,
+				"kafka user options", user.Spec.Options,
+			)
+			r.EventRecorder.Eventf(
+				user, models.Normal, models.Deleted,
+				"User is detached from cluster",
+			)
+
+			controllerutil.RemoveFinalizer(user, user.GetDeletionUserFinalizer(clusterID))
+			err = r.Patch(ctx, user, patch)
+			if err != nil {
+				l.Error(err, "cannot patch Kafka user resource",
+					"initial permissions", user.Spec.InitialPermissions,
+					"kafka user options", user.Spec.Options,
+					"kafka user metadata", user.ObjectMeta,
+				)
+				r.EventRecorder.Eventf(
+					user, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v",
+					err,
+				)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("Kafka user finalizer has been deleted",
+				"initial permissions", user.Spec.InitialPermissions,
+				"kafka user options", user.Spec.Options,
+			)
+
+			continue
+
+		}
+
 		iKafkaUser := user.Spec.ToInstAPI(clusterID, username, password)
 		userID := user.GetID(clusterID, username)
 		err = r.API.UpdateKafkaUser(userID, iKafkaUser)
