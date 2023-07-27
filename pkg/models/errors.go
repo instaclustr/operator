@@ -51,6 +51,8 @@ var (
 	ErrImmutableAdvancedVisibility           = errors.New("AdvancedVisibility array is immutable")
 	ErrImmutablePrivateLink                  = errors.New("PrivateLink array is immutable")
 	ErrImmutableNodesNumber                  = errors.New("nodes number is immutable")
+	ErrImmutableSecretRef                    = errors.New("secret reference is immutable")
+	ErrEmptySecretRef                        = errors.New("secretRef.name and secretRef.namespace should not be empty")
 	ErrMissingSecretKeys                     = errors.New("the secret is missing the correct keys for the user")
 	ErrUserStillExist                        = errors.New("the user is still attached to cluster")
 )
