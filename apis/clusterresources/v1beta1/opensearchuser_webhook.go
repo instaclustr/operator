@@ -54,7 +54,7 @@ func (u *OpenSearchUser) ValidateUpdate(old runtime.Object) error {
 	opensearchuserlog.Info("validate update", "name", u.Name)
 
 	oldUser := old.(*OpenSearchUser)
-	if u.Spec.SecretRef != oldUser.Spec.SecretRef {
+	if *u.Spec.SecretRef != *oldUser.Spec.SecretRef {
 		return fmt.Errorf("spec.secretRef field is immutable")
 	}
 
