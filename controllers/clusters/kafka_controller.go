@@ -792,9 +792,7 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				oldObj := event.ObjectOld.(*v1beta1.Kafka)
 
-				if &newObj.Spec.UserRefs != &oldObj.Spec.UserRefs {
-					r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
-				}
+				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

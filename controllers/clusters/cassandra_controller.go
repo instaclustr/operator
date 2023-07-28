@@ -1118,9 +1118,7 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				oldObj := event.ObjectOld.(*v1beta1.Cassandra)
 
-				if &newObj.Spec.UserRef != &oldObj.Spec.UserRef {
-					r.handleUserEvent(newObj, oldObj.Spec.UserRef)
-				}
+				r.handleUserEvent(newObj, oldObj.Spec.UserRef)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
