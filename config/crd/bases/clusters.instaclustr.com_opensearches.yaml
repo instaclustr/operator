@@ -41,7 +41,7 @@ spec:
                 type: boolean
               asynchronousSearchPlugin:
                 type: boolean
-              bundleUseOnly:
+              bundledUseOnly:
                 type: boolean
               clusterManagerNodes:
                 items:

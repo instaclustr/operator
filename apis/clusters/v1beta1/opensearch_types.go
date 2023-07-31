@@ -51,7 +51,7 @@ type OpenSearchSpec struct {
 	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes,omitempty"`
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
-	BundledUseOnly           bool                    `json:"bundleUseOnly,omitempty"`
+	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
 	UserRefs                 []*UserReference        `json:"userRefs,omitempty"`
 }
 
