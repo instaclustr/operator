@@ -326,8 +326,8 @@ func (oss *OpenSearchSpec) validateUpdate(oldSpec OpenSearchSpec) error {
 
 func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSearchDataCentre) error {
 	newDCs := oss.DataCentres
-	if len(newDCs) < len(oldDCs) {
-		return models.ErrImmutableDataCentres
+	if len(newDCs) != len(oldDCs) {
+		return models.ErrImmutableDataCentresNumber
 	}
 
 	for _, newDC := range newDCs {
