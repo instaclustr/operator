@@ -205,7 +205,7 @@ func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldImmutableFields, newImmutableFields)
 	}
 
-	err := cs.validateImmutableDataCentresFieldsUpdate(oldSpec)
+	err := cs.validateDataCentresUpdate(oldSpec)
 	if err != nil {
 		return err
 	}
@@ -221,12 +221,13 @@ func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 	return nil
 }
 
-func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CassandraSpec) error {
+func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error {
 	if len(cs.DataCentres) < len(oldSpec.DataCentres) {
 		return models.ErrDecreasedDataCentresNumber
 	}
 
 	for _, newDC := range cs.DataCentres {
+		var exists bool
 		for _, oldDC := range oldSpec.DataCentres {
 			if oldDC.Name == newDC.Name {
 				newDCImmutableFields := newDC.newImmutableFields()
@@ -254,8 +255,32 @@ func (cs *CassandraSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Cassan
 					return err
 				}
 
+				exists = true
 				break
 			}
+		}
+
+		if !exists {
+			err := newDC.DataCentre.ValidateCreation()
+			if err != nil {
+				return err
+			}
+
+			if !cs.PrivateNetworkCluster && newDC.PrivateIPBroadcastForDiscovery {
+				return fmt.Errorf("cannot use private ip broadcast for discovery on public network cluster")
+			}
+
+			err = validateReplicationFactor(models.CassandraReplicationFactors, newDC.ReplicationFactor)
+			if err != nil {
+				return err
+			}
+
+			if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+				return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+			}
+
+			return nil
+
 		}
 	}
 
