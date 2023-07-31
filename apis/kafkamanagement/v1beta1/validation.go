@@ -32,10 +32,12 @@ func (kacl *KafkaACL) validateCreate() error {
 
 	for _, acl := range kacl.Spec.ACLs {
 		principalMatched, err := regexp.Match(models.ACLPrincipalRegExp, []byte(acl.Principal))
-		if !principalMatched || err != nil {
-			return fmt.Errorf("acl principal should fit pattern: %s, err: %s",
-				models.ACLPrincipalRegExp,
-				err.Error())
+		if err != nil {
+			return err
+		}
+		if !principalMatched {
+			return fmt.Errorf("acl principal should fit pattern: %s",
+				models.ACLPrincipalRegExp)
 		}
 
 		err = validate(acl)
