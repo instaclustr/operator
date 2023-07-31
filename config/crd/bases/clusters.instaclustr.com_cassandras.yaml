@@ -172,7 +172,7 @@ spec:
                   - email
                   type: object
                 type: array
-              userRef:
+              userRefs:
                 items:
                   properties:
                     name:

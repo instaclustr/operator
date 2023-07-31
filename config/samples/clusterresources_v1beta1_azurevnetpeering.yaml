@@ -3,10 +3,9 @@ kind: AzureVNetPeering
 metadata:
   name: azurevnetpeering-sample
 spec:
-  cdcId: 9e2499cb-8db4-48c7-b8b0-c1ce7f1fab63
+  cdcId: f8581465-098c-4576-9e52-ea8308a27d8a
   peerResourceGroup: rnd
   peerSubnets:
-    - 192.168.0.0/16
-    - 172.16.0.0/16
+    - 10.224.0.0/16
   peerSubscriptionId: 1a2f3ab8-6815-49c5-a47e-b1a354b51240
-  peerVirtualNetworkName: rnd-vn
+  peerVirtualNetworkName: aks-vnet-17973335
