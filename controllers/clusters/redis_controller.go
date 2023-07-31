@@ -256,20 +256,34 @@ func (r *RedisReconciler) handleCreateCluster(
 	)
 
 	// Adding users is allowed when the cluster is running.
-	for _, uRef := range redis.Spec.UserRefs {
-		// TODO: manage the graceful creation of users in a cluster that is not yet running.
-		// Adding users to the creating cluster; errors are potentially encountered,
-		// need to wait before the cluster is created
 
-		err = r.handleCreateUsers(ctx, redis, logger, uRef)
+	if redis.Spec.UserRefs != nil {
+		err = r.startUsersCreationJob(redis)
+
 		if err != nil {
-			logger.Error(err, "Cannot create Redis user", "user", uRef)
-			r.EventRecorder.Eventf(redis, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
+			logger.Error(err, "Failed to start user creation job")
+			r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
+				"User creation job is failed. Reason: %v", err,
+			)
+			return models.ReconcileRequeue
 		}
+
+		r.EventRecorder.Event(redis, models.Normal, models.Created,
+			"Cluster user creation job is started")
 	}
 
 	return models.ExitReconcile
+}
+
+func (r *RedisReconciler) startUsersCreationJob(cluster *v1beta1.Redis) error {
+	job := r.newUsersCreationJob(cluster)
+
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *RedisReconciler) handleUpdateCluster(
@@ -669,6 +683,8 @@ func (r *RedisReconciler) detachUserResource(
 		return err
 	}
 
+	l.Info("The user has been detached from the cluster")
+
 	return nil
 }
 
@@ -803,6 +819,55 @@ func (r *RedisReconciler) startClusterBackupsJob(cluster *v1beta1.Redis) error {
 	return nil
 }
 
+func (r *RedisReconciler) newUsersCreationJob(redis *v1beta1.Redis) scheduler.Job {
+	logger := log.Log.WithValues("component", "redisUsersCreationJob")
+
+	return func() error {
+		ctx := context.Background()
+
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: redis.Namespace,
+			Name:      redis.Name,
+		}, redis)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		if redis.Status.State != models.RunningStatus {
+			logger.Info("User creation job is scheduled")
+			r.EventRecorder.Eventf(redis, models.Normal, models.CreationFailed,
+				"User creation job is scheduled, cluster is not in the running state",
+			)
+			return nil
+		}
+
+		for _, ref := range redis.Spec.UserRefs {
+			err = r.handleCreateUsers(ctx, redis, logger, ref)
+			if err != nil {
+				logger.Error(err, "Failed to create a user for the cluster",
+					"user ref", ref,
+				)
+				r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
+					"Failed to create a user for the cluster. Reason: %v", err,
+				)
+				return err
+			}
+		}
+
+		logger.Info("User creation job successfully finished")
+		r.EventRecorder.Eventf(redis, models.Normal, models.Created,
+			"User creation job successfully finished",
+		)
+
+		go r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
+
+		return nil
+	}
+}
+
 func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job {
 	l := log.Log.WithValues("component", "redisStatusClusterJob")
 	return func() error {
@@ -811,8 +876,9 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
+			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
-			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
+			go r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 
@@ -999,6 +1065,11 @@ func (r *RedisReconciler) newWatchBackupsJob(cluster *v1beta1.Redis) scheduler.J
 
 		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
 		if err != nil {
+			l.Error(err, "Cannot get list of Redis cluster backups",
+				"cluster name", cluster.Spec.Name,
+				"clusterID", cluster.Status.ID,
+			)
+
 			return err
 		}
 
