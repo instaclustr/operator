@@ -11,6 +11,126 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-clusterresources-instaclustr-com-v1beta1-awsencryptionkey
+  failurePolicy: Fail
+  name: mawsencryptionkey.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awsencryptionkeys
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-clusterresources-instaclustr-com-v1beta1-awssecuritygroupfirewallrule
+  failurePolicy: Fail
+  name: mawssecuritygroupfirewallrule.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awssecuritygroupfirewallrules
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-clusterresources-instaclustr-com-v1beta1-awsvpcpeering
+  failurePolicy: Fail
+  name: mawsvpcpeering.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awsvpcpeerings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-clusterresources-instaclustr-com-v1beta1-azurevnetpeering
+  failurePolicy: Fail
+  name: mazurevnetpeering.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - azurevnetpeerings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-clusterresources-instaclustr-com-v1beta1-clusternetworkfirewallrule
+  failurePolicy: Fail
+  name: mclusternetworkfirewallrule.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - clusternetworkfirewallrules
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-clusterresources-instaclustr-com-v1beta1-gcpvpcpeering
+  failurePolicy: Fail
+  name: mgcpvpcpeering.kb.io
+  rules:
+  - apiGroups:
+    - clusterresources.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gcpvpcpeerings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-clusters-instaclustr-com-v1beta1-cadence
   failurePolicy: Fail
   name: mcadence.kb.io
@@ -164,6 +284,86 @@ webhooks:
     - UPDATE
     resources:
     - zookeepers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-kafkamanagement-instaclustr-com-v1beta1-kafkaacl
+  failurePolicy: Fail
+  name: mkafkaacl.kb.io
+  rules:
+  - apiGroups:
+    - kafkamanagement.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkaacls
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-kafkamanagement-instaclustr-com-v1beta1-kafkauser
+  failurePolicy: Fail
+  name: mkafkauser.kb.io
+  rules:
+  - apiGroups:
+    - kafkamanagement.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkausers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-kafkamanagement-instaclustr-com-v1beta1-mirror
+  failurePolicy: Fail
+  name: mmirror.kb.io
+  rules:
+  - apiGroups:
+    - kafkamanagement.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - mirrors
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-kafkamanagement-instaclustr-com-v1beta1-topic
+  failurePolicy: Fail
+  name: mtopic.kb.io
+  rules:
+  - apiGroups:
+    - kafkamanagement.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - topics
   sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1

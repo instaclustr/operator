@@ -58,7 +58,6 @@ type CassandraUserList struct {
 
 func (r *CassandraUser) NewPatch() client.Patch {
 	old := r.DeepCopy()
-	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 

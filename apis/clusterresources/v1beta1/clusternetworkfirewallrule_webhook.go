@@ -36,6 +36,21 @@ func (fr *ClusterNetworkFirewallRule) SetupWebhookWithManager(mgr ctrl.Manager) 
 		Complete()
 }
 
+//+kubebuilder:webhook:path=/mutate-clusterresources-instaclustr-com-v1beta1-clusternetworkfirewallrule,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=clusternetworkfirewallrules,verbs=create;update,versions=v1beta1,name=mclusternetworkfirewallrule.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Defaulter = &ClusterNetworkFirewallRule{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *ClusterNetworkFirewallRule) Default() {
+	clusternetworkfirewallrulelog.Info("default", "name", r.Name)
+
+	if r.GetAnnotations() == nil {
+		r.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+}
+
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1beta1-clusternetworkfirewallrule,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=clusternetworkfirewallrules,verbs=create;update,versions=v1beta1,name=vclusternetworkfirewallrule.kb.io,admissionReviewVersions=v1
 

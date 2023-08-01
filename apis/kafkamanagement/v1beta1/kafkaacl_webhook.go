@@ -33,6 +33,21 @@ func (kacl *KafkaACL) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
+//+kubebuilder:webhook:path=/mutate-kafkamanagement-instaclustr-com-v1beta1-kafkaacl,mutating=true,failurePolicy=fail,sideEffects=None,groups=kafkamanagement.instaclustr.com,resources=kafkaacls,verbs=create;update,versions=v1beta1,name=mkafkaacl.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Defaulter = &KafkaACL{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *KafkaACL) Default() {
+	kafkaacllog.Info("default", "name", r.Name)
+
+	if r.GetAnnotations() == nil {
+		r.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+}
+
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-kafkamanagement-instaclustr-com-v1beta1-kafkaacl,mutating=false,failurePolicy=fail,sideEffects=None,groups=kafkamanagement.instaclustr.com,resources=kafkaacls,verbs=create;update,versions=v1beta1,name=vkafkaacl.kb.io,admissionReviewVersions=v1
 

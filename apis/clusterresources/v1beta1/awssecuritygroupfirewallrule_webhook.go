@@ -36,6 +36,21 @@ func (r *AWSSecurityGroupFirewallRule) SetupWebhookWithManager(mgr ctrl.Manager)
 		Complete()
 }
 
+//+kubebuilder:webhook:path=/mutate-clusterresources-instaclustr-com-v1beta1-awssecuritygroupfirewallrule,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules,verbs=create;update,versions=v1beta1,name=mawssecuritygroupfirewallrule.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Defaulter = &AWSSecurityGroupFirewallRule{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *AWSSecurityGroupFirewallRule) Default() {
+	awssecuritygroupfirewallrulelog.Info("default", "name", r.Name)
+
+	if r.GetAnnotations() == nil {
+		r.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+}
+
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1beta1-awssecuritygroupfirewallrule,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=awssecuritygroupfirewallrules,verbs=create;update,versions=v1beta1,name=vawssecuritygroupfirewallrule.kb.io,admissionReviewVersions=v1
 
