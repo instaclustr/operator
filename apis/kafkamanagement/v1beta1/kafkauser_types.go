@@ -68,7 +68,6 @@ func (ku *KafkaUser) GetJobID(jobName string) string {
 
 func (ku *KafkaUser) NewPatch() client.Patch {
 	old := ku.DeepCopy()
-	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }
 

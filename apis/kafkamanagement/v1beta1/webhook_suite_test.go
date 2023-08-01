@@ -99,6 +99,15 @@ var _ = BeforeSuite(func() {
 	err = (&KafkaACL{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&Mirror{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&Topic{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&KafkaUser{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {

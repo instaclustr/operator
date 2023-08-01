@@ -23,6 +23,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 var azurevnetpeeringlog = logf.Log.WithName("azurevnetpeering-resource")
@@ -31,6 +33,21 @@ func (r *AzureVNetPeering) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
+}
+
+//+kubebuilder:webhook:path=/mutate-clusterresources-instaclustr-com-v1beta1-azurevnetpeering,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=azurevnetpeerings,verbs=create;update,versions=v1beta1,name=mazurevnetpeering.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Defaulter = &AzureVNetPeering{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *AzureVNetPeering) Default() {
+	azurevnetpeeringlog.Info("default", "name", r.Name)
+
+	if r.GetAnnotations() == nil {
+		r.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.

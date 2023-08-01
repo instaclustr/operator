@@ -36,6 +36,21 @@ func (aws *AWSEncryptionKey) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
+//+kubebuilder:webhook:path=/mutate-clusterresources-instaclustr-com-v1beta1-awsencryptionkey,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=awsencryptionkeys,verbs=create;update,versions=v1beta1,name=mawsencryptionkey.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Defaulter = &AWSEncryptionKey{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (aws *AWSEncryptionKey) Default() {
+	awsencryptionkeylog.Info("default", "name", aws.Name)
+
+	if aws.GetAnnotations() == nil {
+		aws.SetAnnotations(map[string]string{
+			models.ResourceStateAnnotation: "",
+		})
+	}
+}
+
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-clusterresources-instaclustr-com-v1beta1-awsencryptionkey,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusterresources.instaclustr.com,resources=awsencryptionkeys,verbs=create;update,versions=v1beta1,name=vawsencryptionkey.kb.io,admissionReviewVersions=v1
 
