@@ -429,6 +429,10 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "CassandraUser")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcesv1beta1.RedisUser{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RedisUser")
+		os.Exit(1)
+	}
 	if err = (&kafkamanagementv1beta1.Mirror{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Mirror")
 		os.Exit(1)
