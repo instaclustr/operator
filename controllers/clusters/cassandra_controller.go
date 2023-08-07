@@ -119,7 +119,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 		var id string
 		if cassandra.Spec.HasRestore() {
 			l.Info(
-				"Creating cluster from backup",
+				"Creating Cassandra cluster from backup",
 				"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
 			)
 
@@ -175,12 +175,9 @@ func (r *CassandraReconciler) handleCreateCluster(
 		cassandra.Status.ID = id
 		err = r.Status().Patch(ctx, cassandra, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch cluster status",
+			l.Error(err, "Cannot patch cluster status after cluster creation.",
 				"cluster name", cassandra.Spec.Name,
 				"cluster ID", cassandra.Status.ID,
-				"kind", cassandra.Kind,
-				"api Version", cassandra.APIVersion,
-				"namespace", cassandra.Namespace,
 				"cluster metadata", cassandra.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
@@ -195,17 +192,14 @@ func (r *CassandraReconciler) handleCreateCluster(
 		cassandra.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, cassandra, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch cluster",
+			l.Error(err, "Cannot patch cluster after adding DeletionFinalizer",
 				"cluster name", cassandra.Spec.Name,
 				"cluster ID", cassandra.Status.ID,
-				"kind", cassandra.Kind,
-				"api Version", cassandra.APIVersion,
-				"namespace", cassandra.Namespace,
 				"cluster metadata", cassandra.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
 				cassandra, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
+				"Cluster resource patch is failed after adding DeletionFinalizer. Reason: %v",
 				err,
 			)
 			return models.ReconcileRequeue
@@ -215,20 +209,20 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"Cluster has been created",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
 		)
+
+		r.EventRecorder.Eventf(cassandra, models.Normal, models.CreatedEvent,
+			"Cluster has been created %v", cassandra.ObjectMeta.Name)
 	}
 
 	err = r.startClusterStatusJob(cassandra)
 	if err != nil {
-		l.Error(err, "Cannot start cluster status job",
+		l.Error(err, "Cannot start Cassandra cluster status job after cluster creation.",
 			"cassandra cluster ID", cassandra.Status.ID)
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v",
+			"Cassandra cluster status check job is failed after cluster creation. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -236,18 +230,18 @@ func (r *CassandraReconciler) handleCreateCluster(
 
 	r.EventRecorder.Eventf(
 		cassandra, models.Normal, models.Created,
-		"Cluster status check job is started",
+		"Cluster status check job is started for Cassandra after cluster creation.",
 	)
 
 	err = r.startClusterBackupsJob(cassandra)
 	if err != nil {
-		l.Error(err, "Cannot start cluster backups check job",
+		l.Error(err, "Cannot start cluster backups check job after cluster creation.",
 			"cluster ID", cassandra.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.CreationFailed,
-			"Cluster backups check job is failed. Reason: %v",
+			"Cluster backups check job is failed after cluster creation. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -261,9 +255,9 @@ func (r *CassandraReconciler) handleCreateCluster(
 	if cassandra.Spec.UserRefs != nil {
 		err = r.startUsersCreationJob(cassandra)
 		if err != nil {
-			l.Error(err, "Failed to start user creation job")
+			l.Error(err, "Failed to start user creation job when cluster created")
 			r.EventRecorder.Eventf(cassandra, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err)
+				"User creation job is failed when cluster created. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
 
@@ -283,14 +277,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 	iData, err := r.API.GetCassandra(cassandra.Status.ID)
 	if err != nil {
-		l.Error(err, "Cannot get cluster from the Instaclustr API",
+		l.Error(err, "Cannot get cluster from the Instaclustr API. Update cluster is failed",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.FetchFailed,
-			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			"Cluster fetch from the Instaclustr API is failed. Update cluster is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -299,14 +293,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	iCassandra, err := cassandra.FromInstAPI(iData)
 	if err != nil {
 		l.Error(
-			err, "Cannot convert cluster from the Instaclustr API",
+			err, "Cannot convert cluster from the Instaclustr API. Update cluster is failed",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.ConvertionFailed,
-			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
+			"Cluster convertion from the Instaclustr API to k8s resource is failed. Update cluster is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -337,17 +331,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 				cassandra.Annotations[models.UpdateQueuedAnnotation] = models.True
 				err = r.Patch(ctx, cassandra, patch)
 				if err != nil {
-					l.Error(err, "Cannot patch cluster resource",
+					l.Error(err, "Cannot patch cluster resource when updating Cassandra cluster",
 						"cluster name", cassandra.Spec.Name,
 						"cluster ID", cassandra.Status.ID,
-						"kind", cassandra.Kind,
-						"api Version", cassandra.APIVersion,
-						"namespace", cassandra.Namespace,
 						"cluster metadata", cassandra.ObjectMeta,
 					)
 					r.EventRecorder.Eventf(
 						cassandra, models.Warning, models.PatchFailed,
-						"Cluster resource patch is failed. Reason: %v",
+						"Cluster resource patch is failed when updating Cassandra cluster. Reason: %v",
 						err,
 					)
 					return models.ReconcileRequeue
@@ -362,17 +353,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	cassandra.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, cassandra, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
+		l.Error(err, "Cannot patch cluster resource when setting annotations",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
 			"cluster metadata", cassandra.ObjectMeta,
 		)
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
+			"Cluster resource patch is failed when setting annotations. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -385,6 +373,9 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		"namespace", cassandra.Namespace,
 		"data centres", cassandra.Spec.DataCentres,
 	)
+
+	r.EventRecorder.Eventf(cassandra, models.Normal, models.UpdatedEvent,
+		"Cluster has been updated %v", cassandra.ObjectMeta.Name)
 
 	return models.ExitReconcile
 }
@@ -413,11 +404,11 @@ func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *v1bet
 
 	err := r.Patch(context.Background(), cassandra, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
+		l.Error(err, "Cannot patch cluster resource with ExternalChangesAnnotation",
 			"cluster name", cassandra.Spec.Name, "cluster ID", cassandra.Status.ID)
 
 		r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
+			"Cluster resource patch is failed with ExternalChangesAnnotation. Reason: %v", err)
 
 		return models.ReconcileRequeue
 	}
@@ -438,16 +429,13 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	_, err := r.API.GetCassandra(cassandra.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
-			err, "Cannot get cluster from the Instaclustr API",
+			err, "Cannot get cluster from the Instaclustr API. Delete cluster is failed",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
 		)
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.FetchFailed,
-			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			"Cluster fetch from the Instaclustr API is failed. Delete cluster is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -465,9 +453,6 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			l.Error(err, "Cannot delete cluster",
 				"cluster name", cassandra.Spec.Name,
 				"state", cassandra.Status.State,
-				"kind", cassandra.Kind,
-				"api Version", cassandra.APIVersion,
-				"namespace", cassandra.Namespace,
 			)
 			r.EventRecorder.Eventf(
 				cassandra, models.Warning, models.DeletionFailed,
@@ -485,11 +470,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 			cassandra.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
 			err = r.Patch(ctx, cassandra, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch cluster resource",
+				l.Error(err, "Cannot patch cluster resource when deleting cluster.",
 					"cluster name", cassandra.Spec.Name,
 					"cluster state", cassandra.Status.State)
 				r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v", err)
+					"Cluster resource patch is failed when deleting cluster. Reason: %v", err)
 
 				return models.ReconcileRequeue
 			}
@@ -508,6 +493,11 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
 
 	l.Info("Deleting cluster backup resources", "cluster ID", cassandra.Status.ID)
+
+	r.EventRecorder.Eventf(
+		cassandra, models.Normal, models.DeletionStarted,
+		"Trying to delete cluster resources backups.",
+	)
 
 	err = r.deleteBackups(ctx, cassandra.Status.ID, cassandra.Namespace)
 	if err != nil {
@@ -542,18 +532,15 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, cassandra, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
+		l.Error(err, "Cannot patch cluster resource after backups deletion.",
 			"cluster name", cassandra.Spec.Name,
 			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
 			"cluster metadata", cassandra.ObjectMeta,
 		)
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
+			"Cluster resource patch is failed after backups deletion. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue
@@ -572,9 +559,6 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	l.Info("Cluster has been deleted",
 		"cluster name", cassandra.Spec.Name,
 		"cluster ID", cassandra.Status.ID,
-		"kind", cassandra.Kind,
-		"api Version", cassandra.APIVersion,
-		"namespace", cassandra.Namespace,
 	)
 
 	r.EventRecorder.Eventf(
@@ -600,16 +584,19 @@ func (r *CassandraReconciler) handleUsersCreate(
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra user is not found", "request", req)
+			l.Error(err, "Cassandra user is not found. Can`t create User on cluster.",
+				"request", req,
+				"cluster ID", c.Status.ID,
+				"cluster name", c.Name)
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User is not found, create a new one Cassandra User or provide correct userRef."+
 					"Current provided reference: %v", uRef)
 			return err
 		}
 
-		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
+		l.Error(err, "Cannot get Cassandra user. Can`t create User on cluster.", "user", u.Spec)
 		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot get Cassandra user. user reference: %v", uRef)
+			"Cannot get Cassandra user. Can`t create User on cluster. user reference: %v", uRef)
 		return err
 	}
 
@@ -657,16 +644,19 @@ func (r *CassandraReconciler) handleUsersDelete(
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra user is not found", "request", req)
+			l.Error(err, "Cassandra user is not found. Can`t delete user from the cluster.",
+				"request", req,
+				"cluster ID", c.Status.ID,
+				"cluster name", c.Name)
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User is not found, create a new one Cassandra User or provide correct userRef."+
 					"Current provided reference: %v", uRef)
 			return err
 		}
 
-		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
+		l.Error(err, "Cannot get Cassandra user. User deletion is failed", "user", u.Spec)
 		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get Cassandra user. user reference: %v", uRef)
+			"Cannot get Cassandra user. User deletion is failed. user reference: %v", uRef)
 		return err
 	}
 
@@ -710,14 +700,17 @@ func (r *CassandraReconciler) handleUsersDetach(
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra user is not found", "request", req)
+			l.Error(err, "Cassandra user is not found. Can`t detach user from the cluster.",
+				"request", req,
+				"cluster ID", c.Status.ID,
+				"cluster name", c.Name)
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User resource is not found, please provide correct userRef."+
 					"Current provided reference: %v", uRef)
 			return err
 		}
 
-		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
+		l.Error(err, "Cannot get Cassandra user. Can`t detach user.", "user", u.Spec)
 		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
 			"Cannot get Cassandra user. user reference: %v", uRef)
 		return err
@@ -948,14 +941,14 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 
 			err = r.Patch(context.Background(), cassandra, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch cluster cluster",
+				l.Error(err, "Cannot patch cluster with ExternalChangesAnnotation",
 					"cluster name", cassandra.Spec.Name, "cluster state", cassandra.Status.State)
 				return err
 			}
 
 			msgDiffSpecs, err := createSpecDifferenceMessage(cassandra.Spec, iCassandra.Spec)
 			if err != nil {
-				l.Error(err, "Cannot create specification difference message",
+				l.Error(err, "Cannot create specification difference message after ExternalChangesAnnotation",
 					"instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
 				return err
 			}
@@ -970,6 +963,8 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				"cluster ID", cassandra.Status.ID,
 			)
 
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.FetchFailed, "Can`t get cluster maintenance events. Reason: %v", err)
+
 			return err
 		}
 
@@ -983,6 +978,8 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 					"cluster ID", cassandra.Status.ID,
 				)
 
+				r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed, "Can`t patch cluster maintenance events. Reason: %v", err)
+
 				return err
 			}
 
@@ -990,6 +987,9 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				"cluster ID", cassandra.Status.ID,
 				"events", cassandra.Status.MaintenanceEvents,
 			)
+
+			r.EventRecorder.Event(cassandra, models.Normal, models.UpdatedEvent, "Cluster maintenance events were updated")
+
 		}
 
 		return nil
