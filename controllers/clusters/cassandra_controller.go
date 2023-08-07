@@ -639,6 +639,8 @@ func (r *CassandraReconciler) handleUsersCreate(
 		return err
 	}
 
+	l.Info("User has been added to the queue for creation", "username", u.Name)
+
 	return nil
 }
 
@@ -691,6 +693,8 @@ func (r *CassandraReconciler) handleUsersDelete(
 			"Cannot patch the Cassandra User status with the DeletingEvent. Reason: %v", err)
 		return err
 	}
+
+	l.Info("User has been added to the queue for deletion", "username", u.Name)
 
 	return nil
 }

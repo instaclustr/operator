@@ -6,8 +6,6 @@ metadata:
     testAnnotation: test
 spec:
   name: "testPostgre"
-  clusterConfigurations:
-    idle_in_transaction_session_timeout: "1"
   version: "14.5.0"
   dataCentres:
     - region: "US_EAST_1"

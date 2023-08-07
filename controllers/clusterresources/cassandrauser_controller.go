@@ -123,6 +123,8 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	for clusterID, event := range u.Status.ClustersEvents {
 		if event == models.CreatingEvent {
+			l.Info("Creating user", "user", u, "cluster ID", clusterID)
+
 			err = r.API.CreateUser(u.ToInstAPI(username, password), clusterID, instaclustr.CassandraBundleUser)
 			if err != nil {
 				l.Error(err, "Cannot create a user for the Cassandra cluster",
@@ -146,7 +148,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return models.ReconcileRequeue, nil
 			}
 
-			l.Info("User has been created", "username", username)
+			l.Info("User has been created", "username", username, "cluster ID", clusterID)
 			r.EventRecorder.Eventf(u, models.Normal, models.Created,
 				"User has been created for a cluster. Cluster ID: %s, username: %s",
 				clusterID, username)
@@ -167,6 +169,8 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		if event == models.DeletingEvent {
+			l.Info("Deleting user", "user", u, "cluster ID", clusterID)
+
 			err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
 			if err != nil {
 				l.Error(err, "Cannot delete Cassandra user")
