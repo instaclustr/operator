@@ -15,10 +15,11 @@ go/api_awsvpc_peer_v2.go
 go/api_awsvpc_peer_v2_service.go
 go/api_azure_vnet_peer_v2.go
 go/api_azure_vnet_peer_v2_service.go
+go/api_bundle_user.go
+go/api_bundle_user_service.go
 go/api_cadence_cluster_v2.go
 go/api_cadence_cluster_v2_service.go
 go/api_cassandra_cluster_v2.go
-go/api_cassandra_cluster_v2_service.go
 go/api_cluster_network_firewall_rule_v2.go
 go/api_cluster_network_firewall_rule_v2_service.go
 go/api_gcpvpc_peer_v2.go
@@ -81,6 +82,8 @@ go/model_aws_vpc_peer_update_v2.go
 go/model_aws_vpc_peer_v2.go
 go/model_azure_vnet_peer_summary_v2.go
 go/model_azure_vnet_peer_v2.go
+go/model_bundle_user_create_request.go
+go/model_bundle_user_delete_request.go
 go/model_cadence_advanced_visibility_v2.go
 go/model_cadence_cluster_update_v2.go
 go/model_cadence_cluster_v2.go
@@ -99,10 +102,12 @@ go/model_common_cluster_v2.go
 go/model_common_data_centre_v2.go
 go/model_current_cluster_operation_status_v2.go
 go/model_error_list_response_v2.go
+go/model_error_message.go
 go/model_error_response_v2.go
 go/model_firewall_rule_types_v2.go
 go/model_gcp_vpc_peer_summary_v2.go
 go/model_gcp_vpc_peer_v2.go
+go/model_generic_response.go
 go/model_iam_principal_arn_v2.go
 go/model_iam_principal_arns_v2.go
 go/model_kafka_acl_list_v2.go

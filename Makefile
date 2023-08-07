@@ -71,8 +71,12 @@ test-clusterresources:
 test-kafkamanagement:
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/kafkamanagement -coverprofile cover.out
 
+.PHONY: test-users
+test-users:
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/tests
+
 .PHONY: test
-test: manifests generate fmt vet docker-build-server-stub run-server-stub envtest test-clusters test-clusterresources test-kafkamanagement stop-server-stub
+ test: manifests generate fmt vet docker-build-server-stub run-server-stub envtest test-clusters test-clusterresources test-kafkamanagement test-users stop-server-stub
 
 .PHONY: goimports
 goimports:

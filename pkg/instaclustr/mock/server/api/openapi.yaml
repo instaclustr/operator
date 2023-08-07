@@ -71,6 +71,147 @@ tags:
 - description: ""
   name: Terraform Import V2
 paths:
+  /provisioning/v1/{clusterId}/{bundle}/users:
+    delete:
+      deprecated: false
+      description: Delete bundle user for a given username
+      operationId: deleteUser
+      parameters:
+      - in: path
+        name: clusterId
+        required: true
+        schema: {}
+      - in: path
+        name: bundle
+        required: true
+        schema: {}
+      responses:
+        "200":
+          content: {}
+          description: Bundle user successfully deleted
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Not Authorized
+        "403":
+          content: {}
+          description: Missing permissions
+        "404":
+          content: {}
+          description: Resource not found
+        "415":
+          content: {}
+          description: "Unsupported media type: returned when the payload is in an\
+            \ unsupported format."
+        "429":
+          content: {}
+          description: "Too many requests: returned when more than 35 requests per\
+            \ second are being received by your user."
+        "503":
+          content: {}
+          description: Service Unavailable
+        "504":
+          content: {}
+          description: Gateway Timeout
+      summary: Delete a bundle user
+      tags:
+      - Bundle User
+    get:
+      deprecated: false
+      description: Retrieve a list of bundle users currently enabled in the given
+        cluster.
+      operationId: listUsers
+      parameters:
+      - in: path
+        name: clusterId
+        required: true
+        schema: {}
+      - in: path
+        name: bundle
+        required: true
+        schema: {}
+      responses:
+        "200":
+          content: {}
+          description: Successfully returned a JSON list of bundle users
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Not Authorized
+        "403":
+          content: {}
+          description: Missing permissions
+        "404":
+          content: {}
+          description: Resource not found
+        "415":
+          content: {}
+          description: "Unsupported media type: returned when the payload is in an\
+            \ unsupported format."
+        "429":
+          content: {}
+          description: "Too many requests: returned when more than 35 requests per\
+            \ second are being received by your user."
+        "503":
+          content: {}
+          description: Service Unavailable
+        "504":
+          content: {}
+          description: Gateway Timeout
+      summary: Get a list of bundle users
+      tags:
+      - Bundle User
+    post:
+      deprecated: false
+      description: Add a new bundle user to the given cluster with read write access
+        to all topics
+      operationId: createUser
+      parameters:
+      - in: path
+        name: clusterId
+        required: true
+        schema: {}
+      - in: path
+        name: bundle
+        required: true
+        schema: {}
+      responses:
+        "201":
+          content: {}
+          description: Bundle user successfully created
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Not Authorized
+        "403":
+          content: {}
+          description: Missing permissions
+        "404":
+          content: {}
+          description: Resource not found
+        "415":
+          content: {}
+          description: "Unsupported media type: returned when the payload is in an\
+            \ unsupported format."
+        "429":
+          content: {}
+          description: "Too many requests: returned when more than 35 requests per\
+            \ second are being received by your user."
+        "503":
+          content: {}
+          description: Service Unavailable
+        "504":
+          content: {}
+          description: Gateway Timeout
+      summary: Add a bundle user
+      tags:
+      - Bundle User
   /cluster-management/v2/data-sources/kafka_connect_cluster/{clusterId}/mirrors/v2/:
     get:
       parameters:
@@ -7406,6 +7547,75 @@ components:
       - numberOfNodes
       - region
       - replicationFactor
+      type: object
+    BundleUserCreateRequest:
+      properties:
+        username:
+          example: yourUserName
+          maxLength: 255
+          minLength: 1
+          type: string
+        password:
+          description: Bundle user password
+          example: yourPassword
+          maxLength: 2147483647
+          minLength: 8
+          type: string
+        options:
+          description: |-
+            A collection of optional bundle-specific user options - the options available to be set differ depending on the bundle type.</h3><table style="width:100%;word-break:break-word;font-size:0.8em">
+            <tr><th>Bundle</th><th>Option</th><th>Allowable values</th></tr>
+            <tr><td>Kafka</td><td>"sasl-scram-mechanism"</td><td>"SCRAM-SHA-256" (Default), "SCRAM-SHA-512"</td></tr>
+            <tr><td>Kafka</td><td>"override-existing-user"</td><td>true (Default), false</td></tr>
+            </table>
+          example:
+            override-existing-user: true
+            sasl-scram-mechanism: SCRAM-SHA-512
+          properties: {}
+          type: object
+        initial-permissions:
+          description: Permissions upon user creation
+          enum:
+          - standard
+          - read-only
+          - none
+          example: standard
+          type: string
+      required:
+      - password
+      - username
+      type: object
+    BundleUserDeleteRequest:
+      properties:
+        username:
+          example: yourUserName
+          maxLength: 255
+          minLength: 1
+          type: string
+      required:
+      - username
+      type: object
+    ErrorMessage:
+      properties:
+        status:
+          format: int32
+          type: integer
+        message:
+          type: string
+        errorDetails:
+          properties: {}
+          type: object
+        code:
+          format: int32
+          type: integer
+        link:
+          type: string
+      type: object
+    GenericResponse:
+      properties:
+        message:
+          description: message content
+          type: string
       type: object
     KafkaConnectMirrorSummariesV2:
       description: A listable data source of all Mirrors within a Kafka Connect Cluster.

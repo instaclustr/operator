@@ -49,9 +49,9 @@ func NewRouter(routers ...Router) *mux.Router {
 			handler = route.HandlerFunc
 			handler = Logger(handler, route.Name)
 
-			if route.Method == "POST" {
+			if route.Method == "POST" && route.Name != "CreateUser" {
 				route.Pattern = strings.TrimSuffix(route.Pattern, "v2")
-				route.Pattern += "{v2:v2\\/?}"
+				route.Pattern += "v2/"
 			}
 
 			router.

@@ -2,6 +2,137 @@ security:
 - terraformKey: []
 - basicAuth: []
 paths:
+  /provisioning/v1/{clusterId}/{bundle}/users:
+    post:
+      tags:
+        - "Bundle User"
+      summary: "Add a bundle user"
+      description: "Add a new bundle user to the given cluster with read write access\
+        \ to all topics"
+      operationId: "createUser"
+      parameters:
+        - name: "clusterId"
+          in: "path"
+          required: true
+          style: "simple"
+          explode: false
+          schema:
+            type: "string"
+            format: "uuid"
+          example: "64223f17-7c9b-4986-8e2e-a44a91a26635"
+        - name: "bundle"
+          in: "path"
+          required: true
+          style: "simple"
+          explode: false
+          schema:
+            type: "string"
+            example: "kafka"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/definitions/BundleUserCreateRequest"
+      responses:
+        "201":
+          description: "Bundle user successfully created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/GenericResponse"
+              example:
+                message: "User test1 created."
+        "400":
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+        "404":
+          description: "Resource not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+    delete:
+      tags:
+        - "Bundle User"
+      summary: "Delete a bundle user"
+      description: "Delete bundle user for a given username"
+      operationId: "deleteUser"
+      parameters:
+        - name: "clusterId"
+          in: "path"
+          required: true
+          style: "simple"
+          explode: false
+          schema:
+            type: "string"
+            format: "uuid"
+          example: "64223f17-7c9b-4986-8e2e-a44a91a26635"
+        - name: "bundle"
+          in: "path"
+          required: true
+          style: "simple"
+          explode: false
+          schema:
+            type: "string"
+            example: "kafka"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/definitions/BundleUserDeleteRequest"
+      responses:
+        "200":
+          description: "Bundle user successfully deleted"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/GenericResponse"
+              example:
+                message: "User test1 has been deleted."
+        "400":
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+        "401":
+          description: "Not Authorized"
+          content:
+            application/json: { }
+        "403":
+          description: "Missing permissions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+        "404":
+          description: "Resource not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+        "415":
+          description: "Unsupported media type: returned when the payload is in an\
+            \ unsupported format."
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+        "429":
+          description: "Too many requests: returned when more than 35 requests per\
+            \ second are being received by your user."
+          content:
+            application/json:
+              schema:
+                $ref: "#/definitions/ErrorMessage"
+        "503":
+          description: "Service Unavailable"
+        "504":
+          description: "Gateway Timeout"
+      deprecated: false
   /cluster-management/v2/data-sources/kafka_connect_cluster/{clusterId}/mirrors/v2/:
     x-terraform-resource-name: mirrors_v2
     get:
@@ -4608,6 +4739,74 @@ definitions:
         example: RUNNING}
     required: [nodeSize, replicationFactor, numberOfNodes, name, region, cloudProvider,
       network]
+  BundleUserCreateRequest:
+    required:
+      - "password"
+      - "username"
+    type: "object"
+    properties:
+      username:
+        maxLength: 255
+        minLength: 1
+        type: "string"
+        example: "yourUserName"
+      password:
+        maxLength: 2147483647
+        minLength: 8
+        type: "string"
+        description: "Bundle user password"
+        example: "yourPassword"
+      options:
+        type: "object"
+        description: "A collection of optional bundle-specific user options - the\
+          \ options available to be set differ depending on the bundle type.</h3><table\
+          \ style=\"width:100%;word-break:break-word;font-size:0.8em\">\n<tr><th>Bundle</th><th>Option</th><th>Allowable\
+          \ values</th></tr>\n<tr><td>Kafka</td><td>\"sasl-scram-mechanism\"</td><td>\"\
+          SCRAM-SHA-256\" (Default), \"SCRAM-SHA-512\"</td></tr>\n<tr><td>Kafka</td><td>\"\
+          override-existing-user\"</td><td>true (Default), false</td></tr>\n</table>"
+        example:
+          override-existing-user: true
+          sasl-scram-mechanism: "SCRAM-SHA-512"
+      initial-permissions:
+        type: "string"
+        description: "Permissions upon user creation"
+        writeOnly: true
+        example: "standard"
+        enum:
+          - "standard"
+          - "read-only"
+          - "none"
+  BundleUserDeleteRequest:
+    required:
+      - "username"
+    type: "object"
+    properties:
+      username:
+        maxLength: 255
+        minLength: 1
+        type: "string"
+        example: "yourUserName"
+  ErrorMessage:
+    type: "object"
+    properties:
+      status:
+        type: "integer"
+        format: "int32"
+      message:
+        type: "string"
+      errorDetails:
+        type: "object"
+      code:
+        type: "integer"
+        format: "int32"
+      link:
+        type: "string"
+  GenericResponse:
+    type: "object"
+    properties:
+      message:
+        type: "string"
+        description: "message content"
   KafkaConnectMirrorSummariesV2:
     description: A listable data source of all Mirrors within a Kafka Connect Cluster.
     type: object

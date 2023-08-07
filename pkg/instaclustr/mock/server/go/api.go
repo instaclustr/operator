@@ -81,6 +81,14 @@ type AzureVnetPeerV2ApiRouter interface {
 	ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdGet(http.ResponseWriter, *http.Request)
 }
 
+// BundleUserApiRouter defines the required methods for binding the api requests to a responses for the BundleUserApi
+// The BundleUserApiRouter implementation should parse necessary information from the http request,
+// pass the data to a BundleUserApiServicer to perform the required actions, then write the service results to the http response.
+type BundleUserApiRouter interface {
+	CreateUser(http.ResponseWriter, *http.Request)
+	DeleteUser(http.ResponseWriter, *http.Request)
+}
+
 // CadenceClusterV2ApiRouter defines the required methods for binding the api requests to a responses for the CadenceClusterV2Api
 // The CadenceClusterV2ApiRouter implementation should parse necessary information from the http request,
 // pass the data to a CadenceClusterV2ApiServicer to perform the required actions, then write the service results to the http response.
@@ -372,6 +380,15 @@ type AzureVnetPeerV2ApiServicer interface {
 	ClusterManagementV2ResourcesProvidersAzureVnetPeersV2Post(context.Context, AzureVnetPeerV2) (ImplResponse, error)
 	ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdDelete(context.Context, string) (ImplResponse, error)
 	ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdGet(context.Context, string) (ImplResponse, error)
+}
+
+// BundleUserApiServicer defines the api actions for the BundleUserApi service
+// This interface intended to stay up to date with the openapi yaml used to generate it,
+// while the service implementation can be ignored with the .openapi-generator-ignore file
+// and updated with the logic required for the API.
+type BundleUserApiServicer interface {
+	CreateUser(context.Context, interface{}, interface{}) (ImplResponse, error)
+	DeleteUser(context.Context, interface{}, interface{}) (ImplResponse, error)
 }
 
 // CadenceClusterV2ApiServicer defines the api actions for the CadenceClusterV2Api service
