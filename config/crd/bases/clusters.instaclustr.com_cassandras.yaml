@@ -89,6 +89,8 @@ spec:
                   - replicationFactor
                   type: object
                 type: array
+              description:
+                type: string
               luceneEnabled:
                 type: boolean
               name:
@@ -172,7 +174,7 @@ spec:
                   - email
                   type: object
                 type: array
-              userRef:
+              userRefs:
                 items:
                   properties:
                     name:

@@ -316,7 +316,35 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		return r.handleExternalChanges(cassandra, iCassandra, l)
 	}
 
-	if !cassandra.Spec.IsEqual(iCassandra.Spec) {
+	patch := cassandra.NewPatch()
+
+	if len(cassandra.Spec.TwoFactorDelete) != 0 && len(iCassandra.Spec.TwoFactorDelete) == 0 ||
+		cassandra.Spec.Description != iCassandra.Spec.Description {
+		settingsToInstAPI, err := cassandra.Spec.ClusterSettingsUpdateToInstAPI()
+		if err != nil {
+			l.Error(err, "Cannot convert cluster settings to Instaclustr API",
+				"cluster ID", cassandra.Status.ID,
+				"cluster spec", cassandra.Spec)
+
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		err = r.API.UpdateClusterSettings(cassandra.Status.ID, settingsToInstAPI)
+		if err != nil {
+			l.Error(err, "Cannot update cluster settings",
+				"cluster ID", cassandra.Status.ID, "cluster spec", cassandra.Spec)
+
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+	}
+
+	if !cassandra.Spec.AreDCsEqual(iCassandra.Spec.DataCentres) {
 		err = r.API.UpdateCassandra(cassandra.Status.ID, cassandra.Spec.NewDCsUpdate())
 		if err != nil {
 			l.Error(err, "Cannot update cluster",
@@ -357,7 +385,6 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		}
 	}
 
-	patch := cassandra.NewPatch()
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	cassandra.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, cassandra, patch)
@@ -938,7 +965,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 		}
 
 		if iCassandra.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			cassandra.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			cassandra.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			cassandra.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!cassandra.Spec.IsEqual(iCassandra.Spec) {
 			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)

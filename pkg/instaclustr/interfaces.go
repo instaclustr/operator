@@ -97,4 +97,5 @@ type API interface {
 	DeleteUser(username, clusterID, app string) error
 	ListAppVersions(app string) ([]*models.AppVersions, error)
 	GetDefaultCredentialsV1(clusterID string) (string, string, error)
+	UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error
 }

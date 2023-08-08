@@ -142,14 +142,20 @@ func validateAppVersion(
 }
 
 func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
-	if len(new) != 0 && len(old) == 0 {
+	if len(old) == 0 && len(new) == 0 ||
+		len(old) == 0 && len(new) == 1 {
 		return nil
 	}
+
+	if len(new) > 1 {
+		return models.ErrOnlyOneEntityTwoFactorDelete
+	}
+
 	if len(old) != len(new) {
 		return models.ErrImmutableTwoFactorDelete
 	}
-	if len(old) != 0 &&
-		*old[0] != *new[0] {
+
+	if *old[0] != *new[0] {
 		return models.ErrImmutableTwoFactorDelete
 	}
 

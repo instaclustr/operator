@@ -122,6 +122,8 @@ spec:
                   - nodesNumber
                   type: object
                 type: array
+              description:
+                type: string
               icuPlugin:
                 type: boolean
               indexManagementPlugin:

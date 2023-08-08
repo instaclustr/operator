@@ -119,3 +119,8 @@ type AppVersions struct {
 type PrivateLink struct {
 	AdvertisedHostname string `json:"advertisedHostname"`
 }
+
+type ClusterSettings struct {
+	Description     string           `json:"description"`
+	TwoFactorDelete *TwoFactorDelete `json:"twoFactorDelete"`
+}

@@ -84,6 +84,8 @@ type Cluster struct {
 	SLATier string `json:"slaTier,omitempty"`
 
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+
+	Description string `json:"description,omitempty"`
 }
 
 type ClusterStatus struct {
@@ -150,6 +152,7 @@ func (c *Cluster) IsEqual(cluster Cluster) bool {
 		c.PCICompliance == cluster.PCICompliance &&
 		c.PrivateNetworkCluster == cluster.PrivateNetworkCluster &&
 		c.SLATier == cluster.SLATier &&
+		c.Description == cluster.Description &&
 		c.IsTwoFactorDeleteEqual(cluster.TwoFactorDelete)
 }
 
@@ -179,6 +182,22 @@ func (c *Cluster) TwoFactorDeletesToInstAPI() (TFDs []*models.TwoFactorDelete) {
 		TFDs = append(TFDs, tfd.ToInstAPI())
 	}
 	return
+}
+
+func (c *Cluster) ClusterSettingsUpdateToInstAPI() (*models.ClusterSettings, error) {
+	if len(c.TwoFactorDelete) > 1 {
+		return nil, models.ErrOnlyOneEntityTwoFactorDelete
+	}
+
+	iTFD := &models.TwoFactorDelete{}
+	for _, tfd := range c.TwoFactorDelete {
+		iTFD = tfd.ToInstAPI()
+	}
+
+	return &models.ClusterSettings{
+		Description:     c.Description,
+		TwoFactorDelete: iTFD,
+	}, nil
 }
 
 func (c *Cluster) TwoFactorDeleteToInstAPIv1() *models.TwoFactorDeleteV1 {

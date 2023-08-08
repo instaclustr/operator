@@ -53,4 +53,5 @@ var (
 	ErrImmutableNodesNumber                  = errors.New("nodes number is immutable")
 	ErrMissingSecretKeys                     = errors.New("the secret is missing the correct keys for the user")
 	ErrUserStillExist                        = errors.New("the user is still attached to cluster")
+	ErrOnlyOneEntityTwoFactorDelete          = errors.New("currently only one entity of two factor delete can be filled")
 )

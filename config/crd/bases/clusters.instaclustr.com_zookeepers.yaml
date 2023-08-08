@@ -84,6 +84,8 @@ spec:
                   - region
                   type: object
                 type: array
+              description:
+                type: string
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
