@@ -20,7 +20,7 @@ import "time"
 
 const (
 	DefaultTimeout  = time.Second * 60
-	OperatorVersion = "k8s v0.0.5"
+	OperatorVersion = "k8s v0.1.1"
 )
 
 // constants for API v2
@@ -51,6 +51,7 @@ const (
 	NodeReloadEndpoint                     = "%s/cluster-management/v2/operations/applications/postgresql/nodes/v2/%s/reload"
 	AWSEncryptionKeyEndpoint               = "/cluster-management/v2/resources/providers/aws/encryption-keys/v2/"
 	ListAppsVersionsEndpoint               = "%s/cluster-management/v2/data-sources/applications/%s/versions/v2/"
+	ClusterSettingsEndpoint                = "%s/cluster-management/v2/operations/clusters/v2/%s/change-settings/v2"
 )
 
 // constants for API v1

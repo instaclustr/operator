@@ -347,3 +347,7 @@ func (c *mockClient) DeleteUser(username, clusterID, app string) error {
 func (c *mockClient) GetDefaultCredentialsV1(clusterID string) (string, string, error) {
 	panic("GetDefaultCredentialsV1: is not implemented")
 }
+
+func (c *mockClient) UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error {
+	panic("UpdateClusterSettings: is not implemented")
+}

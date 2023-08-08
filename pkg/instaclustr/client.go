@@ -2215,3 +2215,29 @@ func (c *Client) GetDefaultCredentialsV1(clusterID string) (string, string, erro
 
 	return creds.Username, creds.InstaclustrUserPassword, nil
 }
+
+func (c *Client) UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error {
+	url := fmt.Sprintf(ClusterSettingsEndpoint, c.serverHostname, clusterID)
+
+	data, err := json.Marshal(settings)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}

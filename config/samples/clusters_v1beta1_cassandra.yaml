@@ -39,8 +39,9 @@ spec:
 #    - namespace: default
 #      name: cassandrauser-sample2
   slaTier: "NON_PRODUCTION"
-    #  twoFactorDelete:
-    #    - email: "rostyslp@netapp.com"
+#  description: "this is a sample of description"
+#  twoFactorDelete:
+#    - email: "rostyslp@netapp.com"
     #spark:
   # - version: "2.3.2"         # 3.0.1 for 4.0.4 version of Cassandra | 2.3.2 for 3.11.13 version of Cassandra
 

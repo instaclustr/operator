@@ -89,6 +89,8 @@ spec:
                   - replicationFactor
                   type: object
                 type: array
+              description:
+                type: string
               luceneEnabled:
                 type: boolean
               name:
