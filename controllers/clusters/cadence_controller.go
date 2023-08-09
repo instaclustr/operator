@@ -771,7 +771,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
+			go r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 		if err != nil {
@@ -839,7 +839,8 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 			return err
 		}
 
-		if !areStatusesEqual(&iCadence.Status.ClusterStatus, &cadence.Status.ClusterStatus) {
+		if !areStatusesEqual(&iCadence.Status.ClusterStatus, &cadence.Status.ClusterStatus) ||
+			!areSecondaryCadenceTargetsEqual(cadence.Status.TargetSecondaryCadence, iCadence.Status.TargetSecondaryCadence) {
 			l.Info("Updating Cadence cluster status",
 				"new status", iCadence.Status.ClusterStatus,
 				"old status", cadence.Status.ClusterStatus,
@@ -849,6 +850,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 
 			patch := cadence.NewPatch()
 			cadence.Status.ClusterStatus = iCadence.Status.ClusterStatus
+			cadence.Status.TargetSecondaryCadence = iCadence.Status.TargetSecondaryCadence
 			err = r.Status().Patch(context.Background(), cadence, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cadence cluster",
@@ -1177,6 +1179,16 @@ func (r *CadenceReconciler) updateDescriptionAndTwoFactorDelete(cadence *v1beta1
 	}
 
 	return nil
+}
+
+func areSecondaryCadenceTargetsEqual(k8sTargets, iTargets []*v1beta1.TargetCadence) bool {
+	for _, iTarget := range iTargets {
+		for _, k8sTarget := range k8sTargets {
+			return *iTarget == *k8sTarget
+		}
+	}
+
+	return len(iTargets) == len(k8sTargets)
 }
 
 // SetupWithManager sets up the controller with the Manager.

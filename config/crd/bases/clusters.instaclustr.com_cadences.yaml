@@ -241,6 +241,18 @@ spec:
                   - targetCassandra
                   type: object
                 type: array
+              targetPrimaryCadence:
+                items:
+                  properties:
+                    dependencyCdcId:
+                      type: string
+                    dependencyVpcType:
+                      type: string
+                  required:
+                  - dependencyCdcId
+                  - dependencyVpcType
+                  type: object
+                type: array
               twoFactorDelete:
                 items:
                   properties:
@@ -335,6 +347,18 @@ spec:
                 type: object
               state:
                 type: string
+              targetSecondaryCadence:
+                items:
+                  properties:
+                    dependencyCdcId:
+                      type: string
+                    dependencyVpcType:
+                      type: string
+                  required:
+                  - dependencyCdcId
+                  - dependencyVpcType
+                  type: object
+                type: array
               twoFactorDeleteEnabled:
                 type: boolean
             type: object

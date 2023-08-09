@@ -161,6 +161,10 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		}
 	}
 
+	if len(c.Spec.TargetPrimaryCadence) > 1 {
+		return fmt.Errorf("targetPrimaryCadence array must consist of <= 1 elements")
+	}
+
 	if len(c.Spec.DataCentres) == 0 {
 		return fmt.Errorf("data centres field is empty")
 	}

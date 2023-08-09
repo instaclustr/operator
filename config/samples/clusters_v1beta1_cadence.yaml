@@ -42,11 +42,17 @@ spec:
   dataCentres:
     - region: "US_EAST_1"
       network: "10.12.0.0/16"
+      # if you use multi-region mode please provide
+      # non-overlapping CIDR block for the secondary mode cluster
+#      network: "10.16.0.0/16"
       cloudProvider: "AWS_VPC"
       name: "testdc"
+#      nodeSize: "CAD-PRD-m5ad.large-75"
       nodeSize: "CAD-DEV-t3.small-5"
       nodesNumber: 2
       clientEncryption: false
   slaTier: "NON_PRODUCTION"
-  useCadenceWebAuth: true
-
+  useCadenceWebAuth: false
+#  targetPrimaryCadence:
+#    - dependencyCdcId: "cce79be3-7f41-4cad-837c-86d3d8b4be77"
+#      dependencyVpcType: "SEPARATE_VPC"
