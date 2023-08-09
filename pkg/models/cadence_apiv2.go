@@ -26,18 +26,20 @@ const (
 )
 
 type CadenceCluster struct {
-	ClusterStatus         `json:",inline"`
-	Name                  string                         `json:"name"`
-	CadenceVersion        string                         `json:"cadenceVersion"`
-	DataCentres           []*CadenceDataCentre           `json:"dataCentres"`
-	SharedProvisioning    []*CadenceSharedProvisioning   `json:"sharedProvisioning,omitempty"`
-	StandardProvisioning  []*CadenceStandardProvisioning `json:"standardProvisioning,omitempty"`
-	PCIComplianceMode     bool                           `json:"pciComplianceMode"`
-	TwoFactorDelete       []*TwoFactorDelete             `json:"twoFactorDelete,omitempty"`
-	UseCadenceWebAuth     bool                           `json:"useCadenceWebAuth"`
-	PrivateNetworkCluster bool                           `json:"privateNetworkCluster"`
-	SLATier               string                         `json:"slaTier"`
-	AWSArchival           []*AWSArchival                 `json:"awsArchival,omitempty"`
+	ClusterStatus          `json:",inline"`
+	Name                   string                         `json:"name"`
+	CadenceVersion         string                         `json:"cadenceVersion"`
+	DataCentres            []*CadenceDataCentre           `json:"dataCentres"`
+	SharedProvisioning     []*CadenceSharedProvisioning   `json:"sharedProvisioning,omitempty"`
+	StandardProvisioning   []*CadenceStandardProvisioning `json:"standardProvisioning,omitempty"`
+	PCIComplianceMode      bool                           `json:"pciComplianceMode"`
+	TwoFactorDelete        []*TwoFactorDelete             `json:"twoFactorDelete,omitempty"`
+	UseCadenceWebAuth      bool                           `json:"useCadenceWebAuth"`
+	PrivateNetworkCluster  bool                           `json:"privateNetworkCluster"`
+	SLATier                string                         `json:"slaTier"`
+	AWSArchival            []*AWSArchival                 `json:"awsArchival,omitempty"`
+	TargetPrimaryCadence   []*TargetCadence               `json:"targetPrimaryCadence,omitempty"`
+	TargetSecondaryCadence []*TargetCadence               `json:"targetSecondaryCadence,omitempty"`
 }
 
 type CadenceDataCentre struct {
@@ -71,6 +73,11 @@ type TargetOpenSearch struct {
 }
 
 type TargetCassandra struct {
+	DependencyCDCID   string `json:"dependencyCdcId"`
+	DependencyVPCType string `json:"dependencyVpcType"`
+}
+
+type TargetCadence struct {
 	DependencyCDCID   string `json:"dependencyCdcId"`
 	DependencyVPCType string `json:"dependencyVpcType"`
 }

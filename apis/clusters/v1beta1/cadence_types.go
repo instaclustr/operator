@@ -70,6 +70,7 @@ type CadenceSpec struct {
 	StandardProvisioning []*StandardProvisioning `json:"standardProvisioning,omitempty"`
 	SharedProvisioning   []*SharedProvisioning   `json:"sharedProvisioning,omitempty"`
 	PackagedProvisioning []*PackagedProvisioning `json:"packagedProvisioning,omitempty"`
+	TargetPrimaryCadence []*TargetCadence        `json:"targetPrimaryCadence,omitempty"`
 }
 
 type AWSArchival struct {
@@ -110,6 +111,11 @@ type TargetOpenSearch struct {
 	DependencyVPCType string `json:"dependencyVpcType"`
 }
 
+type TargetCadence struct {
+	DependencyCDCID   string `json:"dependencyCdcId"`
+	DependencyVPCType string `json:"dependencyVpcType"`
+}
+
 type AdvancedVisibility struct {
 	TargetKafka      *TargetKafka      `json:"targetKafka"`
 	TargetOpenSearch *TargetOpenSearch `json:"targetOpenSearch"`
@@ -117,7 +123,8 @@ type AdvancedVisibility struct {
 
 // CadenceStatus defines the observed state of Cadence
 type CadenceStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus          `json:",inline"`
+	TargetSecondaryCadence []*TargetCadence `json:"targetSecondaryCadence,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -180,6 +187,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 		AWSArchival:           awsArchival,
 		SharedProvisioning:    sharedProvisioning,
 		StandardProvisioning:  standardProvisioning,
+		TargetPrimaryCadence:  cs.TargetCadenceToInstAPI(),
 	}, nil
 }
 
@@ -305,6 +313,18 @@ func (cd *CadenceDataCentre) privateLinkToInstAPI() (iPrivateLink []*models.Priv
 	return
 }
 
+func (cs *CadenceSpec) TargetCadenceToInstAPI() []*models.TargetCadence {
+	var targets []*models.TargetCadence
+	for _, target := range cs.TargetPrimaryCadence {
+		targets = append(targets, &models.TargetCadence{
+			DependencyCDCID:   target.DependencyCDCID,
+			DependencyVPCType: target.DependencyVPCType,
+		})
+	}
+
+	return targets
+}
+
 func (cs *CadenceSpec) DCsToInstAPI() (iDCs []*models.CadenceDataCentre) {
 	for _, dc := range cs.DataCentres {
 		iDCs = append(iDCs, dc.ToInstAPI())
@@ -385,7 +405,20 @@ func (cs *CadenceStatus) FromInstAPI(iCad *models.CadenceCluster) CadenceStatus 
 			CurrentClusterOperationStatus: iCad.CurrentClusterOperationStatus,
 			MaintenanceEvents:             cs.MaintenanceEvents,
 		},
+		TargetSecondaryCadence: cs.SecondaryTargetsFromInstAPI(iCad),
 	}
+}
+
+func (cs *CadenceStatus) SecondaryTargetsFromInstAPI(iCad *models.CadenceCluster) []*TargetCadence {
+	var targets []*TargetCadence
+	for _, target := range iCad.TargetSecondaryCadence {
+		targets = append(targets, &TargetCadence{
+			DependencyCDCID:   target.DependencyCDCID,
+			DependencyVPCType: target.DependencyVPCType,
+		})
+	}
+
+	return targets
 }
 
 func (cs *CadenceStatus) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*DataCentreStatus) {
@@ -453,6 +486,11 @@ func (cs *CadenceSpec) validateUpdate(oldSpec CadenceSpec) error {
 	}
 
 	err = cs.validatePackagedProvisioning(oldSpec.PackagedProvisioning)
+	if err != nil {
+		return err
+	}
+
+	err = cs.validateTargetsPrimaryCadence(&oldSpec)
 	if err != nil {
 		return err
 	}
@@ -548,6 +586,22 @@ func (cs *CadenceSpec) validatePackagedProvisioning(old []*PackagedProvisioning)
 		if *pp.BundledCassandraSpec != *old[i].BundledCassandraSpec ||
 			pp.UseAdvancedVisibility != old[i].UseAdvancedVisibility {
 			return models.ErrImmutablePackagedProvisioning
+		}
+	}
+
+	return nil
+}
+
+func (cs *CadenceSpec) validateTargetsPrimaryCadence(old *CadenceSpec) error {
+	if len(cs.TargetPrimaryCadence) != len(old.TargetPrimaryCadence) {
+		return fmt.Errorf("targetPrimaryCadence is immutable")
+	}
+
+	for _, oldTarget := range old.TargetPrimaryCadence {
+		for _, newTarget := range cs.TargetPrimaryCadence {
+			if *oldTarget != *newTarget {
+				return fmt.Errorf("targetPrimaryCadence is immutable")
+			}
 		}
 	}
 
