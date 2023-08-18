@@ -2241,3 +2241,53 @@ func (c *Client) UpdateClusterSettings(clusterID string, settings *models.Cluste
 
 	return nil
 }
+
+func (c *Client) CreateAWSEndpointServicePrincipal(spec any) ([]byte, error) {
+	url := c.serverHostname + AWSEndpointServicePrincipalEndpoint
+
+	b, err := json.Marshal(spec)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, b)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	b, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	return b, nil
+}
+
+func (c *Client) DeleteAWSEndpointServicePrincipal(principalID string) error {
+	url := c.serverHostname + AWSEndpointServicePrincipalEndpoint + principalID
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	return nil
+}

@@ -351,3 +351,11 @@ func (c *mockClient) GetDefaultCredentialsV1(clusterID string) (string, string, 
 func (c *mockClient) UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error {
 	panic("UpdateClusterSettings: is not implemented")
 }
+
+func (c *mockClient) CreateAWSEndpointServicePrincipal(spec any) ([]byte, error) {
+	panic("CreateAWSEndpointServicePrincipal: is not implemented")
+}
+
+func (c *mockClient) DeleteAWSEndpointServicePrincipal(principalID string) error {
+	panic("DeleteAWSEndpointServicePrincipal: is not implemented")
+}
