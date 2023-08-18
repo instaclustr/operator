@@ -309,4 +309,16 @@ resources:
   webhooks:
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: clusterresources
+  kind: AWSEndpointServicePrincipal
+  path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

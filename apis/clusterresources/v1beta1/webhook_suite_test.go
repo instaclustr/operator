@@ -129,6 +129,9 @@ var _ = BeforeSuite(func() {
 	err = (&RedisUser{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&AWSEndpointServicePrincipal{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {

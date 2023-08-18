@@ -98,4 +98,6 @@ type API interface {
 	ListAppVersions(app string) ([]*models.AppVersions, error)
 	GetDefaultCredentialsV1(clusterID string) (string, string, error)
 	UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error
+	CreateAWSEndpointServicePrincipal(spec any) ([]byte, error)
+	DeleteAWSEndpointServicePrincipal(principalID string) error
 }
