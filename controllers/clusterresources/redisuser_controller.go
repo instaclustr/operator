@@ -107,10 +107,32 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return models.ReconcileRequeue, nil
 	}
 
+	if controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer()) {
+		err = r.Update(ctx, secret)
+		if err != nil {
+			l.Error(err, "Cannot update Redis user secret with deletion finalizer",
+				"secret name", secret.Name,
+				"secret namespace", secret.Namespace)
+			r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
+				"Cannot assign k8s secret to a Redis user. Reason: %v", err)
+
+			return models.ReconcileRequeue, nil
+		}
+	}
+
+	patch := user.NewPatch()
+	if controllerutil.AddFinalizer(user, user.GetDeletionFinalizer()) {
+		err = r.Patch(ctx, user, patch)
+		if err != nil {
+			l.Error(err, "Patch is failed. Cannot set finalizer to the user")
+			r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+				"Patch is failed. Cannot set finalizer to the user. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+	}
+
 	for clusterID, event := range user.Status.ClustersEvents {
 		if event == models.CreatingEvent {
-			patch := user.NewPatch()
-
 			_, err = r.API.CreateRedisUser(user.Spec.ToInstAPI(password, clusterID, username))
 			if err != nil {
 				l.Error(err, "Cannot create a user for the Redis cluster",
@@ -122,9 +144,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				return models.ReconcileRequeue, nil
 			}
 
-			event = models.Created
-			user.Status.ClustersEvents[clusterID] = event
-
+			user.Status.ClustersEvents[clusterID] = models.Created
 			err = r.Status().Patch(ctx, user, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Redis user status", "user", user.Name)
@@ -139,42 +159,15 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"User has been created for a Redis cluster. Cluster ID: %s, username: %s",
 				clusterID, username)
 
-			finalizerNeeded := controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer())
-			if finalizerNeeded {
-				err = r.Update(ctx, secret)
-				if err != nil {
-					l.Error(err, "Cannot update Redis user secret with deletion finalizer",
-						"secret name", secret.Name,
-						"secret namespace", secret.Namespace)
-					r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
-						"Cannot assign k8s secret to a Redis user. Reason: %v", err)
-
-					return models.ReconcileRequeue, nil
-				}
-			}
-
-			controllerutil.AddFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
-			err = r.Patch(ctx, user, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Redis user resource with deletion finalizer",
-					"secret name", secret.Name,
-					"secret namespace", secret.Namespace)
-				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
-					"Resource patch with deletion user finalizer is failed. Reason: %v", err)
-
-				return models.ReconcileRequeue, nil
-			}
-
 			continue
 		}
 
 		if event == models.DeletingEvent {
-			patch := user.NewPatch()
-
-			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, user.Namespace)
+			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
 			err = r.API.DeleteRedisUser(userID)
 			if err != nil {
-				l.Error(err, "Cannot delete Redis user from the cluster. Cluster ID: %s.", "user", clusterID, user.Name)
+				l.Error(err, "Cannot delete Redis user from the cluster.",
+					"cluster ID", clusterID, "user ID", userID)
 				r.EventRecorder.Eventf(user, models.Warning, models.DeletingEvent,
 					"Cannot delete Redis user from the cluster. Cluster ID: %s. Reason: %v", clusterID, err)
 
@@ -192,18 +185,6 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			err = r.Status().Patch(ctx, user, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Redis user status", "user", user.Name)
-				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v", err)
-
-				return models.ReconcileRequeue, nil
-			}
-
-			controllerutil.RemoveFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
-			err = r.Patch(ctx, user, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Redis user resource",
-					"secret name", secret.Name,
-					"secret namespace", secret.Namespace)
 				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
@@ -253,8 +234,6 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			"cluster ID", clusterID,
 			"user ID", userID,
 		)
-
-		return models.ExitReconcile, nil
 	}
 
 	if user.DeletionTimestamp != nil {
@@ -290,8 +269,6 @@ func (r *RedisUserReconciler) detachUserFromDeletedCluster(
 		return err
 	}
 
-	controllerutil.RemoveFinalizer(user, user.DeletionUserFinalizer(clusterID, user.Namespace))
-
 	err = r.Patch(ctx, user, patch)
 	if err != nil {
 		logger.Error(err, "Cannot delete finalizer from the Redis user resource",
@@ -313,7 +290,7 @@ func (r *RedisUserReconciler) detachUserFromDeletedCluster(
 		"Redis user resource has been deleted from the cluster (clusterID: %v)", clusterID,
 	)
 
-	return err
+	return nil
 }
 
 func (r *RedisUserReconciler) handleDeleteUser(
@@ -333,10 +310,9 @@ func (r *RedisUserReconciler) handleDeleteUser(
 
 	for clusterID, event := range u.Status.ClustersEvents {
 		if event == models.Created || event == models.CreatingEvent {
-			l.Error(models.ErrUserStillExist, "please remove the user from the cluster specification",
+			l.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser,
 				"username", username, "cluster ID", clusterID)
-			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent,
-				"The user is still attached to cluster, please remove the user from the cluster specification.")
+			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
 			return models.ErrUserStillExist
 		}
@@ -346,9 +322,19 @@ func (r *RedisUserReconciler) handleDeleteUser(
 	err = r.Update(ctx, s)
 	if err != nil {
 		l.Error(err, "Cannot remove finalizer from secret", "secret name", s.Name)
-
 		r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-			"Resource patch is failed. Reason: %v", err)
+			"Patch is failed. Cannot remove finalizer from secret. Reason: %v", err)
+
+		return err
+	}
+
+	patch := u.NewPatch()
+	controllerutil.RemoveFinalizer(u, u.GetDeletionFinalizer())
+	err = r.Patch(ctx, u, patch)
+	if err != nil {
+		l.Error(err, "Cannot remove finalizer from user", "user finalizer", u.Finalizers)
+		r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+			"Patch is failed. Cannot remove finalizer from user. Reason: %v", err)
 
 		return err
 	}

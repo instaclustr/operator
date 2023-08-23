@@ -88,6 +88,17 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return models.ReconcileRequeue, nil
 	}
 
+	username, password, err := getUserCreds(s)
+	if err != nil {
+		l.Error(err, "Cannot get the Cassandra user credentials from the secret",
+			"secret name", s.Name,
+			"secret namespace", s.Namespace)
+		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
+			"Cannot get the Cassandra user credentials from the secret. Reason: %v", err)
+
+		return models.ReconcileRequeue, nil
+	}
+
 	if controllerutil.AddFinalizer(s, u.GetDeletionFinalizer()) {
 		err = r.Update(ctx, s)
 		if err != nil {
@@ -108,17 +119,6 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"Patching Cassandra user with deletion finalizer has been failed. Reason: %v", err)
 			return models.ReconcileRequeue, nil
 		}
-	}
-
-	username, password, err := getUserCreds(s)
-	if err != nil {
-		l.Error(err, "Cannot get the Cassandra user credentials from the secret",
-			"secret name", s.Name,
-			"secret namespace", s.Namespace)
-		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
-			"Cannot get the Cassandra user credentials from the secret. Reason: %v", err)
-
-		return models.ReconcileRequeue, nil
 	}
 
 	for clusterID, event := range u.Status.ClustersEvents {
@@ -153,18 +153,6 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"User has been created for a cluster. Cluster ID: %s, username: %s",
 				clusterID, username)
 
-			controllerutil.AddFinalizer(u, getDeletionUserFinalizer(clusterID))
-			err = r.Patch(ctx, u, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Cassandra user resource",
-					"secret name", s.Name,
-					"secret namespace", s.Namespace)
-				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v", err)
-
-				return models.ReconcileRequeue, nil
-			}
-
 			continue
 		}
 
@@ -197,18 +185,6 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return models.ReconcileRequeue, nil
 			}
 
-			controllerutil.RemoveFinalizer(u, getDeletionUserFinalizer(clusterID))
-			err = r.Patch(ctx, u, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Cassandra user resource",
-					"secret name", s.Name,
-					"secret namespace", s.Namespace)
-				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v", err)
-
-				return models.ReconcileRequeue, nil
-			}
-
 			continue
 		}
 
@@ -223,16 +199,6 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return models.ReconcileRequeue, nil
 			}
 
-			controllerutil.RemoveFinalizer(u, getDeletionUserFinalizer(clusterID))
-			err = r.Patch(ctx, u, patch)
-			if err != nil {
-				l.Error(err, "Cannot delete finalizer from the Cassandra user resource",
-					"cluster ID", clusterID)
-				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-					"Deleting finalizer from the Cassandra user resource has been failed. Reason: %v", err)
-				return models.ReconcileRequeue, nil
-			}
-
 			l.Info("Cassandra user has been detached from the cluster", "cluster ID", clusterID)
 			r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
 				"User has been detached from the cluster. ClusterID: %v", clusterID)
@@ -241,9 +207,8 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	if u.DeletionTimestamp != nil {
 		if u.Status.ClustersEvents != nil {
-			l.Error(models.ErrUserStillExist, "Please remove the user from the cluster specification")
-			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent,
-				"The user is still attached to cluster, please remove the user from the cluster specification.")
+			l.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser)
+			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
 			return models.ExitReconcile, nil
 		}

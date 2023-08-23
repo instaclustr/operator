@@ -81,49 +81,51 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 		return models.ReconcileRequeue, nil
 	}
+
 	secret := &v1.Secret{}
 	kafkaUserSecretNamespacedName := types.NamespacedName{
 		Name:      user.Spec.SecretRef.Name,
 		Namespace: user.Spec.SecretRef.Namespace,
 	}
 	err = r.Client.Get(ctx, kafkaUserSecretNamespacedName, secret)
-	if k8serrors.IsNotFound(err) {
-		l.Error(err, "Cannot get Kafka user credentials. Secret is not found",
-			"request", req,
-		)
-		r.EventRecorder.Eventf(
-			user, models.Warning, models.FetchFailed,
-			"Fetch user credentials secret is failed. Reason: %v",
-			err,
-		)
+	if err != nil {
+		l.Error(err, "Cannot get secret for kafka user.", "request", req)
+		r.EventRecorder.Eventf(user, models.Warning, models.FetchFailed,
+			"Fetch user credentials secret is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue, nil
 	}
 
 	username, password, err := r.getKafkaUserCredsFromSecret(user.Spec)
 	if err != nil {
-		l.Error(
-			err, "Cannot get Kafka user creds from secret",
-			"kafka user spec", user.Spec,
-		)
-		r.EventRecorder.Eventf(
-			user, models.Warning, models.FetchFailed,
-			"Fetch user credentials from secret is failed. Reason: %v",
-			err,
-		)
+		l.Error(err, "Cannot get Kafka user creds from secret", "kafka user spec", user.Spec)
+		r.EventRecorder.Eventf(user, models.Warning, models.FetchFailed,
+			"Fetch user credentials from secret is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue, nil
+	}
+
+	if controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer()) {
+		err = r.Update(ctx, secret)
+		if err != nil {
+			l.Error(err, "Cannot update Kafka user secret",
+				"secret name", secret.Name,
+				"secret namespace", secret.Namespace)
+			r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
+				"Cannot assign Kafka user to a k8s secret. Reason: %v", err)
+
+			return models.ReconcileRequeue, nil
+		}
 	}
 
 	patch := user.NewPatch()
 	if controllerutil.AddFinalizer(user, user.GetDeletionFinalizer()) {
 		err = r.Patch(ctx, user, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch Kafka user with deletion finalizer")
+			l.Error(err, "Cannot patch Kafka user with finalizer")
 			r.EventRecorder.Eventf(
 				user, models.Warning, models.PatchFailed,
-				"Patching Kafka user with deletion finalizer has been failed. Reason: %v", err,
-			)
+				"Patching Kafka user with finalizer has been failed. Reason: %v", err)
 
 			return models.ReconcileRequeue, nil
 		}
@@ -158,7 +160,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				user.GetID(clusterID, username),
 			)
 
-			patch = user.NewPatch()
 			annots := user.GetAnnotations()
 			if annots == nil {
 				user.SetAnnotations(make(map[string]string))
@@ -186,37 +187,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"initial permissions", user.Spec.InitialPermissions,
 				"kafka user options", user.Spec.Options,
 			)
-
-			controllerutil.AddFinalizer(user, user.GetDeletionUserFinalizer(clusterID))
-			err = r.Patch(ctx, user, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Kafka user resource",
-					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
-					"kafka user metadata", user.ObjectMeta,
-				)
-				r.EventRecorder.Eventf(
-					user, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v",
-					err,
-				)
-
-				return models.ReconcileRequeue, nil
-			}
-
-			finalizerNeeded := controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer())
-			if finalizerNeeded {
-				err = r.Update(ctx, secret)
-				if err != nil {
-					l.Error(err, "Cannot update Kafka user secret",
-						"secret name", secret.Name,
-						"secret namespace", secret.Namespace)
-					r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
-						"Cannot assign Kafka user to a k8s secret. Reason: %v", err)
-
-					return models.ReconcileRequeue, nil
-				}
-			}
 
 			continue
 		}
@@ -267,38 +237,14 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"kafka user options", user.Spec.Options,
 			)
 
-			r.EventRecorder.Eventf(
-				user, models.Normal, models.Deleted,
-				"Resource is deleted",
-			)
-
-			controllerutil.RemoveFinalizer(user, user.GetDeletionUserFinalizer(clusterID))
-			err = r.Patch(ctx, user, patch)
-			if err != nil {
-				l.Error(err, "cannot patch Kafka user resource",
-					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
-					"kafka user metadata", user.ObjectMeta,
-				)
-				r.EventRecorder.Eventf(
-					user, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v",
-					err,
-				)
-
-				return models.ReconcileRequeue, nil
-			}
-
-			l.Info("Kafka user finalizer has been deleted",
-				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
-			)
+			r.EventRecorder.Eventf(user, models.Normal, models.Deleted,
+				"user has been deleted for a cluster, username: %s, clusterID: %s.",
+				username, clusterID)
 
 			continue
 		}
 
 		if clusterEvent == models.ClusterDeletingEvent {
-			patch = user.NewPatch()
 			delete(user.Status.ClustersEvents, clusterID)
 			err = r.Status().Patch(ctx, user, patch)
 			if err != nil {
@@ -325,28 +271,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"User is detached from cluster",
 			)
 
-			controllerutil.RemoveFinalizer(user, user.GetDeletionUserFinalizer(clusterID))
-			err = r.Patch(ctx, user, patch)
-			if err != nil {
-				l.Error(err, "cannot patch Kafka user resource",
-					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
-					"kafka user metadata", user.ObjectMeta,
-				)
-				r.EventRecorder.Eventf(
-					user, models.Warning, models.PatchFailed,
-					"Resource patch is failed. Reason: %v",
-					err,
-				)
-
-				return models.ReconcileRequeue, nil
-			}
-
-			l.Info("Kafka user finalizer has been deleted",
-				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
-			)
-
 			continue
 
 		}
@@ -368,7 +292,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return models.ReconcileRequeue, nil
 		}
 
-		patch = user.NewPatch()
 		user.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 		err = r.Patch(ctx, user, patch)
 		if err != nil {
@@ -414,24 +337,12 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if user.DeletionTimestamp != nil {
 		for clusterID, clusterEvent := range user.Status.ClustersEvents {
 			if clusterEvent == models.Created || clusterEvent == models.CreatingEvent || clusterEvent == models.UpdatingEvent || clusterEvent == models.UpdatedEvent {
-				l.Error(models.ErrUserStillExist, "please remove the user from the cluster specification",
+				l.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser,
 					"username", username, "cluster ID", clusterID)
-				r.EventRecorder.Event(user, models.Warning, models.DeletingEvent,
-					"The user is still attached to cluster, please remove the user from the cluster specification.")
+				r.EventRecorder.Event(user, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
 				return models.ReconcileRequeue, nil
 			}
-		}
-
-		controllerutil.RemoveFinalizer(secret, user.GetDeletionFinalizer())
-		err = r.Update(ctx, secret)
-		if err != nil {
-			l.Error(err, "Cannot remove finalizer from secret", "secret name", secret.Name)
-
-			r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v", err)
-
-			return models.ReconcileRequeue, nil
 		}
 
 		controllerutil.RemoveFinalizer(user, user.GetDeletionFinalizer())
@@ -445,8 +356,19 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 			return models.ReconcileRequeue, nil
 		}
-		l.Info("Kafka user resource has been deleted", "username", username)
 
+		controllerutil.RemoveFinalizer(secret, user.GetDeletionFinalizer())
+		err = r.Update(ctx, secret)
+		if err != nil {
+			l.Error(err, "Cannot remove finalizer from secret", "secret name", secret.Name)
+
+			r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+				"Resource patch is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue, nil
+		}
+
+		l.Info("Kafka user resource has been deleted", "username", username)
 	}
 
 	return models.ExitReconcile, nil

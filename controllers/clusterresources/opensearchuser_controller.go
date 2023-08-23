@@ -152,10 +152,8 @@ func (r *OpenSearchUserReconciler) Reconcile(
 
 	if user.DeletionTimestamp != nil {
 		if user.Status.ClustersEvents != nil {
-			logger.Error(models.ErrUserStillExist, "please remove the user from the cluster specification")
-			r.EventRecorder.Event(user, models.Warning, models.DeletingEvent,
-				"The user is still attached to cluster, please remove the user from the cluster specification.",
-			)
+			logger.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser)
+			r.EventRecorder.Event(user, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
 			return models.ExitReconcile, nil
 		}
@@ -221,22 +219,7 @@ func (r *OpenSearchUserReconciler) createUser(
 	}
 
 	patch := user.NewPatch()
-	if controllerutil.AddFinalizer(user, getDeletionUserFinalizer(clusterID)) {
-		err = r.Patch(ctx, user, patch)
-		if err != nil {
-			logger.Error(err, "Cannot patch OpenSearch user resource with deletion finalizer",
-				"cluster ID", clusterID,
-			)
-			r.EventRecorder.Eventf(
-				user, models.Warning, models.PatchFailed,
-				"Resource patching with deletion finalizer has been failed ). Reason: %v",
-				err,
-			)
-			return err
-		}
-	}
 
-	patch = user.NewPatch()
 	user.Status.ClustersEvents[clusterID] = models.Created
 	err = r.Status().Patch(ctx, user, patch)
 	if err != nil {
@@ -311,21 +294,6 @@ func (r *OpenSearchUserReconciler) deleteUser(
 		return err
 	}
 
-	patch = user.NewPatch()
-	controllerutil.RemoveFinalizer(user, getDeletionUserFinalizer(clusterID))
-	err = r.Patch(ctx, user, patch)
-	if err != nil {
-		logger.Error(err, "Cannot delete finalizer from the OpenSearch user resource",
-			"cluster ID", clusterID,
-		)
-		r.EventRecorder.Eventf(
-			user, models.Warning, models.PatchFailed,
-			"Deleting finalizer from the OpenSearch user resource has been failed. Reason: %v",
-			err,
-		)
-		return err
-	}
-
 	logger.Info("OpenSearch user has been deleted from the cluster",
 		"cluster ID", clusterID,
 	)
@@ -353,21 +321,6 @@ func (r *OpenSearchUserReconciler) detachUserFromDeletedCluster(
 		r.EventRecorder.Eventf(
 			user, models.Warning, models.PatchFailed,
 			"Detaching clusterID from the OpenSearch user resource has been failed. Reason: %v",
-			err,
-		)
-		return err
-	}
-
-	patch = user.NewPatch()
-	controllerutil.RemoveFinalizer(user, getDeletionUserFinalizer(clusterID))
-	err = r.Patch(ctx, user, patch)
-	if err != nil {
-		logger.Error(err, "Cannot delete finalizer from the OpenSearch user resource",
-			"cluster ID", clusterID,
-		)
-		r.EventRecorder.Eventf(
-			user, models.Warning, models.PatchFailed,
-			"Deleting finalizer from the OpenSearch user resource has been failed. Reason: %v",
 			err,
 		)
 		return err

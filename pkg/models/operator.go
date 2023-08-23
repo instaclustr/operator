@@ -27,7 +27,6 @@ const (
 	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
 	ExternalChangesAnnotation = "instaclustr.com/externalChanges"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
-	DeletionUserFinalizer     = "instaclustr.com/dependsOnCluster_"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
 	UpdateQueuedAnnotation    = "instaclustr.com/updateQueued"
 

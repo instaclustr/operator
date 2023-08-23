@@ -990,6 +990,8 @@ func (r *OpenSearchReconciler) deleteUser(
 		return err
 	}
 
+	l.Info("User has been added to the queue for deletion", "username", u.Name)
+
 	return nil
 }
 
@@ -1046,6 +1048,8 @@ func (r *OpenSearchReconciler) createUser(
 			"Cannot add OpenSearch User to the cluster. Reason: %v", err)
 		return err
 	}
+
+	logger.Info("User has been added to the queue for creation", "username", u.Name)
 
 	return nil
 }
