@@ -34,6 +34,7 @@ type KafkaCluster struct {
 	DedicatedZookeeper                []*DedicatedZookeeper     `json:"dedicatedZookeeper"`
 	DefaultNumberOfPartitions         int                       `json:"defaultNumberOfPartitions"`
 	DefaultReplicationFactor          int                       `json:"defaultReplicationFactor"`
+	Kraft                             []*Kraft                  `json:"kraft,omitempty"`
 	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy"`
 	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry"`
 	PCIComplianceMode                 bool                      `json:"pciComplianceMode"`
@@ -66,6 +67,10 @@ type RestProxy struct {
 type KarapaceRestProxy struct {
 	IntegrateRestProxyWithSchemaRegistry bool   `json:"integrateRestProxyWithSchemaRegistry"`
 	Version                              string `json:"version"`
+}
+
+type Kraft struct {
+	ControllerNodeCount int `json:"controllerNodeCount"`
 }
 
 type KarapaceSchemaRegistry struct {

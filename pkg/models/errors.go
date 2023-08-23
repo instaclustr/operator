@@ -20,6 +20,8 @@ import "errors"
 
 var (
 	ErrZeroDataCentres                       = errors.New("cluster spec doesn't have data centres")
+	ErrMoreThanOneKraft                      = errors.New("cluster spec does not support more than one kraft")
+	ErrMoreThanThreeControllerNodeCount      = errors.New("kraft does not support more than three controller nodes")
 	ErrNetworkOverlaps                       = errors.New("cluster network overlaps")
 	ErrImmutableTwoFactorDelete              = errors.New("twoFactorDelete field is immutable")
 	ErrImmutableCloudProviderSettings        = errors.New("cloudProviderSettings are immutable")
@@ -33,6 +35,7 @@ var (
 	ErrTypeAssertion                         = errors.New("unable to assert type")
 	ErrImmutableSchemaRegistry               = errors.New("schema registry is immutable")
 	ErrImmutableRestProxy                    = errors.New("rest proxy is immutable")
+	ErrImmutableKraft                        = errors.New("kraft is immutable")
 	ErrImmutableKarapaceSchemaRegistry       = errors.New("karapace schema registry is immutable")
 	ErrImmutableKarapaceRestProxy            = errors.New("karapace rest proxy is immutable")
 	ErrImmutableDedicatedZookeeper           = errors.New("dedicated zookeeper nodes cannot be changed")

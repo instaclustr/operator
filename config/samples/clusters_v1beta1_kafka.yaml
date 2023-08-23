@@ -30,6 +30,8 @@ spec:
   #  karapaceRestProxy:
   #    - integrateRestProxyWithSchemaRegistry: true
   #      version: "3.2.0"
+  #  kraft:
+  #    - controllerNodeCount: 3
   #  restProxy:
   #    - integrateRestProxyWithSchemaRegistry: false
   #      schemaRegistryPassword: "asdfasdf"
@@ -59,5 +61,5 @@ spec:
 #    - nodeSize: "KDZ-DEV-t4g.small-30"
 #      nodesNumber: 3
   userRefs:
-    - name: kafkauser-sample
-      namespace: default
+#    - name: kafkauser-sample
+#      namespace: default
