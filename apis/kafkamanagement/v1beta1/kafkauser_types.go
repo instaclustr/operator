@@ -75,10 +75,6 @@ func (ku *KafkaUser) GetDeletionFinalizer() string {
 	return models.DeletionFinalizer + "_" + ku.Namespace + "_" + ku.Name
 }
 
-func (ku *KafkaUser) GetDeletionUserFinalizer(clusterID string) string {
-	return models.DeletionUserFinalizer + clusterID
-}
-
 func (ku *KafkaUser) GetID(clusterID, name string) string {
 	return clusterID + "_" + name
 }

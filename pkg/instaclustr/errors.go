@@ -23,3 +23,5 @@ var (
 	NotFound                  = errors.New("not found")
 	ClusterIsNotReadyToResize = errors.New("cluster is not ready to resize yet")
 )
+
+const MsgDeleteUser = "If you want to delete the user, remove it from the clusters specifications first"

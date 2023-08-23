@@ -772,6 +772,8 @@ func (r *CassandraReconciler) handleUsersDetach(
 		return err
 	}
 
+	l.Info("User has been added to the queue for detaching", "username", u.Name)
+
 	return nil
 }
 

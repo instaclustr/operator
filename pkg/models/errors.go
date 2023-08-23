@@ -54,6 +54,6 @@ var (
 	ErrImmutableSecretRef                    = errors.New("secret reference is immutable")
 	ErrEmptySecretRef                        = errors.New("secretRef.name and secretRef.namespace should not be empty")
 	ErrMissingSecretKeys                     = errors.New("the secret is missing the correct keys for the user")
-	ErrUserStillExist                        = errors.New("the user is still attached to cluster")
+	ErrUserStillExist                        = errors.New("the user is still attached to the cluster. If you want to delete the user, remove the user from the cluster specification first")
 	ErrOnlyOneEntityTwoFactorDelete          = errors.New("currently only one entity of two factor delete can be filled")
 )

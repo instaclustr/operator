@@ -336,6 +336,8 @@ func (r *KafkaReconciler) handleCreateUser(
 		return err
 	}
 
+	l.Info("User has been added to the queue for creation", "username", u.Name)
+
 	return nil
 }
 
@@ -390,6 +392,8 @@ func (r *KafkaReconciler) handleDeleteUser(
 		return err
 	}
 
+	l.Info("User has been added to the queue for deletion", "username", u.Name)
+
 	return nil
 }
 
@@ -438,6 +442,8 @@ func (r *KafkaReconciler) detachUser(
 
 		return err
 	}
+
+	l.Info("User has been added to the queue for detaching", "username", u.Name)
 
 	return nil
 }
