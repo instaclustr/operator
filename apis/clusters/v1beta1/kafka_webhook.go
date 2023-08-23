@@ -122,6 +122,16 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		}
 	}
 
+	if len(k.Spec.Kraft) > 1 {
+		return models.ErrMoreThanOneKraft
+	}
+
+	for _, kraft := range k.Spec.Kraft {
+		if kraft.ControllerNodeCount > 3 {
+			return models.ErrMoreThanThreeControllerNodeCount
+		}
+	}
+
 	return nil
 }
 
@@ -209,6 +219,9 @@ func (ks *KafkaSpec) validateUpdate(old *KafkaSpec) error {
 	}
 	if !isKafkaAddonsEqual[RestProxy](ks.RestProxy, old.RestProxy) {
 		return models.ErrImmutableRestProxy
+	}
+	if !isKafkaAddonsEqual[Kraft](ks.Kraft, old.Kraft) {
+		return models.ErrImmutableKraft
 	}
 	if !isKafkaAddonsEqual[KarapaceRestProxy](ks.KarapaceRestProxy, old.KarapaceRestProxy) {
 		return models.ErrImmutableKarapaceRestProxy

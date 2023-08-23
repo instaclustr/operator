@@ -33,6 +33,9 @@ type KafkaClusterV2 struct {
 	//
 	TwoFactorDelete []TwoFactorDeleteSettingsV2 `json:"twoFactorDelete,omitempty"`
 
+	//
+	Kraft []KafkaKraftV2 `json:"kraft,omitempty"`
+
 	// Adds the specified version of Kafka Karapace REST Proxy to this Kafka cluster.
 	KarapaceRestProxy []KafkaKarapaceRestProxyDetailsV2 `json:"karapaceRestProxy,omitempty"`
 

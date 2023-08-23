@@ -27,7 +27,7 @@ import (
 
 // +kubebuilder:object:generate:=false
 type KafkaAddons interface {
-	SchemaRegistry | RestProxy | KarapaceSchemaRegistry | KarapaceRestProxy | DedicatedZookeeper | KafkaPrivateLink
+	SchemaRegistry | RestProxy | KarapaceSchemaRegistry | KarapaceRestProxy | DedicatedZookeeper | KafkaPrivateLink | Kraft
 }
 
 type SchemaRegistry struct {
@@ -83,10 +83,15 @@ type KafkaSpec struct {
 	ClientBrokerAuthWithMTLS          bool                      `json:"clientBrokerAuthWithMtls,omitempty"`
 	ClientAuthBrokerWithoutEncryption bool                      `json:"clientAuthBrokerWithoutEncryption,omitempty"`
 	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption,omitempty"`
+	Kraft                             []*Kraft                  `json:"kraft,omitempty"`
 	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
 	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 	BundledUseOnly                    bool                      `json:"bundledUseOnly,omitempty"`
 	UserRefs                          []*UserReference          `json:"userRefs,omitempty"`
+}
+
+type Kraft struct {
+	ControllerNodeCount int `json:"controllerNodeCount"`
 }
 
 type KafkaDataCentre struct {
@@ -159,6 +164,7 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
 		ClientAuthBrokerWithoutEncryption: k.ClientAuthBrokerWithoutEncryption,
 		ClientAuthBrokerWithEncryption:    k.ClientAuthBrokerWithEncryption,
 		BundledUseOnly:                    k.BundledUseOnly,
+		Kraft:                             k.kraftToInstAPI(),
 		KarapaceRestProxy:                 k.karapaceRestProxyToInstAPI(),
 		KarapaceSchemaRegistry:            k.karapaceSchemaRegistryToInstAPI(),
 	}
@@ -207,6 +213,15 @@ func (k *KafkaSpec) karapaceRestProxyToInstAPI() (iRestProxies []*models.Karapac
 		})
 	}
 
+	return
+}
+
+func (k *KafkaSpec) kraftToInstAPI() (iKraft []*models.Kraft) {
+	for _, kraft := range k.Kraft {
+		iKraft = append(iKraft, &models.Kraft{
+			ControllerNodeCount: kraft.ControllerNodeCount,
+		})
+	}
 	return
 }
 
@@ -296,6 +311,7 @@ func (ks *KafkaSpec) FromInstAPI(iKafka *models.KafkaCluster) KafkaSpec {
 		ClientAuthBrokerWithoutEncryption: iKafka.ClientAuthBrokerWithoutEncryption,
 		ClientAuthBrokerWithEncryption:    iKafka.ClientAuthBrokerWithEncryption,
 		KarapaceRestProxy:                 ks.KarapaceRestProxyFromInstAPI(iKafka.KarapaceRestProxy),
+		Kraft:                             ks.kraftFromInstAPI(iKafka.Kraft),
 		KarapaceSchemaRegistry:            ks.KarapaceSchemaRegistryFromInstAPI(iKafka.KarapaceSchemaRegistry),
 		BundledUseOnly:                    iKafka.BundledUseOnly,
 	}
@@ -375,6 +391,15 @@ func (ks *KafkaSpec) KarapaceRestProxyFromInstAPI(iKRPs []*models.KarapaceRestPr
 	return
 }
 
+func (ks *KafkaSpec) kraftFromInstAPI(iKraft []*models.Kraft) (kraft []*Kraft) {
+	for _, ikraft := range iKraft {
+		kraft = append(kraft, &Kraft{
+			ControllerNodeCount: ikraft.ControllerNodeCount,
+		})
+	}
+	return
+}
+
 func (ks *KafkaSpec) KarapaceSchemaRegistryFromInstAPI(iKSRs []*models.KarapaceSchemaRegistry) (ksrs []*KarapaceSchemaRegistry) {
 	for _, iKSR := range iKSRs {
 		ksrs = append(ksrs, &KarapaceSchemaRegistry{
@@ -405,6 +430,7 @@ func (a *KafkaSpec) IsEqual(b KafkaSpec) bool {
 		isKafkaAddonsEqual[SchemaRegistry](a.SchemaRegistry, b.SchemaRegistry) &&
 		isKafkaAddonsEqual[RestProxy](a.RestProxy, b.RestProxy) &&
 		isKafkaAddonsEqual[KarapaceRestProxy](a.KarapaceRestProxy, b.KarapaceRestProxy) &&
+		isKafkaAddonsEqual[Kraft](a.Kraft, b.Kraft) &&
 		isKafkaAddonsEqual[KarapaceSchemaRegistry](a.KarapaceSchemaRegistry, b.KarapaceSchemaRegistry) &&
 		isKafkaAddonsEqual[DedicatedZookeeper](a.DedicatedZookeeper, b.DedicatedZookeeper) &&
 		a.areDCsEqual(b.DataCentres) &&
