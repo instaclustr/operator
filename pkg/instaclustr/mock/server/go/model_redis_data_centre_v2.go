@@ -53,6 +53,9 @@ type RedisDataCentreV2 struct {
 	// For customers running in their own account. Your provider account can be found on the Create Cluster page on the Instaclustr Console, or the \"Provider Account\" property on any existing cluster. For customers provisioning on Instaclustr's cloud provider accounts, this property may be omitted.
 	ProviderAccountName string `json:"providerAccountName,omitempty"`
 
+	//
+	PrivateLink []*PrivateLinkSettingsV2 `json:"privateLink,omitempty"`
+
 	// Status of the Data Centre.
 	Status string `json:"status,omitempty"`
 }

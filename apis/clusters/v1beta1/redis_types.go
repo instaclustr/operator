@@ -32,6 +32,13 @@ import (
 type RedisDataCentre struct {
 	DataCentre  `json:",inline"`
 	MasterNodes int `json:"masterNodes"`
+
+	//+kubebuilder:validation:Minimum:=0
+	//+kubebuilder:validation:Maximum:=5
+	ReplicationFactor int `json:"replicationFactor,omitempty"`
+
+	//+kubebuilder:validation:MaxItems:=1
+	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
 }
 
 type RedisRestoreFrom struct {
@@ -67,11 +74,12 @@ type RedisSpec struct {
 	Cluster     `json:",inline"`
 
 	// Enables client to node encryption
-	ClientEncryption    bool               `json:"clientEncryption,omitempty"`
-	PasswordAndUserAuth bool               `json:"passwordAndUserAuth,omitempty"`
-	DataCentres         []*RedisDataCentre `json:"dataCentres,omitempty"`
-	Description         string             `json:"description,omitempty"`
-	UserRefs            []*UserReference   `json:"userRefs,omitempty"`
+	ClientEncryption    bool `json:"clientEncryption,omitempty"`
+	PasswordAndUserAuth bool `json:"passwordAndUserAuth,omitempty"`
+	//+kubebuilder:validation:MaxItems:=2
+	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
+	Description string             `json:"description,omitempty"`
+	UserRefs    []*UserReference   `json:"userRefs,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
@@ -174,8 +182,10 @@ func (rs *RedisSpec) DCsToInstAPI() (iDCs []*models.RedisDataCentre) {
 				Region:              redisDC.Region,
 				ProviderAccountName: redisDC.ProviderAccountName,
 			},
-			MasterNodes:  redisDC.MasterNodes,
-			ReplicaNodes: redisDC.NodesNumber,
+			MasterNodes:       redisDC.MasterNodes,
+			ReplicaNodes:      redisDC.NodesNumber,
+			PrivateLink:       privateLinksToInstAPI(redisDC.PrivateLink),
+			ReplicationFactor: redisDC.ReplicationFactor,
 		}
 		iDCs = append(iDCs, iDC)
 	}
@@ -256,8 +266,10 @@ func (rs *RedisSpec) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*Redi
 	for _, iDC := range iDCs {
 		iDC.NumberOfNodes = iDC.ReplicaNodes
 		dcs = append(dcs, &RedisDataCentre{
-			DataCentre:  rs.Cluster.DCFromInstAPI(iDC.DataCentre),
-			MasterNodes: iDC.MasterNodes,
+			DataCentre:        rs.Cluster.DCFromInstAPI(iDC.DataCentre),
+			MasterNodes:       iDC.MasterNodes,
+			PrivateLink:       privateLinksFromInstAPI(iDC.PrivateLink),
+			ReplicationFactor: iDC.ReplicationFactor,
 		})
 	}
 	return
@@ -277,7 +289,10 @@ func (rs *RedisStatus) FromInstAPI(iRedis *models.RedisCluster) RedisStatus {
 
 func (rs *RedisStatus) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*DataCentreStatus) {
 	for _, iDC := range iDCs {
-		dcs = append(dcs, rs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+		dc := rs.ClusterStatus.DCFromInstAPI(iDC.DataCentre)
+		dc.PrivateLink = privateLinkStatusesFromInstAPI(iDC.PrivateLink)
+
+		dcs = append(dcs, dc)
 	}
 	return
 }
@@ -330,6 +345,11 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 
 				if newDC.NodesNumber < oldDC.NodesNumber {
 					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+
+				err = validatePrivateLinkUpdate(newDC.PrivateLink, oldDC.PrivateLink)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -387,6 +407,11 @@ func (rdc *RedisDataCentre) ValidateCreate() error {
 		return err
 	}
 
+	err = rdc.ValidatePrivateLink()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -397,6 +422,23 @@ func (rdc *RedisDataCentre) ValidateNodesNumber() error {
 
 	if rdc.MasterNodes < 3 || rdc.MasterNodes > 100 {
 		return fmt.Errorf("master nodes should not be less than 3 or more than 100")
+	}
+
+	return nil
+}
+
+func (rdc *RedisDataCentre) ValidatePrivateLink() error {
+	if rdc.CloudProvider != models.AWSVPC && len(rdc.PrivateLink) > 0 {
+		return models.ErrPrivateLinkSupportedOnlyForAWS
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) ValidatePrivateLink() error {
+	if len(rs.DataCentres) > 1 &&
+		(rs.DataCentres[0].PrivateLink != nil || rs.DataCentres[1].PrivateLink != nil) {
+		return models.ErrPrivateLinkSupportedOnlyForSingleDC
 	}
 
 	return nil

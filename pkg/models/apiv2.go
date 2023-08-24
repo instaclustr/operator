@@ -117,7 +117,9 @@ type AppVersions struct {
 }
 
 type PrivateLink struct {
-	AdvertisedHostname string `json:"advertisedHostname"`
+	AdvertisedHostname  string `json:"advertisedHostname"`
+	EndPointServiceID   string `json:"endPointServiceId,omitempty"`
+	EndPointServiceName string `json:"endPointServiceName,omitempty"`
 }
 
 type ClusterSettings struct {

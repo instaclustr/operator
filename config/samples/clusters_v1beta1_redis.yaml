@@ -10,27 +10,32 @@ metadata:
   name: redis-sample
 spec:
   name: "Username-redis"
-  version: "7.0.11"
+  version: "7.0.12"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
   passwordAndUserAuth: true
+  privateNetworkCluster: true
   userRefs:
-#    - name: redisuser-sample-1
-#      namespace: default
-#    - name: redisuser-sample-2
-#      namespace: default
-#    - name: redisuser-sample-3
-#      namespace: default
-#  twoFactorDelete:
-#    - email: "rostyslp@netapp.com"
+  #    - name: redisuser-sample-1
+  #      namespace: default
+  #    - name: redisuser-sample-2
+  #      namespace: default
+  #    - name: redisuser-sample-3
+  #      namespace: default
+  #  twoFactorDelete:
+  #    - email: "rostyslp@netapp.com"
   dataCentres:
     - region: "US_WEST_2"
       cloudProvider: "AWS_VPC"
       network: "10.1.0.0/16"
+#      nodeSize: "r6g.large-100-r"
 #      nodeSize: "RDS-DEV-t4g.medium-80"
       nodeSize: "RDS-DEV-t4g.small-20"
       masterNodes: 3
       nodesNumber: 0
+      replicationFactor: 0
+#      privateLink:
+#        - advertisedHostname: redis-sample-test.com
 #    - region: "US_WEST_2"
 #      name: "testDC2"
 #      cloudProvider: "AWS_VPC"
@@ -38,3 +43,4 @@ spec:
 #      nodeSize: "t3.small-20-r"
 #      nodesNumber: 0
 #      masterNodes: 3
+#      replicationFactor: 0

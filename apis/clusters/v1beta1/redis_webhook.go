@@ -92,6 +92,11 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
+	err = r.Spec.ValidatePrivateLink()
+	if err != nil {
+		return err
+	}
+
 	appVersions, err := rv.API.ListAppVersions(models.RedisAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -111,6 +116,10 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		err = dc.ValidateCreate()
 		if err != nil {
 			return err
+		}
+
+		if !r.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {
+			return models.ErrPrivateLinkOnlyWithPrivateNetworkCluster
 		}
 	}
 

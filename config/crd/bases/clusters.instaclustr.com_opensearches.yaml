@@ -260,6 +260,19 @@ spec:
                             type: string
                         type: object
                       type: array
+                    privateLink:
+                      items:
+                        properties:
+                          advertisedHostname:
+                            type: string
+                          endPointServiceId:
+                            type: string
+                          endPointServiceName:
+                            type: string
+                        required:
+                        - advertisedHostname
+                        type: object
+                      type: array
                     status:
                       type: string
                   type: object

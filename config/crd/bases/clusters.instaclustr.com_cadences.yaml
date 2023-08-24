@@ -85,6 +85,7 @@ spec:
                       items:
                         properties:
                           advertisedHostname:
+                            minLength: 3
                             type: string
                         required:
                         - advertisedHostname
@@ -309,6 +310,19 @@ spec:
                             type: string
                           status:
                             type: string
+                        type: object
+                      type: array
+                    privateLink:
+                      items:
+                        properties:
+                          advertisedHostname:
+                            type: string
+                          endPointServiceId:
+                            type: string
+                          endPointServiceName:
+                            type: string
+                        required:
+                        - advertisedHostname
                         type: object
                       type: array
                     status:

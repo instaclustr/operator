@@ -14,6 +14,12 @@ type PrivateLinkSettingsV2 struct {
 
 	// The hostname to be used to connect to the PrivateLink cluster.
 	AdvertisedHostname string `json:"advertisedHostname"`
+
+	// The Instaclustr ID of the AWS endpoint service
+	EndPointServiceID string `json:"endPointServiceId,omitempty"`
+
+	// Name of the created endpoint service
+	EndPointServiceName string `json:"endPointServiceName,omitempty"`
 }
 
 // AssertPrivateLinkSettingsV2Required checks if the required fields are not zero-ed

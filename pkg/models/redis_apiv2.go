@@ -30,9 +30,11 @@ type RedisCluster struct {
 }
 
 type RedisDataCentre struct {
-	DataCentre   `json:",inline"`
-	MasterNodes  int `json:"masterNodes"`
-	ReplicaNodes int `json:"replicaNodes"`
+	DataCentre        `json:",inline"`
+	MasterNodes       int            `json:"masterNodes"`
+	ReplicaNodes      int            `json:"replicaNodes"`
+	ReplicationFactor int            `json:"replicationFactor,omitempty"`
+	PrivateLink       []*PrivateLink `json:"privateLink,omitempty"`
 }
 
 type RedisDataCentreUpdate struct {
