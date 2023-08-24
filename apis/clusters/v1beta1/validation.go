@@ -187,3 +187,17 @@ func validateTagsUpdate(new, old map[string]string) error {
 
 	return nil
 }
+
+func validatePrivateLinkUpdate(new, old []*PrivateLink) error {
+	if len(old) != len(new) {
+		return models.ErrImmutablePrivateLink
+	}
+
+	for i, oldPrivateLink := range old {
+		if *oldPrivateLink != *new[i] {
+			return models.ErrImmutablePrivateLink
+		}
+	}
+
+	return nil
+}

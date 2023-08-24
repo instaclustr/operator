@@ -60,7 +60,8 @@ func areStatusesEqual(a, b *v1beta1.ClusterStatus) bool {
 		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
 		a.CurrentClusterOperationStatus != b.CurrentClusterOperationStatus ||
 		!areDataCentresEqual(a.DataCentres, b.DataCentres) ||
-		!areDataCentreOptionsEqual(a.Options, b.Options) {
+		!areDataCentreOptionsEqual(a.Options, b.Options) ||
+		!b.PrivateLinkStatusesEqual(a) {
 		return false
 	}
 

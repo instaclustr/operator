@@ -66,8 +66,23 @@ spec:
                       type: string
                     nodesNumber:
                       type: integer
+                    privateLink:
+                      items:
+                        properties:
+                          advertisedHostname:
+                            minLength: 3
+                            type: string
+                        required:
+                        - advertisedHostname
+                        type: object
+                      maxItems: 1
+                      type: array
                     region:
                       type: string
+                    replicationFactor:
+                      maximum: 5
+                      minimum: 0
+                      type: integer
                     tags:
                       additionalProperties:
                         type: string
@@ -80,6 +95,7 @@ spec:
                   - nodesNumber
                   - region
                   type: object
+                maxItems: 2
                 type: array
               description:
                 type: string
@@ -205,6 +221,19 @@ spec:
                             type: string
                           status:
                             type: string
+                        type: object
+                      type: array
+                    privateLink:
+                      items:
+                        properties:
+                          advertisedHostname:
+                            type: string
+                          endPointServiceId:
+                            type: string
+                          endPointServiceName:
+                            type: string
+                        required:
+                        - advertisedHostname
                         type: object
                       type: array
                     status:

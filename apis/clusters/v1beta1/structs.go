@@ -42,11 +42,12 @@ type DataCentre struct {
 }
 
 type DataCentreStatus struct {
-	ID              string  `json:"id,omitempty"`
-	Status          string  `json:"status,omitempty"`
-	Nodes           []*Node `json:"nodes,omitempty"`
-	NodeNumber      int     `json:"nodeNumber,omitempty"`
-	EncryptionKeyID string  `json:"encryptionKeyId,omitempty"`
+	ID              string              `json:"id,omitempty"`
+	Status          string              `json:"status,omitempty"`
+	Nodes           []*Node             `json:"nodes,omitempty"`
+	NodeNumber      int                 `json:"nodeNumber,omitempty"`
+	EncryptionKeyID string              `json:"encryptionKeyId,omitempty"`
+	PrivateLink     PrivateLinkStatuses `json:"privateLink,omitempty"`
 }
 
 type Node struct {
@@ -123,7 +124,67 @@ type PatchRequest struct {
 }
 
 type PrivateLink struct {
+	//+kubebuilder:validation:MinLength:=3
 	AdvertisedHostname string `json:"advertisedHostname"`
+}
+
+type privateLinkStatus struct {
+	AdvertisedHostname  string `json:"advertisedHostname"`
+	EndPointServiceID   string `json:"endPointServiceId,omitempty"`
+	EndPointServiceName string `json:"endPointServiceName,omitempty"`
+}
+
+type PrivateLinkStatuses []*privateLinkStatus
+
+func (p1 PrivateLinkStatuses) Equal(p2 PrivateLinkStatuses) bool {
+	if len(p1) != len(p2) {
+		return false
+	}
+
+	for _, link2 := range p2 {
+		for _, link1 := range p1 {
+			if *link2 != *link1 {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func privateLinksToInstAPI(p []*PrivateLink) []*models.PrivateLink {
+	links := make([]*models.PrivateLink, 0, len(p))
+	for _, link := range p {
+		links = append(links, &models.PrivateLink{
+			AdvertisedHostname: link.AdvertisedHostname,
+		})
+	}
+
+	return links
+}
+
+func privateLinksFromInstAPI(p []*models.PrivateLink) []*PrivateLink {
+	k8sPLs := make([]*PrivateLink, 0, len(p))
+	for _, link := range p {
+		k8sPLs = append(k8sPLs, &PrivateLink{
+			AdvertisedHostname: link.AdvertisedHostname,
+		})
+	}
+
+	return k8sPLs
+}
+
+func privateLinkStatusesFromInstAPI(iPLs []*models.PrivateLink) PrivateLinkStatuses {
+	k8sPLs := make(PrivateLinkStatuses, 0, len(iPLs))
+	for _, link := range iPLs {
+		k8sPLs = append(k8sPLs, &privateLinkStatus{
+			AdvertisedHostname:  link.AdvertisedHostname,
+			EndPointServiceID:   link.EndPointServiceID,
+			EndPointServiceName: link.EndPointServiceName,
+		})
+	}
+
+	return k8sPLs
 }
 
 type PrivateLinkV1 struct {
@@ -511,6 +572,18 @@ func arePrivateLinksEqual(a, b []*PrivateLink) bool {
 	for i, privateLink := range a {
 		if *b[i] != *privateLink {
 			return false
+		}
+	}
+
+	return true
+}
+
+func (cs *ClusterStatus) PrivateLinkStatusesEqual(iStatus *ClusterStatus) bool {
+	for _, iDC := range iStatus.DataCentres {
+		for _, k8sDC := range cs.DataCentres {
+			if !iDC.PrivateLink.Equal(k8sDC.PrivateLink) {
+				return false
+			}
 		}
 	}
 
