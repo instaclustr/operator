@@ -94,9 +94,10 @@ var _ = BeforeSuite(func() {
 
 	eRecorder := k8sManager.GetEventRecorderFor("instaclustr-operator-tests")
 
-	scheduler.ClusterStatusInterval = 1 * time.Second
-	scheduler.ClusterBackupsInterval = 30 * time.Second
-	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 3}
+	scheduler.ClusterStatusInterval = time.Millisecond * 100
+	scheduler.ClusterBackupsInterval = time.Second * 30
+	scheduler.UserCreationInterval = time.Millisecond * 100
+	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Millisecond * 100}
 
 	err = (&clusters.CassandraReconciler{
 		Client:        k8sManager.GetClient(),

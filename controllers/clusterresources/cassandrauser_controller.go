@@ -157,7 +157,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		if event == models.DeletingEvent {
-			l.Info("Deleting user", "user", u, "cluster ID", clusterID)
+			l.Info("Deleting user from a cluster", "cluster ID", clusterID)
 
 			err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
 			if err != nil {
