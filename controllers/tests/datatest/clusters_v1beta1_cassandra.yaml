@@ -3,6 +3,8 @@ kind: Cassandra
 metadata:
   name: cassandra-sample
   namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   name: "Cassandra"
   version: "3.11.13"

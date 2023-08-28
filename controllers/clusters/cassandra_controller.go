@@ -600,9 +600,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		"cluster name", cassandra.Spec.Name,
 		"cluster ID", cassandra.Status.ID,
 		"kind", cassandra.Kind,
-		"api Version", cassandra.APIVersion,
-		"namespace", cassandra.Namespace,
-	)
+		"api Version", cassandra.APIVersion)
 
 	r.EventRecorder.Eventf(
 		cassandra, models.Normal, models.Deleted,
@@ -627,7 +625,7 @@ func (r *CassandraReconciler) handleUsersCreate(
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra user is not found", "request", req)
+			l.Error(err, "Cannot create a Cassandra user. The resource is not found", "request", req)
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User is not found, create a new one Cassandra User or provide correct userRef."+
 					"Current provided reference: %v", uRef)
@@ -686,16 +684,15 @@ func (r *CassandraReconciler) handleUsersDelete(
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra user is not found", "request", req)
+			l.Error(err, "Cannot delete a Cassandra user, the user is not found", "request", req)
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User is not found, create a new one Cassandra User or provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return err
+				"Cannot delete a Cassandra user, the user %v is not found", req)
+			return nil
 		}
 
-		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
+		l.Error(err, "Cannot get Cassandra user", "user", req)
 		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get Cassandra user. user reference: %v", uRef)
+			"Cannot get Cassandra user. user reference: %v", req)
 		return err
 	}
 
@@ -703,7 +700,7 @@ func (r *CassandraReconciler) handleUsersDelete(
 		l.Info("User is not existing on the cluster",
 			"user reference", uRef)
 		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
-			"User is not existing on the cluster. User reference: %v", uRef)
+			"User is not existing on the cluster. User reference: %v", req)
 
 		return nil
 	}
@@ -721,7 +718,9 @@ func (r *CassandraReconciler) handleUsersDelete(
 		return err
 	}
 
-	l.Info("User has been added to the queue for deletion", "username", u.Name)
+	l.Info("User has been added to the queue for deletion",
+		"User resource", u.Namespace+"/"+u.Name,
+		"Cassandra resource", c.Namespace+"/"+c.Name)
 
 	return nil
 }
@@ -741,16 +740,15 @@ func (r *CassandraReconciler) handleUsersDetach(
 	err := r.Get(ctx, req, u)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cassandra user is not found", "request", req)
+			l.Error(err, "Cannot detach a Cassandra user, the user is not found", "request", req)
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User resource is not found, please provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return err
+				"Cannot detach a Cassandra user, the user %v is not found", req)
+			return nil
 		}
 
-		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
+		l.Error(err, "Cannot get Cassandra user", "user", req)
 		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get Cassandra user. user reference: %v", uRef)
+			"Cannot get Cassandra user. user reference: %v", req)
 		return err
 	}
 

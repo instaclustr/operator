@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -37,86 +36,80 @@ const newCassandraNodeSize = "CAS-DEV-t4g.small-30"
 
 var _ = Describe("Cassandra Controller", func() {
 	var (
-		cassandraResource v1beta1.Cassandra
-		cassandraYAML     v1beta1.Cassandra
-		c                 = "cassandra"
-		ns                = "default"
-		cassandraNS       = types.NamespacedName{Name: c, Namespace: ns}
-		timeout           = time.Second * 40
-		interval          = time.Second * 2
+		ns = "default"
+
+		cassandra         v1beta1.Cassandra
+		cassandraManifest v1beta1.Cassandra
+
+		timeout  = time.Second * 40
+		interval = time.Second * 2
 	)
 
 	yfile, err := os.ReadFile("datatest/cassandra_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	err = yaml.Unmarshal(yfile, &cassandraYAML)
+	err = yaml.Unmarshal(yfile, &cassandraManifest)
 	Expect(err).NotTo(HaveOccurred())
-
-	cassandraObjMeta := metav1.ObjectMeta{
-		Name:      c,
-		Namespace: ns,
-		Annotations: map[string]string{
-			models.ResourceStateAnnotation: models.CreatingEvent,
-		},
-	}
-
-	cassandraYAML.ObjectMeta = cassandraObjMeta
 
 	ctx := context.Background()
 
+	clusterID := cassandraManifest.Spec.Name + openapi.CreatedID
+	cassandraNamespacedName := types.NamespacedName{Name: cassandraManifest.ObjectMeta.Name, Namespace: ns}
+
 	When("apply a cassandra manifest", func() {
 		It("should create a cassandra resources", func() {
-			Expect(k8sClient.Create(ctx, &cassandraYAML)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, &cassandraManifest)).Should(Succeed())
 			By("sending cassandra specification to the Instaclustr API and get ID of created cluster.")
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, cassandraNS, &cassandraResource); err != nil {
+
+				if err := k8sClient.Get(ctx, cassandraNamespacedName, &cassandra); err != nil {
 					return false
 				}
 
-				return cassandraResource.Status.ID == openapi.CreatedID
+				return cassandra.Status.ID == clusterID
 			}).Should(BeTrue())
 		})
 	})
 
 	When("changing a node size", func() {
 		It("should update a cassandra resources", func() {
-			Expect(k8sClient.Get(ctx, cassandraNS, &cassandraResource)).Should(Succeed())
-			patch := cassandraResource.NewPatch()
+			Expect(k8sClient.Get(ctx, cassandraNamespacedName, &cassandra)).Should(Succeed())
+			patch := cassandra.NewPatch()
 
-			cassandraResource.Spec.DataCentres[0].NodeSize = newCassandraNodeSize
+			cassandra.Spec.DataCentres[0].NodeSize = newCassandraNodeSize
 
-			cassandraResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent}
-			Expect(k8sClient.Patch(ctx, &cassandraResource, patch)).Should(Succeed())
+			cassandra.Annotations = map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent}
+			Expect(k8sClient.Patch(ctx, &cassandra, patch)).Should(Succeed())
 
 			By("sending a resize request to the Instaclustr API. And when the resize is completed, " +
 				"the status job get new data from the InstAPI and update it in k8s cassandra resource")
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, cassandraNS, &cassandraResource); err != nil {
+				if err := k8sClient.Get(ctx, cassandraNamespacedName, &cassandra); err != nil {
 					return false
 				}
 
-				if len(cassandraResource.Status.DataCentres) == 0 || len(cassandraResource.Status.DataCentres[0].Nodes) == 0 {
+				if len(cassandra.Status.DataCentres) == 0 || len(cassandra.Status.DataCentres[0].Nodes) == 0 {
 					return false
 				}
 
-				return cassandraResource.Status.DataCentres[0].Nodes[0].Size == newCassandraNodeSize
+				return cassandra.Status.DataCentres[0].Nodes[0].Size == newCassandraNodeSize
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
 
 	When("delete the cassandra resource", func() {
 		It("should send delete request to the Instaclustr API", func() {
-			Expect(k8sClient.Get(ctx, cassandraNS, &cassandraResource)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, cassandraNamespacedName, &cassandra)).Should(Succeed())
 
-			cassandraResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
+			cassandra.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
 
-			Expect(k8sClient.Delete(ctx, &cassandraResource)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &cassandra)).Should(Succeed())
 
 			By("sending delete request to Instaclustr API")
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, cassandraNS, &cassandraResource)
+				err := k8sClient.Get(ctx, cassandraNamespacedName, &cassandra)
 				if err != nil && !k8serrors.IsNotFound(err) {
 					return false
 				}

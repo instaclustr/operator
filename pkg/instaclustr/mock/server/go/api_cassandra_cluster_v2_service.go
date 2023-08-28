@@ -11,13 +11,14 @@ package openapi
 
 import (
 	"context"
+	"net/http"
 )
 
 // CassandraClusterV2ApiService is a service that implements the logic for the CassandraClusterV2ApiServicer
 // This service should implement the business logic for every endpoint for the CassandraClusterV2Api API.
 // Include any external packages or services that will be required by this service.
 type CassandraClusterV2ApiService struct {
-	MockCassandraCluster *CassandraClusterV2
+	MockCassandraClusters []*CassandraClusterV2
 }
 
 // NewCassandraClusterV2ApiService creates a default api service
@@ -30,8 +31,14 @@ func (s *CassandraClusterV2ApiService) ClusterManagementV2ResourcesApplicationsC
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_cassandra_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockCassandraCluster = nil
-	return Response(204, nil), nil
+	c := s.getCluster(clusterId)
+	if c == nil {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	c = nil
+
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdGet - Get Cassandra cluster details.
@@ -39,13 +46,14 @@ func (s *CassandraClusterV2ApiService) ClusterManagementV2ResourcesApplicationsC
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_cassandra_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	if s.MockCassandraCluster != nil {
-		s.MockCassandraCluster.Status = RUNNING
-	} else {
-		return Response(404, nil), nil
+	c := s.getCluster(clusterId)
+	if c == nil {
+		return Response(http.StatusNotFound, nil), nil
 	}
 
-	return Response(200, s.MockCassandraCluster), nil
+	c.Status = RUNNING
+
+	return Response(http.StatusOK, c), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdPut - Update Cassandra Cluster Details
@@ -53,17 +61,20 @@ func (s *CassandraClusterV2ApiService) ClusterManagementV2ResourcesApplicationsC
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_cassandra_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
+	c := s.getCluster(clusterId)
+	if c == nil {
+		return Response(404, nil), nil
+	}
+
 	newNode := []NodeDetailsV2{{
 		Rack:          "us-east-1a",
 		NodeSize:      body.DataCentres[0].NodeSize,
 		PublicAddress: "54.146.160.89",
 	}}
 
-	s.MockCassandraCluster.DataCentres[0].Nodes = newNode
+	c.DataCentres[0].Nodes = newNode
 
-	return Response(202, nil), nil
-	//TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
-	//return Response(404, ErrorListResponseV2{}), nil
+	return Response(http.StatusAccepted, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsCassandraClustersV2Post - Create a Cassandra cluster.
@@ -71,8 +82,23 @@ func (s *CassandraClusterV2ApiService) ClusterManagementV2ResourcesApplicationsC
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2Post with the required logic for this service method.
 	// Add api_cassandra_cluster_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockCassandraCluster = &body
-	s.MockCassandraCluster.Id = CreatedID
-	s.MockCassandraCluster.DataCentres[0].Nodes = []NodeDetailsV2{{NodeSize: body.DataCentres[0].NodeSize}}
-	return Response(202, s.MockCassandraCluster), nil
+	newCassandra := &CassandraClusterV2{}
+
+	newCassandra = &body
+	newCassandra.Id = body.Name + CreatedID
+	newCassandra.DataCentres[0].Nodes = []NodeDetailsV2{{NodeSize: body.DataCentres[0].NodeSize}}
+
+	s.MockCassandraClusters = append(s.MockCassandraClusters, newCassandra)
+
+	return Response(http.StatusAccepted, newCassandra), nil
+}
+
+func (s *CassandraClusterV2ApiService) getCluster(clusterID string) *CassandraClusterV2 {
+	for _, c := range s.MockCassandraClusters {
+		if c.Id == clusterID {
+			return c
+		}
+	}
+
+	return nil
 }
