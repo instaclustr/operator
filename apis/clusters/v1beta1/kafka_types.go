@@ -27,7 +27,7 @@ import (
 
 // +kubebuilder:object:generate:=false
 type KafkaAddons interface {
-	SchemaRegistry | RestProxy | KarapaceSchemaRegistry | KarapaceRestProxy | DedicatedZookeeper | KafkaPrivateLink | Kraft
+	SchemaRegistry | RestProxy | KarapaceSchemaRegistry | KarapaceRestProxy | DedicatedZookeeper | PrivateLink | Kraft
 }
 
 type SchemaRegistry struct {
@@ -70,12 +70,14 @@ type KafkaSpec struct {
 	ReplicationFactor int `json:"replicationFactor"`
 
 	// PartitionsNumber number of partitions to use when created new topics.
-	PartitionsNumber          int                `json:"partitionsNumber"`
-	RestProxy                 []*RestProxy       `json:"restProxy,omitempty"`
-	AllowDeleteTopics         bool               `json:"allowDeleteTopics"`
-	AutoCreateTopics          bool               `json:"autoCreateTopics"`
-	ClientToClusterEncryption bool               `json:"clientToClusterEncryption"`
-	DataCentres               []*KafkaDataCentre `json:"dataCentres"`
+	PartitionsNumber          int          `json:"partitionsNumber"`
+	RestProxy                 []*RestProxy `json:"restProxy,omitempty"`
+	AllowDeleteTopics         bool         `json:"allowDeleteTopics"`
+	AutoCreateTopics          bool         `json:"autoCreateTopics"`
+	ClientToClusterEncryption bool         `json:"clientToClusterEncryption"`
+	//+kubebuilder:validation:MinItems:=1
+	//+kubebuilder:validation:MaxItems:=1
+	DataCentres []*KafkaDataCentre `json:"dataCentres"`
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
 	// Zookeeper nodes will be co-located with Kafka if this is not provided
@@ -94,11 +96,7 @@ type Kraft struct {
 
 type KafkaDataCentre struct {
 	DataCentre  `json:",inline"`
-	PrivateLink []*KafkaPrivateLink `json:"privateLink,omitempty"`
-}
-
-type KafkaPrivateLink struct {
-	AdvertisedHostname string `json:"advertisedHostname"`
+	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
 }
 
 // KafkaStatus defines the observed state of Kafka
@@ -232,9 +230,9 @@ func (k *KafkaSpec) dedicatedZookeeperToInstAPI() (iZookeepers []*models.Dedicat
 	return
 }
 
-func (k *KafkaDataCentre) privateLinkToInstAPI() (iPrivateLink []*models.KafkaPrivateLink) {
+func (k *KafkaDataCentre) privateLinkToInstAPI() (iPrivateLink []*models.PrivateLink) {
 	for _, link := range k.PrivateLink {
-		iPrivateLink = append(iPrivateLink, &models.KafkaPrivateLink{
+		iPrivateLink = append(iPrivateLink, &models.PrivateLink{
 			AdvertisedHostname: link.AdvertisedHostname,
 		})
 	}
@@ -333,9 +331,9 @@ func (ks *KafkaSpec) DCsFromInstAPI(iDCs []*models.KafkaDataCentre) (dcs []*Kafk
 	return
 }
 
-func (ks *KafkaSpec) PrivateLinkFromInstAPI(iPLs []*models.KafkaPrivateLink) (dcs []*KafkaPrivateLink) {
+func (ks *KafkaSpec) PrivateLinkFromInstAPI(iPLs []*models.PrivateLink) (pls []*PrivateLink) {
 	for _, iPL := range iPLs {
-		dcs = append(dcs, &KafkaPrivateLink{
+		pls = append(pls, &PrivateLink{
 			AdvertisedHostname: iPL.AdvertisedHostname,
 		})
 	}
@@ -405,7 +403,9 @@ func (ks *KafkaSpec) KarapaceSchemaRegistryFromInstAPI(iKSRs []*models.KarapaceS
 
 func (ks *KafkaStatus) DCsFromInstAPI(iDCs []*models.KafkaDataCentre) (dcs []*DataCentreStatus) {
 	for _, iDC := range iDCs {
-		dcs = append(dcs, ks.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+		dc := ks.DCFromInstAPI(iDC.DataCentre)
+		dc.PrivateLink = privateLinkStatusesFromInstAPI(iDC.PrivateLink)
+		dcs = append(dcs, dc)
 	}
 	return dcs
 }
@@ -437,7 +437,7 @@ func (rs *KafkaSpec) areDCsEqual(b []*KafkaDataCentre) bool {
 
 	for i := range b {
 		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
-			!isKafkaAddonsEqual[KafkaPrivateLink](a[i].PrivateLink, b[i].PrivateLink) {
+			!isKafkaAddonsEqual[PrivateLink](a[i].PrivateLink, b[i].PrivateLink) {
 			return false
 		}
 	}

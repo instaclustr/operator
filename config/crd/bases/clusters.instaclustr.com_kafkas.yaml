@@ -75,6 +75,7 @@ spec:
                       items:
                         properties:
                           advertisedHostname:
+                            minLength: 3
                             type: string
                         required:
                         - advertisedHostname
@@ -93,6 +94,7 @@ spec:
                   - nodesNumber
                   - region
                   type: object
+                maxItems: 1
                 type: array
               dedicatedZookeeper:
                 description: Provision additional dedicated nodes for Apache Zookeeper

@@ -51,6 +51,8 @@ spec:
       nodeSize: "CAD-DEV-t3.small-5"
       nodesNumber: 2
       clientEncryption: false
+#      privateLink:
+#        - advertisedHostname: "cadence-sample-test.com"
   slaTier: "NON_PRODUCTION"
   useCadenceWebAuth: false
 #  targetPrimaryCadence:

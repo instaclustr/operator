@@ -174,6 +174,14 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		if err != nil {
 			return err
 		}
+
+		if !c.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {
+			return models.ErrPrivateLinkOnlyWithPrivateNetworkCluster
+		}
+
+		if dc.CloudProvider != models.AWSVPC && dc.PrivateLink != nil {
+			return models.ErrPrivateLinkSupportedOnlyForAWS
+		}
 	}
 
 	return nil

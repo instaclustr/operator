@@ -5,6 +5,7 @@ metadata:
 spec:
   name: "username-Cassandra"
   version: "4.0.10"
+  privateNetworkCluster: false
   dataCentres:
     - name: "AWS_cassandra"
       region: "US_WEST_2"
