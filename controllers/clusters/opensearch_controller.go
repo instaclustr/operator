@@ -961,7 +961,7 @@ func (r *OpenSearchReconciler) deleteUser(
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User resource is not found, please provide correct userRef."+
 					"Current provided reference: %v", uRef)
-			return err
+			return nil
 		}
 
 		l.Error(err, "Cannot get OpenSearch user", "user", u.Spec)
@@ -1073,7 +1073,7 @@ func (r *OpenSearchReconciler) detachUserResource(
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User resource is not found, please provide correct userRef."+
 					"Current provided reference: %v", uRef)
-			return err
+			return nil
 		}
 
 		l.Error(err, "Cannot get OpenSearch user", "user", u.Spec)
