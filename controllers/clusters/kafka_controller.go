@@ -360,7 +360,7 @@ func (r *KafkaReconciler) handleDeleteUser(
 			r.EventRecorder.Event(kafka, models.Warning, "Not Found",
 				"User is not found, please provide correct userRef.")
 
-			return err
+			return nil
 		}
 
 		l.Error(err, "Cannot get Kafka user", "user", u.Spec)
@@ -415,7 +415,7 @@ func (r *KafkaReconciler) detachUser(
 			r.EventRecorder.Event(kafka, models.Warning, "Not Found",
 				"User is not found, please provide correct userRef.")
 
-			return err
+			return nil
 		}
 
 		l.Error(err, "Cannot get Kafka user", "user", u.Spec)

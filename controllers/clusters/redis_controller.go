@@ -661,7 +661,7 @@ func (r *RedisReconciler) detachUserResource(
 			r.EventRecorder.Eventf(redis, models.Warning, models.NotFound,
 				"User resource is not found, please provide correct userRef."+
 					"Current provided reference: %v", uRef)
-			return err
+			return nil
 		}
 
 		l.Error(err, "Cannot get Redis user", "user", u.Spec)
@@ -765,7 +765,7 @@ func (r *RedisReconciler) handleUsersDelete(
 			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
 				"User is not found, create a new one Redis User or provide correct userRef."+
 					"Current provided reference: %v", uRef)
-			return err
+			return nil
 		}
 
 		l.Error(err, "Cannot get Redis user", "user", u.Spec)
