@@ -62,7 +62,9 @@ type BundledOpenSearchSpec struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster              `json:",inline"`
+	Cluster `json:",inline"`
+	//+kubebuilder:validation:MinItems:=1
+	//+kubebuilder:validation:MaxItems:=1
 	DataCentres          []*CadenceDataCentre    `json:"dataCentres"`
 	Description          string                  `json:"description,omitempty"`
 	UseCadenceWebAuth    bool                    `json:"useCadenceWebAuth"`
@@ -423,7 +425,9 @@ func (cs *CadenceStatus) SecondaryTargetsFromInstAPI(iCad *models.CadenceCluster
 
 func (cs *CadenceStatus) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*DataCentreStatus) {
 	for _, iDC := range iDCs {
-		dcs = append(dcs, cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+		dc := cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre)
+		dc.PrivateLink = privateLinkStatusesFromInstAPI(iDC.PrivateLink)
+		dcs = append(dcs, dc)
 	}
 
 	return

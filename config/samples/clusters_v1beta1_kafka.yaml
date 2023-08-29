@@ -44,8 +44,8 @@ spec:
         tag: "oneTag"
         tag2: "twoTags"
       nodeSize: "KFK-DEV-t4g.small-5"
-      #      nodeSize: "KFK-PRD-r6g.large-250"
-      #      nodeSize: "KFK-DEV-t4g.medium-80"
+#      nodeSize: "KFK-PRD-r6g.large-250"
+#      nodeSize: "KFK-DEV-t4g.medium-80"
       network: "10.0.0.0/16"
       region: "US_EAST_1"
 #      accountName: "Custrom"
@@ -54,10 +54,10 @@ spec:
 #          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
 #          resourceGroup: "asdfadfsdfas"
 #      privateLink:
-#        - advertisedHostname: "asdfadsf"
+#        - advertisedHostname: "kafka-example-test.com"
 #  dedicatedZookeeper:
 #    - nodeSize: "KDZ-DEV-t4g.small-30"
 #      nodesNumber: 3
-  userRefs:
+#  userRefs:
 #    - name: kafkauser-sample
 #      namespace: default

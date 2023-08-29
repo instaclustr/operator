@@ -120,6 +120,14 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		if ((dc.NodesNumber*k.Spec.ReplicationFactor)/k.Spec.ReplicationFactor)%k.Spec.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", k.Spec.ReplicationFactor)
 		}
+
+		if !k.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {
+			return models.ErrPrivateLinkOnlyWithPrivateNetworkCluster
+		}
+
+		if dc.CloudProvider != models.AWSVPC && dc.PrivateLink != nil {
+			return models.ErrPrivateLinkSupportedOnlyForAWS
+		}
 	}
 
 	if len(k.Spec.Kraft) > 1 {
@@ -269,7 +277,7 @@ func validateZookeeperUpdate(new, old []*DedicatedZookeeper) bool {
 	return true
 }
 
-func isPrivateLinkValid(new, old []*KafkaPrivateLink) bool {
+func isPrivateLinkValid(new, old []*PrivateLink) bool {
 	if new == nil && old == nil {
 		return true
 	}

@@ -42,11 +42,7 @@ type KafkaCluster struct {
 
 type KafkaDataCentre struct {
 	DataCentre  `json:",inline"`
-	PrivateLink []*KafkaPrivateLink `json:"privateLink,omitempty"`
-}
-
-type KafkaPrivateLink struct {
-	AdvertisedHostname string `json:"advertisedHostname"`
+	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
 }
 
 type SchemaRegistry struct {
