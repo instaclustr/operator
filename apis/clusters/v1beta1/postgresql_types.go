@@ -89,6 +89,7 @@ type PgSpec struct {
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	Description           string            `json:"description,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
+	UserRefs              []*UserReference  `json:"userRefs,omitempty"`
 }
 
 // PgStatus defines the observed state of PostgreSQL
@@ -308,29 +309,6 @@ func (pdc *PgDataCentre) ArePGBouncersEqual(iPGBs []*PgBouncer) bool {
 	return true
 }
 
-func (pg *PostgreSQL) GetUserPassword(secret *k8sCore.Secret) string {
-	password := secret.Data[models.Password]
-	if len(password) == 0 {
-		return ""
-	}
-
-	return string(password)
-}
-
-func (pg *PostgreSQL) GetUserSecret(ctx context.Context, k8sClient client.Client) (*k8sCore.Secret, error) {
-	userSecret := &k8sCore.Secret{}
-	userSecretNamespacedName := types.NamespacedName{
-		Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, pg.Name),
-		Namespace: pg.Namespace,
-	}
-	err := k8sClient.Get(ctx, userSecretNamespacedName, userSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	return userSecret, nil
-}
-
 func (pg *PostgreSQL) GetUserSecretName(ctx context.Context, k8sClient client.Client) (string, error) {
 	var err error
 
@@ -365,6 +343,7 @@ func (pg *PostgreSQL) NewUserSecret(defaultUserPassword string) *k8sCore.Secret 
 			Labels: map[string]string{
 				models.ControlledByLabel:  pg.Name,
 				models.DefaultSecretLabel: "true",
+				models.ClusterIDLabel:     pg.Status.ID,
 			},
 		},
 		StringData: map[string]string{
@@ -626,4 +605,23 @@ func (pgs *PgStatus) DCsFromInstAPI(iDCs []*models.PGDataCentre) (dcs []*DataCen
 		dcs = append(dcs, pgs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
 	}
 	return
+}
+
+func GetDefaultPgUserSecret(
+	ctx context.Context,
+	name string,
+	ns string,
+	k8sClient client.Client,
+) (*k8sCore.Secret, error) {
+	userSecret := &k8sCore.Secret{}
+	userSecretNamespacedName := types.NamespacedName{
+		Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, name),
+		Namespace: ns,
+	}
+	err := k8sClient.Get(ctx, userSecretNamespacedName, userSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return userSecret, nil
 }

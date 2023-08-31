@@ -37,6 +37,7 @@ const (
 	ClustersV1beta1APIVersion         = "clusters.instaclustr.com/v1beta1"
 	ClusterresourcesV1beta1APIVersion = "clusterresources.instaclustr.com/v1beta1"
 	RedisUserNamespaceLabel           = "instaclustr.com/redisUserNamespace"
+	PostgreSQLUserNamespaceLabel      = "instaclustr.com/postgresqlUserNamespace"
 	OpenSearchUserNamespaceLabel      = "instaclustr.com/openSearchUserNamespace"
 
 	CassandraKind        = "Cassandra"
@@ -59,19 +60,22 @@ const (
 
 	Triggered = "triggered"
 
-	ClusterBackupKind             = "ClusterBackup"
-	PgClusterKind                 = "PostgreSQL"
-	RedisClusterKind              = "Redis"
-	OsClusterKind                 = "OpenSearch"
-	CassandraClusterKind          = "Cassandra"
-	ZookeeperClusterKind          = "Zookeeper"
-	SecretKind                    = "Secret"
-	PgBackupEventType             = "postgresql-backup"
-	SnapshotUploadEventType       = "snapshot-upload"
-	PgBackupPrefix                = "postgresql-backup-"
-	SnapshotUploadPrefix          = "snapshot-upload-"
-	DefaultUserSecretPrefix       = "default-user-password"
-	DefaultUserSecretNameTemplate = "%s-%s"
+	ClusterBackupKind                = "ClusterBackup"
+	PgClusterKind                    = "PostgreSQL"
+	RedisClusterKind                 = "Redis"
+	OsClusterKind                    = "OpenSearch"
+	CassandraClusterKind             = "Cassandra"
+	ZookeeperClusterKind             = "Zookeeper"
+	ClusterNetworkFirewallRuleKind   = "ClusterNetworkFirewallRule"
+	SecretKind                       = "Secret"
+	PgBackupEventType                = "postgresql-backup"
+	SnapshotUploadEventType          = "snapshot-upload"
+	PgBackupPrefix                   = "postgresql-backup-"
+	SnapshotUploadPrefix             = "snapshot-upload-"
+	ClusterNetworkFirewallRulePrefix = "firewall-rule"
+	DefaultUserSecretPrefix          = "default-user-password"
+	DefaultUserSecretNameTemplate    = "%s-%s"
+	ExposeServiceNameTemplate        = "%s-service"
 
 	CassandraConnectionPort    = 9042
 	CadenceConnectionPort      = 7933
@@ -102,6 +106,8 @@ const (
 	SparkAppType        = "SPARK"
 
 	DefaultPgUsernameValue = "icpostgresql"
+	DefaultPgDbNameValue   = "postgres"
+	DefaultPgDbPortValue   = 5432
 )
 
 const (

@@ -37,7 +37,7 @@ func Create(
 	nodes []*v1beta1.Node,
 	targetPort int32,
 ) error {
-	svcName := fmt.Sprintf("%s-service", clusterName)
+	svcName := fmt.Sprintf(models.ExposeServiceNameTemplate, clusterName)
 	service := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcName,
@@ -73,6 +73,7 @@ func Create(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcName,
 			Namespace: ns,
+			Labels:    map[string]string{models.ClusterNameLabel: clusterName},
 		},
 		Subsets: []v1.EndpointSubset{
 			{
@@ -134,4 +135,42 @@ func Delete(
 	}
 
 	return nil
+}
+
+func GetExposeService(
+	c client.Client,
+	clusterName string,
+	ns string,
+) (*v1.ServiceList, error) {
+	serviceList := &v1.ServiceList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(ns),
+		client.MatchingLabels{models.ClusterNameLabel: clusterName},
+	}
+
+	err := c.List(context.Background(), serviceList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return serviceList, nil
+}
+
+func GetExposeServiceEndpoints(
+	c client.Client,
+	clusterName string,
+	ns string,
+) (*v1.EndpointsList, error) {
+	endpointsList := &v1.EndpointsList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(ns),
+		client.MatchingLabels{models.ClusterNameLabel: clusterName},
+	}
+
+	err := c.List(context.Background(), endpointsList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return endpointsList, nil
 }

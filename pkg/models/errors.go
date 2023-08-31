@@ -61,4 +61,6 @@ var (
 	ErrPrivateLinkSupportedOnlyForSingleDC      = errors.New("private link is only supported for a single data centre")
 	ErrPrivateLinkSupportedOnlyForAWS           = errors.New("private link is supported only for an AWS cloud provider")
 	ErrImmutableSpec                            = errors.New("resource specification is immutable")
+	ErrExposeServiceNotCreatedYet               = errors.New("expose service is not created yet")
+	ErrExposeServiceEndpointsNotCreatedYet      = errors.New("expose service endpoints is not created yet")
 )

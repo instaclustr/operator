@@ -95,6 +95,7 @@ spec:
                   - region
                   type: object
                 maxItems: 1
+                minItems: 1
                 type: array
               dedicatedZookeeper:
                 description: Provision additional dedicated nodes for Apache Zookeeper

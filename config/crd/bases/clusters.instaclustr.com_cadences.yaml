@@ -104,6 +104,8 @@ spec:
                   - nodesNumber
                   - region
                   type: object
+                maxItems: 1
+                minItems: 1
                 type: array
               description:
                 type: string
