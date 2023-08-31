@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-user-secret
+data:
+  password: NDgxMzU5ODM1NzlmMDU0ZTlhY2I4ZjcxMTMzMzQ1MjM3ZQ==
+  username: b2xvbG8=
+---
+
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: PostgreSQLUser
+metadata:
+  labels:
+    app.kubernetes.io/name: postgresqluser
+    app.kubernetes.io/instance: postgresqluser-sample
+    app.kubernetes.io/part-of: operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: postgresqluser-sample
+spec:
+  secretRef:
+    name: "postgres-user-secret"
+    namespace: "default"

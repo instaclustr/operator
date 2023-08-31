@@ -1,13 +1,13 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
-  name: postgresql-sample
+  name: postgresql-cluster
 # TODO https://github.com/instaclustr/operator/issues/472
 #  annotations:
 #    testAnnotation: test
 spec:
-  name: "username-test"
-  version: "14.6.0"
+  name: "postgresql-cluster"
+  version: "14.9.0"
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"
@@ -42,5 +42,8 @@ spec:
   #  - email: "rostyslp@netapp.com"
   #  description: "test 222"
   slaTier: "NON_PRODUCTION"
+  userRef:
+    - namespace: default
+      name: postgresqluser-sample
   privateNetworkCluster: false
   synchronousModeStrict: false
