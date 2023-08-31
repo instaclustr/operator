@@ -68,20 +68,6 @@ spec:
                   - nodeSize
                   type: object
                 type: array
-              dashboards:
-                items:
-                  properties:
-                    nodeSize:
-                      type: string
-                    oidcProvider:
-                      type: string
-                    version:
-                      type: string
-                  required:
-                  - nodeSize
-                  - version
-                  type: object
-                type: array
               dataCentres:
                 items:
                   properties:
@@ -150,6 +136,20 @@ spec:
                 type: string
               notificationsPlugin:
                 type: boolean
+              opensearchDashboards:
+                items:
+                  properties:
+                    nodeSize:
+                      type: string
+                    oidcProvider:
+                      type: string
+                    version:
+                      type: string
+                  required:
+                  - nodeSize
+                  - version
+                  type: object
+                type: array
               pciCompliance:
                 description: The PCI compliance standards relate to the security of
                   user data and transactional information. Can only be applied clusters

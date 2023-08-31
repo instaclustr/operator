@@ -52,12 +52,13 @@ var (
 	ACLPatternType      = []string{"LITERAL", "PREFIXED"}
 	ACLOperation        = []string{"ALL", "READ", "WRITE", "CREATE", "DELETE", "ALTER", "DESCRIBE", "CLUSTER_ACTION",
 		"DESCRIBE_CONFIGS", "ALTER_CONFIGS", "IDEMPOTENT_WRITE"}
-	ACLResourceType          = []string{"CLUSTER", "TOPIC", "GROUP", "DELEGATION_TOKEN", "TRANSACTIONAL_ID"}
-	ACLUserPrefix            = "User:"
-	ACLPrincipalRegExp       = "^User:.*$"
-	S3URIRegExp              = "^s3:\\/\\/[a-zA-Z0-9_-]+[^\\/]$"
-	DependencyVPCs           = []string{"TARGET_VPC", "VPC_PEERED", "SEPARATE_VPC"}
-	EncryptionKeyAliasRegExp = "^[a-zA-Z0-9_-]{1}[a-zA-Z0-9 _-]*$"
+	ACLResourceType            = []string{"CLUSTER", "TOPIC", "GROUP", "DELEGATION_TOKEN", "TRANSACTIONAL_ID"}
+	ACLUserPrefix              = "User:"
+	ACLPrincipalRegExp         = "^User:.*$"
+	S3URIRegExp                = "^s3:\\/\\/[a-zA-Z0-9_-]+[^\\/]$"
+	DependencyVPCs             = []string{"TARGET_VPC", "VPC_PEERED", "SEPARATE_VPC"}
+	EncryptionKeyAliasRegExp   = "^[a-zA-Z0-9_-]{1}[a-zA-Z0-9 _-]*$"
+	OpenSearchBindingIDPattern = "[\\w-]+"
 
 	CassandraReplicationFactors    = []int{2, 3, 5}
 	KafkaReplicationFactors        = []int{3, 5}

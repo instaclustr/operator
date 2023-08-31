@@ -1,0 +1,15 @@
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: OpenSearchEgressRules
+metadata:
+  labels:
+    app.kubernetes.io/name: opensearchegressrules
+    app.kubernetes.io/instance: opensearchegressrules-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: opensearchegressrules-sample
+spec:
+  clusterId: "5425d1ed-7a6b-44da-965e-6f085e85b6d0"
+  openSearchBindingId: "i9dAa4sBKX0G_sCfbpSF"
+  source: "NOTIFICATIONS"
+  type: "SLACK"
