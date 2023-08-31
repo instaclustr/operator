@@ -413,3 +413,15 @@ func (c *mockClient) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, err
 func (c *mockClient) GetAWSEndpointServicePrincipal(id string) (*models.AWSEndpointServicePrincipal, error) {
 	panic("GetAWSEndpointServicePrincipal: is not implemented")
 }
+
+func (c *mockClient) CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) error {
+	panic("CreateOpenSearchEgressRules: is not implemented")
+}
+
+func (c *mockClient) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRules, error) {
+	panic("GetOpenSearchEgressRule: is not implemented")
+}
+
+func (c *mockClient) DeleteOpenSearchEgressRule(id string) error {
+	panic("DeleteOpenSearchEgressRule: is not implemented")
+}

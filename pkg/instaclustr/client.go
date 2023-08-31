@@ -2324,3 +2324,90 @@ func (c *Client) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error) 
 
 	return &vpcPeering, nil
 }
+
+func (c *Client) CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) error {
+	url := c.serverHostname + OpenSearchEgressRulesEndpoint
+
+	b, err := json.Marshal(rule.Spec)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, b)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	b, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	err = json.Unmarshal(b, &rule.Status)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRules, error) {
+	rule := clusterresourcesv1beta1.OpenSearchEgressRules{}
+	url := c.serverHostname + OpenSearchEgressRulesEndpoint + "/" + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	err = json.Unmarshal(b, &rule)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rule, nil
+}
+
+func (c *Client) DeleteOpenSearchEgressRule(id string) error {
+	url := c.serverHostname + OpenSearchEgressRulesEndpoint + "/" + id
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	return nil
+}

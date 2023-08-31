@@ -372,6 +372,32 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - opensearchegressrules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - opensearchegressrules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - opensearchegressrules/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - opensearchusers
   verbs:
   - create

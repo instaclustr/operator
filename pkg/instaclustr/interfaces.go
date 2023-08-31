@@ -101,6 +101,9 @@ type API interface {
 	GetDefaultCredentialsV1(clusterID string) (string, string, error)
 	UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error
 	GetAWSEndpointServicePrincipal(id string) (*models.AWSEndpointServicePrincipal, error)
+	CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) error
+	GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRules, error)
+	DeleteOpenSearchEgressRule(id string) error
 	CreateAWSEndpointServicePrincipal(spec any) ([]byte, error)
 	DeleteAWSEndpointServicePrincipal(principalID string) error
 	GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*v1beta1.ResizeOperation, error)

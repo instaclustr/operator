@@ -11,7 +11,7 @@ metadata:
   annotations:
     test.annotation/first: testAnnotation
 spec:
-  name: OpenSearch-example
+  name: opensearch-test
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
@@ -38,11 +38,11 @@ spec:
   knnPlugin: false
   loadBalancer: false
   notificationsPlugin: false
-  #  opensearchDashboards:
-  #    - nodeSize: SRH-DEV-t4g.small-5
-  #      oidcProvider: ''
-  #      version: opensearch-dashboards:2.5.0
-  version: 2.7.0
+#  opensearchDashboards:
+#    - nodeSize: SRH-DEV-t4g.small-5
+#      oidcProvider: ''
+#      version: opensearch-dashboards:2.5.0
+  version: 2.9.0
   pciCompliance: false
   privateNetworkCluster: false
   reportingPlugin: false

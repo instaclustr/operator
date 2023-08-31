@@ -43,7 +43,7 @@ type OpenSearchSpec struct {
 	ICUPlugin                bool                    `json:"icuPlugin,omitempty"`
 	AsynchronousSearchPlugin bool                    `json:"asynchronousSearchPlugin,omitempty"`
 	KNNPlugin                bool                    `json:"knnPlugin,omitempty"`
-	Dashboards               []*OpenSearchDashboards `json:"dashboards,omitempty"`
+	Dashboards               []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
 	ReportingPlugin          bool                    `json:"reportingPlugin,omitempty"`
 	SQLPlugin                bool                    `json:"sqlPlugin,omitempty"`
 	NotificationsPlugin      bool                    `json:"notificationsPlugin,omitempty"`
