@@ -7,7 +7,7 @@ spec:
   version: "4.0.10"
   dataCentres:
     - name: "AWS_cassandra"
-      region: "US_EAST_1"
+      region: "US_WEST_2"
       cloudProvider: "AWS_VPC"
       continuousBackup: false
       nodesNumber: 2
@@ -17,7 +17,10 @@ spec:
       tags:
         "tag": "testTag"
       clientToClusterEncryption: false
+      # cloudProviderSettings:
+      #   - customVirtualNetworkId: "vpc-0b69c781969e980a9"
       nodeSize: "CAS-DEV-t4g.small-5"
+      # accountName: "InstaclustrRIYOA"
   #    - name: "AWS_cassandra2"
   #      region: "US_EAST_1"
   #      cloudProvider: "AWS_VPC"

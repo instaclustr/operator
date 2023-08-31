@@ -169,9 +169,8 @@ func validateCreation(dc *OpenSearchDataCentre) error {
 		}
 	}
 
-	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
-	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", dc.Network, err)
+	if dc.ProviderAccountName == models.DefaultAccountName && len(dc.CloudProviderSettings) != 0 {
+		return fmt.Errorf("cloud provider settings can be used only with RIYOA accounts")
 	}
 
 	if len(dc.CloudProviderSettings) > 1 {
@@ -183,6 +182,11 @@ func validateCreation(dc *OpenSearchDataCentre) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
+	if !networkMatched || err != nil {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", dc.Network, err)
 	}
 
 	return nil
