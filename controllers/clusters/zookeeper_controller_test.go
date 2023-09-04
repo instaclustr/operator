@@ -19,99 +19,76 @@ package clusters
 import (
 	"context"
 	"os"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
-	"github.com/instaclustr/operator/pkg/models"
 )
 
 const zookeeperNodeSizeFromYAML = "zookeeper-developer-t3.small-20"
 
 var _ = Describe("Zookeeper Controller", func() {
-	var (
-		zookeeperResource v1beta1.Zookeeper
-		zookeeperYAML     v1beta1.Zookeeper
-		zook              = "zookeeper"
-		ns                = "default"
-		zookeeperNS       = types.NamespacedName{Name: zook, Namespace: ns}
-		timeout           = time.Second * 40
-		interval          = time.Second * 2
-	)
+	zookeeper := v1beta1.Zookeeper{}
+	zookeeperManifest := v1beta1.Zookeeper{}
 
 	yfile, err := os.ReadFile("datatest/zookeeper_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	err = yaml.Unmarshal(yfile, &zookeeperYAML)
+	err = yaml.Unmarshal(yfile, &zookeeperManifest)
 	Expect(err).NotTo(HaveOccurred())
 
-	zookeeperObjMeta := metav1.ObjectMeta{
-		Name:      zook,
-		Namespace: ns,
-		Annotations: map[string]string{
-			models.ResourceStateAnnotation: models.CreatingEvent,
-		},
-	}
-
-	zookeeperYAML.ObjectMeta = zookeeperObjMeta
+	zookeeperNamespacedName := types.NamespacedName{Name: zookeeperManifest.ObjectMeta.Name, Namespace: defaultNS}
 
 	ctx := context.Background()
 
 	When("apply a zookeeper manifest", func() {
 		It("should create a zookeeper resources", func() {
-			Expect(k8sClient.Create(ctx, &zookeeperYAML)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, &zookeeperManifest)).Should(Succeed())
 			By("sending zookeeper specification to the Instaclustr API and get ID of created cluster.")
-
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, zookeeperNS, &zookeeperResource); err != nil {
+				if err := k8sClient.Get(ctx, zookeeperNamespacedName, &zookeeper); err != nil {
 					return false
 				}
 
-				return zookeeperResource.Status.ID == openapi.CreatedID
+				return zookeeper.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
 		})
 
 		When("zookeeper is created, the status job get new data from the InstAPI.", func() {
 			It("updates a k8s zookeeper status", func() {
-				Expect(k8sClient.Get(ctx, zookeeperNS, &zookeeperResource)).Should(Succeed())
+				Expect(k8sClient.Get(ctx, zookeeperNamespacedName, &zookeeper)).Should(Succeed())
 
 				Eventually(func() bool {
-					if err := k8sClient.Get(ctx, zookeeperNS, &zookeeperResource); err != nil {
+					if err := k8sClient.Get(ctx, zookeeperNamespacedName, &zookeeper); err != nil {
 						return false
 					}
 
-					if len(zookeeperResource.Status.DataCentres) == 0 || len(zookeeperResource.Status.DataCentres[0].Nodes) == 0 {
+					if len(zookeeper.Status.DataCentres) == 0 || len(zookeeper.Status.DataCentres[0].Nodes) == 0 {
 						return false
 					}
 
-					return zookeeperResource.Status.DataCentres[0].Nodes[0].Size == zookeeperNodeSizeFromYAML
+					return zookeeper.Status.DataCentres[0].Nodes[0].Size == zookeeperNodeSizeFromYAML
 				}, timeout, interval).Should(BeTrue())
 			})
 		})
 
 		When("delete the zookeeper resource", func() {
 			It("should send delete request to the Instaclustr API", func() {
-				Expect(k8sClient.Get(ctx, zookeeperNS, &zookeeperResource)).Should(Succeed())
-
-				zookeeperResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
-
-				Expect(k8sClient.Delete(ctx, &zookeeperResource)).Should(Succeed())
-
+				Expect(k8sClient.Get(ctx, zookeeperNamespacedName, &zookeeper)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, &zookeeper)).Should(Succeed())
 				By("sending delete request to Instaclustr API")
 				Eventually(func() bool {
-					err := k8sClient.Get(ctx, zookeeperNS, &zookeeperResource)
+					err := k8sClient.Get(ctx, zookeeperNamespacedName, &zookeeper)
 					if err != nil && !k8serrors.IsNotFound(err) {
 						return false
 					}
 
-					return true
+					return k8serrors.IsNotFound(err)
 				}, timeout, interval).Should(BeTrue())
 			})
 		})

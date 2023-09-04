@@ -2,12 +2,14 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: Redis
 metadata:
   name: redis-sample
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   name: "testRedis"
   version: "7.0.5"
   slaTier: "NON_PRODUCTION"
   pciCompliance: true
-  concurrentResizes: 1
   clientToNodeEncryption: true
   privateNetworkCluster: true
   notifySupportContacts: true

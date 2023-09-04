@@ -48,6 +48,11 @@ var (
 	testEnv   *envtest.Environment
 	ctx       context.Context
 	cancel    context.CancelFunc
+
+	defaultNS = "default"
+
+	timeout  = time.Millisecond * 1000
+	interval = time.Millisecond * 10
 )
 
 func TestAPIs(t *testing.T) {
@@ -93,9 +98,11 @@ var _ = BeforeSuite(func() {
 
 	eRecorder := k8sManager.GetEventRecorderFor("instaclustr-operator-tests")
 
-	scheduler.ClusterStatusInterval = 1 * time.Second
-	scheduler.ClusterBackupsInterval = 30 * time.Second
-	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 3}
+	scheduler.ClusterStatusInterval = time.Millisecond * 15
+	scheduler.ClusterBackupsInterval = time.Second * 30
+	scheduler.UserCreationInterval = interval
+
+	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Millisecond * 5}
 
 	err = (&KafkaReconciler{
 		Client:        k8sManager.GetClient(),

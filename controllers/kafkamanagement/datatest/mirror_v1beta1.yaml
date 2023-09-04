@@ -2,6 +2,9 @@ apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: Mirror
 metadata:
   name: mirror-sample
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   kafkaConnectClusterId: "897da890-a212-4771-ac13-b08d85e32ad6"
   maxTasks: 3

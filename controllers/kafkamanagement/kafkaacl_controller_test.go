@@ -19,12 +19,10 @@ package kafkamanagement
 import (
 	"context"
 	"os"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -36,88 +34,65 @@ import (
 var newRecourseType = "GROUP"
 
 var _ = Describe("Kafka ACL Controller", func() {
-	var (
-		aclResource v1beta1.KafkaACL
-		aclYAML     v1beta1.KafkaACL
-		a           = "acl"
-		ns          = "default"
-		aclNS       = types.NamespacedName{Name: a, Namespace: ns}
-		timeout     = time.Second * 15
-		interval    = time.Second * 2
-	)
+	acl := v1beta1.KafkaACL{}
+	aclManifest := v1beta1.KafkaACL{}
 
 	yfile, err := os.ReadFile("datatest/kafkaacl_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	err = yaml.Unmarshal(yfile, &aclYAML)
+	err = yaml.Unmarshal(yfile, &aclManifest)
 	Expect(err).NotTo(HaveOccurred())
 
-	aclObjMeta := metav1.ObjectMeta{
-		Name:      a,
-		Namespace: ns,
-		Annotations: map[string]string{
-			models.ResourceStateAnnotation: models.CreatingEvent,
-		},
-	}
-
-	aclYAML.ObjectMeta = aclObjMeta
+	aclNamespacedName := types.NamespacedName{Name: aclManifest.ObjectMeta.Name, Namespace: defaultNS}
 
 	ctx := context.Background()
 
 	When("apply a Kafka ACL manifest", func() {
 		It("should create a ACL resources", func() {
-			Expect(k8sClient.Create(ctx, &aclYAML)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, &aclManifest)).Should(Succeed())
 			By("sending ACL specification to the Instaclustr API and get ID of created resource.")
-
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, aclNS, &aclResource); err != nil {
+				if err := k8sClient.Get(ctx, aclNamespacedName, &acl); err != nil {
 					return false
 				}
 
-				return aclResource.Status.ID == openapi.CreatedID
+				return acl.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
 		})
 	})
 
 	When("changing a ACL ", func() {
 		It("should update the ACL resources", func() {
-			Expect(k8sClient.Get(ctx, aclNS, &aclResource)).Should(Succeed())
-			patch := aclResource.NewPatch()
+			Expect(k8sClient.Get(ctx, aclNamespacedName, &acl)).Should(Succeed())
 
-			aclResource.Spec.ACLs[0].ResourceType = newRecourseType
-			aclResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent}
-
-			Expect(k8sClient.Patch(ctx, &aclResource, patch)).Should(Succeed())
+			patch := acl.NewPatch()
+			acl.Spec.ACLs[0].ResourceType = newRecourseType
+			Expect(k8sClient.Patch(ctx, &acl, patch)).Should(Succeed())
 
 			By("sending a new ACL configs request to the Instaclustr API, it" +
 				"gets a new data from the InstAPI and update it in k8s ACL resource")
-
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, aclNS, &aclResource); err != nil {
+				if err := k8sClient.Get(ctx, aclNamespacedName, &acl); err != nil {
 					return false
 				}
 
-				return aclResource.GetAnnotations()[models.ResourceStateAnnotation] == models.UpdatedEvent
+				return acl.GetAnnotations()[models.ResourceStateAnnotation] == models.UpdatedEvent
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
 
 	When("delete the ACL resource", func() {
 		It("should send delete request to the Instaclustr API", func() {
-			Expect(k8sClient.Get(ctx, aclNS, &aclResource)).Should(Succeed())
-
-			aclResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
-
-			Expect(k8sClient.Delete(ctx, &aclResource)).Should(Succeed())
-
+			Expect(k8sClient.Get(ctx, aclNamespacedName, &acl)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &acl)).Should(Succeed())
 			By("sending delete request to Instaclustr API")
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, aclNS, &aclResource)
+				err := k8sClient.Get(ctx, aclNamespacedName, &acl)
 				if err != nil && !k8serrors.IsNotFound(err) {
 					return false
 				}
 
-				return true
+				return k8serrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

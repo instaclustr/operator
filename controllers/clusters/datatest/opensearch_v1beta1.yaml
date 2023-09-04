@@ -2,6 +2,9 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: OpenSearch
 metadata:
   name: opensearch
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   alertingPlugin: false
   anomalyDetectionPlugin: false

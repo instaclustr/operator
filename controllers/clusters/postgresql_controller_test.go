@@ -19,109 +19,88 @@ package clusters
 import (
 	"context"
 	"os"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/controllers/tests"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
-	"github.com/instaclustr/operator/pkg/models"
 )
 
 const newPostgreSQLNodeSize = "PGS-DEV-t4g.medium-30"
 
 var _ = Describe("PostgreSQL Controller", func() {
-	var (
-		postgresqlResource v1beta1.PostgreSQL
-		postgresqlYAML     v1beta1.PostgreSQL
-		p                  = "postgresql"
-		ns                 = "default"
-		postgresqlNS       = types.NamespacedName{Name: p, Namespace: ns}
-		timeout            = time.Second * 60
-		interval           = time.Second * 2
-	)
+	postgresql := v1beta1.PostgreSQL{}
+	postgresqlManifest := v1beta1.PostgreSQL{}
 
 	yfile, err := os.ReadFile("datatest/postgresql_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	err = yaml.Unmarshal(yfile, &postgresqlYAML)
+	err = yaml.Unmarshal(yfile, &postgresqlManifest)
 	Expect(err).NotTo(HaveOccurred())
 
-	postgresqlObjMeta := metav1.ObjectMeta{
-		Name:      p,
-		Namespace: ns,
-		Annotations: map[string]string{
-			models.ResourceStateAnnotation: models.CreatingEvent,
-		},
-	}
-
-	postgresqlYAML.ObjectMeta = postgresqlObjMeta
+	postgresqlNamespacedName := types.NamespacedName{Name: postgresqlManifest.ObjectMeta.Name, Namespace: defaultNS}
 
 	ctx := context.Background()
 
 	When("apply a PostgreSQL manifest", func() {
 		It("should create a PostgreSQL resources", func() {
-			Expect(k8sClient.Create(ctx, &postgresqlYAML)).Should(Succeed())
-			By("sending PostgreSQL specification to the Instaclustr API and get ID of created cluster.")
+			Expect(k8sClient.Create(ctx, &postgresqlManifest)).Should(Succeed())
+			done := tests.NewChannelWithTimeout(timeout)
 
+			By("sending PostgreSQL specification to the Instaclustr API and get ID of created cluster.")
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, postgresqlNS, &postgresqlResource); err != nil {
+				if err := k8sClient.Get(ctx, postgresqlNamespacedName, &postgresql); err != nil {
 					return false
 				}
 
-				return postgresqlResource.Status.ID == openapi.CreatedID
+				return postgresql.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
+
+			<-done
 		})
 	})
 
 	When("changing a node size", func() {
 		It("should update a PostgreSQL resources", func() {
-			Expect(k8sClient.Get(ctx, postgresqlNS, &postgresqlResource)).Should(Succeed())
-			patch := postgresqlResource.NewPatch()
+			Expect(k8sClient.Get(ctx, postgresqlNamespacedName, &postgresql)).Should(Succeed())
 
-			postgresqlResource.Spec.DataCentres[0].NodeSize = newPostgreSQLNodeSize
-
-			postgresqlResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent}
-			Expect(k8sClient.Patch(ctx, &postgresqlResource, patch)).Should(Succeed())
+			patch := postgresql.NewPatch()
+			postgresql.Spec.DataCentres[0].NodeSize = newPostgreSQLNodeSize
+			Expect(k8sClient.Patch(ctx, &postgresql, patch)).Should(Succeed())
 
 			By("sending a resize request to the Instaclustr API. And when the resize is completed, " +
 				"the status job get new data from the InstAPI and update it in k8s PostgreSQL resource")
-
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, postgresqlNS, &postgresqlResource); err != nil {
+				if err := k8sClient.Get(ctx, postgresqlNamespacedName, &postgresql); err != nil {
 					return false
 				}
 
-				if len(postgresqlResource.Status.DataCentres) == 0 || len(postgresqlResource.Status.DataCentres[0].Nodes) == 0 {
+				if len(postgresql.Status.DataCentres) == 0 || len(postgresql.Status.DataCentres[0].Nodes) == 0 {
 					return false
 				}
 
-				return postgresqlResource.Status.DataCentres[0].Nodes[0].Size == newPostgreSQLNodeSize
+				return postgresql.Status.DataCentres[0].Nodes[0].Size == newPostgreSQLNodeSize
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
 
 	When("delete the PostgreSQL resource", func() {
 		It("should send delete request to the Instaclustr API", func() {
-			Expect(k8sClient.Get(ctx, postgresqlNS, &postgresqlResource)).Should(Succeed())
-
-			postgresqlResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
-
-			Expect(k8sClient.Delete(ctx, &postgresqlResource)).Should(Succeed())
-
+			Expect(k8sClient.Get(ctx, postgresqlNamespacedName, &postgresql)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &postgresql)).Should(Succeed())
 			By("sending delete request to Instaclustr API")
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, postgresqlNS, &postgresqlResource)
+				err := k8sClient.Get(ctx, postgresqlNamespacedName, &postgresql)
 				if err != nil && !k8serrors.IsNotFound(err) {
 					return false
 				}
 
-				return true
+				return k8serrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

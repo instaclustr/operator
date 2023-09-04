@@ -46,6 +46,11 @@ var (
 	testEnv   *envtest.Environment
 	ctx       context.Context
 	cancel    context.CancelFunc
+
+	defaultNS = "default"
+
+	timeout  = time.Millisecond * 500
+	interval = time.Millisecond * 5
 )
 
 func TestAPIs(t *testing.T) {
@@ -86,8 +91,8 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	scheduler.ClusterStatusInterval = 1 * time.Second
-	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Second * 2}
+	scheduler.ClusterStatusInterval = time.Millisecond * 10
+	models.ReconcileRequeue = reconcile.Result{RequeueAfter: time.Millisecond * 3}
 
 	eRecorder := k8sManager.GetEventRecorderFor("instaclustr-operator-tests")
 
