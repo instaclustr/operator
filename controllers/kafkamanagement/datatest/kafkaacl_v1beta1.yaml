@@ -2,6 +2,9 @@ apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: KafkaACL
 metadata:
   name: kafkaacl-sample
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   acls:
       - host: "*"

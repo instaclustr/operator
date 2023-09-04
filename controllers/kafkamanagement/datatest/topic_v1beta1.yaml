@@ -2,6 +2,9 @@ apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: Topic
 metadata:
   name: topic-sample
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   partitions: 3
   replicationFactor: 3

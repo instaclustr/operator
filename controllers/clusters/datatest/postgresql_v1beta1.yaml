@@ -2,6 +2,7 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
   name: postgresql-sample
+  namespace: default
   annotations:
     testAnnotation: test
 spec:

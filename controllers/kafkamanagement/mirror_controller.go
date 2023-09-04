@@ -76,13 +76,10 @@ func (r *MirrorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	switch mirror.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, mirror, l), nil
-
 	case models.UpdatingEvent:
 		return r.handleUpdateCluster(ctx, mirror, l), nil
-
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, mirror, l), nil
-
 	case models.GenericEvent:
 		l.Info("Event isn't handled",
 			"kafka Connect ID to mirror", mirror.Spec.KafkaConnectClusterID,
@@ -105,48 +102,34 @@ func (r *MirrorReconciler) handleCreateCluster(
 		iStatus, err := r.API.CreateKafkaMirror(&mirror.Spec)
 		if err != nil {
 			l.Error(err, "Cannot create Kafka mirror", "spec", mirror.Spec)
-			r.EventRecorder.Eventf(
-				mirror, models.Warning, models.CreationFailed,
-				"Resource creation on the Instaclustr is failed. Reason: %v",
-				err,
-			)
+			r.EventRecorder.Eventf(mirror, models.Warning, models.CreationFailed,
+				"Resource creation on the Instaclustr is failed. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
-		l.Info("Kafka mirror has been created", "mirror ID", mirror.Status.ID)
-
-		r.EventRecorder.Eventf(
-			mirror, models.Normal, models.Created,
-			"Resource creation request is sent. Mirror ID: %s",
-			mirror.Status.ID,
-		)
+		l.Info("Kafka mirror has been created", "mirror ID", iStatus.ID)
+		r.EventRecorder.Eventf(mirror, models.Normal, models.Created,
+			"Kafka mirror creation request is sent to Instaclustr API. Mirror ID: %s", iStatus.ID)
 
 		patch := mirror.NewPatch()
-
 		mirror.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(mirror, models.DeletionFinalizer)
-
 		err = r.Patch(ctx, mirror, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch kafka mirror after create",
 				"kafka mirror connector name", iStatus.ConnectorName)
-			r.EventRecorder.Eventf(
-				mirror, models.Warning, models.PatchFailed,
-				"Resource patch is failed. Reason: %v",
-				err,
-			)
+			r.EventRecorder.Eventf(mirror, models.Warning, models.PatchFailed,
+				"Resource patch is failed after request to Instaclustr was sent. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
 
+		patch = mirror.NewPatch()
 		mirror.Status = *iStatus
 		err = r.Status().Patch(ctx, mirror, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch Kafka mirror status from the Instaclustr API",
-				"spec", mirror.Spec)
-			r.EventRecorder.Eventf(
-				mirror, models.Warning, models.PatchFailed,
-				"Resource status patch is failed. Reason: %v",
-				err,
-			)
+				"spec", mirror.Spec, "status", iStatus)
+			r.EventRecorder.Eventf(mirror, models.Warning, models.PatchFailed,
+				"Resource status patch is failed. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
 	}
@@ -155,17 +138,12 @@ func (r *MirrorReconciler) handleCreateCluster(
 	if err != nil {
 		l.Error(err, "Cannot start cluster status job",
 			"mirror cluster ID", mirror.Status.ID)
-		r.EventRecorder.Eventf(
-			mirror, models.Warning, models.CreationFailed,
-			"Resource status job creation is failed. Reason: %v",
-			err,
-		)
+		r.EventRecorder.Eventf(mirror, models.Warning, models.CreationFailed,
+			"Mirror status job creation is failed. Reason: %v", err)
 		return models.ReconcileRequeue
 	}
-	r.EventRecorder.Eventf(
-		mirror, models.Normal, models.Created,
-		"Resource status check job is started",
-	)
+	r.EventRecorder.Event(mirror, models.Normal, models.Created,
+		"mirror status check job is started")
 
 	return models.ExitReconcile
 }
@@ -180,12 +158,8 @@ func (r *MirrorReconciler) handleUpdateCluster(
 	iMirror, err := r.API.GetMirrorStatus(mirror.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get Kafka mirror from Instaclustr", "mirror ID", mirror.Status.ID)
-
-		r.EventRecorder.Eventf(
-			mirror, models.Warning, models.UpdateFailed,
-			"Resource update on the Instaclustr API is failed. Reason: %v",
-			err,
-		)
+		r.EventRecorder.Eventf(mirror, models.Warning, models.UpdateFailed,
+			"Resource update on the Instaclustr API is failed. Reason: %v", err)
 		return models.ReconcileRequeue
 	}
 
@@ -194,11 +168,8 @@ func (r *MirrorReconciler) handleUpdateCluster(
 		if err != nil {
 			l.Error(err, "Unable to update kafka mirror",
 				"kafka connect ID", mirror.Spec.KafkaConnectClusterID, "mirror ID", mirror.Status.ID)
-			r.EventRecorder.Eventf(
-				mirror, models.Warning, models.UpdateFailed,
-				"Resource update on the Instaclustr API is failed. Reason: %v",
-				err,
-			)
+			r.EventRecorder.Eventf(mirror, models.Warning, models.UpdateFailed,
+				"Failed to sent a update request to the Instaclustr API. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
 
@@ -215,14 +186,11 @@ func (r *MirrorReconciler) handleUpdateCluster(
 	mirror.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.Patch(ctx, mirror, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Kafka mirror management after update op",
+		l.Error(err, "Cannot patch Kafka mirror management after update",
 			"mirror ID", mirror.Status.ID,
 			"kafka connect", mirror.Spec.KafkaConnectClusterID)
-		r.EventRecorder.Eventf(
-			mirror, models.Warning, models.PatchFailed,
-			"Resource status patch is failed. Reason: %v",
-			err,
-		)
+		r.EventRecorder.Eventf(mirror, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v", err)
 		return models.ReconcileRequeue
 	}
 
@@ -241,11 +209,8 @@ func (r *MirrorReconciler) handleDeleteCluster(
 		l.Error(err, "Cannot get Kafka mirror",
 			"kafka connect ID", mirror.Spec.KafkaConnectClusterID,
 			"mirror id", mirror.Status.ID)
-		r.EventRecorder.Eventf(
-			mirror, models.Warning, models.FetchFailed,
-			"Fetch resource from the Instaclustr API is failed. Reason: %v",
-			err,
-		)
+		r.EventRecorder.Eventf(mirror, models.Warning, models.FetchFailed,
+			"Fetch resource from the Instaclustr API is failed. Reason: %v", err)
 		return models.ReconcileRequeue
 	}
 
@@ -255,35 +220,25 @@ func (r *MirrorReconciler) handleDeleteCluster(
 			l.Error(err, "Cannot delete kafka mirror",
 				"mirror name", mirror.Spec.KafkaConnectClusterID,
 				"mirror ID", mirror.Status.ID)
-			r.EventRecorder.Eventf(
-				mirror, models.Warning, models.DeletionFailed,
-				"Resource deletion on the Instaclustr is failed. Reason: %v",
-				err,
-			)
+			r.EventRecorder.Eventf(mirror, models.Warning, models.DeletionFailed,
+				"Resource deletion on the Instaclustr is failed. Reason: %v", err)
 			return models.ReconcileRequeue
 		}
 
-		r.EventRecorder.Eventf(
-			mirror, models.Normal, models.DeletionStarted,
-			"Resource deletion request is sent to the Instaclustr API.",
-		)
+		r.EventRecorder.Eventf(mirror, models.Normal, models.DeletionStarted,
+			"Mirror deletion request is sent to the Instaclustr API.")
 	}
 
 	patch := mirror.NewPatch()
-
 	r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.StatusChecker))
 	mirror.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	controllerutil.RemoveFinalizer(mirror, models.DeletionFinalizer)
-
 	err = r.Patch(ctx, mirror, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch remove finalizer from kafka",
 			"cluster name", mirror.Spec.KafkaConnectClusterID)
-		r.EventRecorder.Eventf(
-			mirror, models.Warning, models.PatchFailed,
-			"Resource patch is failed. Reason: %v",
-			err,
-		)
+		r.EventRecorder.Eventf(mirror, models.Warning, models.PatchFailed,
+			"Mirror patch is failed after deletion. Reason: %v", err)
 		return models.ReconcileRequeue
 	}
 
@@ -291,10 +246,8 @@ func (r *MirrorReconciler) handleDeleteCluster(
 		"kafka connect ID", mirror.Spec.KafkaConnectClusterID,
 		"mirror ID", mirror.Status.ID)
 
-	r.EventRecorder.Eventf(
-		mirror, models.Normal, models.Deleted,
-		"Resource is deleted",
-	)
+	r.EventRecorder.Eventf(mirror, models.Normal, models.Deleted,
+		"Resource is deleted")
 
 	return models.ExitReconcile
 }
@@ -316,13 +269,18 @@ func (r *MirrorReconciler) newWatchStatusJob(mirror *v1beta1.Mirror) scheduler.J
 		namespacedName := client.ObjectKeyFromObject(mirror)
 		err := r.Get(context.Background(), namespacedName, mirror)
 		if k8serrors.IsNotFound(err) {
-			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+			l.Info("Mirror is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
+			r.EventRecorder.Eventf(mirror, models.Normal, models.Deleted,
+				"Mirror is not found in the k8s cluster. Closing Instaclustr status sync.")
+
 			r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 		if err != nil {
 			l.Error(err, "Cannot get mirror resource", "resource name", mirror.Name)
+			r.EventRecorder.Eventf(mirror, models.Warning, models.FetchFailed,
+				"Cannot get mirror resource, request: %v", namespacedName)
 			return err
 		}
 
@@ -333,12 +291,16 @@ func (r *MirrorReconciler) newWatchStatusJob(mirror *v1beta1.Mirror) scheduler.J
 					"mirror ID", mirror.Status.ID,
 					"kafka connect ID", mirror.Spec.KafkaConnectClusterID,
 					"namespaced name", namespacedName)
+				r.EventRecorder.Event(mirror, models.Normal, models.Deleted,
+					"Mirror is not found in Instaclustr. Deleting resource.")
 
 				err = r.Delete(context.Background(), mirror)
 				if err != nil {
-					l.Error(err, "Cannot delete mirror resource",
-						"resource name", mirror.Name,
-						"resource ID", mirror.Status.ID)
+					l.Error(err, "Cannot delete mirror resource after not found in the Instaclustr",
+						"mirror namespacedName", namespacedName, "resource ID", mirror.Status.ID)
+					r.EventRecorder.Event(mirror, models.Normal, models.Deleted,
+						"Cannot delete mirror resource after not found in the Instaclustr")
+
 					return err
 				}
 
@@ -349,21 +311,17 @@ func (r *MirrorReconciler) newWatchStatusJob(mirror *v1beta1.Mirror) scheduler.J
 			return err
 		}
 
-		patch := mirror.NewPatch()
-
-		if mirror.Spec.TargetLatency != iMirror.TargetLatency {
+		if mirror.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
+			mirror.Spec.TargetLatency != iMirror.TargetLatency {
 			l.Info("k8s Kafka Mirror target latency is different from Instaclustr. Reconcile target latency..",
 				"mirror ID", mirror.Status.ID,
 				"kafka connect ID", mirror.Spec.KafkaConnectClusterID,
 				"Instaclustr target latency", iMirror.TargetLatency,
 				"k8s target latency", mirror.Spec.TargetLatency)
-
-			mirror.Spec.TargetLatency = iMirror.TargetLatency
-			err = r.Patch(context.Background(), mirror, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch mirror target latency", "mirror ID name", mirror.Status.ID)
-				return err
-			}
+			r.EventRecorder.Eventf(mirror, models.Warning, models.ExternalChanges,
+				"There are external changes on the Instaclustr console. Please reconcile the specification manually. "+
+					"targetLatency from k8s: %v, targetLatency from instaclustr: %v",
+				mirror.Spec.TargetLatency, iMirror.TargetLatency)
 		}
 
 		if !mirror.Status.IsEqual(iMirror) {
@@ -371,10 +329,11 @@ func (r *MirrorReconciler) newWatchStatusJob(mirror *v1beta1.Mirror) scheduler.J
 				"Instaclustr data", iMirror,
 				"k8s operator data", mirror.Status)
 
+			patch := mirror.NewPatch()
 			mirror.Status = *iMirror
 			err = r.Status().Patch(context.Background(), mirror, patch)
 			if err != nil {
-				l.Error(err, "Cannot patch Kafka cluster",
+				l.Error(err, "Cannot patch Mirror status",
 					"mirror ID name", mirror.Status.ID)
 				return err
 			}

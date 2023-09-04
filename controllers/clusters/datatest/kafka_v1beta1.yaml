@@ -2,6 +2,9 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: Kafka
 metadata:
   name: kafka
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   name: "kafka"
   version: "2.8.2"

@@ -2,6 +2,9 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: KafkaConnect
 metadata:
   name: kafkaconnect-sample
+  namespace: default
+  annotations:
+    defaulter: webhook
 spec:
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"

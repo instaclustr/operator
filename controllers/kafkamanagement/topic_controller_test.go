@@ -19,18 +19,15 @@ package kafkamanagement
 import (
 	"context"
 	"os"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
-	"github.com/instaclustr/operator/pkg/models"
 )
 
 var newTopicConfig = map[string]string{
@@ -39,69 +36,49 @@ var newTopicConfig = map[string]string{
 }
 
 var _ = Describe("Kafka Topic Controller", func() {
-	var (
-		topicResource v1beta1.Topic
-		topicYAML     v1beta1.Topic
-		t             = "topic"
-		ns            = "default"
-		topicNS       = types.NamespacedName{Name: t, Namespace: ns}
-		timeout       = time.Second * 20
-		interval      = time.Second * 2
-	)
+	topic := v1beta1.Topic{}
+	topicManifest := v1beta1.Topic{}
 
 	yfile, err := os.ReadFile("datatest/topic_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	err = yaml.Unmarshal(yfile, &topicYAML)
+	err = yaml.Unmarshal(yfile, &topicManifest)
 	Expect(err).NotTo(HaveOccurred())
 
-	topicObjMeta := metav1.ObjectMeta{
-		Name:      t,
-		Namespace: ns,
-		Annotations: map[string]string{
-			models.ResourceStateAnnotation: models.CreatingEvent,
-		},
-	}
-
-	topicYAML.ObjectMeta = topicObjMeta
+	topicNamespacedName := types.NamespacedName{Name: topicManifest.ObjectMeta.Name, Namespace: defaultNS}
 
 	ctx := context.Background()
 
 	When("apply a Kafka topic manifest", func() {
 		It("should create a topic resources", func() {
-			Expect(k8sClient.Create(ctx, &topicYAML)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, &topicManifest)).Should(Succeed())
 			By("sending topic specification to the Instaclustr API and get ID of created resource.")
-
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, topicNS, &topicResource); err != nil {
+				if err := k8sClient.Get(ctx, topicNamespacedName, &topic); err != nil {
 					return false
 				}
 
-				return topicResource.Status.ID == openapi.CreatedID
+				return topic.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
 		})
 	})
 
 	When("changing a topic configs", func() {
 		It("should update the topic resources", func() {
-			Expect(k8sClient.Get(ctx, topicNS, &topicResource)).Should(Succeed())
-			patch := topicResource.NewPatch()
+			Expect(k8sClient.Get(ctx, topicNamespacedName, &topic)).Should(Succeed())
 
-			topicResource.Spec.TopicConfigs = newTopicConfig
-			topicResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.UpdatingEvent}
-
-			Expect(k8sClient.Patch(ctx, &topicResource, patch)).Should(Succeed())
-
+			patch := topic.NewPatch()
+			topic.Spec.TopicConfigs = newTopicConfig
+			Expect(k8sClient.Patch(ctx, &topic, patch)).Should(Succeed())
 			By("sending a new topic configs request to the Instaclustr API, it" +
 				"gets a new data from the InstAPI and update it in k8s Topic resource")
-
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, topicNS, &topicResource); err != nil {
+				if err := k8sClient.Get(ctx, topicNamespacedName, &topic); err != nil {
 					return false
 				}
 
 				for newK, newV := range newTopicConfig {
-					if oldV, ok := topicResource.Status.TopicConfigs[newK]; !ok || oldV != newV {
+					if oldV, ok := topic.Status.TopicConfigs[newK]; !ok || oldV != newV {
 						return false
 					}
 				}
@@ -112,20 +89,16 @@ var _ = Describe("Kafka Topic Controller", func() {
 
 	When("delete the Kafka resource", func() {
 		It("should send delete request to the Instaclustr API", func() {
-			Expect(k8sClient.Get(ctx, topicNS, &topicResource)).Should(Succeed())
-
-			topicResource.Annotations = map[string]string{models.ResourceStateAnnotation: models.DeletingEvent}
-
-			Expect(k8sClient.Delete(ctx, &topicResource)).Should(Succeed())
-
+			Expect(k8sClient.Get(ctx, topicNamespacedName, &topic)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &topic)).Should(Succeed())
 			By("sending delete request to Instaclustr API")
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, topicNS, &topicResource)
+				err := k8sClient.Get(ctx, topicNamespacedName, &topic)
 				if err != nil && !k8serrors.IsNotFound(err) {
 					return false
 				}
 
-				return true
+				return k8serrors.IsNotFound(err)
 			}).Should(BeTrue())
 		})
 	})
