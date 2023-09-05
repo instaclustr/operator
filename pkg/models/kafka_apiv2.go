@@ -17,29 +17,27 @@ limitations under the License.
 package models
 
 type KafkaCluster struct {
-	ClusterStatus                     `json:",inline"`
-	Name                              string                    `json:"name"`
-	KafkaVersion                      string                    `json:"kafkaVersion"`
-	PrivateNetworkCluster             bool                      `json:"privateNetworkCluster"`
-	SLATier                           string                    `json:"slaTier"`
-	TwoFactorDelete                   []*TwoFactorDelete        `json:"twoFactorDelete"`
-	AllowDeleteTopics                 bool                      `json:"allowDeleteTopics"`
-	AutoCreateTopics                  bool                      `json:"autoCreateTopics"`
-	BundledUseOnly                    bool                      `json:"bundledUseOnly"`
-	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption"`
-	ClientAuthBrokerWithoutEncryption bool                      `json:"clientAuthBrokerWithoutEncryption"`
-	ClientBrokerAuthWithMtls          bool                      `json:"clientBrokerAuthWithMtls"`
-	ClientToClusterEncryption         bool                      `json:"clientToClusterEncryption"`
-	DataCentres                       []*KafkaDataCentre        `json:"dataCentres"`
-	DedicatedZookeeper                []*DedicatedZookeeper     `json:"dedicatedZookeeper"`
-	DefaultNumberOfPartitions         int                       `json:"defaultNumberOfPartitions"`
-	DefaultReplicationFactor          int                       `json:"defaultReplicationFactor"`
-	Kraft                             []*Kraft                  `json:"kraft,omitempty"`
-	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy"`
-	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry"`
-	PCIComplianceMode                 bool                      `json:"pciComplianceMode"`
-	RestProxy                         []*RestProxy              `json:"restProxy"`
-	SchemaRegistry                    []*SchemaRegistry         `json:"schemaRegistry"`
+	ClusterStatus             `json:",inline"`
+	Name                      string                    `json:"name"`
+	KafkaVersion              string                    `json:"kafkaVersion"`
+	PrivateNetworkCluster     bool                      `json:"privateNetworkCluster"`
+	SLATier                   string                    `json:"slaTier"`
+	TwoFactorDelete           []*TwoFactorDelete        `json:"twoFactorDelete"`
+	AllowDeleteTopics         bool                      `json:"allowDeleteTopics"`
+	AutoCreateTopics          bool                      `json:"autoCreateTopics"`
+	BundledUseOnly            bool                      `json:"bundledUseOnly"`
+	ClientBrokerAuthWithMtls  bool                      `json:"clientBrokerAuthWithMtls"`
+	ClientToClusterEncryption bool                      `json:"clientToClusterEncryption"`
+	DataCentres               []*KafkaDataCentre        `json:"dataCentres"`
+	DedicatedZookeeper        []*DedicatedZookeeper     `json:"dedicatedZookeeper"`
+	DefaultNumberOfPartitions int                       `json:"defaultNumberOfPartitions"`
+	DefaultReplicationFactor  int                       `json:"defaultReplicationFactor"`
+	Kraft                     []*Kraft                  `json:"kraft,omitempty"`
+	KarapaceRestProxy         []*KarapaceRestProxy      `json:"karapaceRestProxy"`
+	KarapaceSchemaRegistry    []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry"`
+	PCIComplianceMode         bool                      `json:"pciComplianceMode"`
+	RestProxy                 []*RestProxy              `json:"restProxy"`
+	SchemaRegistry            []*SchemaRegistry         `json:"schemaRegistry"`
 }
 
 type KafkaDataCentre struct {

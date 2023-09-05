@@ -1096,17 +1096,6 @@ func (in *KafkaSpec) DeepCopyInto(out *KafkaSpec) {
 			}
 		}
 	}
-	if in.Kraft != nil {
-		in, out := &in.Kraft, &out.Kraft
-		*out = make([]*Kraft, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(Kraft)
-				**out = **in
-			}
-		}
-	}
 	if in.KarapaceRestProxy != nil {
 		in, out := &in.KarapaceRestProxy, &out.KarapaceRestProxy
 		*out = make([]*KarapaceRestProxy, len(*in))
@@ -1136,6 +1125,17 @@ func (in *KafkaSpec) DeepCopyInto(out *KafkaSpec) {
 			if (*in)[i] != nil {
 				in, out := &(*in)[i], &(*out)[i]
 				*out = new(UserReference)
+				**out = **in
+			}
+		}
+	}
+	if in.Kraft != nil {
+		in, out := &in.Kraft, &out.Kraft
+		*out = make([]*Kraft, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(Kraft)
 				**out = **in
 			}
 		}

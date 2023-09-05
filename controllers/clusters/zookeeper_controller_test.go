@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/controllers/tests"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 )
 
@@ -49,6 +50,8 @@ var _ = Describe("Zookeeper Controller", func() {
 	When("apply a zookeeper manifest", func() {
 		It("should create a zookeeper resources", func() {
 			Expect(k8sClient.Create(ctx, &zookeeperManifest)).Should(Succeed())
+			done := tests.NewChannelWithTimeout(timeout)
+
 			By("sending zookeeper specification to the Instaclustr API and get ID of created cluster.")
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, zookeeperNamespacedName, &zookeeper); err != nil {
@@ -57,6 +60,8 @@ var _ = Describe("Zookeeper Controller", func() {
 
 				return zookeeper.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
+
+			<-done
 		})
 
 		When("zookeeper is created, the status job get new data from the InstAPI.", func() {

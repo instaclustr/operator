@@ -85,7 +85,7 @@ type KafkaSpec struct {
 	KarapaceSchemaRegistry   []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 	BundledUseOnly           bool                      `json:"bundledUseOnly,omitempty"`
 	UserRefs                 []*UserReference          `json:"userRefs,omitempty"`
-	Kraft                             []*Kraft                  `json:"kraft,omitempty"`
+	Kraft                    []*Kraft                  `json:"kraft,omitempty"`
 }
 
 type Kraft struct {
@@ -160,7 +160,7 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
 		DataCentres:               k.dcToInstAPI(),
 		ClientBrokerAuthWithMtls:  k.ClientBrokerAuthWithMTLS,
 		BundledUseOnly:            k.BundledUseOnly,
-		Kraft:                             k.kraftToInstAPI(),
+		Kraft:                     k.kraftToInstAPI(),
 		KarapaceRestProxy:         k.karapaceRestProxyToInstAPI(),
 		KarapaceSchemaRegistry:    k.karapaceSchemaRegistryToInstAPI(),
 	}
@@ -305,7 +305,7 @@ func (ks *KafkaSpec) FromInstAPI(iKafka *models.KafkaCluster) KafkaSpec {
 		DedicatedZookeeper:        ks.DedicatedZookeeperFromInstAPI(iKafka.DedicatedZookeeper),
 		ClientBrokerAuthWithMTLS:  iKafka.ClientBrokerAuthWithMtls,
 		KarapaceRestProxy:         ks.KarapaceRestProxyFromInstAPI(iKafka.KarapaceRestProxy),
-		Kraft:                             ks.kraftFromInstAPI(iKafka.Kraft),
+		Kraft:                     ks.kraftFromInstAPI(iKafka.Kraft),
 		KarapaceSchemaRegistry:    ks.KarapaceSchemaRegistryFromInstAPI(iKafka.KarapaceSchemaRegistry),
 		BundledUseOnly:            iKafka.BundledUseOnly,
 	}

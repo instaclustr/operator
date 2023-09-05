@@ -14,7 +14,7 @@ spec:
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
   passwordAndUserAuth: true
-  privateNetworkCluster: true
+  privateNetworkCluster: false
   userRefs:
   #    - name: redisuser-sample-1
   #      namespace: default
