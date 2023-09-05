@@ -41,10 +41,6 @@ spec:
                 type: boolean
               bundledUseOnly:
                 type: boolean
-              clientAuthBrokerWithEncryption:
-                type: boolean
-              clientAuthBrokerWithoutEncryption:
-                type: boolean
               clientBrokerAuthWithMtls:
                 type: boolean
               clientToClusterEncryption:

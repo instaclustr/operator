@@ -1,7 +1,7 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Kafka
 metadata:
-  name: kafka-two
+  name: kafka
 spec:
   name: "Kafka-example"
   version: "3.3.1"
@@ -14,9 +14,7 @@ spec:
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
   #  bundledUseOnly: true
-  #  clientAuthBrokerWithEncryption: true
-  #  clientAuthBrokerWithoutEncryption: true
-  #  clientBrokerAuthWithMtls: true
+#  clientBrokerAuthWithMtls: true
   #  dedicatedZookeeper:
   #    - nodeSize: "KDZ-DEV-t4g.small-30"
   #      nodesNumber: 3

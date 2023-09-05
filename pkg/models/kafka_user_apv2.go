@@ -28,3 +28,10 @@ type KafkaUserOptions struct {
 	OverrideExistingUser bool   `json:"overrideExistingUser,omitempty"`
 	SASLSCRAMMechanism   string `json:"saslScramMechanism"`
 }
+
+type CertificateRequest struct {
+	ClusterID     string `json:"clusterId"`
+	CSR           string `json:"csr"`
+	KafkaUsername string `json:"kafkaUsername"`
+	ValidPeriod   int    `json:"validPeriod"`
+}

@@ -117,6 +117,18 @@ func (c *mockClient) CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*
 	panic("CreateKafkaUser: is not implemented")
 }
 
+func (c *mockClient) CreateKafkaUserCertificate(certRequest *models.CertificateRequest) (*kafkamanagementv1beta1.Certificate, error) {
+	panic("CreateKafkaUserCertificate: is not implemented")
+}
+
+func (c *mockClient) DeleteKafkaUserCertificate(certificateID string) error {
+	panic("DeleteKafkaUserCertificate: is not implemented")
+}
+
+func (c *mockClient) RenewKafkaUserCertificate(certificateID string) (*kafkamanagementv1beta1.Certificate, error) {
+	panic("RenewKafkaUserCertificate: is not implemented")
+}
+
 func (c *mockClient) UpdateKafkaUser(kafkaUserID string, kafkaUserSpec *models.KafkaUser) error {
 	panic("UpdateKafkaUser: is not implemented")
 }

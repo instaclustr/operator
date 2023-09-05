@@ -18,7 +18,14 @@ package kafkamanagement
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"strings"
 
+	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -29,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -395,7 +403,17 @@ func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.KafkaUser{}, builder.WithPredicates(predicate.Funcs{})).Owns(&v1.Secret{}).
+		For(&v1beta1.KafkaUser{}, builder.WithPredicates(predicate.Funcs{
+			UpdateFunc: func(event event.UpdateEvent) bool {
+				newObj := event.ObjectNew.(*v1beta1.KafkaUser)
+				oldObj := event.ObjectOld.(*v1beta1.KafkaUser)
+				if newObj.Generation != event.ObjectOld.GetGeneration() {
+					r.handleCertificateEvent(newObj, oldObj.Spec.CertificateRequests)
+				}
+
+				return true
+			},
+		})).Owns(&v1.Secret{}).
 		Watches(
 			&source.Kind{Type: &v1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findSecretObjects),
@@ -454,4 +472,400 @@ func (r *KafkaUserReconciler) getKafkaUserCredsFromSecret(
 	}
 
 	return string(username[:len(username)-1]), string(password[:len(password)-1]), nil
+}
+
+func (r *KafkaUserReconciler) getKafkaUserCertIDFromSecret(
+	ctx context.Context,
+	certRequest *v1beta1.CertificateRequest,
+) (string, error) {
+	kafkaUserCertSecret := &v1.Secret{}
+	kafkaUserCertSecretNamespacedName := types.NamespacedName{
+		Name:      certRequest.SecretName,
+		Namespace: certRequest.SecretNamespace,
+	}
+
+	err := r.Get(ctx, kafkaUserCertSecretNamespacedName, kafkaUserCertSecret)
+	if err != nil {
+		return "", err
+	}
+
+	certID := kafkaUserCertSecret.Data["id"]
+
+	if len(certID) == 0 {
+		return "", models.ErrMissingSecretKeys
+	}
+
+	return string(certID), nil
+}
+
+func (r *KafkaUserReconciler) GenerateCSR(certRequest *v1beta1.CertificateRequest) (string, error) {
+	keyBytes, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", err
+	}
+
+	subj := pkix.Name{
+		CommonName:         certRequest.CommonName,
+		Country:            []string{certRequest.Country},
+		Organization:       []string{certRequest.Organization},
+		OrganizationalUnit: []string{certRequest.OrganizationalUnit},
+	}
+
+	template := x509.CertificateRequest{
+		Subject:            subj,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+
+	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, &template, keyBytes)
+	if err != nil {
+		return "", err
+	}
+	strBuf := strings.Builder{}
+	err = pem.Encode(&strBuf, &pem.Block{Type: "NEW CERTIFICATE REQUEST", Bytes: csrBytes})
+	if err != nil {
+		return "", err
+	}
+
+	return strBuf.String(), nil
+}
+
+func (r *KafkaUserReconciler) UpdateCertSecret(ctx context.Context, secret *v1.Secret, certResp *v1beta1.Certificate) error {
+	secret.StringData = make(map[string]string)
+
+	secret.StringData["id"] = certResp.ID
+	secret.StringData["expiryDate"] = certResp.ExpiryDate
+	secret.StringData["signedCertificate"] = certResp.SignedCertificate
+
+	err := r.Update(ctx, secret)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *KafkaUserReconciler) handleCertificateEvent(
+	newObj *v1beta1.KafkaUser,
+	oldCerts []*v1beta1.CertificateRequest,
+) {
+	ctx := context.TODO()
+	l := log.FromContext(ctx)
+
+	for _, oldCert := range oldCerts {
+		var exist bool
+		for _, newCert := range newObj.Spec.CertificateRequests {
+			if *oldCert == *newCert {
+				exist = true
+				break
+			}
+		}
+
+		if exist {
+			continue
+		}
+
+		err := r.handleDeleteCertificate(ctx, newObj, l, oldCert)
+		if err != nil {
+			l.Error(err, "Cannot delete Kafka user mTLS certificate", "user", oldCert)
+			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+				"Cannot delete mTlS certificate. Reason: %v", err)
+		}
+	}
+
+	for _, newCert := range newObj.Spec.CertificateRequests {
+		var exist bool
+		for _, oldCert := range oldCerts {
+			if *newCert == *oldCert {
+				exist = true
+				break
+			}
+		}
+
+		if exist {
+			if newCert.AutoRenew {
+				err := r.handleRenewCertificate(ctx, newObj, newCert, l)
+				if err != nil {
+					l.Error(err, "Cannot renew Kafka user mTLS certificate", "cert", newCert)
+					r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+						"Cannot renew user mTLS certificate. Reason: %v", err)
+				}
+			}
+			continue
+		}
+
+		err := r.handleCreateCertificate(ctx, newObj, l, newCert)
+		if err != nil {
+			l.Error(err, "Cannot create Kafka user mTLS certificate", "cert", newCert)
+			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+				"Cannot create user mTLS certificate. Reason: %v", err)
+		}
+
+		oldCerts = append(oldCerts, newCert)
+	}
+}
+
+func (r *KafkaUserReconciler) handleCreateCertificate(ctx context.Context, user *v1beta1.KafkaUser, l logr.Logger, certRequest *v1beta1.CertificateRequest) error {
+	username, _, err := r.getKafkaUserCredsFromSecret(user.Spec)
+	if err != nil {
+		l.Error(
+			err, "Cannot get Kafka user creds from secret",
+			"kafka user spec", user.Spec,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.FetchFailed,
+			"Fetch user credentials from secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	var isCSRGenerated bool
+
+	if certRequest.CSR == "" {
+		certRequest.CSR, err = r.GenerateCSR(certRequest)
+		if err != nil {
+			l.Error(err, "Cannot generate CSR for Kafka user certificate creation",
+				"user", user.Name,
+			)
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.GenerateFailed,
+				"Generate CSR is failed. Reason: %v",
+				err,
+			)
+
+			return err
+		}
+		isCSRGenerated = true
+	}
+
+	certResponse, err := r.API.CreateKafkaUserCertificate(certRequest.ToInstAPI(username))
+	if err != nil {
+		l.Error(err, "Cannot create Kafka user mTLS certificate",
+			"user", user.Name,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.CreationFailed,
+			"Certificate creation is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	newSecret := user.NewCertificateSecret(certRequest.SecretName, certRequest.SecretNamespace)
+	err = r.Client.Create(ctx, newSecret)
+	if err != nil {
+		l.Error(err, "Cannot create Kafka user Cert Secret.",
+			"secret name", certRequest.SecretName,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.CreationFailed,
+			"create user Cert Secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+
+	}
+
+	controllerutil.AddFinalizer(newSecret, models.DeletionFinalizer)
+
+	err = r.UpdateCertSecret(ctx, newSecret, certResponse)
+	if err != nil {
+		l.Error(err, "Cannot update certificate secret",
+			"user", user.Name,
+			"secret", newSecret.Name,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.UpdateFailed,
+			"Certificate secret update is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	l.Info("Kafka user mTLS certificate has been created",
+		"User ID", user.GetID(certRequest.ClusterID, username),
+	)
+
+	if isCSRGenerated {
+		certRequest.CSR = ""
+	}
+
+	return nil
+}
+
+func (r *KafkaUserReconciler) handleDeleteCertificate(ctx context.Context, user *v1beta1.KafkaUser, l logr.Logger, certRequest *v1beta1.CertificateRequest) error {
+	certID, err := r.getKafkaUserCertIDFromSecret(ctx, certRequest)
+	if err != nil {
+		l.Error(
+			err, "Cannot get Kafka user certificate ID from secret",
+			"kafka user certificate secret name", certRequest.SecretName,
+			"kafka user certificate secret namespace", certRequest.SecretNamespace,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.FetchFailed,
+			"Fetch user certificate ID from secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	err = r.API.DeleteKafkaUserCertificate(certID)
+	if err != nil {
+		l.Error(err, "Cannot Delete Kafka user mTLS certificate",
+			"user", user.Name,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.DeletionFailed,
+			"Certificate deletion is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	secret := &v1.Secret{}
+	certSecretNamespacedName := types.NamespacedName{
+		Name:      certRequest.SecretName,
+		Namespace: certRequest.SecretNamespace,
+	}
+	err = r.Client.Get(ctx, certSecretNamespacedName, secret)
+	if err != nil {
+		l.Error(err, "Cannot get Kafka user certificate secret.",
+			"kafka user certificate secret name", certRequest.SecretName,
+			"kafka user certificate secret namespace", certRequest.SecretNamespace,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.FetchFailed,
+			"Fetch user certificate secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	controllerutil.RemoveFinalizer(secret, models.DeletionFinalizer)
+	err = r.Update(ctx, secret)
+	if err != nil {
+		l.Error(err, "Cannot remove finalizer from secret", "secret name", secret.Name)
+
+		r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
+			"Resource patch is failed. Reason: %v", err)
+
+		return err
+	}
+
+	err = r.Client.Delete(ctx, secret)
+	if err != nil && !k8serrors.IsNotFound(err) {
+		l.Error(err, "Cannot delete Kafka user certificate secret",
+			"kafka user certificate secret name", certRequest.SecretName,
+			"kafka user certificate secret namespace", certRequest.SecretNamespace,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.DeletionFailed,
+			"Delete user certificate secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	l.Info("Kafka user mTLS certificate has been deleted",
+		"Certificate ID", certID,
+	)
+
+	return nil
+}
+
+func (r *KafkaUserReconciler) handleRenewCertificate(ctx context.Context, user *v1beta1.KafkaUser, certRequest *v1beta1.CertificateRequest, l logr.Logger) error {
+	certID, err := r.getKafkaUserCertIDFromSecret(ctx, certRequest)
+	if err != nil {
+		l.Error(
+			err, "Cannot get Kafka user certificate ID from secret",
+			"kafka user certificate secret name", certRequest.SecretName,
+			"kafka user certificate secret namespace", certRequest.SecretNamespace,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.FetchFailed,
+			"Fetch user certificate ID from secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	newCert, err := r.API.RenewKafkaUserCertificate(certID)
+	if err != nil {
+		l.Error(err, "Cannot Renew Kafka user mTLS certificate",
+			"user", user.Name,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.DeletionFailed,
+			"Certificate renew is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	secret := &v1.Secret{}
+	certSecretNamespacedName := types.NamespacedName{
+		Name:      certRequest.SecretName,
+		Namespace: certRequest.SecretNamespace,
+	}
+	err = r.Client.Get(ctx, certSecretNamespacedName, secret)
+	if err != nil {
+		l.Error(err, "Cannot get Kafka user certificate secret.",
+			"kafka user certificate secret name", certRequest.SecretName,
+			"kafka user certificate secret namespace", certRequest.SecretNamespace,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.FetchFailed,
+			"Fetch user certificate secret is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	err = r.UpdateCertSecret(ctx, secret, newCert)
+	if err != nil {
+		l.Error(err, "Cannot update certificate secret",
+			"user", user.Name,
+			"secret", secret.Name,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.UpdateFailed,
+			"Certificate secret update is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	l.Info("Kafka user mTLS certificate has been renewed",
+		"Certificate ID", certID,
+		"New expiry date", newCert.ExpiryDate,
+		"New ID", newCert.ID,
+	)
+
+	err = r.API.DeleteKafkaUserCertificate(certID)
+	if err != nil {
+		l.Error(err, "Cannot Delete Kafka user mTLS certificate",
+			"user", user.Name,
+		)
+		r.EventRecorder.Eventf(
+			user, models.Warning, models.DeletionFailed,
+			"Certificate deletion is failed. Reason: %v",
+			err,
+		)
+
+		return err
+	}
+
+	return nil
 }

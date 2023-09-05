@@ -978,6 +978,90 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 	return nil
 }
 
+func (c *Client) CreateKafkaUserCertificate(certRequest *models.CertificateRequest) (*kafkamanagementv1beta1.Certificate, error) {
+	data, err := json.Marshal(certRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.serverHostname + KafkauserCertificatesEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	cert := &kafkamanagementv1beta1.Certificate{}
+	err = json.Unmarshal(body, cert)
+	if err != nil {
+		return nil, err
+	}
+
+	return cert, nil
+}
+
+func (c *Client) DeleteKafkaUserCertificate(certificateID string) error {
+	url := c.serverHostname + KafkauserCertificatesEndpoint + certificateID
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *Client) RenewKafkaUserCertificate(certificateID string) (*kafkamanagementv1beta1.Certificate, error) {
+	payload := &struct {
+		CertificateID string `json:"certificateId"`
+	}{
+		CertificateID: certificateID,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.serverHostname + KafkaUserCertificatesRenewEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, data)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	cert := &kafkamanagementv1beta1.Certificate{}
+	err = json.Unmarshal(body, cert)
+	if err != nil {
+		return nil, err
+	}
+
+	return cert, nil
+}
+
 func (c *Client) CreateKafkaMirror(m *kafkamanagementv1beta1.MirrorSpec) (*kafkamanagementv1beta1.MirrorStatus, error) {
 	data, err := json.Marshal(m)
 	if err != nil {

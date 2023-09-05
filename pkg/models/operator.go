@@ -124,6 +124,7 @@ const (
 	NotFound         = "NotFound"
 	CreationFailed   = "CreationFailed"
 	FetchFailed      = "FetchFailed"
+	GenerateFailed   = "GenerateFailed"
 	ConvertionFailed = "ConvertionFailed"
 	ValidationFailed = "ValidationFailed"
 	UpdateFailed     = "UpdateFailed"

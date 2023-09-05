@@ -79,15 +79,13 @@ type KafkaSpec struct {
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
 	// Zookeeper nodes will be co-located with Kafka if this is not provided
-	DedicatedZookeeper                []*DedicatedZookeeper     `json:"dedicatedZookeeper,omitempty"`
-	ClientBrokerAuthWithMTLS          bool                      `json:"clientBrokerAuthWithMtls,omitempty"`
-	ClientAuthBrokerWithoutEncryption bool                      `json:"clientAuthBrokerWithoutEncryption,omitempty"`
-	ClientAuthBrokerWithEncryption    bool                      `json:"clientAuthBrokerWithEncryption,omitempty"`
+	DedicatedZookeeper       []*DedicatedZookeeper     `json:"dedicatedZookeeper,omitempty"`
+	ClientBrokerAuthWithMTLS bool                      `json:"clientBrokerAuthWithMtls,omitempty"`
+	KarapaceRestProxy        []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
+	KarapaceSchemaRegistry   []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
+	BundledUseOnly           bool                      `json:"bundledUseOnly,omitempty"`
+	UserRefs                 []*UserReference          `json:"userRefs,omitempty"`
 	Kraft                             []*Kraft                  `json:"kraft,omitempty"`
-	KarapaceRestProxy                 []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
-	KarapaceSchemaRegistry            []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
-	BundledUseOnly                    bool                      `json:"bundledUseOnly,omitempty"`
-	UserRefs                          []*UserReference          `json:"userRefs,omitempty"`
 }
 
 type Kraft struct {
@@ -145,28 +143,26 @@ func (k *Kafka) NewPatch() client.Patch {
 
 func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
 	return &models.KafkaCluster{
-		SchemaRegistry:                    k.schemaRegistryToInstAPI(),
-		RestProxy:                         k.restProxyToInstAPI(),
-		PCIComplianceMode:                 k.PCICompliance,
-		DefaultReplicationFactor:          k.ReplicationFactor,
-		DefaultNumberOfPartitions:         k.PartitionsNumber,
-		TwoFactorDelete:                   k.TwoFactorDeletesToInstAPI(),
-		AllowDeleteTopics:                 k.AllowDeleteTopics,
-		AutoCreateTopics:                  k.AutoCreateTopics,
-		ClientToClusterEncryption:         k.ClientToClusterEncryption,
-		DedicatedZookeeper:                k.dedicatedZookeeperToInstAPI(),
-		PrivateNetworkCluster:             k.PrivateNetworkCluster,
-		Name:                              k.Name,
-		SLATier:                           k.SLATier,
-		KafkaVersion:                      k.Version,
-		DataCentres:                       k.dcToInstAPI(),
-		ClientBrokerAuthWithMtls:          k.ClientBrokerAuthWithMTLS,
-		ClientAuthBrokerWithoutEncryption: k.ClientAuthBrokerWithoutEncryption,
-		ClientAuthBrokerWithEncryption:    k.ClientAuthBrokerWithEncryption,
-		BundledUseOnly:                    k.BundledUseOnly,
+		SchemaRegistry:            k.schemaRegistryToInstAPI(),
+		RestProxy:                 k.restProxyToInstAPI(),
+		PCIComplianceMode:         k.PCICompliance,
+		DefaultReplicationFactor:  k.ReplicationFactor,
+		DefaultNumberOfPartitions: k.PartitionsNumber,
+		TwoFactorDelete:           k.TwoFactorDeletesToInstAPI(),
+		AllowDeleteTopics:         k.AllowDeleteTopics,
+		AutoCreateTopics:          k.AutoCreateTopics,
+		ClientToClusterEncryption: k.ClientToClusterEncryption,
+		DedicatedZookeeper:        k.dedicatedZookeeperToInstAPI(),
+		PrivateNetworkCluster:     k.PrivateNetworkCluster,
+		Name:                      k.Name,
+		SLATier:                   k.SLATier,
+		KafkaVersion:              k.Version,
+		DataCentres:               k.dcToInstAPI(),
+		ClientBrokerAuthWithMtls:  k.ClientBrokerAuthWithMTLS,
+		BundledUseOnly:            k.BundledUseOnly,
 		Kraft:                             k.kraftToInstAPI(),
-		KarapaceRestProxy:                 k.karapaceRestProxyToInstAPI(),
-		KarapaceSchemaRegistry:            k.karapaceSchemaRegistryToInstAPI(),
+		KarapaceRestProxy:         k.karapaceRestProxyToInstAPI(),
+		KarapaceSchemaRegistry:    k.karapaceSchemaRegistryToInstAPI(),
 	}
 }
 
@@ -298,22 +294,20 @@ func (ks *KafkaSpec) FromInstAPI(iKafka *models.KafkaCluster) KafkaSpec {
 			SLATier:               iKafka.SLATier,
 			TwoFactorDelete:       ks.Cluster.TwoFactorDeleteFromInstAPI(iKafka.TwoFactorDelete),
 		},
-		SchemaRegistry:                    ks.SchemaRegistryFromInstAPI(iKafka.SchemaRegistry),
-		ReplicationFactor:                 iKafka.DefaultReplicationFactor,
-		PartitionsNumber:                  iKafka.DefaultNumberOfPartitions,
-		RestProxy:                         ks.RestProxyFromInstAPI(iKafka.RestProxy),
-		AllowDeleteTopics:                 iKafka.AllowDeleteTopics,
-		AutoCreateTopics:                  iKafka.AutoCreateTopics,
-		ClientToClusterEncryption:         iKafka.ClientToClusterEncryption,
-		DataCentres:                       ks.DCsFromInstAPI(iKafka.DataCentres),
-		DedicatedZookeeper:                ks.DedicatedZookeeperFromInstAPI(iKafka.DedicatedZookeeper),
-		ClientBrokerAuthWithMTLS:          iKafka.ClientBrokerAuthWithMtls,
-		ClientAuthBrokerWithoutEncryption: iKafka.ClientAuthBrokerWithoutEncryption,
-		ClientAuthBrokerWithEncryption:    iKafka.ClientAuthBrokerWithEncryption,
-		KarapaceRestProxy:                 ks.KarapaceRestProxyFromInstAPI(iKafka.KarapaceRestProxy),
+		SchemaRegistry:            ks.SchemaRegistryFromInstAPI(iKafka.SchemaRegistry),
+		ReplicationFactor:         iKafka.DefaultReplicationFactor,
+		PartitionsNumber:          iKafka.DefaultNumberOfPartitions,
+		RestProxy:                 ks.RestProxyFromInstAPI(iKafka.RestProxy),
+		AllowDeleteTopics:         iKafka.AllowDeleteTopics,
+		AutoCreateTopics:          iKafka.AutoCreateTopics,
+		ClientToClusterEncryption: iKafka.ClientToClusterEncryption,
+		DataCentres:               ks.DCsFromInstAPI(iKafka.DataCentres),
+		DedicatedZookeeper:        ks.DedicatedZookeeperFromInstAPI(iKafka.DedicatedZookeeper),
+		ClientBrokerAuthWithMTLS:  iKafka.ClientBrokerAuthWithMtls,
+		KarapaceRestProxy:         ks.KarapaceRestProxyFromInstAPI(iKafka.KarapaceRestProxy),
 		Kraft:                             ks.kraftFromInstAPI(iKafka.Kraft),
-		KarapaceSchemaRegistry:            ks.KarapaceSchemaRegistryFromInstAPI(iKafka.KarapaceSchemaRegistry),
-		BundledUseOnly:                    iKafka.BundledUseOnly,
+		KarapaceSchemaRegistry:    ks.KarapaceSchemaRegistryFromInstAPI(iKafka.KarapaceSchemaRegistry),
+		BundledUseOnly:            iKafka.BundledUseOnly,
 	}
 }
 
@@ -424,8 +418,6 @@ func (a *KafkaSpec) IsEqual(b KafkaSpec) bool {
 		a.AutoCreateTopics == b.AutoCreateTopics &&
 		a.ClientToClusterEncryption == b.ClientToClusterEncryption &&
 		a.ClientBrokerAuthWithMTLS == b.ClientBrokerAuthWithMTLS &&
-		a.ClientAuthBrokerWithoutEncryption == b.ClientAuthBrokerWithoutEncryption &&
-		a.ClientAuthBrokerWithEncryption == b.ClientAuthBrokerWithEncryption &&
 		a.BundledUseOnly == b.BundledUseOnly &&
 		isKafkaAddonsEqual[SchemaRegistry](a.SchemaRegistry, b.SchemaRegistry) &&
 		isKafkaAddonsEqual[RestProxy](a.RestProxy, b.RestProxy) &&
