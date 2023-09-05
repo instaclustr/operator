@@ -331,31 +331,27 @@ type immutableKafkaFields struct {
 }
 
 type specificKafkaFields struct {
-	replicationFactor                 int
-	partitionsNumber                  int
-	allowDeleteTopics                 bool
-	autoCreateTopics                  bool
-	clientToClusterEncryption         bool
-	bundledUseOnly                    bool
-	privateNetworkCluster             bool
-	clientAuthBrokerWithEncryption    bool
-	clientAuthBrokerWithoutEncryption bool
-	clientBrokerAuthWithMtls          bool
+	replicationFactor         int
+	partitionsNumber          int
+	allowDeleteTopics         bool
+	autoCreateTopics          bool
+	clientToClusterEncryption bool
+	bundledUseOnly            bool
+	privateNetworkCluster     bool
+	clientBrokerAuthWithMtls  bool
 }
 
 func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
 	return &immutableKafkaFields{
 		specificFields: specificKafkaFields{
-			replicationFactor:                 ks.ReplicationFactor,
-			partitionsNumber:                  ks.PartitionsNumber,
-			allowDeleteTopics:                 ks.AllowDeleteTopics,
-			autoCreateTopics:                  ks.AutoCreateTopics,
-			clientToClusterEncryption:         ks.ClientToClusterEncryption,
-			bundledUseOnly:                    ks.BundledUseOnly,
-			privateNetworkCluster:             ks.PrivateNetworkCluster,
-			clientAuthBrokerWithEncryption:    ks.ClientAuthBrokerWithEncryption,
-			clientAuthBrokerWithoutEncryption: ks.ClientAuthBrokerWithoutEncryption,
-			clientBrokerAuthWithMtls:          ks.ClientBrokerAuthWithMTLS,
+			replicationFactor:         ks.ReplicationFactor,
+			partitionsNumber:          ks.PartitionsNumber,
+			allowDeleteTopics:         ks.AllowDeleteTopics,
+			autoCreateTopics:          ks.AutoCreateTopics,
+			clientToClusterEncryption: ks.ClientToClusterEncryption,
+			bundledUseOnly:            ks.BundledUseOnly,
+			privateNetworkCluster:     ks.PrivateNetworkCluster,
+			clientBrokerAuthWithMtls:  ks.ClientBrokerAuthWithMTLS,
 		},
 		cluster: ks.Cluster.newImmutableFields(),
 	}

@@ -35,6 +35,37 @@ spec:
           spec:
             description: KafkaUserSpec defines the desired state of KafkaUser
             properties:
+              certificateRequests:
+                items:
+                  properties:
+                    autoRenew:
+                      type: boolean
+                    clusterId:
+                      type: string
+                    commonName:
+                      type: string
+                    country:
+                      type: string
+                    csr:
+                      type: string
+                    organization:
+                      type: string
+                    organizationalUnit:
+                      type: string
+                    secretName:
+                      type: string
+                    secretNamespace:
+                      type: string
+                    validPeriod:
+                      type: integer
+                  required:
+                  - autoRenew
+                  - clusterId
+                  - secretName
+                  - secretNamespace
+                  - validPeriod
+                  type: object
+                type: array
               initialPermissions:
                 type: string
               options:

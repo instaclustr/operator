@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	k8sCore "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -26,9 +27,10 @@ import (
 
 // KafkaUserSpec defines the desired state of KafkaUser
 type KafkaUserSpec struct {
-	Options            *KafkaUserOptions        `json:"options"`
-	SecretRef          *v1beta1.SecretReference `json:"secretRef"`
-	InitialPermissions string                   `json:"initialPermissions"`
+	Options             *KafkaUserOptions        `json:"options"`
+	SecretRef           *v1beta1.SecretReference `json:"secretRef"`
+	CertificateRequests []*CertificateRequest    `json:"certificateRequests,omitempty"`
+	InitialPermissions  string                   `json:"initialPermissions"`
 }
 
 type KafkaUserOptions struct {
@@ -39,6 +41,25 @@ type KafkaUserOptions struct {
 // KafkaUserStatus defines the observed state of KafkaUser
 type KafkaUserStatus struct {
 	ClustersEvents map[string]string `json:"clustersEvents,omitempty"`
+}
+
+type Certificate struct {
+	ID                string `json:"id,omitempty"`
+	ExpiryDate        string `json:"expiryDate,omitempty"`
+	SignedCertificate string `json:"signedCertificate,omitempty"`
+}
+
+type CertificateRequest struct {
+	SecretName         string `json:"secretName"`
+	SecretNamespace    string `json:"secretNamespace"`
+	ClusterID          string `json:"clusterId"`
+	CSR                string `json:"csr,omitempty"`
+	ValidPeriod        int    `json:"validPeriod"`
+	CommonName         string `json:"commonName,omitempty"`
+	Country            string `json:"country,omitempty"`
+	Organization       string `json:"organization,omitempty"`
+	OrganizationalUnit string `json:"organizationalUnit,omitempty"`
+	AutoRenew          bool   `json:"autoRenew"`
 }
 
 //+kubebuilder:object:root=true
@@ -79,6 +100,21 @@ func (ku *KafkaUser) GetID(clusterID, name string) string {
 	return clusterID + "_" + name
 }
 
+func (ku *KafkaUser) NewCertificateSecret(name, namespace string) *k8sCore.Secret {
+	return &k8sCore.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       models.SecretKind,
+			APIVersion: models.K8sAPIVersionV1,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+
+		StringData: map[string]string{},
+	}
+}
+
 func init() {
 	SchemeBuilder.Register(&KafkaUser{}, &KafkaUserList{})
 }
@@ -99,4 +135,13 @@ func (ko *KafkaUserOptions) ToInstAPI() *models.KafkaUserOptions {
 		SASLSCRAMMechanism:   ko.SASLSCRAMMechanism,
 	}
 
+}
+
+func (cr *CertificateRequest) ToInstAPI(username string) *models.CertificateRequest {
+	return &models.CertificateRequest{
+		ClusterID:     cr.ClusterID,
+		CSR:           cr.CSR,
+		KafkaUsername: username,
+		ValidPeriod:   cr.ValidPeriod,
+	}
 }

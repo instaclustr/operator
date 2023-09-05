@@ -40,6 +40,8 @@ const (
 	AWSSecurityGroupFirewallRuleEndpoint   = "/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/"
 	GCPPeeringEndpoint                     = "/cluster-management/v2/resources/providers/gcp/vpc-peers/v2/"
 	KafkaUserEndpoint                      = "/cluster-management/v2/resources/applications/kafka/users/v2/"
+	KafkauserCertificatesEndpoint          = "/cluster-management/v2/resources/applications/kafka/user-certificates/v2/"
+	KafkaUserCertificatesRenewEndpoint     = "/cluster-management/v2/operations/applications/kafka/user-certificates/renew/v2/"
 	KafkaACLEndpoint                       = "/cluster-management/v2/resources/applications/kafka/acls/v2/"
 	CadenceEndpoint                        = "/cluster-management/v2/resources/applications/cadence/clusters/v2/"
 	RedisEndpoint                          = "/cluster-management/v2/resources/applications/redis/clusters/v2/"

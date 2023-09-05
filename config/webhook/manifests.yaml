@@ -792,3 +792,23 @@ webhooks:
     resources:
     - kafkaacls
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-kafkamanagement-instaclustr-com-v1beta1-kafkauser
+  failurePolicy: Fail
+  name: vkafkauser.kb.io
+  rules:
+  - apiGroups:
+    - kafkamanagement.instaclustr.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkausers
+  sideEffects: None
