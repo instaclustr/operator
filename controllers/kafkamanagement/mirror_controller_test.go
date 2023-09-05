@@ -50,8 +50,9 @@ var _ = Describe("Kafka Mirror Controller", func() {
 	When("apply a Mirror manifest", func() {
 		It("should create a Mirror resources", func() {
 			Expect(k8sClient.Create(ctx, &mirrorManifest)).Should(Succeed())
-			By("sending a Mirror specification to the Instaclustr API and get an ID of created resource.")
 			done := tests.NewChannelWithTimeout(timeout)
+
+			By("sending a Mirror specification to the Instaclustr API and get an ID of created resource.")
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, mirrorNamespacedName, &mirror); err != nil {
 					return false

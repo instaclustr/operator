@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/controllers/tests"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 )
 
@@ -49,6 +50,8 @@ var _ = Describe("Kafka Connect Controller", func() {
 	When("apply a Kafka Connect manifest", func() {
 		It("should create a Kafka Connect resources", func() {
 			Expect(k8sClient.Create(ctx, &kafkaConnectManifest)).Should(Succeed())
+			done := tests.NewChannelWithTimeout(timeout)
+
 			By("sending Kafka Connect specification to the Instaclustr API and get ID of created cluster.")
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, kafkaConnectNamespacedName, &kafkaConnect); err != nil {
@@ -57,6 +60,8 @@ var _ = Describe("Kafka Connect Controller", func() {
 
 				return kafkaConnect.Status.ID == openapi.CreatedID
 			}).Should(BeTrue())
+
+			<-done
 		})
 	})
 

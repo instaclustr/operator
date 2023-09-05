@@ -73,14 +73,6 @@ func setDefaultValues(dc *OpenSearchDataCentre) {
 	if dc.ProviderAccountName == "" {
 		dc.ProviderAccountName = models.DefaultAccountName
 	}
-
-	if len(dc.CloudProviderSettings) == 0 {
-		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
-			CustomVirtualNetworkID: "",
-			ResourceGroup:          "",
-			DiskEncryptionKey:      "",
-		})
-	}
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type

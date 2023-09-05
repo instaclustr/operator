@@ -19,8 +19,8 @@ package models
 import "errors"
 
 var (
-	ErrNotEmptyCSRs                          = errors.New("certificate creation allowed only if the user is created on the specific cluster")
-	ErrEmptyCertGeneratingFields             = errors.New("the fields for generating certificate signing request are empty")
+	ErrNotEmptyCSRs                             = errors.New("certificate creation allowed only if the user is created on the specific cluster")
+	ErrEmptyCertGeneratingFields                = errors.New("the fields for generating certificate signing request are empty")
 	ErrZeroDataCentres                          = errors.New("cluster spec doesn't have data centres")
 	ErrMoreThanOneKraft                         = errors.New("cluster spec does not support more than one kraft")
 	ErrMoreThanThreeControllerNodeCount         = errors.New("kraft does not support more than three controller nodes")

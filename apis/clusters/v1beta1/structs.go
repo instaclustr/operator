@@ -407,14 +407,6 @@ func (dc *DataCentre) SetDefaultValues() {
 	if dc.ProviderAccountName == "" {
 		dc.ProviderAccountName = models.DefaultAccountName
 	}
-
-	if len(dc.CloudProviderSettings) == 0 {
-		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
-			CustomVirtualNetworkID: "",
-			ResourceGroup:          "",
-			DiskEncryptionKey:      "",
-		})
-	}
 }
 
 func (c *Cluster) newImmutableFields() immutableCluster {
