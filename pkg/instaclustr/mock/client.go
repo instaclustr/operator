@@ -371,3 +371,7 @@ func (c *mockClient) CreateAWSEndpointServicePrincipal(spec any) ([]byte, error)
 func (c *mockClient) DeleteAWSEndpointServicePrincipal(principalID string) error {
 	panic("DeleteAWSEndpointServicePrincipal: is not implemented")
 }
+
+func (c *mockClient) GetRedisUser(id string) (*models.RedisUser, error) {
+	panic("GetRedisUser: is not implemented")
+}

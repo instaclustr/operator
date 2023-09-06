@@ -73,6 +73,7 @@ type API interface {
 	CreateRedisUser(user *models.RedisUser) (string, error)
 	UpdateRedisUser(user *models.RedisUserUpdate) error
 	DeleteRedisUser(id string) error
+	GetRedisUser(id string) (*models.RedisUser, error)
 	CreateKafkaACL(url string, kafkaACL *kafkamanagementv1beta1.KafkaACLSpec) (*kafkamanagementv1beta1.KafkaACLStatus, error)
 	GetKafkaACLStatus(kafkaACLID, kafkaACLEndpoint string) (*kafkamanagementv1beta1.KafkaACLStatus, error)
 	DeleteKafkaACL(kafkaACLID, kafkaACLEndpoint string) error
