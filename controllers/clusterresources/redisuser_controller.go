@@ -18,6 +18,7 @@ package clusterresources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -132,16 +133,31 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	for clusterID, event := range user.Status.ClustersEvents {
+		userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
+
 		if event == models.CreatingEvent {
-			_, err = r.API.CreateRedisUser(user.Spec.ToInstAPI(password, clusterID, username))
-			if err != nil {
-				l.Error(err, "Cannot create a user for the Redis cluster",
+			_, err = r.API.GetRedisUser(userID)
+			if err != nil && !errors.Is(err, instaclustr.NotFound) {
+				l.Error(err, "Cannot check if the user already exists on the cluster",
 					"cluster ID", clusterID,
 					"username", username)
 				r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
 					"Cannot create user. Reason: %v", err)
 
 				return models.ReconcileRequeue, nil
+			}
+
+			if errors.Is(err, instaclustr.NotFound) {
+				_, err = r.API.CreateRedisUser(user.Spec.ToInstAPI(password, clusterID, username))
+				if err != nil {
+					l.Error(err, "Cannot create a user for the Redis cluster",
+						"cluster ID", clusterID,
+						"username", username)
+					r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
+						"Cannot create user. Reason: %v", err)
+
+					return models.ReconcileRequeue, nil
+				}
 			}
 
 			user.Status.ClustersEvents[clusterID] = models.Created
@@ -165,7 +181,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if event == models.DeletingEvent {
 			userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
 			err = r.API.DeleteRedisUser(userID)
-			if err != nil {
+			if err != nil && !errors.Is(err, instaclustr.NotFound) {
 				l.Error(err, "Cannot delete Redis user from the cluster.",
 					"cluster ID", clusterID, "user ID", userID)
 				r.EventRecorder.Eventf(user, models.Warning, models.DeletingEvent,
@@ -205,11 +221,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 				return models.ReconcileRequeue, nil
 			}
+			continue
 		}
 
-		userID := fmt.Sprintf(instaclustr.RedisUserIDFmt, clusterID, username)
 		err = r.API.UpdateRedisUser(user.ToInstAPIUpdate(password, userID))
-		if err != nil {
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
 			l.Error(err, "Cannot update redis user password",
 				"secret name", user.Spec.SecretRef.Name,
 				"secret namespace", user.Spec.SecretRef.Namespace,
@@ -225,6 +241,18 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			)
 
 			return models.ReconcileRequeue, nil
+		}
+		if errors.Is(err, instaclustr.NotFound) {
+			l.Info("Cannot update redis user password, the user doesn't exist on the given cluster",
+				"secret name", user.Spec.SecretRef.Name,
+				"secret namespace", user.Spec.SecretRef.Namespace,
+				"username", username,
+				"cluster ID", clusterID,
+				"user ID", userID,
+			)
+
+			r.EventRecorder.Eventf(user, models.Warning, models.UpdateFailed,
+				"Given user doesn`t exist on the cluster ID: %v", clusterID)
 		}
 
 		l.Info("Redis user has been updated",
@@ -338,6 +366,8 @@ func (r *RedisUserReconciler) handleDeleteUser(
 
 		return err
 	}
+
+	l.Info("Redis User resource was deleted")
 
 	return nil
 }

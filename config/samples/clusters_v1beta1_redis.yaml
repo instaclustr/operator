@@ -16,12 +16,12 @@ spec:
   passwordAndUserAuth: true
   privateNetworkCluster: false
   userRefs:
-  #    - name: redisuser-sample-1
-  #      namespace: default
-  #    - name: redisuser-sample-2
-  #      namespace: default
-  #    - name: redisuser-sample-3
-  #      namespace: default
+#      - name: redisuser-sample-1
+#        namespace: default
+#      - name: redisuser-sample-2
+#        namespace: default
+#      - name: redisuser-sample-3
+#        namespace: default
   #  twoFactorDelete:
   #    - email: "rostyslp@netapp.com"
   dataCentres:

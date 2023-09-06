@@ -177,6 +177,37 @@ func (c *Client) GetRedis(id string) ([]byte, error) {
 	return body, nil
 }
 
+func (c *Client) GetRedisUser(id string) (*models.RedisUser, error) {
+	url := c.serverHostname + RedisUserEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	userRedis := &models.RedisUser{}
+	err = json.Unmarshal(body, userRedis)
+	if err != nil {
+		return nil, err
+	}
+
+	return userRedis, nil
+}
+
 func (c *Client) UpdateRedis(id string, r *models.RedisDataCentreUpdate) error {
 	url := c.serverHostname + RedisEndpoint + id
 	data, err := json.Marshal(r)

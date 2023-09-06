@@ -505,23 +505,6 @@ func (r *RedisReconciler) handleDeleteCluster(
 		return models.ReconcileRequeue
 	}
 
-	for _, ref := range redis.Spec.UserRefs {
-		err = r.detachUserResource(ctx, logger, redis, ref)
-		if err != nil {
-			logger.Error(err, "Cannot detach Redis user",
-				"cluster name", redis.Spec.Name,
-				"cluster status", redis.Status.State,
-			)
-
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.DeletionFailed,
-				"Cluster detaching on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue
-		}
-	}
-
 	if !errors.Is(err, instaclustr.NotFound) {
 		logger.Info("Sending cluster deletion to the Instaclustr API",
 			"cluster name", redis.Spec.Name,
@@ -571,6 +554,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 		}
 	}
 
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
 	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
 
 	logger.Info("Deleting cluster backup resources",
@@ -599,7 +583,22 @@ func (r *RedisReconciler) handleDeleteCluster(
 		"cluster ID", redis.Status.ID,
 	)
 
-	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
+	for _, ref := range redis.Spec.UserRefs {
+		err = r.detachUserResource(ctx, logger, redis, ref)
+		if err != nil {
+			logger.Error(err, "Cannot detach Redis user",
+				"cluster name", redis.Spec.Name,
+				"cluster status", redis.Status.State,
+			)
+
+			r.EventRecorder.Eventf(
+				redis, models.Warning, models.DeletionFailed,
+				"Cluster detaching on the Instaclustr is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
+	}
 
 	patch := redis.NewPatch()
 	controllerutil.RemoveFinalizer(redis, models.DeletionFinalizer)
