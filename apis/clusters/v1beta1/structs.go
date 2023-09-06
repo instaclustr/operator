@@ -481,6 +481,10 @@ func (c *Cluster) TagsFromInstAPI(iTags []*models.Tag) map[string]string {
 }
 
 func (c *Cluster) CloudProviderSettingsFromInstAPI(iDC models.DataCentre) (settings []*CloudProviderSettings) {
+	if isCloudProviderSettingsEmpty(iDC) {
+		return nil
+	}
+
 	switch iDC.CloudProvider {
 	case models.AWSVPC:
 		for _, awsSetting := range iDC.AWSSettings {
@@ -503,6 +507,33 @@ func (c *Cluster) CloudProviderSettingsFromInstAPI(iDC models.DataCentre) (setti
 		}
 	}
 	return
+}
+
+func isCloudProviderSettingsEmpty(iDC models.DataCentre) bool {
+	var empty bool
+
+	for i := range iDC.AWSSettings {
+		empty = *iDC.AWSSettings[i] == models.AWSSetting{}
+		if !empty {
+			return false
+		}
+	}
+
+	for i := range iDC.AzureSettings {
+		empty = *iDC.AzureSettings[i] == models.AzureSetting{}
+		if !empty {
+			return false
+		}
+	}
+
+	for i := range iDC.GCPSettings {
+		empty = *iDC.GCPSettings[i] == models.GCPSetting{}
+		if !empty {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (c *Cluster) CloudProviderSettingsFromInstAPIv1(iProviders []*models.ClusterProviderV1) (accountName string, settings []*CloudProviderSettings) {
