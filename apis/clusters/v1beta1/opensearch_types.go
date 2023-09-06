@@ -276,6 +276,10 @@ func tagsFromInstAPI(iTags []*models.Tag) map[string]string {
 }
 
 func cloudProviderSettingsFromInstAPI(iDC *models.OpenSearchDataCentre) (settings []*CloudProviderSettings) {
+	if isCloudProviderSettingsEmpty(iDC.DataCentre) {
+		return nil
+	}
+
 	switch iDC.CloudProvider {
 	case models.AWSVPC:
 		for _, awsSetting := range iDC.AWSSettings {
