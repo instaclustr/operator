@@ -143,6 +143,12 @@ const (
 	Password = "password"
 )
 
+const (
+	InProgressME = "in-progress"
+	PastME       = "past"
+	UpcomingME   = "upcoming"
+)
+
 const Requeue60 = time.Second * 60
 
 var (

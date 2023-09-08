@@ -204,28 +204,28 @@ func (c *mockClient) GetMirrorStatus(id string) (*kafkamanagementv1beta1.MirrorS
 	panic("GetMirrorStatus: is not implemented")
 }
 
-func (c *mockClient) CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
-	panic("CreateExclusionWindow: is not implemented")
-}
+//func (c *mockClient) CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
+//	panic("CreateExclusionWindow: is not implemented")
+//}
+//
+//func (c *mockClient) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error) {
+//	panic("GetExclusionWindowsStatuses: is not implemented")
+//}
+//
+//func (c *mockClient) DeleteExclusionWindow(id string) error {
+//	panic("DeleteExclusionWindow: is not implemented")
+//}
 
-func (c *mockClient) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error) {
-	panic("GetExclusionWindowsStatuses: is not implemented")
-}
-
-func (c *mockClient) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
+func (c *mockClient) GetMaintenanceEventsStatuses(clusterID, eventType string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
 	panic("GetMaintenanceEventsStatuses: is not implemented")
 }
 
-func (c *mockClient) GetMaintenanceEvents(clusterID string) ([]*clustersv1beta1.MaintenanceEvent, error) {
+func (c *mockClient) GetMaintenanceEvents(clusterID, eventType string) ([]*clustersv1beta1.MaintenanceEvent, error) {
 	panic("GetMaintenanceEvents: is not implemented")
 }
 
-func (c *mockClient) DeleteExclusionWindow(id string) error {
-	panic("DeleteExclusionWindow: is not implemented")
-}
-
-func (c *mockClient) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
-	panic("UpdateMaintenanceEvent: is not implemented")
+func (c *mockClient) RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.MaintenanceEventReschedule) error {
+	panic("RescheduleMaintenanceEvent: is not implemented")
 }
 
 func (c *mockClient) RestorePgCluster(restoreData *clustersv1beta1.PgRestoreFrom) (string, error) {

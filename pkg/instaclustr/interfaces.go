@@ -57,12 +57,8 @@ type API interface {
 	UpdateKafkaMirror(id string, latency int32) error
 	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
 	TriggerClusterBackup(url, clusterID string) error
-	CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error)
-	GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error)
-	GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error)
-	GetMaintenanceEvents(clusterID string) ([]*v1beta1.MaintenanceEvent, error)
-	DeleteExclusionWindow(id string) error
-	UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error)
+	GetMaintenanceEvents(clusterID, eventType string) ([]*v1beta1.MaintenanceEvent, error)
+	RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.MaintenanceEventReschedule) error
 	RestorePgCluster(restoreData *v1beta1.PgRestoreFrom) (string, error)
 	RestoreRedisCluster(restoreData *v1beta1.RedisRestoreFrom) (string, error)
 	RestoreOpenSearchCluster(restoreData *v1beta1.OpenSearchRestoreFrom) (string, error)

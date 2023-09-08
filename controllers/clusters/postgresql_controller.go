@@ -901,15 +901,15 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			}
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(pg.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get PostgreSQL cluster maintenance events",
-				"cluster name", pg.Spec.Name,
-				"cluster ID", pg.Status.ID,
-			)
-
-			return err
-		}
+		//maintEvents, err := r.API.GetMaintenanceEvents(pg.Status.ID)
+		//if err != nil {
+		//	l.Error(err, "Cannot get PostgreSQL cluster maintenance events",
+		//		"cluster name", pg.Spec.Name,
+		//		"cluster ID", pg.Status.ID,
+		//	)
+		//
+		//	return err
+		//}
 
 		if iPg.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			pg.Annotations[models.UpdateQueuedAnnotation] != models.True &&
@@ -935,24 +935,24 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			r.EventRecorder.Eventf(pg, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		if !pg.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := pg.NewPatch()
-			pg.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), pg, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch PostgreSQL cluster maintenance events",
-					"cluster name", pg.Spec.Name,
-					"cluster ID", pg.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("PostgreSQL cluster maintenance events were updated",
-				"cluster ID", pg.Status.ID,
-				"events", pg.Status.MaintenanceEvents,
-			)
-		}
+		//if !pg.Status.AreMaintenanceEventStatusesEqual(maintEvents) {
+		//	patch := pg.NewPatch()
+		//	pg.Status.MaintenanceEvents = maintEvents
+		//	err = r.Status().Patch(context.TODO(), pg, patch)
+		//	if err != nil {
+		//		l.Error(err, "Cannot patch PostgreSQL cluster maintenance events",
+		//			"cluster name", pg.Spec.Name,
+		//			"cluster ID", pg.Status.ID,
+		//		)
+		//
+		//		return err
+		//	}
+		//
+		//	l.Info("PostgreSQL cluster maintenance events were updated",
+		//		"cluster ID", pg.Status.ID,
+		//		"events", pg.Status.MaintenanceEvents,
+		//	)
+		//}
 
 		return nil
 	}

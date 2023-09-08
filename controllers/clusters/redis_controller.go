@@ -1008,34 +1008,34 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			r.EventRecorder.Eventf(redis, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(redis.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get Redis cluster maintenance events",
-				"cluster name", redis.Spec.Name,
-				"cluster ID", redis.Status.ID,
-			)
+		//maintEvents, err := r.API.GetMaintenanceEvents(redis.Status.ID)
+		//if err != nil {
+		//	l.Error(err, "Cannot get Redis cluster maintenance events",
+		//		"cluster name", redis.Spec.Name,
+		//		"cluster ID", redis.Status.ID,
+		//	)
+		//
+		//	return err
+		//}
 
-			return err
-		}
-
-		if !redis.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := redis.NewPatch()
-			redis.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), redis, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Redis cluster maintenance events",
-					"cluster name", redis.Spec.Name,
-					"cluster ID", redis.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Redis cluster maintenance events were updated",
-				"cluster ID", redis.Status.ID,
-				"events", redis.Status.MaintenanceEvents,
-			)
-		}
+		//if !redis.Status.AreMaintenanceEventStatusesEqual(maintEvents) {
+		//	patch := redis.NewPatch()
+		//	redis.Status.MaintenanceEvents = maintEvents
+		//	err = r.Status().Patch(context.TODO(), redis, patch)
+		//	if err != nil {
+		//		l.Error(err, "Cannot patch Redis cluster maintenance events",
+		//			"cluster name", redis.Spec.Name,
+		//			"cluster ID", redis.Status.ID,
+		//		)
+		//
+		//		return err
+		//	}
+		//
+		//	l.Info("Redis cluster maintenance events were updated",
+		//		"cluster ID", redis.Status.ID,
+		//		"events", redis.Status.MaintenanceEvents,
+		//	)
+		//}
 
 		return nil
 	}

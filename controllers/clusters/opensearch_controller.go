@@ -682,15 +682,15 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 			}
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(o.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get OpenSearch cluster maintenance events",
-				"cluster name", o.Spec.Name,
-				"cluster ID", o.Status.ID,
-			)
-
-			return err
-		}
+		//maintEvents, err := r.API.GetMaintenanceEvents(o.Status.ID)
+		//if err != nil {
+		//	l.Error(err, "Cannot get OpenSearch cluster maintenance events",
+		//		"cluster name", o.Spec.Name,
+		//		"cluster ID", o.Status.ID,
+		//	)
+		//
+		//	return err
+		//}
 
 		if iO.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			o.Annotations[models.UpdateQueuedAnnotation] != models.True &&
@@ -717,24 +717,24 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 			r.EventRecorder.Eventf(o, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		if !o.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := o.NewPatch()
-			o.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), o, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch OpenSearch cluster maintenance events",
-					"cluster name", o.Spec.Name,
-					"cluster ID", o.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("OpenSearch cluster maintenance events were updated",
-				"cluster ID", o.Status.ID,
-				"events", o.Status.MaintenanceEvents,
-			)
-		}
+		//if !o.Status.AreMaintenanceEventStatusesEqual(maintEvents) {
+		//	patch := o.NewPatch()
+		//	o.Status.MaintenanceEvents = maintEvents
+		//	err = r.Status().Patch(context.TODO(), o, patch)
+		//	if err != nil {
+		//		l.Error(err, "Cannot patch OpenSearch cluster maintenance events",
+		//			"cluster name", o.Spec.Name,
+		//			"cluster ID", o.Status.ID,
+		//		)
+		//
+		//		return err
+		//	}
+		//
+		//	l.Info("OpenSearch cluster maintenance events were updated",
+		//		"cluster ID", o.Status.ID,
+		//		"events", o.Status.MaintenanceEvents,
+		//	)
+		//}
 
 		return nil
 	}

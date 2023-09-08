@@ -994,33 +994,13 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 			r.EventRecorder.Eventf(cassandra, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(cassandra.Status.ID)
+		err = r.reconcileMaintenanceEvents(context.Background(), cassandra)
 		if err != nil {
-			l.Error(err, "Cannot get cluster maintenance events",
+			l.Error(err, "Cannot reconcile cluster maintenance events",
 				"cluster name", cassandra.Spec.Name,
 				"cluster ID", cassandra.Status.ID,
 			)
-
 			return err
-		}
-
-		if !cassandra.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := cassandra.NewPatch()
-			cassandra.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), cassandra, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch cluster maintenance events",
-					"cluster name", cassandra.Spec.Name,
-					"cluster ID", cassandra.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Cluster maintenance events were updated",
-				"cluster ID", cassandra.Status.ID,
-				"events", cassandra.Status.MaintenanceEvents,
-			)
 		}
 
 		return nil
@@ -1219,6 +1199,49 @@ func (r *CassandraReconciler) deleteBackups(ctx context.Context, clusterID, name
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (r *CassandraReconciler) reconcileMaintenanceEvents(ctx context.Context, cassandra *v1beta1.Cassandra) error {
+	l := log.FromContext(ctx)
+
+	inProgressMEStatus, err := r.API.GetMaintenanceEvents(cassandra.Status.ID, models.InProgressME)
+	if err != nil {
+		return err
+	}
+
+	pastMEStatus, err := r.API.GetMaintenanceEvents(cassandra.Status.ID, models.PastME)
+	if err != nil {
+		return err
+	}
+
+	upcomingMEStatus, err := r.API.GetMaintenanceEvents(cassandra.Status.ID, models.UpcomingME)
+	if err != nil {
+		return err
+	}
+
+	iMEStatuses := []*clusterresourcesv1beta1.ClusteredMaintenanceEventStatus{
+		{
+			InProgress: cassandra.Status.MaintenanceEventStatusFromInstAPI(inProgressMEStatus),
+			Past:       cassandra.Status.MaintenanceEventStatusFromInstAPI(pastMEStatus),
+			Upcoming:   cassandra.Status.MaintenanceEventStatusFromInstAPI(upcomingMEStatus),
+		},
+	}
+
+	if !cassandra.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := cassandra.NewPatch()
+		cassandra.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(context.TODO(), cassandra, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", cassandra.Status.ID,
+			"events", cassandra.Status.MaintenanceEvents,
+		)
 	}
 
 	return nil

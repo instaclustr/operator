@@ -185,3 +185,66 @@ var msgExternalChanges = "The k8s specification is different from Instaclustr Co
 	"so that it would corresponds to the data from Instaclustr."
 
 var msgSpecStillNoMatch = "k8s resource specification still doesn't match with data on the Instaclustr Console. Double check the difference."
+
+//func MaintenanceEventsToInstAPI(iMEStatuses []*clusterresource.ClusteredMaintenanceEventStatus) []*v1beta1.ClusteredMaintenanceEvent {
+//	var (
+//		meStatuses = make([]*v1beta1.ClusteredMaintenanceEvent, 0)
+//		inProgress = make([]*v1beta1.MaintenanceEvent, 0)
+//		past       = make([]*v1beta1.MaintenanceEvent, 0)
+//		upcoming   = make([]*v1beta1.MaintenanceEvent, 0)
+//	)
+//
+//	for _, iMEStatus := range iMEStatuses {
+//		for _, ip := range iMEStatus.InProgress {
+//			inProgress = append(inProgress, &v1beta1.MaintenanceEvent{
+//				ID:                    ip.ID,
+//				Description:           ip.Description,
+//				ScheduledStartTime:    ip.ScheduledStartTime,
+//				ScheduledEndTime:      ip.ScheduledEndTime,
+//				ScheduledStartTimeMax: ip.ScheduledStartTimeMax,
+//				ScheduledStartTimeMin: ip.ScheduledStartTimeMin,
+//				IsFinalized:           ip.IsFinalized,
+//				StartTime:             ip.StartTime,
+//				EndTime:               ip.EndTime,
+//				Outcome:               ip.Outcome,
+//			})
+//		}
+//		for _, p := range iMEStatus.Past {
+//			past = append(past, &v1beta1.MaintenanceEvent{
+//				ID:                    p.ID,
+//				Description:           p.Description,
+//				ScheduledStartTime:    p.ScheduledStartTime,
+//				ScheduledEndTime:      p.ScheduledEndTime,
+//				ScheduledStartTimeMax: p.ScheduledStartTimeMax,
+//				ScheduledStartTimeMin: p.ScheduledStartTimeMin,
+//				IsFinalized:           p.IsFinalized,
+//				StartTime:             p.StartTime,
+//				EndTime:               p.EndTime,
+//				Outcome:               p.Outcome,
+//			})
+//		}
+//		for _, u := range iMEStatus.Upcoming {
+//			upcoming = append(upcoming, &v1beta1.MaintenanceEvent{
+//				ID:                    u.ID,
+//				Description:           u.Description,
+//				ScheduledStartTime:    u.ScheduledStartTime,
+//				ScheduledEndTime:      u.ScheduledEndTime,
+//				ScheduledStartTimeMax: u.ScheduledStartTimeMax,
+//				ScheduledStartTimeMin: u.ScheduledStartTimeMin,
+//				IsFinalized:           u.IsFinalized,
+//				StartTime:             u.StartTime,
+//				EndTime:               u.EndTime,
+//				Outcome:               u.Outcome,
+//			})
+//		}
+//
+//		meStatuses = []*v1beta1.ClusteredMaintenanceEvent{
+//			{
+//				InProgress: inProgress,
+//				Past:       past,
+//				Upcoming:   upcoming,
+//			},
+//		}
+//	}
+//	return meStatuses
+//}

@@ -493,34 +493,34 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 			r.EventRecorder.Eventf(zook, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(zook.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get Zookeeper cluster maintenance events",
-				"cluster name", zook.Spec.Name,
-				"cluster ID", zook.Status.ID,
-			)
+		//maintEvents, err := r.API.GetMaintenanceEvents(zook.Status.ID)
+		//if err != nil {
+		//	l.Error(err, "Cannot get Zookeeper cluster maintenance events",
+		//		"cluster name", zook.Spec.Name,
+		//		"cluster ID", zook.Status.ID,
+		//	)
+		//
+		//	return err
+		//}
 
-			return err
-		}
-
-		if !zook.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := zook.NewPatch()
-			zook.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), zook, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Zookeeper cluster maintenance events",
-					"cluster name", zook.Spec.Name,
-					"cluster ID", zook.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Zookeeper cluster maintenance events were updated",
-				"cluster ID", zook.Status.ID,
-				"events", zook.Status.MaintenanceEvents,
-			)
-		}
+		//if !zook.Status.AreMaintenanceEventStatusesEqual(maintEvents) {
+		//	patch := zook.NewPatch()
+		//	zook.Status.MaintenanceEvents = maintEvents
+		//	err = r.Status().Patch(context.TODO(), zook, patch)
+		//	if err != nil {
+		//		l.Error(err, "Cannot patch Zookeeper cluster maintenance events",
+		//			"cluster name", zook.Spec.Name,
+		//			"cluster ID", zook.Status.ID,
+		//		)
+		//
+		//		return err
+		//	}
+		//
+		//	l.Info("Zookeeper cluster maintenance events were updated",
+		//		"cluster ID", zook.Status.ID,
+		//		"events", zook.Status.MaintenanceEvents,
+		//	)
+		//}
 
 		return nil
 	}

@@ -303,20 +303,85 @@ spec:
               maintenanceEvents:
                 items:
                   properties:
-                    description:
-                      type: string
-                    id:
-                      type: string
-                    isFinalized:
-                      type: boolean
-                    scheduledEndTime:
-                      type: string
-                    scheduledStartTime:
-                      type: string
-                    scheduledStartTimeMax:
-                      type: string
-                    scheduledStartTimeMin:
-                      type: string
+                    Upcoming:
+                      items:
+                        properties:
+                          description:
+                            type: string
+                          endTime:
+                            type: string
+                          id:
+                            type: string
+                          isFinalized:
+                            type: boolean
+                          outcome:
+                            type: string
+                          scheduledEndTime:
+                            type: string
+                          scheduledStartTime:
+                            type: string
+                          scheduledStartTimeMax:
+                            type: string
+                          scheduledStartTimeMin:
+                            type: string
+                          startTime:
+                            type: string
+                        type: object
+                      type: array
+                    inProgress:
+                      items:
+                        properties:
+                          description:
+                            type: string
+                          endTime:
+                            type: string
+                          id:
+                            type: string
+                          isFinalized:
+                            type: boolean
+                          outcome:
+                            type: string
+                          scheduledEndTime:
+                            type: string
+                          scheduledStartTime:
+                            type: string
+                          scheduledStartTimeMax:
+                            type: string
+                          scheduledStartTimeMin:
+                            type: string
+                          startTime:
+                            type: string
+                        type: object
+                      type: array
+                    past:
+                      items:
+                        properties:
+                          description:
+                            type: string
+                          endTime:
+                            type: string
+                          id:
+                            type: string
+                          isFinalized:
+                            type: boolean
+                          outcome:
+                            type: string
+                          scheduledEndTime:
+                            type: string
+                          scheduledStartTime:
+                            type: string
+                          scheduledStartTimeMax:
+                            type: string
+                          scheduledStartTimeMin:
+                            type: string
+                          startTime:
+                            type: string
+                        type: object
+                      type: array
+                  required:
+                  - Upcoming
+                  - inProgress
+                  - past
                   type: object
                 type: array
               options:

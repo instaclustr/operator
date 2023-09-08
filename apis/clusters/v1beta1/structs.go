@@ -18,7 +18,9 @@ package v1beta1
 
 import (
 	"encoding/json"
+	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"net"
+	"time"
 
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -90,24 +92,33 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
-	ID                            string              `json:"id,omitempty"`
-	State                         string              `json:"state,omitempty"`
-	DataCentres                   []*DataCentreStatus `json:"dataCentres,omitempty"`
-	CDCID                         string              `json:"cdcid,omitempty"`
-	TwoFactorDeleteEnabled        bool                `json:"twoFactorDeleteEnabled,omitempty"`
-	Options                       *Options            `json:"options,omitempty"`
-	CurrentClusterOperationStatus string              `json:"currentClusterOperationStatus,omitempty"`
-	MaintenanceEvents             []*MaintenanceEvent `json:"maintenanceEvents,omitempty"`
+	ID                            string                                             `json:"id,omitempty"`
+	State                         string                                             `json:"state,omitempty"`
+	DataCentres                   []*DataCentreStatus                                `json:"dataCentres,omitempty"`
+	CDCID                         string                                             `json:"cdcid,omitempty"`
+	TwoFactorDeleteEnabled        bool                                               `json:"twoFactorDeleteEnabled,omitempty"`
+	Options                       *Options                                           `json:"options,omitempty"`
+	CurrentClusterOperationStatus string                                             `json:"currentClusterOperationStatus,omitempty"`
+	MaintenanceEvents             []*clusterresource.ClusteredMaintenanceEventStatus `json:"maintenanceEvents,omitempty"`
+}
+
+type ClusteredMaintenanceEvent struct {
+	InProgress []*MaintenanceEvent `json:"inProgress"`
+	Past       []*MaintenanceEvent `json:"past"`
+	Upcoming   []*MaintenanceEvent `json:"upcoming"`
 }
 
 type MaintenanceEvent struct {
 	ID                    string `json:"id,omitempty"`
 	Description           string `json:"description,omitempty"`
-	ScheduledStartTime    string `json:"scheduledStartTime,omitempty"`
-	ScheduledEndTime      string `json:"scheduledEndTime,omitempty"`
-	ScheduledStartTimeMin string `json:"scheduledStartTimeMin,omitempty"`
-	ScheduledStartTimeMax string `json:"scheduledStartTimeMax,omitempty"`
+	ScheduledStartTime    int64  `json:"scheduledStartTime,omitempty"`
+	ScheduledEndTime      int64  `json:"scheduledEndTime,omitempty"`
+	ScheduledStartTimeMin int64  `json:"scheduledStartTimeMin,omitempty"`
+	ScheduledStartTimeMax int64  `json:"scheduledStartTimeMax,omitempty"`
 	IsFinalized           bool   `json:"isFinalized,omitempty"`
+	StartTime             int64  `json:"startTime,omitempty"`
+	EndTime               int64  `json:"endTime,omitempty"`
+	Outcome               string `json:"outcome,omitempty"`
 }
 
 type TwoFactorDelete struct {
@@ -407,14 +418,6 @@ func (dc *DataCentre) SetDefaultValues() {
 	if dc.ProviderAccountName == "" {
 		dc.ProviderAccountName = models.DefaultAccountName
 	}
-
-	if len(dc.CloudProviderSettings) == 0 {
-		dc.CloudProviderSettings = append(dc.CloudProviderSettings, &CloudProviderSettings{
-			CustomVirtualNetworkID: "",
-			ResourceGroup:          "",
-			DiskEncryptionKey:      "",
-		})
-	}
 }
 
 func (c *Cluster) newImmutableFields() immutableCluster {
@@ -427,23 +430,82 @@ func (c *Cluster) newImmutableFields() immutableCluster {
 	}
 }
 
-func (cs *ClusterStatus) AreMaintenanceEventsEqual(iEvents []*MaintenanceEvent) bool {
-	if len(cs.MaintenanceEvents) != len(iEvents) {
+func (cs *ClusterStatus) MaintenanceEventStatusFromInstAPI(iEventStatuses []*MaintenanceEvent) []*clusterresource.MaintenanceEventStatus {
+	var meStatuses = make([]*clusterresource.MaintenanceEventStatus, 0)
+	for _, iEventStatus := range iEventStatuses {
+		meStatuses = append(meStatuses, &clusterresource.MaintenanceEventStatus{
+			ID:                    iEventStatus.ID,
+			Description:           iEventStatus.Description,
+			ScheduledStartTime:    time.Unix(iEventStatus.ScheduledStartTime, 0).Format(time.RFC3339),
+			ScheduledEndTime:      time.Unix(iEventStatus.ScheduledEndTime, 0).Format(time.RFC3339),
+			ScheduledStartTimeMax: time.Unix(iEventStatus.ScheduledStartTimeMax, 0).Format(time.RFC3339),
+			ScheduledStartTimeMin: time.Unix(iEventStatus.ScheduledStartTimeMin, 0).Format(time.RFC3339),
+			IsFinalized:           iEventStatus.IsFinalized,
+			StartTime:             time.Unix(iEventStatus.StartTime, 0).Format(time.RFC3339),
+			EndTime:               time.Unix(iEventStatus.EndTime, 0).Format(time.RFC3339),
+			Outcome:               iEventStatus.Outcome,
+		})
+	}
+
+	return meStatuses
+}
+
+func (cs *ClusterStatus) AreMaintenanceEventStatusesEqual(
+	iEventStatuses []*clusterresource.ClusteredMaintenanceEventStatus,
+) bool {
+	if len(cs.MaintenanceEvents) != len(iEventStatuses) {
 		return false
 	}
 
-	for _, iEvent := range iEvents {
-		for _, k8sEvent := range cs.MaintenanceEvents {
-			if iEvent.ID == k8sEvent.ID {
-				if *iEvent != *k8sEvent {
-					return false
-				}
-
-				break
+	for i, iES := range iEventStatuses {
+		if len(iES.Upcoming) != len(cs.MaintenanceEvents[i].Upcoming) ||
+			len(iES.Past) != len(cs.MaintenanceEvents[i].Past) ||
+			len(iES.InProgress) != len(cs.MaintenanceEvents[i].InProgress) {
+			return false
+		}
+		for j, ip := range iES.InProgress {
+			if ip.ID != cs.MaintenanceEvents[i].InProgress[j].ID ||
+				ip.Description != cs.MaintenanceEvents[i].InProgress[j].Description ||
+				ip.ScheduledStartTime != cs.MaintenanceEvents[i].InProgress[j].ScheduledStartTime ||
+				ip.ScheduledEndTime != cs.MaintenanceEvents[i].InProgress[j].ScheduledEndTime ||
+				ip.ScheduledStartTimeMax != cs.MaintenanceEvents[i].InProgress[j].ScheduledStartTimeMax ||
+				ip.ScheduledStartTimeMin != cs.MaintenanceEvents[i].InProgress[j].ScheduledStartTimeMin ||
+				ip.IsFinalized != cs.MaintenanceEvents[i].InProgress[j].IsFinalized ||
+				ip.StartTime != cs.MaintenanceEvents[i].InProgress[j].StartTime ||
+				ip.EndTime != cs.MaintenanceEvents[i].InProgress[j].EndTime ||
+				ip.Outcome != cs.MaintenanceEvents[i].InProgress[j].Outcome {
+				return false
+			}
+		}
+		for k, p := range iES.Past {
+			if p.ID != cs.MaintenanceEvents[i].Past[k].ID ||
+				p.Description != cs.MaintenanceEvents[i].Past[k].Description ||
+				p.ScheduledStartTime != cs.MaintenanceEvents[i].Past[k].ScheduledStartTime ||
+				p.ScheduledEndTime != cs.MaintenanceEvents[i].Past[k].ScheduledEndTime ||
+				p.ScheduledStartTimeMax != cs.MaintenanceEvents[i].Past[k].ScheduledStartTimeMax ||
+				p.ScheduledStartTimeMin != cs.MaintenanceEvents[i].Past[k].ScheduledStartTimeMin ||
+				p.IsFinalized != cs.MaintenanceEvents[i].Past[k].IsFinalized ||
+				p.StartTime != cs.MaintenanceEvents[i].Past[k].StartTime ||
+				p.EndTime != cs.MaintenanceEvents[i].Past[k].EndTime ||
+				p.Outcome != cs.MaintenanceEvents[i].Past[k].Outcome {
+				return false
+			}
+		}
+		for v, u := range iES.Upcoming {
+			if u.ID != cs.MaintenanceEvents[i].Upcoming[v].ID ||
+				u.Description != cs.MaintenanceEvents[i].Upcoming[v].Description ||
+				u.ScheduledStartTime != cs.MaintenanceEvents[i].Upcoming[v].ScheduledStartTime ||
+				u.ScheduledEndTime != cs.MaintenanceEvents[i].Upcoming[v].ScheduledEndTime ||
+				u.ScheduledStartTimeMax != cs.MaintenanceEvents[i].Upcoming[v].ScheduledStartTimeMax ||
+				u.ScheduledStartTimeMin != cs.MaintenanceEvents[i].Upcoming[v].ScheduledStartTimeMin ||
+				u.IsFinalized != cs.MaintenanceEvents[i].Upcoming[v].IsFinalized ||
+				u.StartTime != cs.MaintenanceEvents[i].Upcoming[v].StartTime ||
+				u.EndTime != cs.MaintenanceEvents[i].Upcoming[v].EndTime ||
+				u.Outcome != cs.MaintenanceEvents[i].Upcoming[v].Outcome {
+				return false
 			}
 		}
 	}
-
 	return true
 }
 

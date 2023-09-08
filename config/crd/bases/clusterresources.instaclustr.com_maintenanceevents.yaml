@@ -37,79 +37,37 @@ spec:
             properties:
               clusterId:
                 type: string
-              exclusionWindows:
-                items:
-                  properties:
-                    dayOfWeek:
-                      type: string
-                    durationInHours:
-                      format: int32
-                      type: integer
-                    startHour:
-                      format: int32
-                      type: integer
-                  required:
-                  - dayOfWeek
-                  - durationInHours
-                  - startHour
-                  type: object
-                type: array
               maintenanceEventsReschedule:
                 items:
                   properties:
-                    scheduleId:
+                    maintenanceEventId:
                       type: string
                     scheduledStartTime:
                       type: string
                   required:
-                  - scheduleId
+                  - maintenanceEventId
                   - scheduledStartTime
                   type: object
                 type: array
             required:
             - clusterId
+            - maintenanceEventsReschedule
             type: object
           status:
             description: MaintenanceEventsStatus defines the observed state of MaintenanceEvents
             properties:
-              eventsStatuses:
-                items:
-                  properties:
-                    description:
-                      type: string
-                    id:
-                      type: string
-                    isFinalized:
-                      type: boolean
-                    scheduledEndTime:
-                      type: string
-                    scheduledStartTime:
-                      type: string
-                    scheduledStartTimeMax:
-                      type: string
-                    scheduledStartTimeMin:
-                      type: string
-                  type: object
-                type: array
-              exclusionWindowsStatuses:
-                items:
-                  properties:
-                    dayOfWeek:
-                      type: string
-                    durationInHours:
-                      format: int32
-                      type: integer
-                    id:
-                      type: string
-                    startHour:
-                      format: int32
-                      type: integer
-                  required:
-                  - dayOfWeek
-                  - durationInHours
-                  - startHour
-                  type: object
-                type: array
+              rescheduled:
+                properties:
+                  maintenanceEventId:
+                    type: string
+                  scheduledStartTime:
+                    type: string
+                required:
+                - maintenanceEventId
+                - scheduledStartTime
+                type: object
+            required:
+            - rescheduled
             type: object
         type: object
     served: true

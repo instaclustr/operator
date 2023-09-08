@@ -753,34 +753,34 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 			r.EventRecorder.Eventf(kafka, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get cluster maintenance events",
-				"cluster name", kafka.Spec.Name,
-				"cluster ID", kafka.Status.ID,
-			)
-
-			return err
-		}
-
-		if !kafka.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := kafka.NewPatch()
-			kafka.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), kafka, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch cluster maintenance events",
-					"cluster name", kafka.Spec.Name,
-					"cluster ID", kafka.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Cluster maintenance events were updated",
-				"cluster ID", kafka.Status.ID,
-				"events", kafka.Status.MaintenanceEvents,
-			)
-		}
+		//maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)
+		//if err != nil {
+		//	l.Error(err, "Cannot get cluster maintenance events",
+		//		"cluster name", kafka.Spec.Name,
+		//		"cluster ID", kafka.Status.ID,
+		//	)
+		//
+		//	return err
+		//}
+		//
+		//if !kafka.Status.AreMaintenanceEventStatusesEqual(maintEvents) {
+		//	patch := kafka.NewPatch()
+		//	kafka.Status.MaintenanceEvents = maintEvents
+		//	err = r.Status().Patch(context.TODO(), kafka, patch)
+		//	if err != nil {
+		//		l.Error(err, "Cannot patch cluster maintenance events",
+		//			"cluster name", kafka.Spec.Name,
+		//			"cluster ID", kafka.Status.ID,
+		//		)
+		//
+		//		return err
+		//	}
+		//
+		//	l.Info("Cluster maintenance events were updated",
+		//		"cluster ID", kafka.Status.ID,
+		//		"events", kafka.Status.MaintenanceEvents,
+		//	)
+		//}
 
 		return nil
 	}
