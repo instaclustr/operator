@@ -1225,7 +1225,7 @@ func (c *Client) TriggerClusterBackup(url, clusterID string) error {
 	return nil
 }
 
-func (c *Client) CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
+func (c *Client) CreateExclusionWindow(clusterID string, window *clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
 	req := &struct {
 		ClusterID       string `json:"clusterId"`
 		DayOfWeek       string `json:"dayOfWeek"`
@@ -1255,7 +1255,7 @@ func (c *Client) CreateExclusionWindow(clusterID string, window clusterresources
 		return "", err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusAccepted {
 		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
@@ -1268,6 +1268,65 @@ func (c *Client) CreateExclusionWindow(clusterID string, window clusterresources
 	}
 
 	return response.ID, nil
+}
+
+func (c *Client) GetExclusionWindowsStatus(windowID string) (string, error) {
+	url := c.serverHostname + ExclusionWindowEndpoint + windowID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return "", NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	response := &struct {
+		ID string `json:"id"`
+	}{}
+
+	err = json.Unmarshal(body, response)
+	if err != nil {
+		return "", err
+	}
+
+	return response.ID, nil
+}
+
+func (c *Client) DeleteExclusionWindow(id string) error {
+	url := c.serverHostname + ExclusionWindowEndpoint + id
+
+	resp, err := c.DoRequest(url, http.MethodDelete, nil)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
 }
 
 func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
@@ -1334,64 +1393,6 @@ func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1beta1.MaintenanceE
 	}
 
 	return status.MaintenanceEvents, nil
-}
-
-func (c *Client) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error) {
-	url := c.serverHostname + ExclusionWindowStatusEndpoint + clusterID
-
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, NotFound
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	status := &struct {
-		ExclusionWindows []*clusterresourcesv1beta1.ExclusionWindowStatus `json:"exclusionWindows"`
-	}{}
-	err = json.Unmarshal(body, status)
-	if err != nil {
-		return nil, err
-	}
-
-	return status.ExclusionWindows, nil
-}
-
-func (c *Client) DeleteExclusionWindow(id string) error {
-	url := c.serverHostname + ExclusionWindowEndpoint + id
-
-	resp, err := c.DoRequest(url, http.MethodDelete, nil)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return NotFound
-	}
-
-	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return nil
 }
 
 func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error) {

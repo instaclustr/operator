@@ -1,0 +1,24 @@
+# permissions for end users to edit exclusionwindows.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: exclusionwindow-editor-role
+rules:
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - exclusionwindows
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - exclusionwindows/status
+  verbs:
+  - get

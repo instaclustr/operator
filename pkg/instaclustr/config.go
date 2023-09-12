@@ -66,8 +66,7 @@ const (
 
 	APIv1RestoreEndpoint = "%s/provisioning/v1/%s/backups/restore"
 
-	ExclusionWindowEndpoint        = "/v1/maintenance-events/exclusion-windows/"
-	ExclusionWindowStatusEndpoint  = "/v1/maintenance-events/exclusion-windows?clusterId="
+	ExclusionWindowEndpoint        = "/cluster-management/v2/resources/exclusion-windows/v2/"
 	MaintenanceEventEndpoint       = "/v1/maintenance-events/events/"
 	MaintenanceEventStatusEndpoint = "/v1/maintenance-events/events?clusterId="
 )

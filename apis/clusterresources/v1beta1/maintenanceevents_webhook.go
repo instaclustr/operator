@@ -46,10 +46,6 @@ func (r *MaintenanceEvents) ValidateCreate() error {
 		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)
 	}
 
-	if err := r.Spec.ValidateExclusionWindows(); err != nil {
-		return fmt.Errorf("exclusion windows validation failed: %v", err)
-	}
-
 	return nil
 }
 
@@ -63,10 +59,6 @@ func (r *MaintenanceEvents) ValidateUpdate(old runtime.Object) error {
 
 	if err := r.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
 		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)
-	}
-
-	if err := r.Spec.ValidateExclusionWindows(); err != nil {
-		return fmt.Errorf("exclusion windows validation failed: %v", err)
 	}
 
 	return nil

@@ -458,6 +458,19 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "AWSEndpointServicePrincipal")
 		os.Exit(1)
 	}
+	if err = (&clusterresourcescontrollers.ExclusionWindowReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		API:           instaClient,
+		EventRecorder: eventRecorder,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ExclusionWindow")
+		os.Exit(1)
+	}
+	if err = (&clusterresourcesv1beta1.ExclusionWindow{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ExclusionWindow")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

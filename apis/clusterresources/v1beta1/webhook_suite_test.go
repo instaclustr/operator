@@ -132,6 +132,9 @@ var _ = BeforeSuite(func() {
 	err = (&AWSEndpointServicePrincipal{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&ExclusionWindow{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {
