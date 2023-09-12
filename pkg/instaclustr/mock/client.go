@@ -204,12 +204,12 @@ func (c *mockClient) GetMirrorStatus(id string) (*kafkamanagementv1beta1.MirrorS
 	panic("GetMirrorStatus: is not implemented")
 }
 
-func (c *mockClient) CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
+func (c *mockClient) CreateExclusionWindow(clusterID string, window *clusterresourcesv1beta1.ExclusionWindowSpec) (string, error) {
 	panic("CreateExclusionWindow: is not implemented")
 }
 
-func (c *mockClient) GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error) {
-	panic("GetExclusionWindowsStatuses: is not implemented")
+func (c *mockClient) GetExclusionWindowsStatus(windowID string) (string, error) {
+	panic("GetExclusionWindowsStatus: is not implemented")
 }
 
 func (c *mockClient) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {

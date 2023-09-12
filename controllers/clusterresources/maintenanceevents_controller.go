@@ -82,20 +82,6 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	patch := me.NewPatch()
 	if me.DeletionTimestamp != nil {
-		err = r.deleteExclusionWindows(me)
-		if err != nil {
-			l.Error(err, "Cannot delete Exclusion Windows",
-				"resource", me,
-			)
-
-			r.EventRecorder.Eventf(
-				me, models.Warning, models.DeletionFailed,
-				"Exclusion windows deletion on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-
 		r.EventRecorder.Eventf(
 			me, models.Normal, models.DeletionStarted,
 			"Exclusion windows deletion request is sent to the Instaclustr API.",
@@ -129,20 +115,6 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		r.EventRecorder.Eventf(
 			me, models.Warning, models.UpdateFailed,
 			"Maintenance events update is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue, nil
-	}
-
-	err = r.reconcileExclusionWindows(me)
-	if err != nil {
-		l.Error(err, "Cannot reconcile Exclusion Windows",
-			"spec", me.Spec,
-		)
-
-		r.EventRecorder.Eventf(
-			me, models.Warning, models.UpdateFailed,
-			"Exclusion windows update is failed. Reason: %v",
 			err,
 		)
 		return models.ReconcileRequeue, nil
@@ -246,20 +218,6 @@ func (r *MaintenanceEventsReconciler) newWatchStatusJob(me *v1beta1.MaintenanceE
 			updated = true
 		}
 
-		instWindowsStatuses, err := r.API.GetExclusionWindowsStatuses(me.Spec.ClusterID)
-		if err != nil {
-			l.Error(err, "Cannot get Exclusion Windows statuses",
-				"resource", me,
-			)
-
-			return err
-		}
-
-		if !me.AreExclusionWindowsStatusesEqual(instWindowsStatuses) {
-			me.Status.ExclusionWindowsStatuses = instWindowsStatuses
-			updated = true
-		}
-
 		if updated {
 			err = r.Status().Patch(context.TODO(), me, patch)
 			if err != nil {
@@ -307,63 +265,6 @@ func (r *MaintenanceEventsReconciler) reconcileMaintenanceEventsReschedules(mEve
 	}
 
 	mEvents.Status.EventsStatuses = updatedMEventsStatuses
-
-	return nil
-}
-
-func (r *MaintenanceEventsReconciler) reconcileExclusionWindows(mEvents *v1beta1.MaintenanceEvents) error {
-	instWindowsStatuses, err := r.API.GetExclusionWindowsStatuses(mEvents.Spec.ClusterID)
-	if err != nil {
-		return err
-	}
-
-	instWindowsMap := map[v1beta1.ExclusionWindowSpec]string{}
-	for _, instWindow := range instWindowsStatuses {
-		instWindowsMap[instWindow.ExclusionWindowSpec] = instWindow.ID
-	}
-
-	k8sWindowsMap := mEvents.Spec.NewExclusionWindowMap()
-
-	for instWindow, id := range instWindowsMap {
-		if _, exists := k8sWindowsMap[instWindow]; !exists {
-			err = r.API.DeleteExclusionWindow(id)
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		k8sWindowsMap[instWindow] = id
-	}
-
-	var windowsStatus []*v1beta1.ExclusionWindowStatus
-	for k8sWindow := range k8sWindowsMap {
-		if _, exists := instWindowsMap[k8sWindow]; !exists {
-			k8sWindowsMap[k8sWindow], err = r.API.CreateExclusionWindow(mEvents.Spec.ClusterID, k8sWindow)
-			if err != nil {
-				return err
-			}
-		}
-
-		windowsStatus = append(windowsStatus, &v1beta1.ExclusionWindowStatus{
-			ID:                  k8sWindowsMap[k8sWindow],
-			ExclusionWindowSpec: k8sWindow,
-		})
-	}
-
-	mEvents.Status.ExclusionWindowsStatuses = windowsStatus
-
-	return nil
-}
-
-func (r *MaintenanceEventsReconciler) deleteExclusionWindows(mEvents *v1beta1.MaintenanceEvents) error {
-	for _, window := range mEvents.Status.ExclusionWindowsStatuses {
-		err := r.API.DeleteExclusionWindow(window.ID)
-		if err != nil {
-			return err
-		}
-	}
 
 	return nil
 }

@@ -260,6 +260,32 @@ rules:
 - apiGroups:
   - clusterresources.instaclustr.com
   resources:
+  - exclusionwindows
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - exclusionwindows/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
+  - exclusionwindows/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - clusterresources.instaclustr.com
+  resources:
   - gcpvpcpeerings
   verbs:
   - create

@@ -18,19 +18,11 @@ package v1beta1
 
 import (
 	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/validation"
 )
-
-type ExclusionWindowSpec struct {
-	DayOfWeek       string `json:"dayOfWeek"`
-	StartHour       int32  `json:"startHour"`
-	DurationInHours int32  `json:"durationInHours"`
-}
 
 type MaintenanceEventRescheduleSpec struct {
 	ScheduledStartTime string `json:"scheduledStartTime"`
@@ -40,14 +32,12 @@ type MaintenanceEventRescheduleSpec struct {
 // MaintenanceEventsSpec defines the desired state of MaintenanceEvents
 type MaintenanceEventsSpec struct {
 	ClusterID                    string                            `json:"clusterId"`
-	ExclusionWindows             []*ExclusionWindowSpec            `json:"exclusionWindows,omitempty"`
 	MaintenanceEventsReschedules []*MaintenanceEventRescheduleSpec `json:"maintenanceEventsReschedule,omitempty"`
 }
 
 // MaintenanceEventsStatus defines the observed state of MaintenanceEvents
 type MaintenanceEventsStatus struct {
-	EventsStatuses           []*MaintenanceEventStatus `json:"eventsStatuses,omitempty"`
-	ExclusionWindowsStatuses []*ExclusionWindowStatus  `json:"exclusionWindowsStatuses,omitempty"`
+	EventsStatuses []*MaintenanceEventStatus `json:"eventsStatuses,omitempty"`
 }
 
 type MaintenanceEventStatus struct {
@@ -58,11 +48,6 @@ type MaintenanceEventStatus struct {
 	ScheduledStartTimeMin string `json:"scheduledStartTimeMin,omitempty"`
 	ScheduledStartTimeMax string `json:"scheduledStartTimeMax,omitempty"`
 	IsFinalized           bool   `json:"isFinalized,omitempty"`
-}
-
-type ExclusionWindowStatus struct {
-	ID                  string `json:"id,omitempty"`
-	ExclusionWindowSpec `json:",inline"`
 }
 
 //+kubebuilder:object:root=true
@@ -113,54 +98,6 @@ func (me *MaintenanceEvents) AreMEventsStatusesEqual(instMEventsStatuses []*Main
 	}
 
 	return true
-}
-
-func (me *MaintenanceEvents) AreExclusionWindowsStatusesEqual(instExclusionWindowsStatuses []*ExclusionWindowStatus) bool {
-	if len(instExclusionWindowsStatuses) != len(me.Status.ExclusionWindowsStatuses) {
-		return false
-	}
-
-	for _, instWindow := range instExclusionWindowsStatuses {
-		for _, k8sWindow := range me.Status.ExclusionWindowsStatuses {
-			if instWindow.ID == k8sWindow.ID {
-				if *instWindow != *k8sWindow {
-					return false
-				}
-
-				break
-			}
-		}
-	}
-
-	return true
-}
-
-func (ews *MaintenanceEventsSpec) NewExclusionWindowMap() map[ExclusionWindowSpec]string {
-	eWindowsMap := map[ExclusionWindowSpec]string{}
-	for _, eWindow := range ews.ExclusionWindows {
-		eWindowsMap[*eWindow] = ""
-	}
-	return eWindowsMap
-}
-
-func (mes *MaintenanceEventsSpec) ValidateExclusionWindows() error {
-	for _, window := range mes.ExclusionWindows {
-		if window.StartHour < 0 ||
-			window.StartHour > 23 {
-			return models.ErrIncorrectStartHour
-		}
-
-		if !validation.Contains(window.DayOfWeek, models.DaysOfWeek) {
-			return fmt.Errorf("%v, available values: %v",
-				models.ErrIncorrectDayOfWeek, models.DaysOfWeek)
-		}
-
-		if window.DurationInHours > 20 {
-			return models.ErrTooManyExclusionHours
-		}
-	}
-
-	return nil
 }
 
 func (mes *MaintenanceEventsSpec) ValidateMaintenanceEventsReschedules() error {

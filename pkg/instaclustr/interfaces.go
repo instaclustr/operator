@@ -57,8 +57,8 @@ type API interface {
 	UpdateKafkaMirror(id string, latency int32) error
 	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
 	TriggerClusterBackup(url, clusterID string) error
-	CreateExclusionWindow(clusterID string, window clusterresourcesv1beta1.ExclusionWindowSpec) (string, error)
-	GetExclusionWindowsStatuses(clusterID string) ([]*clusterresourcesv1beta1.ExclusionWindowStatus, error)
+	CreateExclusionWindow(clusterID string, window *clusterresourcesv1beta1.ExclusionWindowSpec) (string, error)
+	GetExclusionWindowsStatus(windowID string) (string, error)
 	GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error)
 	GetMaintenanceEvents(clusterID string) ([]*v1beta1.MaintenanceEvent, error)
 	DeleteExclusionWindow(id string) error

@@ -1,0 +1,9 @@
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: ExclusionWindow
+metadata:
+  name: exclusionwindow-sample
+spec:
+  clusterId: "4b453851-9002-475a-a603-f8fb1e0ae7df"
+  dayOfWeek: "MONDAY"
+  startHour: 10
+  durationInHours: 40

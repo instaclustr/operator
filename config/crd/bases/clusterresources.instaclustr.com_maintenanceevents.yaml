@@ -37,23 +37,6 @@ spec:
             properties:
               clusterId:
                 type: string
-              exclusionWindows:
-                items:
-                  properties:
-                    dayOfWeek:
-                      type: string
-                    durationInHours:
-                      format: int32
-                      type: integer
-                    startHour:
-                      format: int32
-                      type: integer
-                  required:
-                  - dayOfWeek
-                  - durationInHours
-                  - startHour
-                  type: object
-                type: array
               maintenanceEventsReschedule:
                 items:
                   properties:
@@ -89,25 +72,6 @@ spec:
                       type: string
                     scheduledStartTimeMin:
                       type: string
-                  type: object
-                type: array
-              exclusionWindowsStatuses:
-                items:
-                  properties:
-                    dayOfWeek:
-                      type: string
-                    durationInHours:
-                      format: int32
-                      type: integer
-                    id:
-                      type: string
-                    startHour:
-                      format: int32
-                      type: integer
-                  required:
-                  - dayOfWeek
-                  - durationInHours
-                  - startHour
                   type: object
                 type: array
             type: object
