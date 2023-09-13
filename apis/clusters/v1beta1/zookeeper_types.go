@@ -181,6 +181,10 @@ func (rs *ZookeeperSpec) areDCsEqual(b []*ZookeeperDataCentre) bool {
 	}
 
 	for i := range b {
+		if a[i].Name != b[i].Name {
+			continue
+		}
+
 		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
 			a[i].ClientToServerEncryption != b[i].ClientToServerEncryption {
 			return false

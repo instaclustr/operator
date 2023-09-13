@@ -374,6 +374,11 @@ func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 
 	for i, iDC := range dcs {
 		dataCentre := cs.DataCentres[i]
+
+		if iDC.Name != dataCentre.Name {
+			continue
+		}
+
 		if !dataCentre.IsEqual(iDC.DataCentre) ||
 			iDC.ClientToClusterEncryption != dataCentre.ClientToClusterEncryption ||
 			iDC.PrivateIPBroadcastForDiscovery != dataCentre.PrivateIPBroadcastForDiscovery ||

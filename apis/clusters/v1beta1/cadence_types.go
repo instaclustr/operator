@@ -388,6 +388,11 @@ func (cs *CadenceSpec) AreDCsEqual(dcs []*CadenceDataCentre) bool {
 
 	for i, iDC := range dcs {
 		dataCentre := cs.DataCentres[i]
+
+		if iDC.Name != dataCentre.Name {
+			continue
+		}
+
 		if !dataCentre.IsEqual(iDC.DataCentre) ||
 			iDC.ClientEncryption != dataCentre.ClientEncryption ||
 			!arePrivateLinksEqual(dataCentre.PrivateLink, iDC.PrivateLink) {
