@@ -447,6 +447,11 @@ func (ks *KafkaConnectSpec) AreDataCentresEqual(dcs []*KafkaConnectDataCentre) b
 
 	for i, iDC := range dcs {
 		dataCentre := ks.DataCentres[i]
+
+		if iDC.Name != dataCentre.Name {
+			continue
+		}
+
 		if !dataCentre.IsEqual(iDC.DataCentre) ||
 			iDC.ReplicationFactor != dataCentre.ReplicationFactor {
 			return false

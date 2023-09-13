@@ -381,8 +381,11 @@ func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
 	}
 
 	for i := range b {
-		if a[i].Name != b[i].Name &&
-			a[i].Region != b[i].Region &&
+		if a[i].Name != b[i].Name {
+			continue
+		}
+
+		if a[i].Region != b[i].Region &&
 			a[i].CloudProvider != b[i].CloudProvider &&
 			a[i].ProviderAccountName != b[i].ProviderAccountName &&
 			areCloudProviderSettingsEqual(a[i].CloudProviderSettings, b[i].CloudProviderSettings) &&

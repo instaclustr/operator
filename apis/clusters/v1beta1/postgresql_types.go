@@ -248,6 +248,11 @@ func (pgs *PgSpec) AreDCsEqual(iDCs []*PgDataCentre) bool {
 
 	for i, iDC := range iDCs {
 		dc := pgs.DataCentres[i]
+
+		if iDC.Name != dc.Name {
+			continue
+		}
+
 		if !dc.IsEqual(iDC.DataCentre) ||
 			dc.ClientEncryption != iDC.ClientEncryption ||
 			!dc.AreInterDCReplicationsEqual(iDC.InterDataCentreReplication) ||

@@ -364,8 +364,7 @@ func (dc *DataCentre) TagsToInstAPI() (tags []*models.Tag) {
 }
 
 func (dc *DataCentre) IsEqual(iDC DataCentre) bool {
-	return iDC.Name == dc.Name &&
-		iDC.Region == dc.Region &&
+	return iDC.Region == dc.Region &&
 		iDC.CloudProvider == dc.CloudProvider &&
 		iDC.ProviderAccountName == dc.ProviderAccountName &&
 		dc.AreCloudProviderSettingsEqual(iDC.CloudProviderSettings) &&

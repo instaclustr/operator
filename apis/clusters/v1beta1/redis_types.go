@@ -221,6 +221,11 @@ func (rs *RedisSpec) AreDCsEqual(iDCs []*RedisDataCentre) bool {
 
 	for i, iDC := range iDCs {
 		dataCentre := rs.DataCentres[i]
+
+		if iDC.Name != dataCentre.Name {
+			continue
+		}
+
 		if !dataCentre.IsEqual(iDC.DataCentre) ||
 			iDC.MasterNodes != dataCentre.MasterNodes {
 			return false
