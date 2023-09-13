@@ -572,33 +572,14 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 			r.EventRecorder.Eventf(kc, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(kc.Status.ID)
+		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
+		err = r.reconcileMaintenanceEvents(context.Background(), kc)
 		if err != nil {
-			l.Error(err, "Cannot get Kafka Connect cluster maintenance events",
+			l.Error(err, "Cannot reconcile cluster maintenance events",
 				"cluster name", kc.Spec.Name,
 				"cluster ID", kc.Status.ID,
 			)
-
 			return err
-		}
-
-		if !kc.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := kc.NewPatch()
-			kc.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), kc, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Kafka Connect cluster maintenance events",
-					"cluster name", kc.Spec.Name,
-					"cluster ID", kc.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Kafka Connect cluster maintenance events were updated",
-				"cluster ID", kc.Status.ID,
-				"events", kc.Status.MaintenanceEvents,
-			)
 		}
 
 		return nil
@@ -643,4 +624,29 @@ func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		})).Complete(r)
+}
+
+func (r *KafkaConnectReconciler) reconcileMaintenanceEvents(ctx context.Context, kc *v1beta1.KafkaConnect) error {
+	l := log.FromContext(ctx)
+
+	iMEStatuses, err := r.API.FetchMaintenanceEventStatuses(kc.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	if !kc.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := kc.NewPatch()
+		kc.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(ctx, kc, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", kc.Status.ID,
+			"events", kc.Status.MaintenanceEvents,
+		)
+	}
+
+	return nil
 }

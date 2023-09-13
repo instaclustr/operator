@@ -753,33 +753,14 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 			r.EventRecorder.Eventf(kafka, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(kafka.Status.ID)
+		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
+		err = r.reconcileMaintenanceEvents(context.Background(), kafka)
 		if err != nil {
-			l.Error(err, "Cannot get cluster maintenance events",
+			l.Error(err, "Cannot reconcile cluster maintenance events",
 				"cluster name", kafka.Spec.Name,
 				"cluster ID", kafka.Status.ID,
 			)
-
 			return err
-		}
-
-		if !kafka.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := kafka.NewPatch()
-			kafka.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), kafka, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch cluster maintenance events",
-					"cluster name", kafka.Spec.Name,
-					"cluster ID", kafka.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Cluster maintenance events were updated",
-				"cluster ID", kafka.Status.ID,
-				"events", kafka.Status.MaintenanceEvents,
-			)
 		}
 
 		return nil
@@ -944,4 +925,29 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		})).Complete(r)
+}
+
+func (r *KafkaReconciler) reconcileMaintenanceEvents(ctx context.Context, k *v1beta1.Kafka) error {
+	l := log.FromContext(ctx)
+
+	iMEStatuses, err := r.API.FetchMaintenanceEventStatuses(k.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	if !k.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := k.NewPatch()
+		k.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(ctx, k, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", k.Status.ID,
+			"events", k.Status.MaintenanceEvents,
+		)
+	}
+
+	return nil
 }

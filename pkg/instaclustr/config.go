@@ -66,9 +66,9 @@ const (
 
 	APIv1RestoreEndpoint = "%s/provisioning/v1/%s/backups/restore"
 
-	ExclusionWindowEndpoint        = "/cluster-management/v2/resources/exclusion-windows/v2/"
-	MaintenanceEventEndpoint       = "/v1/maintenance-events/events/"
-	MaintenanceEventStatusEndpoint = "/v1/maintenance-events/events?clusterId="
+	ExclusionWindowEndpoint            = "/cluster-management/v2/resources/exclusion-windows/v2/"
+	MaintenanceEventRescheduleEndpoint = "%s/cluster-management/v2/operations/maintenance-events/%s/v2/reschedule-maintenance-event/v2/"
+	MaintenanceEventStatusEndpoint     = "%s/cluster-management/v2/data-sources/cluster/%s/maintenance-events/v2/%s/v2/"
 )
 
 const (

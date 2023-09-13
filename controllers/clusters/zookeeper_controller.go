@@ -493,33 +493,14 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 			r.EventRecorder.Eventf(zook, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(zook.Status.ID)
+		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
+		err = r.reconcileMaintenanceEvents(context.Background(), zook)
 		if err != nil {
-			l.Error(err, "Cannot get Zookeeper cluster maintenance events",
+			l.Error(err, "Cannot reconcile cluster maintenance events",
 				"cluster name", zook.Spec.Name,
 				"cluster ID", zook.Status.ID,
 			)
-
 			return err
-		}
-
-		if !zook.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := zook.NewPatch()
-			zook.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), zook, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Zookeeper cluster maintenance events",
-					"cluster name", zook.Spec.Name,
-					"cluster ID", zook.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Zookeeper cluster maintenance events were updated",
-				"cluster ID", zook.Status.ID,
-				"events", zook.Status.MaintenanceEvents,
-			)
 		}
 
 		return nil
@@ -613,4 +594,29 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		})).Complete(r)
+}
+
+func (r *ZookeeperReconciler) reconcileMaintenanceEvents(ctx context.Context, z *v1beta1.Zookeeper) error {
+	l := log.FromContext(ctx)
+
+	iMEStatuses, err := r.API.FetchMaintenanceEventStatuses(z.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	if !z.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := z.NewPatch()
+		z.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(ctx, z, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", z.Status.ID,
+			"events", z.Status.MaintenanceEvents,
+		)
+	}
+
+	return nil
 }

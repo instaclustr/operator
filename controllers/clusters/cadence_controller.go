@@ -904,33 +904,14 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 			r.EventRecorder.Eventf(cadence, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(cadence.Status.ID)
+		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
+		err = r.reconcileMaintenanceEvents(context.Background(), cadence)
 		if err != nil {
-			l.Error(err, "Cannot get Cadence cluster maintenance events",
+			l.Error(err, "Cannot reconcile cluster maintenance events",
 				"cluster name", cadence.Spec.Name,
 				"cluster ID", cadence.Status.ID,
 			)
-
 			return err
-		}
-
-		if !cadence.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := cadence.NewPatch()
-			cadence.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), cadence, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Cadence cluster maintenance events",
-					"cluster name", cadence.Spec.Name,
-					"cluster ID", cadence.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Cadence cluster maintenance events were updated",
-				"cluster ID", cadence.Status.ID,
-				"events", cadence.Status.MaintenanceEvents,
-			)
 		}
 
 		return nil
@@ -1240,4 +1221,29 @@ func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 		})).
 		Complete(r)
+}
+
+func (r *CadenceReconciler) reconcileMaintenanceEvents(ctx context.Context, c *v1beta1.Cadence) error {
+	l := log.FromContext(ctx)
+
+	iMEStatuses, err := r.API.FetchMaintenanceEventStatuses(c.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	if !c.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := c.NewPatch()
+		c.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(ctx, c, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", c.Status.ID,
+			"events", c.Status.MaintenanceEvents,
+		)
+	}
+
+	return nil
 }

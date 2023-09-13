@@ -1053,16 +1053,6 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			}
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(pg.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get PostgreSQL cluster maintenance events",
-				"cluster name", pg.Spec.Name,
-				"cluster ID", pg.Status.ID,
-			)
-
-			return err
-		}
-
 		if iPg.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			pg.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!pg.Spec.IsEqual(iPg.Spec) {
@@ -1087,23 +1077,14 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			r.EventRecorder.Eventf(pg, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		if !pg.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := pg.NewPatch()
-			pg.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), pg, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch PostgreSQL cluster maintenance events",
-					"cluster name", pg.Spec.Name,
-					"cluster ID", pg.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("PostgreSQL cluster maintenance events were updated",
+		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
+		err = r.reconcileMaintenanceEvents(context.Background(), pg)
+		if err != nil {
+			l.Error(err, "Cannot reconcile cluster maintenance events",
+				"cluster name", pg.Spec.Name,
 				"cluster ID", pg.Status.ID,
-				"events", pg.Status.MaintenanceEvents,
 			)
+			return err
 		}
 
 		return nil
@@ -1594,4 +1575,29 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}),
 		).
 		Complete(r)
+}
+
+func (r *PostgreSQLReconciler) reconcileMaintenanceEvents(ctx context.Context, pg *v1beta1.PostgreSQL) error {
+	l := log.FromContext(ctx)
+
+	iMEStatuses, err := r.API.FetchMaintenanceEventStatuses(pg.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	if !pg.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := pg.NewPatch()
+		pg.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(ctx, pg, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", pg.Status.ID,
+			"events", pg.Status.MaintenanceEvents,
+		)
+	}
+
+	return nil
 }

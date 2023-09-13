@@ -17,27 +17,24 @@ limitations under the License.
 package v1beta1
 
 import (
-	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/instaclustr/operator/pkg/validation"
 )
-
-type MaintenanceEventRescheduleSpec struct {
-	ScheduledStartTime string `json:"scheduledStartTime"`
-	ScheduleID         string `json:"scheduleId"`
-}
 
 // MaintenanceEventsSpec defines the desired state of MaintenanceEvents
 type MaintenanceEventsSpec struct {
-	ClusterID                    string                            `json:"clusterId"`
-	MaintenanceEventsReschedules []*MaintenanceEventRescheduleSpec `json:"maintenanceEventsReschedule,omitempty"`
+	ClusterID                    string                        `json:"clusterId"`
+	MaintenanceEventsReschedules []*MaintenanceEventReschedule `json:"maintenanceEventsReschedule"`
 }
 
 // MaintenanceEventsStatus defines the observed state of MaintenanceEvents
 type MaintenanceEventsStatus struct {
-	EventsStatuses []*MaintenanceEventStatus `json:"eventsStatuses,omitempty"`
+	CurrentRescheduledEvent MaintenanceEventReschedule `json:"currentRescheduledEvent"`
+}
+
+type MaintenanceEventReschedule struct {
+	ScheduledStartTime string `json:"scheduledStartTime"`
+	MaintenanceEventID string `json:"maintenanceEventId"`
 }
 
 type MaintenanceEventStatus struct {
@@ -47,7 +44,16 @@ type MaintenanceEventStatus struct {
 	ScheduledEndTime      string `json:"scheduledEndTime,omitempty"`
 	ScheduledStartTimeMin string `json:"scheduledStartTimeMin,omitempty"`
 	ScheduledStartTimeMax string `json:"scheduledStartTimeMax,omitempty"`
-	IsFinalized           bool   `json:"isFinalized,omitempty"`
+	IsFinalized           bool   `json:"isFinalized"`
+	StartTime             string `json:"startTime,omitempty"`
+	EndTime               string `json:"endTime,omitempty"`
+	Outcome               string `json:"outcome,omitempty"`
+}
+
+type ClusteredMaintenanceEventStatus struct {
+	InProgress []*MaintenanceEventStatus `json:"inProgress"`
+	Past       []*MaintenanceEventStatus `json:"past"`
+	Upcoming   []*MaintenanceEventStatus `json:"upcoming"`
 }
 
 //+kubebuilder:object:root=true
@@ -78,36 +84,6 @@ func (me *MaintenanceEvents) GetJobID(jobName string) string {
 func (me *MaintenanceEvents) NewPatch() client.Patch {
 	old := me.DeepCopy()
 	return client.MergeFrom(old)
-}
-
-func (me *MaintenanceEvents) AreMEventsStatusesEqual(instMEventsStatuses []*MaintenanceEventStatus) bool {
-	if len(instMEventsStatuses) != len(me.Status.EventsStatuses) {
-		return false
-	}
-
-	for _, instMEvent := range instMEventsStatuses {
-		for _, k8sMEvent := range me.Status.EventsStatuses {
-			if instMEvent.ID == k8sMEvent.ID {
-				if *instMEvent != *k8sMEvent {
-					return false
-				}
-
-				break
-			}
-		}
-	}
-
-	return true
-}
-
-func (mes *MaintenanceEventsSpec) ValidateMaintenanceEventsReschedules() error {
-	for _, event := range mes.MaintenanceEventsReschedules {
-		if dateValid, err := validation.ValidateISODate(event.ScheduledStartTime); err != nil || !dateValid {
-			return fmt.Errorf("scheduledStartTime must be provided in an ISO-8601 formatted UTC string: %v", err)
-		}
-	}
-
-	return nil
 }
 
 func init() {
