@@ -1360,8 +1360,8 @@ func (c *Client) DeleteExclusionWindow(id string) error {
 	return nil
 }
 
-func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
-	url := c.serverHostname + MaintenanceEventStatusEndpoint + clusterID
+func (c *Client) GetMaintenanceEvents(clusterID, eventType string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
+	url := fmt.Sprintf(MaintenanceEventStatusEndpoint, c.serverHostname, clusterID, eventType)
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -1382,52 +1382,51 @@ func (c *Client) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresou
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	statuses := &struct {
+	holder := []struct {
 		MaintenanceEvents []*clusterresourcesv1beta1.MaintenanceEventStatus `json:"maintenanceEvents"`
 	}{}
-	err = json.Unmarshal(body, statuses)
+
+	err = json.Unmarshal(body, &holder)
 	if err != nil {
 		return nil, err
 	}
 
-	return statuses.MaintenanceEvents, nil
+	return holder[0].MaintenanceEvents, nil
 }
 
-func (c *Client) GetMaintenanceEvents(clusterID string) ([]*v1beta1.MaintenanceEvent, error) {
-	url := c.serverHostname + MaintenanceEventStatusEndpoint + clusterID
+func (c *Client) FetchMaintenanceEventStatuses(
+	clusterID string,
+) ([]*clusterresourcesv1beta1.ClusteredMaintenanceEventStatus,
+	error) {
 
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	inProgressMEStatus, err := c.GetMaintenanceEvents(clusterID, models.InProgressME)
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	pastMEStatus, err := c.GetMaintenanceEvents(clusterID, models.PastME)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, NotFound
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	status := &struct {
-		MaintenanceEvents []*v1beta1.MaintenanceEvent `json:"maintenanceEvents"`
-	}{}
-	err = json.Unmarshal(body, status)
+	upcomingMEStatus, err := c.GetMaintenanceEvents(clusterID, models.UpcomingME)
 	if err != nil {
 		return nil, err
 	}
 
-	return status.MaintenanceEvents, nil
+	iMEStatuses := []*clusterresourcesv1beta1.ClusteredMaintenanceEventStatus{
+		{
+			InProgress: inProgressMEStatus,
+			Past:       pastMEStatus,
+			Upcoming:   upcomingMEStatus,
+		},
+	}
+
+	return iMEStatuses, nil
 }
 
-func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
-	url := c.serverHostname + MaintenanceEventEndpoint + me.ScheduleID
+func (c *Client) RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.MaintenanceEventReschedule) error {
+	url := fmt.Sprintf(MaintenanceEventRescheduleEndpoint, c.serverHostname, me.MaintenanceEventID)
 
 	requestBody := &struct {
 		ScheduledStartTime string `json:"scheduledStartTime,omitempty"`
@@ -1437,31 +1436,25 @@ func (c *Client) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEv
 
 	data, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	resp, err := c.DoRequest(url, http.MethodPut, data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("me code: %d, message: %s", resp.StatusCode, body)
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	response := &clusterresourcesv1beta1.MaintenanceEventStatus{}
-	err = json.Unmarshal(body, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
+	return nil
 }
 
 func (c *Client) CreateNodeReload(nr *clusterresourcesv1beta1.Node) error {

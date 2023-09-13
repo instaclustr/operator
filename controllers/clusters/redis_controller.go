@@ -1007,33 +1007,14 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			r.EventRecorder.Eventf(redis, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
-		maintEvents, err := r.API.GetMaintenanceEvents(redis.Status.ID)
+		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
+		err = r.reconcileMaintenanceEvents(context.Background(), redis)
 		if err != nil {
-			l.Error(err, "Cannot get Redis cluster maintenance events",
+			l.Error(err, "Cannot reconcile cluster maintenance events",
 				"cluster name", redis.Spec.Name,
 				"cluster ID", redis.Status.ID,
 			)
-
 			return err
-		}
-
-		if !redis.Status.AreMaintenanceEventsEqual(maintEvents) {
-			patch := redis.NewPatch()
-			redis.Status.MaintenanceEvents = maintEvents
-			err = r.Status().Patch(context.TODO(), redis, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch Redis cluster maintenance events",
-					"cluster name", redis.Spec.Name,
-					"cluster ID", redis.Status.ID,
-				)
-
-				return err
-			}
-
-			l.Info("Redis cluster maintenance events were updated",
-				"cluster ID", redis.Status.ID,
-				"events", redis.Status.MaintenanceEvents,
-			)
 		}
 
 		return nil
@@ -1241,4 +1222,29 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 		})).
 		Complete(r)
+}
+
+func (r *RedisReconciler) reconcileMaintenanceEvents(ctx context.Context, redis *v1beta1.Redis) error {
+	l := log.FromContext(ctx)
+
+	iMEStatuses, err := r.API.FetchMaintenanceEventStatuses(redis.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	if !redis.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+		patch := redis.NewPatch()
+		redis.Status.MaintenanceEvents = iMEStatuses
+		err = r.Status().Patch(ctx, redis, patch)
+		if err != nil {
+			return err
+		}
+
+		l.Info("Cluster maintenance events were reconciled",
+			"cluster ID", redis.Status.ID,
+			"events", redis.Status.MaintenanceEvents,
+		)
+	}
+
+	return nil
 }

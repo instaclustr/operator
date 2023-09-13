@@ -212,20 +212,20 @@ func (c *mockClient) GetExclusionWindowsStatus(windowID string) (string, error) 
 	panic("GetExclusionWindowsStatus: is not implemented")
 }
 
-func (c *mockClient) GetMaintenanceEventsStatuses(clusterID string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
-	panic("GetMaintenanceEventsStatuses: is not implemented")
-}
-
-func (c *mockClient) GetMaintenanceEvents(clusterID string) ([]*clustersv1beta1.MaintenanceEvent, error) {
-	panic("GetMaintenanceEvents: is not implemented")
-}
-
 func (c *mockClient) DeleteExclusionWindow(id string) error {
 	panic("DeleteExclusionWindow: is not implemented")
 }
 
-func (c *mockClient) UpdateMaintenanceEvent(me clusterresourcesv1beta1.MaintenanceEventRescheduleSpec) (*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
-	panic("UpdateMaintenanceEvent: is not implemented")
+func (c *mockClient) GetMaintenanceEvents(clusterID, eventType string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error) {
+	panic("GetMaintenanceEvents: is not implemented")
+}
+
+func (c *mockClient) FetchMaintenanceEventStatuses(clusterID string) ([]*clusterresourcesv1beta1.ClusteredMaintenanceEventStatus, error) {
+	panic("FetchMaintenanceEventStatuses: is not implemented")
+}
+
+func (c *mockClient) RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.MaintenanceEventReschedule) error {
+	panic("RescheduleMaintenanceEvent: is not implemented")
 }
 
 func (c *mockClient) RestorePgCluster(restoreData *clustersv1beta1.PgRestoreFrom) (string, error) {

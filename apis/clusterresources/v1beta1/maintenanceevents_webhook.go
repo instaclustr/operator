@@ -23,6 +23,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/instaclustr/operator/pkg/validation"
 )
 
 var maintenanceeventslog = logf.Log.WithName("maintenanceevents-resource")
@@ -42,7 +44,7 @@ var _ webhook.Validator = &MaintenanceEvents{}
 func (r *MaintenanceEvents) ValidateCreate() error {
 	maintenanceeventslog.Info("validate create", "name", r.Name)
 
-	if err := r.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
+	if err := r.ValidateMaintenanceEventsReschedules(); err != nil {
 		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)
 	}
 
@@ -57,7 +59,7 @@ func (r *MaintenanceEvents) ValidateUpdate(old runtime.Object) error {
 		return nil
 	}
 
-	if err := r.Spec.ValidateMaintenanceEventsReschedules(); err != nil {
+	if err := r.ValidateMaintenanceEventsReschedules(); err != nil {
 		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)
 	}
 
@@ -69,5 +71,15 @@ func (r *MaintenanceEvents) ValidateDelete() error {
 	maintenanceeventslog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
+	return nil
+}
+
+func (r *MaintenanceEvents) ValidateMaintenanceEventsReschedules() error {
+	for _, event := range r.Spec.MaintenanceEventsReschedules {
+		if dateMatched, err := validation.ValidateISODate(event.ScheduledStartTime); err != nil || !dateMatched {
+			return fmt.Errorf("scheduledStartTime must be provided in an ISO-8601 formatted UTC string: %v", err)
+		}
+	}
+
 	return nil
 }

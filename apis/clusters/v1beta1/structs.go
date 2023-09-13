@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"net"
 
+	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -90,24 +91,20 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
-	ID                            string              `json:"id,omitempty"`
-	State                         string              `json:"state,omitempty"`
-	DataCentres                   []*DataCentreStatus `json:"dataCentres,omitempty"`
-	CDCID                         string              `json:"cdcid,omitempty"`
-	TwoFactorDeleteEnabled        bool                `json:"twoFactorDeleteEnabled,omitempty"`
-	Options                       *Options            `json:"options,omitempty"`
-	CurrentClusterOperationStatus string              `json:"currentClusterOperationStatus,omitempty"`
-	MaintenanceEvents             []*MaintenanceEvent `json:"maintenanceEvents,omitempty"`
+	ID                            string                                             `json:"id,omitempty"`
+	State                         string                                             `json:"state,omitempty"`
+	DataCentres                   []*DataCentreStatus                                `json:"dataCentres,omitempty"`
+	CDCID                         string                                             `json:"cdcid,omitempty"`
+	TwoFactorDeleteEnabled        bool                                               `json:"twoFactorDeleteEnabled,omitempty"`
+	Options                       *Options                                           `json:"options,omitempty"`
+	CurrentClusterOperationStatus string                                             `json:"currentClusterOperationStatus,omitempty"`
+	MaintenanceEvents             []*clusterresource.ClusteredMaintenanceEventStatus `json:"maintenanceEvents,omitempty"`
 }
 
-type MaintenanceEvent struct {
-	ID                    string `json:"id,omitempty"`
-	Description           string `json:"description,omitempty"`
-	ScheduledStartTime    string `json:"scheduledStartTime,omitempty"`
-	ScheduledEndTime      string `json:"scheduledEndTime,omitempty"`
-	ScheduledStartTimeMin string `json:"scheduledStartTimeMin,omitempty"`
-	ScheduledStartTimeMax string `json:"scheduledStartTimeMax,omitempty"`
-	IsFinalized           bool   `json:"isFinalized,omitempty"`
+type ClusteredMaintenanceEvent struct {
+	InProgress []*clusterresource.MaintenanceEventStatus `json:"inProgress"`
+	Past       []*clusterresource.MaintenanceEventStatus `json:"past"`
+	Upcoming   []*clusterresource.MaintenanceEventStatus `json:"upcoming"`
 }
 
 type TwoFactorDelete struct {
@@ -418,24 +415,68 @@ func (c *Cluster) newImmutableFields() immutableCluster {
 	}
 }
 
-func (cs *ClusterStatus) AreMaintenanceEventsEqual(iEvents []*MaintenanceEvent) bool {
-	if len(cs.MaintenanceEvents) != len(iEvents) {
+func (cs *ClusterStatus) AreMaintenanceEventStatusesEqual(
+	iEventStatuses []*clusterresource.ClusteredMaintenanceEventStatus,
+) bool {
+	if len(cs.MaintenanceEvents) != len(iEventStatuses) {
 		return false
 	}
 
-	for _, iEvent := range iEvents {
-		for _, k8sEvent := range cs.MaintenanceEvents {
-			if iEvent.ID == k8sEvent.ID {
-				if *iEvent != *k8sEvent {
-					return false
-				}
-
-				break
-			}
+	for i := range iEventStatuses {
+		if !areEventStatusesEqual(iEventStatuses[i], cs.MaintenanceEvents[i]) {
+			return false
 		}
 	}
 
 	return true
+}
+
+func areEventStatusesEqual(a, b *clusterresource.ClusteredMaintenanceEventStatus) bool {
+	if len(a.Past) != len(b.Past) ||
+		len(a.InProgress) != len(b.InProgress) ||
+		len(a.Upcoming) != len(b.Upcoming) {
+		return false
+	}
+
+	for i := range a.Past {
+		if a.Past[i].ID != b.Past[i].ID {
+			continue
+		}
+		if !areClusteredMaintenanceEventStatusEqual(a.Past[i], b.Past[i]) {
+			return false
+		}
+	}
+
+	for i := range a.InProgress {
+		if a.InProgress[i].ID != b.InProgress[i].ID {
+			continue
+		}
+		if !areClusteredMaintenanceEventStatusEqual(a.InProgress[i], b.InProgress[i]) {
+			return false
+		}
+	}
+
+	for i := range a.Upcoming {
+		if a.Upcoming[i].ID != b.Upcoming[i].ID {
+			continue
+		}
+		if !areClusteredMaintenanceEventStatusEqual(a.Upcoming[i], b.Upcoming[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func areClusteredMaintenanceEventStatusEqual(a, b *clusterresource.MaintenanceEventStatus) bool {
+	return a.Description == b.Description &&
+		a.ScheduledStartTime == b.ScheduledStartTime &&
+		a.ScheduledEndTime == b.ScheduledEndTime &&
+		a.ScheduledStartTimeMax == b.ScheduledStartTimeMax &&
+		a.ScheduledStartTimeMin == b.ScheduledStartTimeMin &&
+		a.IsFinalized == b.IsFinalized &&
+		a.StartTime == b.StartTime &&
+		a.EndTime == b.EndTime &&
+		a.Outcome == b.Outcome
 }
 
 func (cs *ClusterStatus) DCFromInstAPI(iDC models.DataCentre) *DataCentreStatus {
@@ -533,28 +574,6 @@ func isCloudProviderSettingsEmpty(iDC models.DataCentre) bool {
 	}
 
 	return true
-}
-
-func (c *Cluster) CloudProviderSettingsFromInstAPIv1(iProviders []*models.ClusterProviderV1) (accountName string, settings []*CloudProviderSettings) {
-	for _, iProvider := range iProviders {
-		accountName = iProvider.AccountName
-		switch iProvider.Name {
-		case models.AWSVPC:
-			settings = append(settings, &CloudProviderSettings{
-				CustomVirtualNetworkID: iProvider.CustomVirtualNetworkID,
-				DiskEncryptionKey:      iProvider.DiskEncryptionKey,
-			})
-		case models.GCP:
-			settings = append(settings, &CloudProviderSettings{
-				CustomVirtualNetworkID: iProvider.CustomVirtualNetworkID,
-			})
-		case models.AZUREAZ:
-			settings = append(settings, &CloudProviderSettings{
-				ResourceGroup: iProvider.ResourceGroup,
-			})
-		}
-	}
-	return
 }
 
 func (cs *ClusterStatus) NodesFromInstAPI(iNodes []*models.Node) (nodes []*Node) {
