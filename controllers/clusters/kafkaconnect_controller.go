@@ -209,6 +209,10 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 	}
 
 	if !kc.Spec.IsEqual(iKC.Spec) {
+		l.Info("Update request to Instaclustr API has been sent",
+			"spec data centres", kc.Spec.DataCentres,
+		)
+
 		err = r.API.UpdateKafkaConnect(kc.Status.ID, kc.Spec.NewDCsUpdate())
 		if err != nil {
 			l.Error(err, "Unable to update Kafka Connect cluster",
@@ -257,8 +261,11 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		return models.ReconcileRequeue
 	}
 
-	l.Info("Kafka Connect cluster was updated",
+	l.Info(
+		"Cluster has been updated",
+		"cluster name", kc.Spec.Name,
 		"cluster ID", kc.Status.ID,
+		"data centres", kc.Spec.DataCentres,
 	)
 
 	return models.ExitReconcile

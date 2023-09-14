@@ -44,3 +44,6 @@ spec:
 #      nodesNumber: 0
 #      masterNodes: 3
 #      replicationFactor: 0
+#  resizeSettings:
+#    - notifySupportContacts: false
+#      concurrency: 1

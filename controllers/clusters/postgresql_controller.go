@@ -364,7 +364,12 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 	}
 
 	if !pg.Spec.AreDCsEqual(iPg.Spec.DataCentres) {
-		err = r.updateDataCentres(pg)
+		logger.Info("Update request to Instaclustr API has been sent",
+			"spec data centres", pg.Spec.DataCentres,
+			"resize settings", pg.Spec.ResizeSettings,
+		)
+
+		err = r.updateCluster(pg)
 		if err != nil {
 			logger.Error(err, "Cannot update Data Centres",
 				"cluster name", pg.Spec.Name,
@@ -395,8 +400,11 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 			return models.ReconcileRequeue
 		}
 
-		logger.Info("PostgreSQL cluster data centres were updated",
+		logger.Info(
+			"Cluster has been updated",
 			"cluster name", pg.Spec.Name,
+			"cluster ID", pg.Status.ID,
+			"data centres", pg.Spec.DataCentres,
 		)
 	}
 
@@ -1087,6 +1095,34 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			return err
 		}
 
+		if pg.Status.State == models.RunningStatus && pg.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := pg.NewPatch()
+			for _, dc := range pg.Status.DataCentres {
+				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
+				if err != nil {
+					l.Error(err, "Cannot get data centre resize operations",
+						"cluster name", pg.Spec.Name,
+						"cluster ID", pg.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+
+				dc.ResizeOperations = resizeOperations
+				err = r.Status().Patch(context.Background(), pg, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch data centre resize operations",
+						"cluster name", pg.Spec.Name,
+						"cluster ID", pg.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+			}
+		}
+
 		return nil
 	}
 }
@@ -1382,9 +1418,8 @@ func (r *PostgreSQLReconciler) deleteSecret(ctx context.Context, pg *v1beta1.Pos
 	return nil
 }
 
-func (r *PostgreSQLReconciler) updateDataCentres(cluster *v1beta1.PostgreSQL) error {
-	instDCs := cluster.Spec.DCsToInstAPI()
-	err := r.API.UpdatePostgreSQLDataCentres(cluster.Status.ID, instDCs)
+func (r *PostgreSQLReconciler) updateCluster(cluster *v1beta1.PostgreSQL) error {
+	err := r.API.UpdatePostgreSQL(cluster.Status.ID, cluster.Spec.ToClusterUpdate())
 	if err != nil {
 		return err
 	}

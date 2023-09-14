@@ -73,6 +73,7 @@ type CadenceSpec struct {
 	SharedProvisioning   []*SharedProvisioning   `json:"sharedProvisioning,omitempty"`
 	PackagedProvisioning []*PackagedProvisioning `json:"packagedProvisioning,omitempty"`
 	TargetPrimaryCadence []*TargetCadence        `json:"targetPrimaryCadence,omitempty"`
+	ResizeSettings       []*ResizeSettings       `json:"resizeSettings,omitempty"`
 }
 
 type AWSArchival struct {
@@ -194,6 +195,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 		SharedProvisioning:    sharedProvisioning,
 		StandardProvisioning:  standardProvisioning,
 		TargetPrimaryCadence:  cs.TargetCadenceToInstAPI(),
+		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
 	}, nil
 }
 
@@ -356,6 +358,7 @@ func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
 
 func (cs *CadenceSpec) FromInstAPI(iCad *models.CadenceCluster) (spec CadenceSpec) {
 	spec.DataCentres = cs.DCsFromInstAPI(iCad.DataCentres)
+	spec.ResizeSettings = resizeSettingsFromInstAPI(iCad.ResizeSettings)
 
 	return
 }

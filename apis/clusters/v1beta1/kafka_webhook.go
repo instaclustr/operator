@@ -140,6 +140,13 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		}
 	}
 
+	for _, rs := range k.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -169,6 +176,13 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	err := k.Spec.validateUpdate(&oldKafka.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update, error: %v", err)
+	}
+
+	for _, rs := range k.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
 	}
 
 	if k.Status.ID == "" {

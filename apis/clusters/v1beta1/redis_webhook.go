@@ -123,6 +123,13 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		}
 	}
 
+	for _, rs := range r.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -155,6 +162,13 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	err := r.Spec.ValidateUpdate(oldRedis.Spec)
 	if err != nil {
 		return fmt.Errorf("update validation error: %v", err)
+	}
+
+	for _, rs := range r.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

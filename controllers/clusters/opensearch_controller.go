@@ -307,6 +307,11 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 	}
 
 	if !o.Spec.IsEqual(iOpenSearch.Spec) {
+		logger.Info("Update request to Instaclustr API has been sent",
+			"spec data centres", o.Spec.DataCentres,
+			"resize settings", o.Spec.ResizeSettings,
+		)
+
 		err = r.API.UpdateOpenSearch(o.Status.ID, o.Spec.ToInstAPIUpdate())
 		if err != nil {
 			logger.Error(err, "Cannot update cluster",
@@ -336,9 +341,12 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			return models.ReconcileRequeue
 		}
 
-		logger.Info("OpenSearch cluster update request is sent",
+		logger.Info(
+			"Cluster has been updated",
 			"cluster name", o.Spec.Name,
-			"cluster ID", o.Status.ID)
+			"cluster ID", o.Status.ID,
+			"data centres", o.Spec.DataCentres,
+		)
 	}
 
 	patch := o.NewPatch()
@@ -715,6 +723,34 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 				"cluster ID", o.Status.ID,
 			)
 			return err
+		}
+
+		if o.Status.State == models.RunningStatus && o.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := o.NewPatch()
+			for _, dc := range o.Status.DataCentres {
+				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
+				if err != nil {
+					l.Error(err, "Cannot get data centre resize operations",
+						"cluster name", o.Spec.Name,
+						"cluster ID", o.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+
+				dc.ResizeOperations = resizeOperations
+				err = r.Status().Patch(context.Background(), o, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch data centre resize operations",
+						"cluster name", o.Spec.Name,
+						"cluster ID", o.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+			}
 		}
 
 		return nil

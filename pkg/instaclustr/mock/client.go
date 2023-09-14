@@ -272,7 +272,7 @@ func (c *mockClient) GetPostgreSQL(id string) ([]byte, error) {
 	panic("GetPostgreSQL: is not implemented")
 }
 
-func (c *mockClient) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error {
+func (c *mockClient) UpdatePostgreSQL(id string, r *models.PGClusterUpdate) error {
 	panic("UpdatePostgreSQLDataCentres: is not implemented")
 }
 
@@ -374,4 +374,8 @@ func (c *mockClient) DeleteAWSEndpointServicePrincipal(principalID string) error
 
 func (c *mockClient) GetRedisUser(id string) (*models.RedisUser, error) {
 	panic("GetRedisUser: is not implemented")
+}
+
+func (c *mockClient) GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*clustersv1beta1.ResizeOperation, error) {
+	panic("GetResizeOperationsByClusterDataCentreID: is not implemented")
 }

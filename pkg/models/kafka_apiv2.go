@@ -38,6 +38,7 @@ type KafkaCluster struct {
 	PCIComplianceMode         bool                      `json:"pciComplianceMode"`
 	RestProxy                 []*RestProxy              `json:"restProxy"`
 	SchemaRegistry            []*SchemaRegistry         `json:"schemaRegistry"`
+	ResizeSettings            []*ResizeSettings         `json:"resizeSettings,omitempty"`
 }
 
 type KafkaDataCentre struct {
@@ -79,6 +80,7 @@ type DedicatedZookeeper struct {
 type KafkaInstAPIUpdateRequest struct {
 	DataCentre         []*KafkaDataCentre          `json:"dataCentres"`
 	DedicatedZookeeper []*DedicatedZookeeperUpdate `json:"dedicatedZookeeper,omitempty"`
+	ResizeSettings     []*ResizeSettings           `json:"resizeSettings,omitempty"`
 }
 
 type DedicatedZookeeperUpdate struct {

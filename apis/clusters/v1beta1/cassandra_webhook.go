@@ -132,6 +132,10 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
 		}
 
+		err = c.Spec.validateResizeSettings(dc.NodesNumber)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

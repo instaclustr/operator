@@ -160,6 +160,15 @@ spec:
                 type: boolean
               reportingPlugin:
                 type: boolean
+              resizeSettings:
+                items:
+                  properties:
+                    concurrency:
+                      type: integer
+                    notifySupportContacts:
+                      type: boolean
+                  type: object
+                type: array
               restoreFrom:
                 properties:
                   cdcInfos:
@@ -284,6 +293,60 @@ spec:
                             type: string
                         required:
                         - advertisedHostname
+                        type: object
+                      type: array
+                    resizeOperations:
+                      items:
+                        properties:
+                          completed:
+                            description: Timestamp of the completion of the operation
+                            type: string
+                          concurrentResizes:
+                            description: Number of nodes that can be concurrently
+                              resized at a given time
+                            type: integer
+                          created:
+                            description: Timestamp of the creation of the operation
+                            type: string
+                          id:
+                            description: ID of the operation
+                            type: string
+                          instaclustrSupportAlerted:
+                            description: Timestamp of when Instaclustr Support has
+                              been alerted to the resize operation.
+                            type: string
+                          newNodeSize:
+                            description: New size of the node
+                            type: string
+                          nodePurpose:
+                            description: Purpose of the node
+                            type: string
+                          replaceOperations:
+                            description: Replace operations
+                            items:
+                              properties:
+                                created:
+                                  description: Timestamp of the creation of the node
+                                    replacement operation
+                                  type: string
+                                id:
+                                  description: ID of the node replacement operation
+                                  type: string
+                                newNodeId:
+                                  description: ID of the new node in the replacement
+                                    operation
+                                  type: string
+                                nodeId:
+                                  description: ID of the node being replaced
+                                  type: string
+                                status:
+                                  description: Status of the node replacement operation
+                                  type: string
+                              type: object
+                            type: array
+                          status:
+                            description: Status of the operation
+                            type: string
                         type: object
                       type: array
                     status:

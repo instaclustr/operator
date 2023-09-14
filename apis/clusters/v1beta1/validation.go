@@ -205,3 +205,11 @@ func validatePrivateLinkUpdate(new, old []*PrivateLink) error {
 
 	return nil
 }
+
+func validateSingleConcurrentResize(concurrentResizes int) error {
+	if concurrentResizes > 1 {
+		return models.ErrOnlySingleConcurrentResizeAvailable
+	}
+
+	return nil
+}

@@ -70,6 +70,8 @@ type CassandraSpec struct {
 	Spark               []*Spark               `json:"spark,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 	UserRefs            []*UserReference       `json:"userRefs,omitempty"`
+	//+kubebuilder:validate:MaxItems:=1
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
@@ -185,9 +187,10 @@ func (cs *CassandraSpec) HasRestore() bool {
 	return false
 }
 
-func (cs *CassandraSpec) NewDCsUpdate() models.CassandraClusterAPIUpdate {
+func (cs *CassandraSpec) DCsUpdateToInstAPI() models.CassandraClusterAPIUpdate {
 	return models.CassandraClusterAPIUpdate{
-		DataCentres: cs.DCsToInstAPI(),
+		DataCentres:    cs.DCsToInstAPI(),
+		ResizeSettings: resizeSettingsToInstAPI(cs.ResizeSettings),
 	}
 }
 
@@ -220,6 +223,13 @@ func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 	err = validateSpark(cs.Spark, oldSpec.Spark)
 	if err != nil {
 		return err
+	}
+
+	for _, dc := range cs.DataCentres {
+		err = cs.validateResizeSettings(dc.NodesNumber)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -306,6 +316,7 @@ func (cs *CassandraSpec) FromInstAPI(iCass *models.CassandraCluster) CassandraSp
 		PasswordAndUserAuth: iCass.PasswordAndUserAuth,
 		Spark:               cs.SparkFromInstAPI(iCass.Spark),
 		BundledUseOnly:      iCass.BundledUseOnly,
+		ResizeSettings:      resizeSettingsFromInstAPI(iCass.ResizeSettings),
 	}
 }
 
@@ -351,6 +362,7 @@ func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 		PCIComplianceMode:     cs.PCICompliance,
 		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
 		BundledUseOnly:        cs.BundledUseOnly,
+		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
 	}
 }
 
@@ -454,6 +466,16 @@ func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields
 			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
 		},
 	}
+}
+
+func (c *CassandraSpec) validateResizeSettings(nodeNumber int) error {
+	for _, rs := range c.ResizeSettings {
+		if rs.Concurrency > nodeNumber {
+			return fmt.Errorf("resizeSettings.concurrency cannot be greater than number of nodes: %v", nodeNumber)
+		}
+	}
+
+	return nil
 }
 
 func init() {

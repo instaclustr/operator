@@ -86,7 +86,7 @@ type API interface {
 	GetZookeeper(id string) ([]byte, error)
 	RestoreCassandra(restoreData v1beta1.CassandraRestoreFrom) (string, error)
 	GetPostgreSQL(id string) ([]byte, error)
-	UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error
+	UpdatePostgreSQL(id string, r *models.PGClusterUpdate) error
 	GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error)
 	CreatePostgreSQLConfiguration(id, name, value string) error
 	UpdatePostgreSQLConfiguration(id, name, value string) error
@@ -104,4 +104,5 @@ type API interface {
 	UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error
 	CreateAWSEndpointServicePrincipal(spec any) ([]byte, error)
 	DeleteAWSEndpointServicePrincipal(principalID string) error
+	GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*v1beta1.ResizeOperation, error)
 }

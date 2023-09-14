@@ -345,7 +345,12 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	}
 
 	if !cassandra.Spec.AreDCsEqual(iCassandra.Spec.DataCentres) {
-		err = r.API.UpdateCassandra(cassandra.Status.ID, cassandra.Spec.NewDCsUpdate())
+		l.Info("Update request to Instaclustr API has been sent",
+			"spec data centres", cassandra.Spec.DataCentres,
+			"resize settings", cassandra.Spec.ResizeSettings,
+		)
+
+		err = r.API.UpdateCassandra(cassandra.Status.ID, cassandra.Spec.DCsUpdateToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot update cluster",
 				"cluster ID", cassandra.Status.ID,
@@ -409,7 +414,6 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		"Cluster has been updated",
 		"cluster name", cassandra.Spec.Name,
 		"cluster ID", cassandra.Status.ID,
-		"namespace", cassandra.Namespace,
 		"data centres", cassandra.Spec.DataCentres,
 	)
 
@@ -1002,6 +1006,34 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				"cluster ID", cassandra.Status.ID,
 			)
 			return err
+		}
+
+		if cassandra.Status.State == models.RunningStatus && cassandra.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := cassandra.NewPatch()
+			for _, dc := range cassandra.Status.DataCentres {
+				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
+				if err != nil {
+					l.Error(err, "Cannot get data centre resize operations",
+						"cluster name", cassandra.Spec.Name,
+						"cluster ID", cassandra.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+
+				dc.ResizeOperations = resizeOperations
+				err = r.Status().Patch(context.Background(), cassandra, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch data centre resize operations",
+						"cluster name", cassandra.Spec.Name,
+						"cluster ID", cassandra.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+			}
 		}
 
 		return nil

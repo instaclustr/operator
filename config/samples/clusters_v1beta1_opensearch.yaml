@@ -48,3 +48,6 @@ spec:
   reportingPlugin: false
   slaTier: NON_PRODUCTION
   sqlPlugin: false
+#  resizeSettings:
+#    - notifySupportContacts: false
+#      concurrency: 3

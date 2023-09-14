@@ -184,6 +184,13 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		}
 	}
 
+	for _, rs := range c.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -209,6 +216,13 @@ func (cv *cadenceValidator) ValidateUpdate(ctx context.Context, old runtime.Obje
 	err := c.Spec.validateUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)
+	}
+
+	for _, rs := range c.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -328,7 +328,12 @@ func (r *RedisReconciler) handleUpdateCluster(
 	}
 
 	if !redis.Spec.IsEqual(iRedis.Spec) {
-		err = r.API.UpdateRedis(redis.Status.ID, redis.Spec.DCsToInstAPIUpdate())
+		logger.Info("Update request to Instaclustr API has been sent",
+			"spec data centres", redis.Spec.DataCentres,
+			"resize settings", redis.Spec.ResizeSettings,
+		)
+
+		err = r.API.UpdateRedis(redis.Status.ID, redis.Spec.DCsUpdateToInstAPI())
 		if err != nil {
 			logger.Error(err, "Cannot update Redis cluster data centres",
 				"cluster name", redis.Spec.Name,
@@ -380,8 +385,11 @@ func (r *RedisReconciler) handleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	logger.Info("Redis cluster was updated",
+	logger.Info(
+		"Cluster has been updated",
 		"cluster name", redis.Spec.Name,
+		"cluster ID", redis.Status.ID,
+		"data centres", redis.Spec.DataCentres,
 	)
 
 	return models.ExitReconcile
@@ -1015,6 +1023,39 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 				"cluster ID", redis.Status.ID,
 			)
 			return err
+		}
+
+		l.Info("Redis cluster maintenance events were updated",
+			"cluster ID", redis.Status.ID,
+			"events", redis.Status.MaintenanceEvents,
+		)
+
+		if redis.Status.State == models.RunningStatus && redis.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := redis.NewPatch()
+			for _, dc := range redis.Status.DataCentres {
+				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
+				if err != nil {
+					l.Error(err, "Cannot get data centre resize operations",
+						"cluster name", redis.Spec.Name,
+						"cluster ID", redis.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+
+				dc.ResizeOperations = resizeOperations
+				err = r.Status().Patch(context.Background(), redis, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch data centre resize operations",
+						"cluster name", redis.Spec.Name,
+						"cluster ID", redis.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+			}
 		}
 
 		return nil

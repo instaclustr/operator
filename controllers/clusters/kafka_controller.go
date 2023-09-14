@@ -236,7 +236,10 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		return models.ExitReconcile
 	}
 
-	l.Info("Sending update request to Instaclustr API", "kafka", k.Spec, "kafka ID", k.Status.ID)
+	l.Info("Update request to Instaclustr API has been sent",
+		"spec data centres", k.Spec.DataCentres,
+		"resize settings", k.Spec.ResizeSettings,
+	)
 
 	err = r.API.UpdateCluster(k.Status.ID, instaclustr.KafkaEndpoint, k.Spec.ToInstAPIUpdate())
 	if err != nil {
@@ -277,6 +280,13 @@ func (r *KafkaReconciler) handleUpdateCluster(
 
 		return models.ReconcileRequeue
 	}
+
+	l.Info(
+		"Cluster has been updated",
+		"cluster name", k.Spec.Name,
+		"cluster ID", k.Status.ID,
+		"data centres", k.Spec.DataCentres,
+	)
 
 	return models.ExitReconcile
 }
@@ -761,6 +771,39 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 				"cluster ID", kafka.Status.ID,
 			)
 			return err
+		}
+
+		l.Info("Cluster maintenance events were updated",
+			"cluster ID", kafka.Status.ID,
+			"events", kafka.Status.MaintenanceEvents,
+			)
+
+		if kafka.Status.State == models.RunningStatus && kafka.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := kafka.NewPatch()
+			for _, dc := range kafka.Status.DataCentres {
+				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
+				if err != nil {
+					l.Error(err, "Cannot get data centre resize operations",
+						"cluster name", kafka.Spec.Name,
+						"cluster ID", kafka.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+
+				dc.ResizeOperations = resizeOperations
+				err = r.Status().Patch(context.Background(), kafka, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch data centre resize operations",
+						"cluster name", kafka.Spec.Name,
+						"cluster ID", kafka.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+			}
 		}
 
 		return nil

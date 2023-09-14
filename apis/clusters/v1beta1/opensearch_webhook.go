@@ -134,6 +134,18 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		return err
 	}
 
+	err = os.Spec.validateResizeSettings(len(os.Spec.ClusterManagerNodes))
+	if err != nil {
+		return err
+	}
+
+	for _, node := range os.Spec.DataNodes {
+		err = os.Spec.validateResizeSettings(node.NodesNumber)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
