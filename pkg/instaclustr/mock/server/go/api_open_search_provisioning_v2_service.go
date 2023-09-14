@@ -19,7 +19,7 @@ import (
 // This service should implement the business logic for every endpoint for the OpenSearchProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type OpenSearchProvisioningV2APIService struct {
-	MockOpenSearchCluster *OpenSearchClusterV2
+	MockOpenSearchCluster []*OpenSearchClusterV2
 }
 
 // NewOpenSearchProvisioningV2APIService creates a default api service
@@ -65,8 +65,13 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockOpenSearchCluster = nil
-	return Response(204, nil), nil
+	o := s.getCluster(clusterId)
+	if o == nil {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	o = nil
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet - Get OpenSearch cluster details
@@ -74,13 +79,14 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	if s.MockOpenSearchCluster != nil {
-		s.MockOpenSearchCluster.Status = RUNNING
-	} else {
-		return Response(404, nil), nil
+	o := s.getCluster(clusterId)
+	if o == nil {
+		return Response(http.StatusNotFound, nil), nil
 	}
 
-	return Response(200, s.MockOpenSearchCluster), nil
+	o.Status = RUNNING
+
+	return Response(http.StatusOK, o), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut - Update a OpenSearch cluster
@@ -88,9 +94,14 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockOpenSearchCluster.DataNodes = openSearchClusterUpdateV2.DataNodes
-	s.MockOpenSearchCluster.OpensearchDashboards = openSearchClusterUpdateV2.OpensearchDashboards
-	s.MockOpenSearchCluster.ClusterManagerNodes = openSearchClusterUpdateV2.ClusterManagerNodes
+	o := s.getCluster(clusterId)
+	if o == nil {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	o.DataNodes = openSearchClusterUpdateV2.DataNodes
+	o.OpensearchDashboards = openSearchClusterUpdateV2.OpensearchDashboards
+	o.ClusterManagerNodes = openSearchClusterUpdateV2.ClusterManagerNodes
 
 	return Response(202, nil), nil
 
@@ -103,7 +114,22 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockOpenSearchCluster = &openSearchClusterV2
-	s.MockOpenSearchCluster.Id = CreatedID
-	return Response(202, s.MockOpenSearchCluster), nil
+	newOpenSearch := &OpenSearchClusterV2{}
+
+	newOpenSearch = &openSearchClusterV2
+	newOpenSearch.Id = openSearchClusterV2.Name + CreatedID
+
+	s.MockOpenSearchCluster = append(s.MockOpenSearchCluster, newOpenSearch)
+
+	return Response(202, newOpenSearch), nil
+}
+
+func (s *OpenSearchProvisioningV2APIService) getCluster(clusterID string) *OpenSearchClusterV2 {
+	for _, o := range s.MockOpenSearchCluster {
+		if o.Id == clusterID {
+			return o
+		}
+	}
+
+	return nil
 }

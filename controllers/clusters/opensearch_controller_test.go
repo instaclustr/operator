@@ -46,6 +46,7 @@ var _ = Describe("OpenSearch Controller", func() {
 	openSearchNamespacedName := types.NamespacedName{Name: openSearchManifest.ObjectMeta.Name, Namespace: defaultNS}
 
 	ctx := context.Background()
+	clusterID := openSearchManifest.Spec.Name + openapi.CreatedID
 
 	When("apply a OpenSearch manifest", func() {
 		It("should create a OpenSearch resources", func() {
@@ -58,7 +59,7 @@ var _ = Describe("OpenSearch Controller", func() {
 					return false
 				}
 
-				return openSearch.Status.ID == openapi.CreatedID
+				return openSearch.Status.ID == clusterID
 			}).Should(BeTrue())
 
 			<-done
