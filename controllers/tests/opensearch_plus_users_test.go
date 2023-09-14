@@ -38,34 +38,34 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster controllers flow", func() {
+var _ = Describe("Basic openSearch User controller + Basic openSearch cluster controllers flow", func() {
 	var (
-		user1 clusterresource.CassandraUser
-		user2 clusterresource.CassandraUser
+		user1 clusterresource.OpenSearchUser
+		user2 clusterresource.OpenSearchUser
 
-		userManifest2 clusterresource.CassandraUser
+		userManifest2 clusterresource.OpenSearchUser
 
-		cassandra1 v1beta1.Cassandra
-		cassandra2 v1beta1.Cassandra
+		openSearch1 v1beta1.OpenSearch
+		openSearch2 v1beta1.OpenSearch
 
-		cassandraManifest v1beta1.Cassandra
+		openSearchManifest v1beta1.OpenSearch
 
 		secret v1.Secret
 	)
 
-	cassandraYAML, err := os.ReadFile("../clusters/datatest/cassandra_v1beta1.yaml")
+	openSearchYAML, err := os.ReadFile("../clusters/datatest/opensearch_v1beta1.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	err = yaml.Unmarshal(cassandraYAML, &cassandraManifest)
+	err = yaml.Unmarshal(openSearchYAML, &openSearchManifest)
 	Expect(err).NotTo(HaveOccurred())
 
-	cassandraManifest2 := cassandraManifest.DeepCopy()
-	cassandraManifest2.ObjectMeta.Name += "-2"
-	cassandraManifest2.Spec.Name += "-2"
+	openSearchManifest2 := openSearchManifest.DeepCopy()
+	openSearchManifest2.ObjectMeta.Name += "-2"
+	openSearchManifest2.Spec.Name += "-2"
 
 	secretManifest := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "secret-sample-c",
+			Name:      "secret-sample-os",
 			Namespace: defaultNS,
 		},
 		StringData: map[string]string{
@@ -74,12 +74,12 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 		},
 	}
 
-	userManifest1 := clusterresource.CassandraUser{
+	userManifest1 := clusterresource.OpenSearchUser{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cassandrauser-sample",
+			Name:      "opensearchuser-sample",
 			Namespace: defaultNS,
 		},
-		Spec: clusterresource.CassandraUserSpec{
+		Spec: clusterresource.OpenSearchUserSpec{
 			SecretRef: &clusterresource.SecretReference{
 				Namespace: defaultNS,
 				Name:      secretManifest.ObjectMeta.Name,
@@ -92,15 +92,15 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 	userNamespacedName1 := types.NamespacedName{Name: userManifest1.ObjectMeta.Name, Namespace: defaultNS}
 	userNamespacedName2 := types.NamespacedName{}
 
-	cassandraNamespacedName1 := types.NamespacedName{Name: cassandraManifest.ObjectMeta.Name, Namespace: defaultNS}
-	cassandraNamespacedName2 := types.NamespacedName{Name: cassandraManifest2.ObjectMeta.Name, Namespace: defaultNS}
+	openSearchNamespacedName1 := types.NamespacedName{Name: openSearchManifest.ObjectMeta.Name, Namespace: defaultNS}
+	openSearchNamespacedName2 := types.NamespacedName{Name: openSearchManifest2.ObjectMeta.Name, Namespace: defaultNS}
 
-	clusterID1 := cassandraManifest.Spec.Name + openapi.CreatedID
-	clusterID2 := cassandraManifest2.Spec.Name + openapi.CreatedID
+	clusterID1 := openSearchManifest.Spec.Name + openapi.CreatedID
+	clusterID2 := openSearchManifest2.Spec.Name + openapi.CreatedID
 
 	ctx := context.Background()
 
-	When("apply a secret and a cassandra user manifests", func() {
+	When("apply a secret and a openSearch user manifests", func() {
 		It("should create both resources and they've got to have a link them through a finalizer", func() {
 			Expect(k8sClient.Create(ctx, &secretManifest)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, &userManifest1)).Should(Succeed())
@@ -124,35 +124,35 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 		})
 	})
 
-	When("apply a cassandra manifest", func() {
-		It("should create a cassandra resource", func() {
-			Expect(k8sClient.Create(ctx, &cassandraManifest)).Should(Succeed())
+	When("apply a openSearch manifest", func() {
+		It("should create a openSearch resource", func() {
+			Expect(k8sClient.Create(ctx, &openSearchManifest)).Should(Succeed())
 
-			By("sending Cassandra specification to the Instaclustr API and get ID of a created cluster")
+			By("sending openSearch specification to the Instaclustr API and get ID of a created cluster")
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, cassandraNamespacedName1, &cassandra1); err != nil {
+				if err := k8sClient.Get(ctx, openSearchNamespacedName1, &openSearch1); err != nil {
 					return false
 				}
 
-				return cassandra1.Status.ID == clusterID1
+				return openSearch1.Status.ID == clusterID1
 			}).Should(BeTrue())
 		})
 	})
 
-	When("add the user to a Cassandra UserReference", func() {
+	When("add the user to a openSearch UserReference", func() {
 		It("should create the user for the cluster", func() {
 			newUsers := []*v1beta1.UserReference{{
 				Namespace: userManifest1.Namespace,
 				Name:      userManifest1.Name,
 			}}
 
-			Expect(k8sClient.Get(ctx, cassandraNamespacedName1, &cassandra1)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, openSearchNamespacedName1, &openSearch1)).Should(Succeed())
 
-			patch := cassandra1.NewPatch()
+			patch := openSearch1.NewPatch()
 			// adding user
-			cassandra1.Spec.UserRefs = newUsers
-			Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
-			By("going to Cassandra(cluster) controller predicate and put user entity to creation state. " +
+			openSearch1.Spec.UserRefs = newUsers
+			Expect(k8sClient.Patch(ctx, &openSearch1, patch)).Should(Succeed())
+			By("going to openSearch(cluster) controller predicate and put user entity to creation state. " +
 				"Finally creates the user for the corresponded cluster")
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, userNamespacedName1, &user1); err != nil {
@@ -168,15 +168,15 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 		})
 	})
 
-	When("remove the user from the Cassandra UserReference", func() {
+	When("remove the user from the openSearch UserReference", func() {
 		It("should delete the user for the cluster", func() {
-			Expect(k8sClient.Get(ctx, cassandraNamespacedName1, &cassandra1)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, openSearchNamespacedName1, &openSearch1)).Should(Succeed())
 
-			patch := cassandra1.NewPatch()
+			patch := openSearch1.NewPatch()
 			// removing user
-			cassandra1.Spec.UserRefs = []*v1beta1.UserReference{}
-			Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
-			By("going to Cassandra(cluster) controller predicate and put user entity to deletion state. " +
+			openSearch1.Spec.UserRefs = []*v1beta1.UserReference{}
+			Expect(k8sClient.Patch(ctx, &openSearch1, patch)).Should(Succeed())
+			By("going to openSearch(cluster) controller predicate and put user entity to deletion state. " +
 				"Finally deletes the user for the corresponded cluster")
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, userNamespacedName1, &user1); err != nil {
@@ -206,12 +206,12 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			}
 			Expect(k8sClient.Create(ctx, &secretManifest2)).Should(Succeed())
 
-			userManifest2 = clusterresource.CassandraUser{
+			userManifest2 = clusterresource.OpenSearchUser{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      userManifest1.Name + "-2",
 					Namespace: defaultNS,
 				},
-				Spec: clusterresource.CassandraUserSpec{
+				Spec: clusterresource.OpenSearchUserSpec{
 					SecretRef: &clusterresource.SecretReference{
 						Name:      secretManifest2.Name,
 						Namespace: secretManifest2.Namespace,
@@ -219,7 +219,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			}
 			Expect(k8sClient.Create(ctx, &userManifest2)).Should(Succeed())
 
-			By("adding the batch of users to the cluster, Cassandra(cluster) controller predicate set them creation state")
+			By("adding the batch of users to the cluster, openSearch(cluster) controller predicate set them creation state")
 			newUsers := []*v1beta1.UserReference{
 				{
 					Namespace: userManifest1.Namespace,
@@ -231,11 +231,11 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 				},
 			}
 
-			Expect(k8sClient.Get(ctx, cassandraNamespacedName1, &cassandra1)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, openSearchNamespacedName1, &openSearch1)).Should(Succeed())
 
-			patch := cassandra1.NewPatch()
-			cassandra1.Spec.UserRefs = newUsers
-			Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
+			patch := openSearch1.NewPatch()
+			openSearch1.Spec.UserRefs = newUsers
+			Expect(k8sClient.Patch(ctx, &openSearch1, patch)).Should(Succeed())
 
 			userNamespacedName2 = types.NamespacedName{Name: userManifest2.ObjectMeta.Name, Namespace: defaultNS}
 			Eventually(func() bool {
@@ -259,7 +259,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 	})
 
 	When("adding new user with exactly same spec (Secret reference)", func() {
-		userManifest3 := &clusterresource.CassandraUser{
+		userManifest3 := &clusterresource.OpenSearchUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      userManifest1.Name + "-3",
 				Namespace: defaultNS,
@@ -270,7 +270,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			"the Secret has reference on each user respectively", func() {
 			Expect(k8sClient.Create(ctx, userManifest3)).Should(Succeed())
 
-			user3 := clusterresource.CassandraUser{}
+			user3 := clusterresource.OpenSearchUser{}
 			userNamespacedName3 := types.NamespacedName{Name: userManifest3.ObjectMeta.Name, Namespace: defaultNS}
 
 			Eventually(func() bool {
@@ -340,22 +340,22 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 	When("choosing to continue working with a user in a deletion state and adding them to a new cluster", func() {
 		It("should proceed smoothly without encountering any issues", func() {
 			Expect(k8sClient.Get(ctx, userNamespacedName2, &user2)).Should(Succeed())
-			By("creating another Cassandra cluster manifest with filled user ref, " +
+			By("creating another openSearch cluster manifest with filled user ref, " +
 				"we make sure the user creation job works properly and show us that the user is available for use")
 			newUsers := []*v1beta1.UserReference{{
 				Namespace: user2.Namespace,
 				Name:      user2.Name,
 			}}
 
-			cassandraManifest2.Spec.UserRefs = newUsers
-			Expect(k8sClient.Create(ctx, cassandraManifest2)).Should(Succeed())
+			openSearchManifest2.Spec.UserRefs = newUsers
+			Expect(k8sClient.Create(ctx, openSearchManifest2)).Should(Succeed())
 
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, cassandraNamespacedName2, &cassandra2); err != nil {
+				if err := k8sClient.Get(ctx, openSearchNamespacedName2, &openSearch2); err != nil {
 					return false
 				}
 
-				if cassandra2.Status.ID != clusterID2 {
+				if openSearch2.Status.ID != clusterID2 {
 					return false
 				}
 
@@ -375,17 +375,17 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 	When("remove the user, which is in a deletion state, from cluster with multiple users", func() {
 		It("sends delete user request to user controller", func() {
 			Expect(k8sClient.Get(ctx, userNamespacedName2, &user2)).Should(Succeed())
-			Expect(k8sClient.Get(ctx, cassandraNamespacedName1, &cassandra1)).Should(Succeed())
-			patch := cassandra1.NewPatch()
+			Expect(k8sClient.Get(ctx, openSearchNamespacedName1, &openSearch1)).Should(Succeed())
+			patch := openSearch1.NewPatch()
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, userNamespacedName2, &user2); err != nil {
 					return false
 				}
 
-				for i := range cassandra1.Spec.UserRefs {
-					if user2.Name == cassandra1.Spec.UserRefs[i].Name && user2.Namespace == cassandra1.Spec.UserRefs[i].Namespace {
-						cassandra1.Spec.UserRefs = removeUserByIndex(cassandra1.Spec.UserRefs, i)
-						Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
+				for i := range openSearch1.Spec.UserRefs {
+					if user2.Name == openSearch1.Spec.UserRefs[i].Name && user2.Namespace == openSearch1.Spec.UserRefs[i].Namespace {
+						openSearch1.Spec.UserRefs = removeUserByIndex(openSearch1.Spec.UserRefs, i)
+						Expect(k8sClient.Patch(ctx, &openSearch1, patch)).Should(Succeed())
 					}
 				}
 
@@ -405,8 +405,8 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 	When("deleting a cluster to which (deleting) user is attached", func() {
 		It("sends detaching queue to User controller. Since the user has been marked for deletion and "+
 			"no longer has any attachments to clusters, the user is subsequently scheduled for deletion", func() {
-			Expect(k8sClient.Get(ctx, cassandraNamespacedName2, &cassandra2)).Should(Succeed())
-			Expect(k8sClient.Delete(ctx, &cassandra2)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, openSearchNamespacedName2, &openSearch2)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &openSearch2)).Should(Succeed())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, userNamespacedName2, &user2)
 				if err != nil && !k8serrors.IsNotFound(err) {

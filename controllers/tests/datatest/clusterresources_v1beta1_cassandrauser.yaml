@@ -1,9 +1,0 @@
-apiVersion: clusterresources.instaclustr.com/v1beta1
-kind: CassandraUser
-metadata:
-  name: cassandrauser-sample
-  namespace: default
-spec:
-  secretRef:
-    name: "secret-sample"
-    namespace: "default"
