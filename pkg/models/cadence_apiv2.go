@@ -40,6 +40,7 @@ type CadenceCluster struct {
 	AWSArchival            []*AWSArchival                 `json:"awsArchival,omitempty"`
 	TargetPrimaryCadence   []*TargetCadence               `json:"targetPrimaryCadence,omitempty"`
 	TargetSecondaryCadence []*TargetCadence               `json:"targetSecondaryCadence,omitempty"`
+	ResizeSettings         []*ResizeSettings              `json:"resizeSettings,omitempty"`
 }
 
 type CadenceDataCentre struct {

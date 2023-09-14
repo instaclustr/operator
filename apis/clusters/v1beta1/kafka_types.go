@@ -78,6 +78,8 @@ type KafkaSpec struct {
 	//+kubebuilder:validation:MinItems:=1
 	//+kubebuilder:validation:MaxItems:=1
 	DataCentres []*KafkaDataCentre `json:"dataCentres"`
+	//+kubebuilder:validation:MaxItems:=1
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
 	// Zookeeper nodes will be co-located with Kafka if this is not provided
@@ -161,6 +163,7 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
 		Kraft:                     k.kraftToInstAPI(),
 		KarapaceRestProxy:         k.karapaceRestProxyToInstAPI(),
 		KarapaceSchemaRegistry:    k.karapaceSchemaRegistryToInstAPI(),
+		ResizeSettings:            resizeSettingsToInstAPI(k.ResizeSettings),
 	}
 }
 
@@ -254,6 +257,7 @@ func (k *KafkaSpec) ToInstAPIUpdate() *models.KafkaInstAPIUpdateRequest {
 	return &models.KafkaInstAPIUpdateRequest{
 		DataCentre:         k.dcToInstAPI(),
 		DedicatedZookeeper: k.dedicatedZookeeperToInstAPIUpdate(),
+		ResizeSettings:     resizeSettingsToInstAPI(k.ResizeSettings),
 	}
 }
 
@@ -306,6 +310,7 @@ func (ks *KafkaSpec) FromInstAPI(iKafka *models.KafkaCluster) KafkaSpec {
 		Kraft:                     ks.kraftFromInstAPI(iKafka.Kraft),
 		KarapaceSchemaRegistry:    ks.KarapaceSchemaRegistryFromInstAPI(iKafka.KarapaceSchemaRegistry),
 		BundledUseOnly:            iKafka.BundledUseOnly,
+		ResizeSettings:            resizeSettingsFromInstAPI(iKafka.ResizeSettings),
 	}
 }
 

@@ -17,7 +17,8 @@ limitations under the License.
 package models
 
 const (
-	NoOperation = "NO_OPERATION"
+	NoOperation         = "NO_OPERATION"
+	OperationInProgress = "OPERATION_IN_PROGRESS"
 
 	DefaultAccountName = "INSTACLUSTR"
 
@@ -125,4 +126,14 @@ type PrivateLink struct {
 type ClusterSettings struct {
 	Description     string           `json:"description"`
 	TwoFactorDelete *TwoFactorDelete `json:"twoFactorDelete"`
+}
+
+// ResizeSettings determines how resize requests will be performed for the cluster
+type ResizeSettings struct {
+	// Setting this property to true will notify the Instaclustr
+	// Account's designated support contacts on resize completion
+	NotifySupportContacts bool `json:"notifySupportContacts,omitempty"`
+
+	// Number of concurrent nodes to resize during a resize operation
+	Concurrency int `json:"concurrency,omitempty"`
 }

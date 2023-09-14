@@ -47,3 +47,6 @@ spec:
       name: postgresqluser-sample
   privateNetworkCluster: false
   synchronousModeStrict: false
+#  resizeSettings:
+#    - notifySupportContacts: false
+#      concurrency: 1

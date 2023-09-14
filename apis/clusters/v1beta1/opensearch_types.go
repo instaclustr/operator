@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +54,8 @@ type OpenSearchSpec struct {
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
 	UserRefs                 []*UserReference        `json:"userRefs,omitempty"`
+	//+kubuilder:validation:MaxItems:=1
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 type OpenSearchDataCentre struct {
@@ -108,6 +111,7 @@ func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 		IndexManagementPlugin:    oss.IndexManagementPlugin,
 		SLATier:                  oss.SLATier,
 		AlertingPlugin:           oss.AlertingPlugin,
+		ResizeSettings:           resizeSettingsToInstAPI(oss.ResizeSettings),
 	}
 }
 
@@ -246,6 +250,7 @@ func (oss *OpenSearchSpec) FromInstAPI(iOpenSearch *models.OpenSearchCluster) Op
 		IndexManagementPlugin:    oss.IndexManagementPlugin,
 		AlertingPlugin:           oss.AlertingPlugin,
 		BundledUseOnly:           oss.BundledUseOnly,
+		ResizeSettings:           resizeSettingsFromInstAPI(iOpenSearch.ResizeSettings),
 	}
 }
 
@@ -451,6 +456,7 @@ func (oss *OpenSearchSpec) ToInstAPIUpdate() models.OpenSearchInstAPIUpdateReque
 		DataNodes:            oss.dataNodesToInstAPI(),
 		OpenSearchDashboards: oss.dashboardsToInstAPI(),
 		ClusterManagerNodes:  oss.clusterManagerNodesToInstAPI(),
+		ResizeSettings:       resizeSettingsToInstAPI(oss.ResizeSettings),
 	}
 }
 
@@ -543,6 +549,16 @@ func (oss *OpenSearchSpec) HasRestore() bool {
 	}
 
 	return false
+}
+
+func (oss *OpenSearchSpec) validateResizeSettings(nodesNumber int) error {
+	for _, rs := range oss.ResizeSettings {
+		if rs.Concurrency > nodesNumber {
+			return fmt.Errorf("resizeSettings.concurrency cannot be greater than number of nodes: %v", nodesNumber)
+		}
+	}
+
+	return nil
 }
 
 func init() {

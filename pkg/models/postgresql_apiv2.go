@@ -62,3 +62,8 @@ type ConfigurationProperties struct {
 	ID        string `json:"id,omitempty"`
 	Value     string `json:"value"`
 }
+
+type PGClusterUpdate struct {
+	DataCentres    []*PGDataCentre   `json:"dataCentres"`
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+}

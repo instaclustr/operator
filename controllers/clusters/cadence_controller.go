@@ -316,6 +316,10 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
+	logger.Info("Update request to Instaclustr API has been sent",
+		"spec data centres", cadence.Spec.DataCentres,
+		"resize settings", cadence.Spec.ResizeSettings,
+	)
 	err = r.API.UpdateCluster(cadence.Status.ID, instaclustr.CadenceEndpoint, cadence.Spec.NewDCsUpdate())
 	if err != nil {
 		logger.Error(err, "Cannot update Cadence cluster",
@@ -344,9 +348,11 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return models.ReconcileRequeue
 	}
 
-	logger.Info("Cadence cluster was updated",
+	logger.Info(
+		"Cluster has been updated",
 		"cluster name", cadence.Spec.Name,
-		"cluster status", cadence.Status,
+		"cluster ID", cadence.Status.ID,
+		"data centres", cadence.Spec.DataCentres,
 	)
 
 	return models.ExitReconcile
@@ -912,6 +918,34 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 				"cluster ID", cadence.Status.ID,
 			)
 			return err
+		}
+
+		if cadence.Status.State == models.RunningStatus && cadence.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := cadence.NewPatch()
+			for _, dc := range cadence.Status.DataCentres {
+				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
+				if err != nil {
+					l.Error(err, "Cannot get data centre resize operations",
+						"cluster name", cadence.Spec.Name,
+						"cluster ID", cadence.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+
+				dc.ResizeOperations = resizeOperations
+				err = r.Status().Patch(context.Background(), cadence, patch)
+				if err != nil {
+					l.Error(err, "Cannot patch data centre resize operations",
+						"cluster name", cadence.Spec.Name,
+						"cluster ID", cadence.Status.ID,
+						"data centre ID", dc.ID,
+					)
+
+					return err
+				}
+			}
 		}
 
 		return nil

@@ -43,12 +43,13 @@ type DataCentre struct {
 }
 
 type DataCentreStatus struct {
-	ID              string              `json:"id,omitempty"`
-	Status          string              `json:"status,omitempty"`
-	Nodes           []*Node             `json:"nodes,omitempty"`
-	NodeNumber      int                 `json:"nodeNumber,omitempty"`
-	EncryptionKeyID string              `json:"encryptionKeyId,omitempty"`
-	PrivateLink     PrivateLinkStatuses `json:"privateLink,omitempty"`
+	ID               string              `json:"id,omitempty"`
+	Status           string              `json:"status,omitempty"`
+	Nodes            []*Node             `json:"nodes,omitempty"`
+	NodeNumber       int                 `json:"nodeNumber,omitempty"`
+	EncryptionKeyID  string              `json:"encryptionKeyId,omitempty"`
+	PrivateLink      PrivateLinkStatuses `json:"privateLink,omitempty"`
+	ResizeOperations []*ResizeOperation  `json:"resizeOperations,omitempty"`
 }
 
 type Node struct {
@@ -202,6 +203,71 @@ type immutableDC struct {
 	CloudProvider       string
 	ProviderAccountName string
 	Network             string
+}
+
+type ResizeOperation struct {
+	// Number of nodes that can be concurrently resized at a given time
+	ConcurrentResizes int `json:"concurrentResizes,omitempty"`
+	// Replace operations
+	ReplaceOperations []*ReplaceOperation `json:"replaceOperations,omitempty"`
+	// Timestamp of the creation of the operation
+	Created string `json:"created,omitempty"`
+	// Timestamp of the completion of the operation
+	Completed string `json:"completed,omitempty"`
+	// ID of the operation
+	ID string `json:"id,omitempty"`
+	// New size of the node
+	NewNodeSize string `json:"newNodeSize,omitempty"`
+	// Timestamp of when Instaclustr Support has been alerted to the resize operation.
+	InstaclustrSupportAlerted string `json:"instaclustrSupportAlerted,omitempty"`
+	// Purpose of the node
+	NodePurpose string `json:"nodePurpose,omitempty"`
+	// Status of the operation
+	Status string `json:"status,omitempty"`
+}
+
+type ResizeSettings struct {
+	NotifySupportContacts bool `json:"notifySupportContacts,omitempty"`
+	Concurrency           int  `json:"concurrency,omitempty"`
+}
+
+func resizeSettingsToInstAPI(rss []*ResizeSettings) []*models.ResizeSettings {
+	iRS := make([]*models.ResizeSettings, 0, len(rss))
+
+	for _, rs := range rss {
+		iRS = append(iRS, &models.ResizeSettings{
+			NotifySupportContacts: rs.NotifySupportContacts,
+			Concurrency:           rs.Concurrency,
+		})
+	}
+
+	return iRS
+}
+
+func resizeSettingsFromInstAPI(rss []*models.ResizeSettings) []*ResizeSettings {
+	iRS := make([]*ResizeSettings, 0, len(rss))
+
+	for _, rs := range rss {
+		iRS = append(iRS, &ResizeSettings{
+			NotifySupportContacts: rs.NotifySupportContacts,
+			Concurrency:           rs.Concurrency,
+		})
+	}
+
+	return iRS
+}
+
+type ReplaceOperation struct {
+	// ID of the new node in the replacement operation
+	NewNodeID string `json:"newNodeId,omitempty"`
+	// Timestamp of the creation of the node replacement operation
+	Created string `json:"created,omitempty"`
+	// ID of the node replacement operation
+	ID string `json:"id,omitempty"`
+	// ID of the node being replaced
+	NodeID string `json:"nodeId,omitempty"`
+	// Status of the node replacement operation
+	Status string `json:"status,omitempty"`
 }
 
 func (c *Cluster) IsEqual(cluster Cluster) bool {

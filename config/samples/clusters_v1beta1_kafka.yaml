@@ -61,3 +61,6 @@ spec:
 #  userRefs:
 #    - name: kafkauser-sample
 #      namespace: default
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1

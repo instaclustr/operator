@@ -26,6 +26,7 @@ type KafkaConnectCluster struct {
 	CustomConnectors      []*CustomConnectors       `json:"customConnectors,omitempty"`
 	TargetCluster         []*TargetCluster          `json:"targetCluster,omitempty"`
 	DataCentres           []*KafkaConnectDataCentre `json:"dataCentres,omitempty"`
+	ResizeSettings        []*ResizeSettings         `json:"resizeSettings,omitempty"`
 }
 
 type ManagedCluster struct {
@@ -83,5 +84,6 @@ type KafkaConnectDataCentre struct {
 }
 
 type KafkaConnectAPIUpdate struct {
-	DataCentres []*KafkaConnectDataCentre `json:"dataCentres,omitempty"`
+	DataCentres    []*KafkaConnectDataCentre `json:"dataCentres,omitempty"`
+	ResizeSettings []*ResizeSettings         `json:"resizeSettings,omitempty"`
 }

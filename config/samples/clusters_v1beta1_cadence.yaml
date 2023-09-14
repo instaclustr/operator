@@ -58,3 +58,6 @@ spec:
 #  targetPrimaryCadence:
 #    - dependencyCdcId: "cce79be3-7f41-4cad-837c-86d3d8b4be77"
 #      dependencyVpcType: "SEPARATE_VPC"
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1

@@ -38,7 +38,8 @@ type RedisDataCentre struct {
 }
 
 type RedisDataCentreUpdate struct {
-	DataCentres []*RedisDataCentre `json:"dataCentres"`
+	DataCentres    []*RedisDataCentre `json:"dataCentres"`
+	ResizeSettings []*ResizeSettings  `json:"resizeSettings,omitempty"`
 }
 
 type RedisUser struct {

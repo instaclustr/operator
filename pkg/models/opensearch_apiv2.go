@@ -39,6 +39,7 @@ type OpenSearchCluster struct {
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin"`
 	SLATier                  string                  `json:"slaTier,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin"`
+	ResizeSettings           []*ResizeSettings       `json:"resizeSettings,omitempty"`
 }
 
 type OpenSearchDataNodes struct {
@@ -67,4 +68,5 @@ type OpenSearchInstAPIUpdateRequest struct {
 	DataNodes            []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
 	OpenSearchDashboards []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
 	ClusterManagerNodes  []*ClusterManagerNodes  `json:"clusterManagerNodes"`
+	ResizeSettings       []*ResizeSettings       `json:"resizeSettings,omitempty"`
 }

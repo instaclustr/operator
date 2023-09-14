@@ -128,6 +128,13 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		}
 	}
 
+	for _, rs := range pg.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -161,6 +168,13 @@ func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, 
 	err := pg.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("immutable fields validation error: %v", err)
+	}
+
+	for _, rs := range pg.Spec.ResizeSettings {
+		err := validateSingleConcurrentResize(rs.Concurrency)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -80,6 +80,8 @@ type RedisSpec struct {
 	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
 	Description string             `json:"description,omitempty"`
 	UserRefs    []*UserReference   `json:"userRefs,omitempty"`
+	//+kubebuilder:validation:MaxItems:=1
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
@@ -192,9 +194,10 @@ func (rs *RedisSpec) DCsToInstAPI() (iDCs []*models.RedisDataCentre) {
 	return
 }
 
-func (rs *RedisSpec) DCsToInstAPIUpdate() *models.RedisDataCentreUpdate {
+func (rs *RedisSpec) DCsUpdateToInstAPI() *models.RedisDataCentreUpdate {
 	return &models.RedisDataCentreUpdate{
-		DataCentres: rs.DCsToInstAPI(),
+		DataCentres:    rs.DCsToInstAPI(),
+		ResizeSettings: resizeSettingsToInstAPI(rs.ResizeSettings),
 	}
 }
 

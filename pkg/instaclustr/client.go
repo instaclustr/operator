@@ -1857,17 +1857,12 @@ func (c *Client) GetPostgreSQL(id string) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Client) UpdatePostgreSQLDataCentres(id string, dataCentres []*models.PGDataCentre) error {
-	updateRequest := struct {
-		DataCentres []*models.PGDataCentre `json:"dataCentres"`
-	}{
-		DataCentres: dataCentres,
-	}
-
-	reqData, err := json.Marshal(updateRequest)
+func (c *Client) UpdatePostgreSQL(id string, r *models.PGClusterUpdate) error {
+	reqData, err := json.Marshal(r)
 	if err != nil {
 		return err
 	}
+
 	url := c.serverHostname + PGSQLEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodPut, reqData)
 	if err != nil {
@@ -2399,4 +2394,33 @@ func (c *Client) DeleteAWSEndpointServicePrincipal(principalID string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*v1beta1.ResizeOperation, error) {
+	url := c.serverHostname + fmt.Sprintf(ClusterResizeOperationsEndpoint, cdcID) + "?activeOnly=true"
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	resize := struct {
+		Operations []*v1beta1.ResizeOperation `json:"operations"`
+	}{}
+
+	err = json.Unmarshal(b, &resize)
+	if err != nil {
+		return nil, err
+	}
+
+	return resize.Operations, nil
 }

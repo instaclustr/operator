@@ -90,6 +90,8 @@ type PgSpec struct {
 	Description           string            `json:"description,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
 	UserRefs              []*UserReference  `json:"userRefs,omitempty"`
+	//+kubebuilder:validate:MaxItems:=1
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 // PgStatus defines the observed state of PostgreSQL
@@ -195,6 +197,13 @@ func (pgs *PgSpec) DCsToInstAPI() (iDCs []*models.PGDataCentre) {
 		iDCs = append(iDCs, dc.ToInstAPI())
 	}
 	return
+}
+
+func (pgs *PgSpec) ToClusterUpdate() *models.PGClusterUpdate {
+	return &models.PGClusterUpdate{
+		DataCentres:    pgs.DCsToInstAPI(),
+		ResizeSettings: resizeSettingsToInstAPI(pgs.ResizeSettings),
+	}
 }
 
 func (pdc *PgDataCentre) ToInstAPI() *models.PGDataCentre {

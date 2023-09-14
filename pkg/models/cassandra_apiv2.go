@@ -29,6 +29,7 @@ type CassandraCluster struct {
 	PCIComplianceMode     bool                   `json:"pciComplianceMode"`
 	TwoFactorDelete       []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
 	BundledUseOnly        bool                   `json:"bundledUseOnly,omitempty"`
+	ResizeSettings        []*ResizeSettings      `json:"resizeSettings"`
 }
 
 type CassandraDataCentre struct {
@@ -44,5 +45,6 @@ type Spark struct {
 }
 
 type CassandraClusterAPIUpdate struct {
-	DataCentres []*CassandraDataCentre `json:"dataCentres"`
+	DataCentres    []*CassandraDataCentre `json:"dataCentres"`
+	ResizeSettings []*ResizeSettings      `json:"resizeSettings,omitempty"`
 }

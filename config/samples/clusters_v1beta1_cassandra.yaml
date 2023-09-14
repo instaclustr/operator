@@ -43,6 +43,9 @@ spec:
 #    - namespace: default
 #      name: cassandrauser-sample2
   slaTier: "NON_PRODUCTION"
+#  resizeSettings:
+#    - notifySupportContacts: false
+#      concurrency: 2
 #  description: "this is a sample of description"
 #  twoFactorDelete:
 #    - email: "rostyslp@netapp.com"
