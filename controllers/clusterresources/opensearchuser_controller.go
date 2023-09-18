@@ -205,17 +205,30 @@ func (r *OpenSearchUserReconciler) createUser(
 		return err
 	}
 
-	err = r.API.CreateUser(user.ToInstaAPI(username, password), clusterID, models.OpenSearchAppKind)
+	exists, err := CheckIfUserExistsOnInstaclustrAPI(username, clusterID, models.OpenSearchAppKind, r.API)
 	if err != nil {
-		logger.Error(err, "Cannot create OpenSearch user on Instaclustr",
-			"username", username,
-			"cluster ID", clusterID,
-		)
+		logger.Error(err, "Cannot check if user exists ")
 		r.EventRecorder.Eventf(
 			user, models.Warning, models.CreationFailed,
-			"OpenSearch user creating on Instaclustr has been failed. Reason: %v", err,
+			"Cannot check if user exists. Reason: %v", err,
 		)
 		return err
+	}
+
+	if !exists {
+		err = r.API.CreateUser(user.ToInstaAPI(username, password), clusterID, models.OpenSearchAppKind)
+		if err != nil {
+			logger.Error(err, "Cannot create OpenSearch user on Instaclustr",
+				"username", username,
+				"cluster ID", clusterID,
+			)
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.CreationFailed,
+				"OpenSearch user creating on Instaclustr has been failed. Reason: %v", err,
+			)
+
+			return err
+		}
 	}
 
 	patch := user.NewPatch()
@@ -230,6 +243,7 @@ func (r *OpenSearchUserReconciler) createUser(
 			user, models.Warning, models.PatchFailed,
 			"Resource patching with created state has been failed. Reason: %v", err,
 		)
+
 		return err
 	}
 
@@ -261,23 +275,35 @@ func (r *OpenSearchUserReconciler) deleteUser(
 		return err
 	}
 
-	err = r.API.DeleteUser(username, clusterID, models.OpenSearchAppKind)
-	if err != nil && !errors.Is(err, instaclustr.NotFound) {
-		logger.Error(err, "Cannot delete OpenSearch user resource from Instaclustr",
-			"cluster ID", clusterID,
-		)
+	exists, err := CheckIfUserExistsOnInstaclustrAPI(username, clusterID, models.OpenSearchAppKind, r.API)
+	if err != nil {
+		logger.Error(err, "Cannot check if user exists ")
 		r.EventRecorder.Eventf(
 			user, models.Warning, models.DeletionFailed,
-			"Resource deletion on Instaclustr has been failed. Reason: %v",
-			err,
+			"Cannot check if user exists. Reason: %v", err,
 		)
 		return err
 	}
 
-	r.EventRecorder.Eventf(
-		user, models.Normal, models.DeletionStarted,
-		"Resource deletion request has been sent to the Instaclustr API.",
-	)
+	if exists {
+		err = r.API.DeleteUser(username, clusterID, models.OpenSearchAppKind)
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
+			logger.Error(err, "Cannot delete OpenSearch user resource from Instaclustr",
+				"cluster ID", clusterID,
+			)
+			r.EventRecorder.Eventf(
+				user, models.Warning, models.DeletionFailed,
+				"Resource deletion on Instaclustr has been failed. Reason: %v",
+				err,
+			)
+			return err
+		}
+
+		r.EventRecorder.Eventf(
+			user, models.Normal, models.DeletionStarted,
+			"Resource deletion request has been sent to the Instaclustr API.",
+		)
+	}
 
 	patch := user.NewPatch()
 	delete(user.Status.ClustersEvents, clusterID)

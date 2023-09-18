@@ -2130,6 +2130,34 @@ func (c *Client) DeleteUser(username, clusterID, app string) error {
 	return nil
 }
 
+func (c *Client) FetchUsers(clusterID, app string) ([]string, error) {
+	users := make([]string, 0)
+
+	url := fmt.Sprintf(APIv1UserEndpoint, c.serverHostname, clusterID, app)
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	err = json.Unmarshal(body, &users)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
 func (c *Client) GetDefaultCredentialsV1(clusterID string) (string, string, error) {
 	url := c.serverHostname + ClustersEndpointV1 + clusterID
 

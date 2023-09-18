@@ -60,6 +60,11 @@ func (c *BundleUserAPIController) Routes() Routes {
 			"/provisioning/v1/{clusterId}/{bundle}/users",
 			c.DeleteUser,
 		},
+		"FetchUser": Route{
+			strings.ToUpper("Get"),
+			"/provisioning/v1/{clusterId}/{bundle}/users",
+			c.FetchUsers,
+		},
 		"GetDefaultCreds": Route{
 			strings.ToUpper("Get"),
 			"/provisioning/v1/{clusterId}",
@@ -120,6 +125,20 @@ func (c *BundleUserAPIController) DeleteUser(w http.ResponseWriter, r *http.Requ
 	}
 	result, err := c.service.DeleteUser(r.Context(), clusterIdParam, bundleParam, bundleUserDeleteRequestParam)
 	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+}
+
+func (c *BundleUserAPIController) FetchUsers(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	clusterIdParam := params["clusterId"]
+	bundleParam := params["bundle"]
+
+	result, err := c.service.FetchUsers(r.Context(), clusterIdParam, bundleParam)
 	if err != nil {
 		c.errorHandler(w, r, err, &result)
 		return
