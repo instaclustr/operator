@@ -1025,11 +1025,6 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			return err
 		}
 
-		l.Info("Redis cluster maintenance events were updated",
-			"cluster ID", redis.Status.ID,
-			"events", redis.Status.MaintenanceEvents,
-		)
-
 		if redis.Status.State == models.RunningStatus && redis.Status.CurrentClusterOperationStatus == models.OperationInProgress {
 			patch := redis.NewPatch()
 			for _, dc := range redis.Status.DataCentres {

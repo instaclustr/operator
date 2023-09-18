@@ -773,11 +773,6 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 			return err
 		}
 
-		l.Info("Cluster maintenance events were updated",
-			"cluster ID", kafka.Status.ID,
-			"events", kafka.Status.MaintenanceEvents,
-			)
-
 		if kafka.Status.State == models.RunningStatus && kafka.Status.CurrentClusterOperationStatus == models.OperationInProgress {
 			patch := kafka.NewPatch()
 			for _, dc := range kafka.Status.DataCentres {
