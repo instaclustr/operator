@@ -11,8 +11,6 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // ClusterMaintenanceEventsV2APIService is a service that implements the logic for the ClusterMaintenanceEventsV2APIServicer
@@ -32,9 +30,14 @@ func (s *ClusterMaintenanceEventsV2APIService) ClusterManagementV2DataSourcesClu
 	// Add api_cluster_maintenance_events_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
 	// TODO: Uncomment the next line to return response Response(200, []ClusterMaintenanceEventsV2{}) or use other options such as http.Ok ...
-	// return Response(200, []ClusterMaintenanceEventsV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2DataSourcesClusterClusterIdMaintenanceEventsV2InProgressV2Get method not implemented")
+	return Response(200, []ClusterMaintenanceEventsV2{{
+		MaintenanceEvents: []ClusterMaintenanceEventV2{
+			{
+				Id: CreatedID,
+			},
+		},
+	},
+	}), nil
 }
 
 // ClusterManagementV2DataSourcesClusterClusterIdMaintenanceEventsV2PastV2Get -
@@ -43,9 +46,14 @@ func (s *ClusterMaintenanceEventsV2APIService) ClusterManagementV2DataSourcesClu
 	// Add api_cluster_maintenance_events_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
 	// TODO: Uncomment the next line to return response Response(200, []ClusterMaintenanceEventsV2{}) or use other options such as http.Ok ...
-	// return Response(200, []ClusterMaintenanceEventsV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2DataSourcesClusterClusterIdMaintenanceEventsV2PastV2Get method not implemented")
+	return Response(200, []ClusterMaintenanceEventsV2{{
+		MaintenanceEvents: []ClusterMaintenanceEventV2{
+			{
+				Id: CreatedID,
+			},
+		},
+	},
+	}), nil
 }
 
 // ClusterManagementV2DataSourcesClusterClusterIdMaintenanceEventsV2UpcomingV2Get -
@@ -54,9 +62,14 @@ func (s *ClusterMaintenanceEventsV2APIService) ClusterManagementV2DataSourcesClu
 	// Add api_cluster_maintenance_events_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
 	// TODO: Uncomment the next line to return response Response(200, []ClusterMaintenanceEventSchedulesV2{}) or use other options such as http.Ok ...
-	// return Response(200, []ClusterMaintenanceEventSchedulesV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2DataSourcesClusterClusterIdMaintenanceEventsV2UpcomingV2Get method not implemented")
+	return Response(200, []ClusterMaintenanceEventsV2{{
+		MaintenanceEvents: []ClusterMaintenanceEventV2{
+			{
+				Id: CreatedID,
+			},
+		},
+	},
+	}), nil
 }
 
 // ClusterManagementV2OperationsMaintenanceEventsMaintenanceEventIdV2RescheduleMaintenanceEventV2Put - Reschedule a maintenance event
@@ -65,7 +78,5 @@ func (s *ClusterMaintenanceEventsV2APIService) ClusterManagementV2OperationsMain
 	// Add api_cluster_maintenance_events_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
 	// TODO: Uncomment the next line to return response Response(200, ClusterMaintenanceEventScheduleV2{}) or use other options such as http.Ok ...
-	// return Response(200, ClusterMaintenanceEventScheduleV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2OperationsMaintenanceEventsMaintenanceEventIdV2RescheduleMaintenanceEventV2Put method not implemented")
+	return Response(200, ClusterMaintenanceEventScheduleV2{}), nil
 }

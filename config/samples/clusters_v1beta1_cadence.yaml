@@ -40,7 +40,7 @@ spec:
   #  - email: "rostyslp@netapp.com"
   privateNetworkCluster: false
   dataCentres:
-    - region: "US_EAST_1"
+    - region: "US_EAST_2"
       network: "10.12.0.0/16"
       # if you use multi-region mode please provide
       # non-overlapping CIDR block for the secondary mode cluster

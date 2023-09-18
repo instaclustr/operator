@@ -131,6 +131,10 @@ type CadenceStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="ID",type=string,JSONPath=`.status.id`
+//+kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
+//+kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.version`
 
 // Cadence is the Schema for the cadences API
 type Cadence struct {
