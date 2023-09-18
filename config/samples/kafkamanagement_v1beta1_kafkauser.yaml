@@ -14,7 +14,7 @@ spec:
   secretRef:
     name: "secret-test"
     namespace: "default"
-  certificateRequests:
+#  certificateRequests:
 #    - secretName: "cert-secret-test"
 #      secretNamespace: "default"
 #      clusterId: "ef324cb6-01a5-4d77-8867-9cf794312d43"
