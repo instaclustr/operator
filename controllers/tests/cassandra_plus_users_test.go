@@ -42,6 +42,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 	var (
 		user1 clusterresource.CassandraUser
 		user2 clusterresource.CassandraUser
+		user3 clusterresource.CassandraUser
 
 		userManifest2 clusterresource.CassandraUser
 
@@ -270,7 +271,6 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			"the Secret has reference on each user respectively", func() {
 			Expect(k8sClient.Create(ctx, userManifest3)).Should(Succeed())
 
-			user3 := clusterresource.CassandraUser{}
 			userNamespacedName3 := types.NamespacedName{Name: userManifest3.ObjectMeta.Name, Namespace: defaultNS}
 
 			Eventually(func() bool {
@@ -382,8 +382,8 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 					return false
 				}
 
-				for i := range cassandra1.Spec.UserRefs {
-					if user2.Name == cassandra1.Spec.UserRefs[i].Name && user2.Namespace == cassandra1.Spec.UserRefs[i].Namespace {
+				for i, useRef := range cassandra1.Spec.UserRefs {
+					if user2.Name == useRef.Name && user2.Namespace == useRef.Namespace {
 						cassandra1.Spec.UserRefs = removeUserByIndex(cassandra1.Spec.UserRefs, i)
 						Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
 					}

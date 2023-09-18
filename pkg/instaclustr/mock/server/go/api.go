@@ -188,6 +188,7 @@ type AzureVnetPeerV2APIRouter interface {
 type BundleUserAPIRouter interface {
 	CreateUser(http.ResponseWriter, *http.Request)
 	DeleteUser(http.ResponseWriter, *http.Request)
+	FetchUsers(http.ResponseWriter, *http.Request)
 }
 
 // CadenceProvisioningV2APIRouter defines the required methods for binding the api requests to a responses for the CadenceProvisioningV2API
@@ -548,6 +549,7 @@ type AzureVnetPeerV2APIServicer interface {
 type BundleUserAPIServicer interface {
 	CreateUser(context.Context, string, string, BundleUserCreateRequest) (ImplResponse, error)
 	DeleteUser(context.Context, string, string, BundleUserDeleteRequest) (ImplResponse, error)
+	FetchUsers(context.Context, string, string) (ImplResponse, error)
 	GetDefaultCreds(ctx context.Context, clusterID string) (ImplResponse, error)
 }
 

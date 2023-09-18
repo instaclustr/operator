@@ -97,6 +97,7 @@ type API interface {
 	DeleteEncryptionKey(encryptionKeyID string) error
 	CreateUser(userSpec any, clusterID, app string) error
 	DeleteUser(username, clusterID, app string) error
+	FetchUsers(clusterID, app string) ([]string, error)
 	ListAppVersions(app string) ([]*models.AppVersions, error)
 	GetDefaultCredentialsV1(clusterID string) (string, string, error)
 	UpdateClusterSettings(clusterID string, settings *models.ClusterSettings) error

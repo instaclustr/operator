@@ -20,8 +20,10 @@ import (
 	"strings"
 
 	k8sCore "k8s.io/api/core/v1"
+	"k8s.io/utils/strings/slices"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -65,6 +67,15 @@ func areEncryptionKeyStatusesEqual(a, b *v1beta1.AWSEncryptionKeyStatus) bool {
 	}
 
 	return true
+}
+
+func CheckIfUserExistsOnInstaclustrAPI(username, clusterID, app string, api instaclustr.API) (bool, error) {
+	users, err := api.FetchUsers(clusterID, app)
+	if err != nil {
+		return false, err
+	}
+
+	return slices.Contains(users, username), nil
 }
 
 func getUserCreds(secret *k8sCore.Secret) (username, password string, err error) {
