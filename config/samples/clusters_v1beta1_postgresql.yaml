@@ -42,8 +42,8 @@ spec:
   #  - email: "rostyslp@netapp.com"
   #  description: "test 222"
   slaTier: "NON_PRODUCTION"
-  userRef:
-    - namespace: default
-      name: postgresqluser-sample
+#  userRef:
+#    - namespace: default
+#      name: postgresqluser-sample
   privateNetworkCluster: false
   synchronousModeStrict: false
