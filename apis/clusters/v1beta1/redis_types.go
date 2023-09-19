@@ -46,26 +46,16 @@ type RedisRestoreFrom struct {
 	ClusterID string `json:"clusterId"`
 
 	// The display name of the restored cluster.
-	ClusterNameOverride string `json:"clusterNameOverride,omitempty"`
+	RestoredClusterName string `json:"restoredClusterName,omitempty"`
 
 	// An optional list of cluster data centres for which custom VPC settings will be used.
-	CDCInfos []*RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
+	CDCConfigs []*RestoreCDCConfig `json:"cdcConfigs,omitempty"`
 
 	// Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.
 	PointInTime int64 `json:"pointInTime,omitempty"`
 
 	// Only data for the specified indices will be restored, for the point in time.
 	IndexNames string `json:"indexNames,omitempty"`
-
-	// The cluster network for this cluster to be restored to.
-	ClusterNetwork string `json:"clusterNetwork,omitempty"`
-}
-
-type RedisRestoreCDCInfo struct {
-	CDCID            string `json:"cdcId,omitempty"`
-	RestoreToSameVPC bool   `json:"restoreToSameVpc,omitempty"`
-	CustomVPCID      string `json:"customVpcId,omitempty"`
-	CustomVPCNetwork string `json:"customVpcNetwork,omitempty"`
 }
 
 // RedisSpec defines the desired state of Redis
@@ -170,6 +160,23 @@ func (rs *RedisSpec) ToInstAPI() *models.RedisCluster {
 		DataCentres:            rs.DCsToInstAPI(),
 		TwoFactorDelete:        rs.TwoFactorDeletesToInstAPI(),
 	}
+}
+
+func (r *Redis) RestoreInfoToInstAPI(restoreData *RedisRestoreFrom) any {
+	iRestore := struct {
+		CDCConfigs          []*RestoreCDCConfig `json:"cdcConfigs,omitempty"`
+		PointInTime         int64               `json:"pointInTime,omitempty"`
+		ClusterID           string              `json:"clusterId,omitempty"`
+		RestoredClusterName string              `json:"restoredClusterName,omitempty"`
+	}{
+
+		CDCConfigs:          restoreData.CDCConfigs,
+		PointInTime:         restoreData.PointInTime,
+		ClusterID:           restoreData.ClusterID,
+		RestoredClusterName: restoreData.RestoredClusterName,
+	}
+
+	return iRestore
 }
 
 func (rs *RedisSpec) DCsToInstAPI() (iDCs []*models.RedisDataCentre) {

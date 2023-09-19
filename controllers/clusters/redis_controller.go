@@ -117,7 +117,7 @@ func (r *RedisReconciler) handleCreateCluster(
 				"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreRedisCluster(redis.Spec.RestoreFrom)
+			id, err = r.API.RestoreCluster(redis.RestoreInfoToInstAPI(redis.Spec.RestoreFrom), models.RedisAppKind)
 			if err != nil {
 				logger.Error(
 					err, "Cannot restore Redis cluster from backup",
@@ -1076,7 +1076,7 @@ func (r *RedisReconciler) newWatchBackupsJob(cluster *v1beta1.Redis) scheduler.J
 			return err
 		}
 
-		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		instBackups, err := r.API.GetClusterBackups(cluster.Status.ID, models.ClusterKindsMap[cluster.Kind])
 		if err != nil {
 			l.Error(err, "Cannot get Redis cluster backups",
 				"cluster name", cluster.Spec.Name,

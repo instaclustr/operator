@@ -7,10 +7,10 @@ metadata:
     app.kubernetes.io/part-of: operator
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
-  name: redis-sample
+  name: redis-sample-restored
 spec:
   restoreFrom:
-    clusterId: "f6d083ea-eeee-4773-b7f7-6aaf0f9cd543"
-    clusterNameOverride: "redisRESTORED"
+    clusterId: "1bece950-c79d-441b-8363-6b8cd9069db0"
+    restoredClusterName: "redisRESTORED"
     pointInTime: 1677505625158
     clusterNetwork: "10.13.0.0/16"

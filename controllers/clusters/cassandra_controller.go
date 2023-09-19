@@ -123,7 +123,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreCassandra(*cassandra.Spec.RestoreFrom)
+			id, err = r.API.RestoreCluster(cassandra.RestoreInfoToInstAPI(cassandra.Spec.RestoreFrom), models.CassandraAppKind)
 			if err != nil {
 				l.Error(err, "Cannot restore cluster from backup",
 					"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
@@ -1054,7 +1054,7 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) sch
 			return err
 		}
 
-		iBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, cluster.Status.ID)
+		iBackups, err := r.API.GetClusterBackups(cluster.Status.ID, models.ClusterKindsMap[cluster.Kind])
 		if err != nil {
 			l.Error(err, "Cannot get cluster backups",
 				"cluster name", cluster.Spec.Name,

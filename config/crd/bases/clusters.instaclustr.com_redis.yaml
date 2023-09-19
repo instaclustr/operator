@@ -137,31 +137,27 @@ spec:
                 type: array
               restoreFrom:
                 properties:
-                  cdcInfos:
+                  cdcConfigs:
                     description: An optional list of cluster data centres for which
                       custom VPC settings will be used.
                     items:
                       properties:
                         cdcId:
                           type: string
-                        customVpcId:
+                        customVpcSettings:
+                          properties:
+                            network:
+                              type: string
+                            vpcId:
+                              type: string
+                          type: object
+                        restoreMode:
                           type: string
-                        customVpcNetwork:
-                          type: string
-                        restoreToSameVpc:
-                          type: boolean
                       type: object
                     type: array
                   clusterId:
                     description: Original cluster ID. Backup from that cluster will
                       be used for restore
-                    type: string
-                  clusterNameOverride:
-                    description: The display name of the restored cluster.
-                    type: string
-                  clusterNetwork:
-                    description: The cluster network for this cluster to be restored
-                      to.
                     type: string
                   indexNames:
                     description: Only data for the specified indices will be restored,
@@ -172,6 +168,9 @@ spec:
                       up data will be restored for this point in time.
                     format: int64
                     type: integer
+                  restoredClusterName:
+                    description: The display name of the restored cluster.
+                    type: string
                 required:
                 - clusterId
                 type: object

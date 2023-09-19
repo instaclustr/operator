@@ -60,12 +60,12 @@ const (
 
 // constants for API v1
 const (
-	BackupsEndpoint = "/backups"
-
 	// ClustersEndpoint is used for GET, DELETE and UPDATE clusters
-	ClustersEndpointV1 = "/provisioning/v1/"
+	ClustersEndpointV1           = "/provisioning/v1/"
+	GetClusterBackupEndpoint     = "%s/cluster-management/v2/data-sources/applications/%s/clusters/v2/%s/list-backups/v2"
+	TriggerClusterBackupEndpoint = "%s/cluster-management/v2/operations/applications/%s/clusters/v2/%s/trigger-backup/v2"
 
-	APIv1RestoreEndpoint = "%s/provisioning/v1/%s/backups/restore"
+	RestoreEndpoint = "%s/cluster-management/v2/operations/applications/%s/restore/v2"
 
 	ExclusionWindowEndpoint            = "/cluster-management/v2/resources/exclusion-windows/v2/"
 	MaintenanceEventRescheduleEndpoint = "%s/cluster-management/v2/operations/maintenance-events/%s/v2/reschedule-maintenance-event/v2/"

@@ -33,22 +33,15 @@ type Spark struct {
 	Version string `json:"version"`
 }
 
-type CassandraRestoreDC struct {
-	CDCID            string `json:"cdcId,omitempty"`
-	RestoreToSameVPC bool   `json:"restoreToSameVpc,omitempty"`
-	CustomVPCID      string `json:"customVpcId,omitempty"`
-	CustomVPCNetwork string `json:"customVpcNetwork,omitempty"`
-}
-
 type CassandraRestoreFrom struct {
 	// Original cluster ID. Backup from that cluster will be used for restore
 	ClusterID string `json:"clusterID"`
 
 	// The display name of the restored cluster.
-	ClusterNameOverride string `json:"clusterNameOverride,omitempty"`
+	RestoredClusterName string `json:"restoredClusterName,omitempty"`
 
 	// An optional list of cluster data centres for which custom VPC settings will be used.
-	CDCInfos []CassandraRestoreDC `json:"cdcInfos,omitempty"`
+	CDCConfigs []*RestoreCDCConfig `json:"cdcConfigs,omitempty"`
 
 	// Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.
 	PointInTime int64 `json:"pointInTime,omitempty"`
@@ -364,6 +357,26 @@ func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 		BundledUseOnly:        cs.BundledUseOnly,
 		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
 	}
+}
+
+func (c *Cassandra) RestoreInfoToInstAPI(restoreData *CassandraRestoreFrom) any {
+	iRestore := struct {
+		RestoredClusterName string              `json:"restoredClusterName,omitempty"`
+		CDCConfigs          []*RestoreCDCConfig `json:"cdcConfigs,omitempty"`
+		PointInTime         int64               `json:"pointInTime,omitempty"`
+		KeyspaceTables      string              `json:"keyspaceTables,omitempty"`
+		ClusterNetwork      string              `json:"clusterNetwork,omitempty"`
+		ClusterID           string              `json:"clusterId,omitempty"`
+	}{
+		CDCConfigs:          restoreData.CDCConfigs,
+		RestoredClusterName: restoreData.RestoredClusterName,
+		PointInTime:         restoreData.PointInTime,
+		KeyspaceTables:      restoreData.KeyspaceTables,
+		ClusterNetwork:      restoreData.ClusterNetwork,
+		ClusterID:           restoreData.ClusterID,
+	}
+
+	return iRestore
 }
 
 func (cs *CassandraSpec) SparkToInstAPI() (iSparks []*models.Spark) {

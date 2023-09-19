@@ -55,17 +55,14 @@ type API interface {
 	GetMirrorStatus(id string) (*kafkamanagementv1beta1.MirrorStatus, error)
 	DeleteKafkaMirror(id string) error
 	UpdateKafkaMirror(id string, latency int32) error
-	GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error)
-	TriggerClusterBackup(url, clusterID string) error
+	GetClusterBackups(clusterID, clusterKind string) (*models.ClusterBackup, error)
+	TriggerClusterBackup(clusterID, clusterKind string) error
 	CreateExclusionWindow(clusterID string, window *clusterresourcesv1beta1.ExclusionWindowSpec) (string, error)
 	GetExclusionWindowsStatus(windowID string) (string, error)
 	DeleteExclusionWindow(id string) error
 	GetMaintenanceEvents(clusterID, eventType string) ([]*clusterresourcesv1beta1.MaintenanceEventStatus, error)
 	FetchMaintenanceEventStatuses(clusterID string) ([]*clusterresourcesv1beta1.ClusteredMaintenanceEventStatus, error)
 	RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.MaintenanceEventReschedule) error
-	RestorePgCluster(restoreData *v1beta1.PgRestoreFrom) (string, error)
-	RestoreRedisCluster(restoreData *v1beta1.RedisRestoreFrom) (string, error)
-	RestoreOpenSearchCluster(restoreData *v1beta1.OpenSearchRestoreFrom) (string, error)
 	CreateNodeReload(nr *clusterresourcesv1beta1.Node) error
 	GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error)
 	GetRedis(id string) ([]byte, error)
@@ -84,7 +81,7 @@ type API interface {
 	GetKafkaConnect(id string) ([]byte, error)
 	UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) error
 	GetZookeeper(id string) ([]byte, error)
-	RestoreCassandra(restoreData v1beta1.CassandraRestoreFrom) (string, error)
+	RestoreCluster(restoreData any, clusterKind string) (string, error)
 	GetPostgreSQL(id string) ([]byte, error)
 	UpdatePostgreSQL(id string, r *models.PGClusterUpdate) error
 	GetPostgreSQLConfigs(id string) ([]*models.PGConfigs, error)
