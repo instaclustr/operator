@@ -2265,3 +2265,33 @@ func (c *Client) GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*v1be
 
 	return resize.Operations, nil
 }
+
+func (c *Client) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error) {
+	url := c.serverHostname + AWSPeeringEndpoint + peerID
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	var vpcPeering models.AWSVPCPeering
+	err = json.Unmarshal(b, &vpcPeering)
+	if err != nil {
+		return nil, err
+	}
+
+	return &vpcPeering, nil
+}
