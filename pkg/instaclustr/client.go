@@ -1204,8 +1204,8 @@ func (c *Client) UpdateKafkaMirror(id string, latency int32) error {
 	return nil
 }
 
-func (c *Client) GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error) {
-	url := c.serverHostname + endpoint + clusterID + BackupsEndpoint
+func (c *Client) GetClusterBackups(clusterID, clusterKind string) (*models.ClusterBackup, error) {
+	url := fmt.Sprintf(GetClusterBackupEndpoint, c.serverHostname, clusterKind, clusterID)
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -1235,8 +1235,8 @@ func (c *Client) GetClusterBackups(endpoint, clusterID string) (*models.ClusterB
 	return clusterBackups, nil
 }
 
-func (c *Client) TriggerClusterBackup(url, clusterID string) error {
-	url = c.serverHostname + url + clusterID + BackupsEndpoint
+func (c *Client) TriggerClusterBackup(clusterID, clusterKind string) error {
+	url := fmt.Sprintf(TriggerClusterBackupEndpoint, c.serverHostname, clusterKind, clusterID)
 
 	resp, err := c.DoRequest(url, http.MethodPost, nil)
 	if err != nil {
@@ -1249,7 +1249,7 @@ func (c *Client) TriggerClusterBackup(url, clusterID string) error {
 		return err
 	}
 
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
@@ -1514,151 +1514,6 @@ func (c *Client) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, e
 	return nodeReload, nil
 }
 
-func (c *Client) RestorePgCluster(restoreData *v1beta1.PgRestoreFrom) (string, error) {
-	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
-
-	restoreRequest := struct {
-		ClusterNameOverride string                      `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []*v1beta1.PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                       `json:"pointInTime,omitempty"`
-		ClusterNetwork      string                      `json:"clusterNetwork,omitempty"`
-	}{
-		ClusterNameOverride: restoreData.ClusterNameOverride,
-		CDCInfos:            restoreData.CDCInfos,
-		PointInTime:         restoreData.PointInTime,
-		ClusterNetwork:      restoreData.ClusterNetwork,
-	}
-
-	jsonData, err := json.Marshal(restoreRequest)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := c.DoRequest(url, http.MethodPost, jsonData)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var response struct {
-		RestoredCluster string `json:"restoredCluster"`
-	}
-
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return response.RestoredCluster, nil
-}
-
-func (c *Client) RestoreRedisCluster(restoreData *v1beta1.RedisRestoreFrom) (string, error) {
-	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
-
-	restoreRequest := struct {
-		ClusterNameOverride string                         `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []*v1beta1.RedisRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                          `json:"pointInTime,omitempty"`
-		IndexNames          string                         `json:"indexNames,omitempty"`
-		ClusterNetwork      string                         `json:"clusterNetwork,omitempty"`
-	}{
-		CDCInfos:            restoreData.CDCInfos,
-		ClusterNameOverride: restoreData.ClusterNameOverride,
-		PointInTime:         restoreData.PointInTime,
-		IndexNames:          restoreData.IndexNames,
-		ClusterNetwork:      restoreData.ClusterNetwork,
-	}
-
-	jsonData, err := json.Marshal(restoreRequest)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := c.DoRequest(url, http.MethodPost, jsonData)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var response struct {
-		RestoredCluster string `json:"restoredCluster"`
-	}
-
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return response.RestoredCluster, nil
-}
-
-func (c *Client) RestoreOpenSearchCluster(restoreData *v1beta1.OpenSearchRestoreFrom) (string, error) {
-	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
-
-	restoreRequest := struct {
-		ClusterNameOverride string                              `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []*v1beta1.OpenSearchRestoreCDCInfo `json:"cdcInfos,omitempty"`
-		PointInTime         int64                               `json:"pointInTime,omitempty"`
-		IndexNames          string                              `json:"indexNames,omitempty"`
-		ClusterNetwork      string                              `json:"clusterNetwork,omitempty"`
-	}{
-		ClusterNameOverride: restoreData.ClusterNameOverride,
-		CDCInfos:            restoreData.CDCInfos,
-		PointInTime:         restoreData.PointInTime,
-		IndexNames:          restoreData.IndexNames,
-		ClusterNetwork:      restoreData.ClusterNetwork,
-	}
-
-	jsonData, err := json.Marshal(restoreRequest)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := c.DoRequest(url, http.MethodPost, jsonData)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var response struct {
-		RestoredCluster string `json:"restoredCluster"`
-	}
-
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	return response.RestoredCluster, nil
-}
-
 func (c *Client) CreateKafkaACL(
 	url string,
 	kafkaACL *kafkamanagementv1beta1.KafkaACLSpec,
@@ -1784,24 +1639,10 @@ func (c *Client) UpdateKafkaACL(
 	return nil
 }
 
-func (c *Client) RestoreCassandra(restoreData v1beta1.CassandraRestoreFrom) (string, error) {
-	url := fmt.Sprintf(APIv1RestoreEndpoint, c.serverHostname, restoreData.ClusterID)
+func (c *Client) RestoreCluster(restoreData any, clusterKind string) (string, error) {
+	url := fmt.Sprintf(RestoreEndpoint, c.serverHostname, clusterKind)
 
-	restoreRequest := struct {
-		ClusterNameOverride string                       `json:"clusterNameOverride,omitempty"`
-		CDCInfos            []v1beta1.CassandraRestoreDC `json:"cdcInfos,omitempty"`
-		PointInTime         int64                        `json:"pointInTime,omitempty"`
-		KeyspaceTables      string                       `json:"keyspaceTables,omitempty"`
-		ClusterNetwork      string                       `json:"clusterNetwork,omitempty"`
-	}{
-		CDCInfos:            restoreData.CDCInfos,
-		ClusterNameOverride: restoreData.ClusterNameOverride,
-		PointInTime:         restoreData.PointInTime,
-		KeyspaceTables:      restoreData.KeyspaceTables,
-		ClusterNetwork:      restoreData.ClusterNetwork,
-	}
-
-	jsonData, err := json.Marshal(restoreRequest)
+	jsonData, err := json.Marshal(restoreData)
 	if err != nil {
 		return "", err
 	}
@@ -1818,7 +1659,7 @@ func (c *Client) RestoreCassandra(restoreData v1beta1.CassandraRestoreFrom) (str
 	}
 
 	var response struct {
-		RestoredCluster string `json:"restoredCluster"`
+		ClusterID string `json:"restoredClusterId"`
 	}
 
 	err = json.Unmarshal(body, &response)
@@ -1826,11 +1667,11 @@ func (c *Client) RestoreCassandra(restoreData v1beta1.CassandraRestoreFrom) (str
 		return "", err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusAccepted {
 		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return response.RestoredCluster, nil
+	return response.ClusterID, nil
 }
 
 func (c *Client) GetPostgreSQL(id string) ([]byte, error) {

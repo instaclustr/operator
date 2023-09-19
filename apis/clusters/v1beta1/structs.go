@@ -52,6 +52,17 @@ type DataCentreStatus struct {
 	ResizeOperations []*ResizeOperation  `json:"resizeOperations,omitempty"`
 }
 
+type RestoreCDCConfig struct {
+	CustomVPCSettings *RestoreCustomVPCSettings `json:"customVpcSettings"`
+	RestoreMode       string                    `json:"restoreMode"`
+	CDCID             string                    `json:"cdcId"`
+}
+
+type RestoreCustomVPCSettings struct {
+	VpcID   string `json:"vpcId"`
+	Network string `json:"network"`
+}
+
 type Node struct {
 	ID             string   `json:"id,omitempty"`
 	Size           string   `json:"size,omitempty"`

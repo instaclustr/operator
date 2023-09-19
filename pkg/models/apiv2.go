@@ -137,3 +137,58 @@ type ResizeSettings struct {
 	// Number of concurrent nodes to resize during a resize operation
 	Concurrency int `json:"concurrency,omitempty"`
 }
+
+type ClusterBackup struct {
+	ClusterDataCentres []*BackupDataCentre `json:"clusterDataCentres"`
+}
+
+type BackupDataCentre struct {
+	Nodes []*BackupNode `json:"nodes"`
+	Name  string        `json:"name"`
+	ID    string        `json:"id"`
+}
+
+type BackupNode struct {
+	Events         []*BackupEvent `json:"events"`
+	PrivateAddress string         `json:"privateAddress,omitempty"`
+	PublicAddress  string         `json:"publicAddress"`
+	ID             string         `json:"id"`
+}
+
+type BackupEvent struct {
+	Type     string  `json:"type"`
+	State    string  `json:"state"`
+	Progress float32 `json:"progress"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
+}
+
+type AddonBundle struct {
+	Bundle  string         `json:"bundle"`
+	Version string         `json:"version"`
+	Options *BundleOptions `json:"options"`
+}
+
+func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEvent {
+	var eventType string
+
+	switch clusterKind {
+	case PgClusterKind:
+		eventType = PgBackupEventType
+	default:
+		eventType = SnapshotUploadEventType
+	}
+
+	instBackupEvents := map[int]*BackupEvent{}
+	for _, instDC := range cb.ClusterDataCentres {
+		for _, instNode := range instDC.Nodes {
+			for _, instEvent := range instNode.Events {
+				if instEvent.Type == eventType {
+					instBackupEvents[instEvent.Start] = instEvent
+				}
+			}
+		}
+	}
+
+	return instBackupEvents
+}

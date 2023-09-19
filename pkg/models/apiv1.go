@@ -124,56 +124,6 @@ type BundleOptions struct {
 	DedicatedMasterNodes         bool   `json:"dedicatedMasterNodes,omitempty"`
 }
 
-type ClusterBackup struct {
-	ClusterDataCentres []*BackupDataCentre `json:"clusterDataCentres"`
-}
-
-type BackupDataCentre struct {
-	Nodes []*BackupNode `json:"nodes"`
-}
-
-type BackupNode struct {
-	Events []*BackupEvent `json:"events"`
-}
-
-type BackupEvent struct {
-	Type     string  `json:"type"`
-	State    string  `json:"state"`
-	Progress float32 `json:"progress"`
-	Start    int     `json:"start"`
-	End      int     `json:"end"`
-}
-
-type AddonBundle struct {
-	Bundle  string         `json:"bundle"`
-	Version string         `json:"version"`
-	Options *BundleOptions `json:"options"`
-}
-
-func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEvent {
-	var eventType string
-
-	switch clusterKind {
-	case PgClusterKind:
-		eventType = PgBackupEventType
-	default:
-		eventType = SnapshotUploadEventType
-	}
-
-	instBackupEvents := map[int]*BackupEvent{}
-	for _, instDC := range cb.ClusterDataCentres {
-		for _, instNode := range instDC.Nodes {
-			for _, instEvent := range instNode.Events {
-				if instEvent.Type == eventType {
-					instBackupEvents[instEvent.Start] = instEvent
-				}
-			}
-		}
-	}
-
-	return instBackupEvents
-}
-
 type InstaUser struct {
 	Username          string `json:"username"`
 	Password          string `json:"password"`

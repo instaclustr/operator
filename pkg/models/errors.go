@@ -61,6 +61,7 @@ var (
 	ErrPrivateLinkSupportedOnlyForSingleDC      = errors.New("private link is only supported for a single data centre")
 	ErrPrivateLinkSupportedOnlyForAWS           = errors.New("private link is supported only for an AWS cloud provider")
 	ErrImmutableSpec                            = errors.New("resource specification is immutable")
+	ErrUnsupportedBackupClusterKind             = errors.New("backups for provided cluster kind are not supported")
 	ErrExposeServiceNotCreatedYet               = errors.New("expose service is not created yet")
 	ErrExposeServiceEndpointsNotCreatedYet      = errors.New("expose service endpoints is not created yet")
 	ErrOnlySingleConcurrentResizeAvailable      = errors.New("only single concurrent resize is allowed")

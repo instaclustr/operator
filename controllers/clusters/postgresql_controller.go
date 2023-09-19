@@ -132,7 +132,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 				"original cluster ID", pg.Spec.PgRestoreFrom.ClusterID,
 			)
 
-			pg.Status.ID, err = r.API.RestorePgCluster(pg.Spec.PgRestoreFrom)
+			pg.Status.ID, err = r.API.RestoreCluster(pg.RestoreInfoToInstAPI(pg.Spec.PgRestoreFrom), models.PgRestoreValue)
 			if err != nil {
 				logger.Error(err, "Cannot restore PostgreSQL cluster from backup",
 					"original cluster ID", pg.Spec.PgRestoreFrom.ClusterID,
@@ -1223,10 +1223,11 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *v1beta1.PostgreSQL) schedu
 			if k8serrors.IsNotFound(err) {
 				return nil
 			}
+
 			return err
 		}
 
-		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, pg.Status.ID)
+		instBackups, err := r.API.GetClusterBackups(pg.Status.ID, models.PgAppKind)
 		if err != nil {
 			l.Error(err, "Cannot get PostgreSQL cluster backups",
 				"cluster name", pg.Spec.Name,

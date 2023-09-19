@@ -62,23 +62,13 @@ type PgRestoreFrom struct {
 	ClusterID string `json:"clusterId"`
 
 	// The display name of the restored cluster.
-	ClusterNameOverride string `json:"clusterNameOverride,omitempty"`
+	RestoredClusterName string `json:"restoredClusterName,omitempty"`
 
 	// An optional list of cluster data centres for which custom VPC settings will be used.
-	CDCInfos []*PgRestoreCDCInfo `json:"cdcInfos,omitempty"`
+	CDCConfigs []*RestoreCDCConfig `json:"cdsConfigs,omitempty"`
 
 	// Timestamp in milliseconds since epoch. All backed up data will be restored for this point in time.
 	PointInTime int64 `json:"pointInTime,omitempty"`
-
-	// The cluster network for this cluster to be restored to.
-	ClusterNetwork string `json:"clusterNetwork,omitempty"`
-}
-
-type PgRestoreCDCInfo struct {
-	CDCID            string `json:"cdcId,omitempty"`
-	RestoreToSameVPC bool   `json:"restoreToSameVpc,omitempty"`
-	CustomVPCID      string `json:"customVpcId,omitempty"`
-	CustomVPCNetwork string `json:"customVpcNetwork,omitempty"`
 }
 
 // PgSpec defines the desired state of PostgreSQL
@@ -174,6 +164,22 @@ func (pg *PostgreSQL) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1
 			ClusterKind: models.PgClusterKind,
 		},
 	}
+}
+
+func (pg *PostgreSQL) RestoreInfoToInstAPI(restoreData *PgRestoreFrom) any {
+	iRestore := struct {
+		CDCConfigs          []*RestoreCDCConfig `json:"cdcConfigs,omitempty"`
+		PointInTime         int64               `json:"pointInTime,omitempty"`
+		ClusterID           string              `json:"clusterId,omitempty"`
+		RestoredClusterName string              `json:"restoredClusterName,omitempty"`
+	}{
+		CDCConfigs:          restoreData.CDCConfigs,
+		PointInTime:         restoreData.PointInTime,
+		ClusterID:           restoreData.ClusterID,
+		RestoredClusterName: restoreData.RestoredClusterName,
+	}
+
+	return iRestore
 }
 
 func (pgs *PgSpec) HasRestore() bool {

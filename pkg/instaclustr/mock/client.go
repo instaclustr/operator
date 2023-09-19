@@ -165,11 +165,11 @@ func (c *mockClient) UpdateKafkaMirror(id string, latency int32) error {
 	panic("UpdateKafkaMirror: is not implemented")
 }
 
-func (c *mockClient) GetClusterBackups(endpoint, clusterID string) (*models.ClusterBackup, error) {
+func (c *mockClient) GetClusterBackups(clusterID, clusterKind string) (*models.ClusterBackup, error) {
 	panic("GetClusterBackups: is not implemented")
 }
 
-func (c *mockClient) TriggerClusterBackup(url, clusterID string) error {
+func (c *mockClient) TriggerClusterBackup(clusterID, clusterKind string) error {
 	panic("TriggerClusterBackup: is not implemented")
 }
 
@@ -228,12 +228,8 @@ func (c *mockClient) RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.Main
 	panic("RescheduleMaintenanceEvent: is not implemented")
 }
 
-func (c *mockClient) RestorePgCluster(restoreData *clustersv1beta1.PgRestoreFrom) (string, error) {
-	panic("RestorePgCluster: is not implemented")
-}
-
-func (c *mockClient) RestoreCassandra(restoreData clustersv1beta1.CassandraRestoreFrom) (string, error) {
-	panic("RestoreCassandra: is not implemented")
+func (c *mockClient) RestoreCluster(restoreData any, clusterKind string) (string, error) {
+	panic("RestoreCluster: is not implemented")
 }
 
 func (c *mockClient) GetCassandra(id string) ([]byte, error) {
@@ -258,14 +254,6 @@ func (c *mockClient) GetKafkaConnect(id string) ([]byte, error) {
 
 func (c *mockClient) GetZookeeper(id string) ([]byte, error) {
 	panic("GetZookeeper: is not implemented")
-}
-
-func (c *mockClient) RestoreRedisCluster(restoreData *clustersv1beta1.RedisRestoreFrom) (string, error) {
-	panic("RestoreRedisCluster: is not implemented")
-}
-
-func (c *mockClient) RestoreOpenSearchCluster(restoreData *clustersv1beta1.OpenSearchRestoreFrom) (string, error) {
-	panic("RestoreOpenSearchCluster: is not implemented")
 }
 
 func (c *mockClient) GetPostgreSQL(id string) ([]byte, error) {

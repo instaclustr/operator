@@ -76,6 +76,7 @@ const (
 	DefaultUserSecretPrefix          = "default-user-password"
 	DefaultUserSecretNameTemplate    = "%s-%s"
 	ExposeServiceNameTemplate        = "%s-service"
+	PgRestoreValue                   = "postgres"
 
 	CassandraConnectionPort    = 9042
 	CadenceConnectionPort      = 7933
@@ -161,3 +162,5 @@ var (
 	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
 	ExitReconcile    = reconcile.Result{}
 )
+
+var ClusterKindsMap = map[string]string{"PostgreSQL": "postgres", "Redis": "redis", "OpenSearch": "opensearch", "Cassandra": "cassandra"}

@@ -1,13 +1,13 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
-  name: postgresql-cluster
+  name: postgresql-sample
 # TODO https://github.com/instaclustr/operator/issues/472
 #  annotations:
 #    testAnnotation: test
 spec:
-  name: "postgresql-cluster"
-  version: "14.9.0"
+  name: "username-test"
+  version: "15.4.0"
   dataCentres:
     - region: "US_WEST_2"
       network: "10.1.0.0/16"

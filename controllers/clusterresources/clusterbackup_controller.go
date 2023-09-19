@@ -113,7 +113,12 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return models.ReconcileRequeue, nil
 	}
 
-	iBackup, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
+	clusterKind := models.ClusterKindsMap[backup.Spec.ClusterKind]
+	if backup.Spec.ClusterKind == models.DefaultPgDbNameValue {
+		clusterKind = models.PgAppKind
+	}
+
+	iBackup, err := r.API.GetClusterBackups(backup.Spec.ClusterID, clusterKind)
 	if err != nil {
 		logger.Error(err, "Cannot get cluster backups from Instaclustr",
 			"backup name", backup.Name,
@@ -131,7 +136,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	iBackupEvents := iBackup.GetBackupEvents(backup.Spec.ClusterKind)
 
 	if len(iBackupEvents) < len(backupsList.Items) {
-		err = r.API.TriggerClusterBackup(instaclustr.ClustersEndpointV1, backup.Spec.ClusterID)
+		err = r.API.TriggerClusterBackup(backup.Spec.ClusterID, models.ClusterKindsMap[backup.Spec.ClusterKind])
 		if err != nil {
 			logger.Error(err, "Cannot trigger cluster backup",
 				"backup name", backup.Name,

@@ -120,7 +120,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 				"original cluster ID", o.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreOpenSearchCluster(o.Spec.RestoreFrom)
+			id, err = r.API.RestoreCluster(o.RestoreInfoToInstAPI(o.Spec.RestoreFrom), models.OpenSearchAppKind)
 			if err != nil {
 				logger.Error(err, "Cannot restore OpenSearch cluster from backup",
 					"original cluster ID", o.Spec.RestoreFrom.ClusterID)
@@ -771,7 +771,7 @@ func (r *OpenSearchReconciler) newWatchBackupsJob(o *v1beta1.OpenSearch) schedul
 			return err
 		}
 
-		instBackups, err := r.API.GetClusterBackups(instaclustr.ClustersEndpointV1, o.Status.ID)
+		instBackups, err := r.API.GetClusterBackups(o.Status.ID, models.ClusterKindsMap[o.Kind])
 		if err != nil {
 			l.Error(err, "Cannot get OpenSearch cluster backups",
 				"cluster name", o.Spec.Name,
