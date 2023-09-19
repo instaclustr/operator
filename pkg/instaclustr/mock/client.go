@@ -367,3 +367,7 @@ func (c *mockClient) GetRedisUser(id string) (*models.RedisUser, error) {
 func (c *mockClient) GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*clustersv1beta1.ResizeOperation, error) {
 	panic("GetResizeOperationsByClusterDataCentreID: is not implemented")
 }
+
+func (c *mockClient) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error) {
+	panic("GetAWSVPCPeering: is not implemented")
+}

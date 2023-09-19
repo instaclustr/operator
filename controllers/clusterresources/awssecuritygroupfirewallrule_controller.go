@@ -287,8 +287,14 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(fire
 func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule *v1beta1.AWSSecurityGroupFirewallRule) scheduler.Job {
 	l := log.Log.WithValues("component", "FirewallRuleStatusJob")
 	return func() error {
+		ctx := context.Background()
 		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				l.Info("The resource has been deleted on Instaclustr, deleting resource in k8s...")
+				return r.Delete(ctx, firewallRule)
+			}
+
 			l.Error(err, "Cannot get AWS security group firewall rule status from Inst API", "firewall rule ID", firewallRule.Status.ID)
 			return err
 		}
@@ -299,13 +305,13 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 				"firewall rule status", firewallRule.Status)
 			patch := firewallRule.NewPatch()
 			firewallRule.Status.FirewallRuleStatus = *instaFirewallRuleStatus
-			err := r.Status().Patch(context.Background(), firewallRule, patch)
+			err := r.Status().Patch(ctx, firewallRule, patch)
 			if err != nil {
 				return err
 			}
 
 			if instaFirewallRuleStatus.Status == statusDELETED {
-				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+				go r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 			}
 		}
 

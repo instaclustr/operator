@@ -34,6 +34,7 @@ type API interface {
 	UpdateCluster(id, clusterEndpoint string, instaDCs any) error
 	DeleteCluster(id, clusterEndpoint string) error
 	GetPeeringStatus(peerID, peeringEndpoint string) (*clusterresourcesv1beta1.PeeringStatus, error)
+	GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error)
 	UpdatePeering(peerID, peeringEndpoint string, peerSpec any) error
 	DeletePeering(peerID, peeringEndpoint string) error
 	CreatePeering(url string, peeringSpec any) (*clusterresourcesv1beta1.PeeringStatus, error)

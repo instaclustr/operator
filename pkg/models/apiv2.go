@@ -192,3 +192,14 @@ func (cb *ClusterBackup) GetBackupEvents(clusterKind string) map[int]*BackupEven
 
 	return instBackupEvents
 }
+
+type AWSVPCPeering struct {
+	ID               string   `json:"id"`
+	CDCID            string   `json:"cdcId"`
+	DataCentreVPCID  string   `json:"dataCentreVpcId"`
+	PeerAWSAccountID string   `json:"peerAwsAccountId"`
+	PeerRegion       string   `json:"peerRegion"`
+	PeerSubnets      []string `json:"peerSubnets"`
+	PeerVpcID        string   `json:"peerVpcId"`
+	StatusCode       string   `json:"statusCode"`
+}

@@ -24,6 +24,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -194,7 +195,59 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
 ) reconcile.Result {
-	err := r.API.UpdatePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
+	instaAWSPeering, err := r.API.GetAWSVPCPeering(aws.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get AWS VPC Peering from Instaclutr",
+			"AWS VPC Peering ID", aws.Status.ID,
+		)
+		r.EventRecorder.Eventf(aws, models.Warning, models.UpdateFailed,
+			"Cannot get AWS VPC Peering from Instaclutr. Reason: %v",
+		)
+
+		return models.ReconcileRequeue
+	}
+
+	if aws.Annotations[models.ExternalChangesAnnotation] == models.True {
+		if !slices.Equal(instaAWSPeering.PeerSubnets, aws.Spec.PeerSubnets) {
+			l.Info("The resource specification still differs from the Instaclustr resource specification, please reconcile it manually",
+				"AWS VPC ID", aws.Status.ID,
+				"k8s peerSubnets", aws.Spec.PeerSubnets,
+				"instaclustr peerSubnets", instaAWSPeering.PeerSubnets,
+			)
+			r.EventRecorder.Eventf(aws, models.Warning, models.UpdateFailed,
+				"The resource specification still differs from the Instaclustr resource specification, please reconcile it manually.",
+			)
+
+			return models.ExitReconcile
+		}
+
+		patch := aws.NewPatch()
+		delete(aws.Annotations, models.ExternalChangesAnnotation)
+		err = r.Patch(ctx, aws, patch)
+		if err != nil {
+			l.Error(err, "Cannot delete external changes annotation from the resource",
+				"AWS VPC Peering ID", aws.Status.ID,
+			)
+			r.EventRecorder.Eventf(
+				aws, models.Warning, models.PatchFailed,
+				"Deleting external changes annotation is failed. Reason: %v",
+				err,
+			)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("External changes of the k8s resource specification was fixed",
+			"AWS VPC Peering ID", aws.Status.ID,
+		)
+		r.EventRecorder.Eventf(aws, models.Normal, models.ExternalChanges,
+			"External changes of the k8s resource specification was fixed",
+		)
+
+		return models.ExitReconcile
+	}
+
+	err = r.API.UpdatePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
 	if err != nil {
 		l.Error(err, "cannot update AWS VPC Peering",
 			"AWS Account ID", aws.Spec.PeerAWSAccountID,
@@ -264,7 +317,6 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 	}
 
 	if status != nil {
-		r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
 		err = r.API.DeletePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
 		if err != nil {
 			l.Error(err, "cannot update AWS VPC Peering resource status",
@@ -287,6 +339,8 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 		)
 		return models.ReconcileRequeue
 	}
+
+	r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
 
 	patch := aws.NewPatch()
 	controllerutil.RemoveFinalizer(aws, models.DeletionFinalizer)
@@ -316,11 +370,6 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
-	r.EventRecorder.Eventf(
-		aws, models.Normal, models.Deleted,
-		"Resource is deleted",
-	)
-
 	return models.ExitReconcile
 }
 
@@ -338,30 +387,78 @@ func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *v1beta
 func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPeering) scheduler.Job {
 	l := log.Log.WithValues("component", "AWSVPCPeeringStatusJob")
 	return func() error {
-		instaPeeringStatus, err := r.API.GetPeeringStatus(awsPeering.Status.ID, instaclustr.AWSPeeringEndpoint)
+		ctx := context.Background()
+
+		namespacedName := client.ObjectKeyFromObject(awsPeering)
+		err := r.Get(ctx, namespacedName, awsPeering)
+		if k8serrors.IsNotFound(err) {
+			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+				"namespaced name", namespacedName,
+			)
+
+			go r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.StatusChecker))
+
+			return nil
+		}
+
+		instaAWSPeering, err := r.API.GetAWSVPCPeering(awsPeering.Status.ID)
 		if err != nil {
-			l.Error(err, "cannot get AWS VPC Peering Status from Inst API", "AWS VPC Peering ID", awsPeering.Status.ID)
+			if errors.Is(err, instaclustr.NotFound) {
+				l.Info("The resource has been deleted on Instaclustr, deleting resource in k8s...")
+				return r.Delete(ctx, awsPeering)
+			}
+
+			l.Error(err, "cannot get AWS VPC Peering Status from Inst API",
+				"AWS VPC Peering ID", awsPeering.Status.ID,
+			)
 			return err
 		}
 
-		if !arePeeringStatusesEqual(instaPeeringStatus, &awsPeering.Status.PeeringStatus) {
+		instaPeeringStatus := v1beta1.PeeringStatus{
+			ID:         instaAWSPeering.ID,
+			StatusCode: instaAWSPeering.StatusCode,
+		}
+
+		if !arePeeringStatusesEqual(&instaPeeringStatus, &awsPeering.Status.PeeringStatus) {
 			l.Info("AWS VPC Peering status of k8s is different from Instaclustr. Reconcile statuses..",
 				"AWS VPC Peering Status from Inst API", instaPeeringStatus,
 				"AWS VPC Peering Status", awsPeering.Status)
 
 			patch := awsPeering.NewPatch()
-			awsPeering.Status.PeeringStatus = *instaPeeringStatus
-			err := r.Status().Patch(context.Background(), awsPeering, patch)
+			awsPeering.Status.PeeringStatus = instaPeeringStatus
+			err := r.Status().Patch(ctx, awsPeering, patch)
 			if err != nil {
 				return err
 			}
+		}
+
+		if awsPeering.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
+			awsPeering.Annotations[models.ExternalChangesAnnotation] != models.True &&
+			!slices.Equal(instaAWSPeering.PeerSubnets, awsPeering.Spec.PeerSubnets) {
+			l.Info("The k8s resource specification doesn't match the specification of Instaclustr, please change it manually",
+				"k8s peerSubnets", instaAWSPeering.PeerSubnets,
+				"instaclutr peerSubnets", awsPeering.Spec.PeerSubnets,
+			)
+
+			patch := awsPeering.NewPatch()
+			awsPeering.Annotations[models.ExternalChangesAnnotation] = models.True
+
+			err = r.Patch(ctx, awsPeering, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch the resource with external changes annotation")
+
+				return err
+			}
+
+			r.EventRecorder.Event(awsPeering, models.Warning, models.ExternalChanges,
+				"k8s spec doesn't match spec of Instaclutr, please change it manually",
+			)
 		}
 
 		return nil
 	}
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{
