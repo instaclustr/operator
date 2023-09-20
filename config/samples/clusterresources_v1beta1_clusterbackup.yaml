@@ -4,4 +4,4 @@ metadata:
   name: clusterbackup-sample
 spec:
   clusterId: 2ae611cf-ac91-4325-941c-a35c043f9c34
-  clusterKind: PostgreSQl
+  clusterKind: PostgreSQL
