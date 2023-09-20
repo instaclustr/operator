@@ -184,9 +184,16 @@ spec:
                               type: string
                             vpcId:
                               type: string
+                          required:
+                          - network
+                          - vpcId
                           type: object
                         restoreMode:
                           type: string
+                      required:
+                      - cdcId
+                      - customVpcSettings
+                      - restoreMode
                       type: object
                     type: array
                   clusterId:

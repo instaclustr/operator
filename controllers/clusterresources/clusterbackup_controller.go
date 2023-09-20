@@ -114,7 +114,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	clusterKind := models.ClusterKindsMap[backup.Spec.ClusterKind]
-	if backup.Spec.ClusterKind == models.DefaultPgDbNameValue {
+	if backup.Spec.ClusterKind == models.PgClusterKind {
 		clusterKind = models.PgAppKind
 	}
 
