@@ -37,7 +37,7 @@ spec:
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: true
-#  userRef:
+#  userRefs:
 #    - namespace: default
 #      name: cassandrauser-sample
 #    - namespace: default

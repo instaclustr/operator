@@ -396,7 +396,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 				"namespaced name", namespacedName,
 			)
 
-			go r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.StatusChecker))
 
 			return nil
 		}
@@ -459,6 +459,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 	}
 }
 
+// SetupWithManager sets up the controller with the Manager.
 func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{

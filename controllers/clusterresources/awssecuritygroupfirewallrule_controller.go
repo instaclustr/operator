@@ -311,7 +311,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 			}
 
 			if instaFirewallRuleStatus.Status == statusDELETED {
-				go r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 			}
 		}
 

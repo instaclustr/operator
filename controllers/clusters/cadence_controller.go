@@ -777,7 +777,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			go r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(cadence.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 		if err != nil {
