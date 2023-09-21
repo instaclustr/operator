@@ -139,5 +139,7 @@ func (s *scheduler) RemoveJob(jobID string) {
 	delete(s.workItems, jobID)
 	s.logger.Info("Job was removed", "job id", jobID)
 
-	v.done <- struct{}{}
+	go func() {
+		v.done <- struct{}{}
+	}()
 }

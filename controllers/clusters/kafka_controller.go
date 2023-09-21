@@ -862,7 +862,7 @@ func (r *KafkaReconciler) newUsersCreationJob(kafka *v1beta1.Kafka) scheduler.Jo
 			"User creation job successfully finished",
 		)
 
-		go r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
+		r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}

@@ -42,7 +42,7 @@ spec:
   #  - email: "rostyslp@netapp.com"
   #  description: "test 222"
   slaTier: "NON_PRODUCTION"
-#  userRef:
+#  userRefs:
 #    - namespace: default
 #      name: postgresqluser-sample
   privateNetworkCluster: false

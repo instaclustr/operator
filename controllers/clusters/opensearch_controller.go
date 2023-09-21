@@ -907,7 +907,7 @@ func (r *OpenSearchReconciler) newUsersCreationJob(o *v1beta1.OpenSearch) schedu
 			"User creation job successfully finished",
 		)
 
-		go r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
+		r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}

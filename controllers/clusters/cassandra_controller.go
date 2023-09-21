@@ -1185,7 +1185,7 @@ func (r *CassandraReconciler) newUsersCreationJob(c *v1beta1.Cassandra) schedule
 		l.Info("User creation job successfully finished", "resource name", c.Name)
 		r.EventRecorder.Eventf(c, models.Normal, models.Created, "User creation job successfully finished")
 
-		go r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
+		r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}

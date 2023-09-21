@@ -873,7 +873,7 @@ func (r *RedisReconciler) newUsersCreationJob(redis *v1beta1.Redis) scheduler.Jo
 			"User creation job successfully finished",
 		)
 
-		go r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
+		r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}
@@ -889,7 +889,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
-			go r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 
