@@ -40,6 +40,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/reconcilerutils"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -1307,5 +1308,5 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.GenericEvent
 				return true
 			},
-		})).Complete(r)
+		})).Complete(reconcilerutils.ReconcilerWithLimit(r))
 }
