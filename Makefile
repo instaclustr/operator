@@ -117,6 +117,13 @@ PHONY: stop-server-stub
 stop-server-stub: ## Stop an Instaclustr server-stub from your host.
 	docker stop instaclustr-server-stub
 
+.PHONY dev-build:
+dev-build: docker-build kind-load deploy ## builds docker-image, loads it to kind cluster and deploys operator
+
+.PHONY: kind-load
+kind-load: ## loads given image to kind cluster
+	kind load docker-image ${IMG}
+
 ##@ Deployment
 
 ifndef ignore-not-found
