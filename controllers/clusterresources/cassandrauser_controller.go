@@ -195,7 +195,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				l.Error(err, "Cannot detach clusterID from the Cassandra user resource",
 					"cluster ID", clusterID)
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
-					"Detaching clusterID from the OpenSearch user resource has been failed. Reason: %v", err)
+					"Detaching clusterID from the Cassandra user resource has been failed. Reason: %v", err)
 				return models.ReconcileRequeue, nil
 			}
 

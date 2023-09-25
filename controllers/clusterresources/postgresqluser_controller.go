@@ -34,6 +34,7 @@ import (
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -170,10 +171,86 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			continue
 		}
 
-		// TODO: implement user deletion logic on this event
+		if clusterInfo.Event == models.DeletingEvent {
+			l.Info("Deleting user from a cluster", "cluster ID", clusterID)
+
+			err = r.deleteUser(ctx, newUsername, clusterInfo.DefaultSecretNamespacedName)
+			if err != nil {
+				l.Error(err, "Cannot delete PostgreSQL user")
+				r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
+					"Cannot delete user. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("User has been deleted for cluster", "username", newUsername,
+				"cluster ID", clusterID)
+			r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
+				"User has been deleted for a cluster. Cluster ID: %s, username: %s",
+				clusterID, newUsername)
+
+			delete(u.Status.ClustersInfo, clusterID)
+
+			err = r.Status().Patch(ctx, u, patch)
+			if err != nil {
+				l.Error(err, "Cannot patch PostgreSQL user status")
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Resource patch is failed. Reason: %v", err)
+
+				return models.ReconcileRequeue, nil
+			}
+
+			continue
+		}
+
+		if clusterInfo.Event == models.ClusterDeletingEvent {
+			delete(u.Status.ClustersInfo, clusterID)
+
+			err = r.Status().Patch(ctx, u, patch)
+			if err != nil {
+				l.Error(err, "Cannot detach clusterID from PostgreSQL user resource",
+					"cluster ID", clusterID)
+				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+					"Detaching clusterID from the PostgreSQL user resource has been failed. Reason: %v", err)
+				return models.ReconcileRequeue, nil
+			}
+
+			l.Info("PostgreSQL user has been detached from the cluster", "cluster ID", clusterID)
+			r.EventRecorder.Eventf(u, models.Normal, models.Deleted,
+				"User has been detached from the cluster. ClusterID: %v", clusterID)
+		}
 	}
 
-	// TODO: add logic for Deletion case
+	if u.DeletionTimestamp != nil {
+		if u.Status.ClustersInfo != nil {
+			l.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser)
+			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
+
+			return models.ExitReconcile, nil
+		}
+
+		controllerutil.RemoveFinalizer(s, u.GetDeletionFinalizer())
+		err = r.Update(ctx, s)
+		if err != nil {
+			l.Error(err, "Cannot delete finalizer from the user's secret")
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Deleting finalizer from the user's secret has been failed. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+
+		controllerutil.RemoveFinalizer(u, u.GetDeletionFinalizer())
+		err = r.Patch(ctx, u, patch)
+		if err != nil {
+			l.Error(err, "Cannot delete finalizer from the PostgreSQL user resource")
+			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
+				"Deleting finalizer from the PostgreSQL user resource has been failed. Reason: %v", err)
+			return models.ReconcileRequeue, nil
+		}
+
+		l.Info("PostgreSQL user resource has been deleted")
+
+		return models.ExitReconcile, nil
+	}
 
 	return models.ExitReconcile, nil
 }
@@ -185,27 +262,11 @@ func (r *PostgreSQLUserReconciler) createUser(
 	newPassword string,
 	defaultUserSecretNamespacedName clusterresourcesv1beta1.NamespacedName,
 ) error {
-	defaultUserSecret := &k8sCore.Secret{}
-
-	namespacedName := types.NamespacedName{
-		Namespace: defaultUserSecretNamespacedName.Namespace,
-		Name:      defaultUserSecretNamespacedName.Name,
-	}
-	err := r.Get(ctx, namespacedName, defaultUserSecret)
+	defaultCreds, clusterName, err := r.getDefaultPostgreSQLUserCreds(ctx, defaultUserSecretNamespacedName)
 	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			return fmt.Errorf("cannot get default PostgreSQL user secret, user reference: %v, err: %w", defaultUserSecretNamespacedName, err)
-		}
-
 		return err
 	}
 
-	defaultUsername, defaultPassword, err := getUserCreds(defaultUserSecret)
-	if err != nil {
-		return fmt.Errorf("cannot get default PostgreSQL user credentials, user reference: %v, err: %w", defaultUserSecretNamespacedName, err)
-	}
-
-	clusterName := defaultUserSecret.Labels[models.ControlledByLabel]
 	exposeServiceList, err := exposeservice.GetExposeService(r.Client, clusterName, defaultUserSecretNamespacedName.Namespace)
 	if err != nil {
 		return fmt.Errorf("cannot list expose services for cluster: %s, err: %w", clusterID, err)
@@ -231,24 +292,59 @@ func (r *PostgreSQLUserReconciler) createUser(
 		return fmt.Errorf("cannot list nodes, err: %w", err)
 	}
 
-	// TODO: Handle scenario if there are no nodes with external IP
+	// TODO: Handle scenario if there are no nodes with external IP, check private/public cluster
 
 	for _, node := range nodeList.Items {
 		for _, nodeAddress := range node.Status.Addresses {
 			if nodeAddress.Type == k8sCore.NodeExternalIP {
 				err := r.createPostgreSQLFirewallRule(ctx, node.Name, clusterID, defaultUserSecretNamespacedName.Namespace, nodeAddress.Address)
 				if err != nil {
-					return fmt.Errorf("cannot create postgreSQL firewall rule, err: %w", err)
+					return fmt.Errorf("cannot create PostgreSQL firewall rule, err: %w", err)
 				}
 			}
 		}
 	}
 
+	createUserQuery := fmt.Sprintf(`CREATE USER "%s" WITH PASSWORD '%s'`, newUserName, newPassword)
+	err = r.ExecPostgreSQLQuery(ctx, createUserQuery, defaultCreds, clusterName, defaultUserSecretNamespacedName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PostgreSQLUserReconciler) deleteUser(
+	ctx context.Context,
+	newUserName string,
+	defaultUserSecretNamespacedName clusterresourcesv1beta1.NamespacedName,
+) error {
+	defaultCreds, clusterName, err := r.getDefaultPostgreSQLUserCreds(ctx, defaultUserSecretNamespacedName)
+	if err != nil {
+		return err
+	}
+
+	deleteUserQuery := fmt.Sprintf(`DROP USER IF EXISTS "%s"`, newUserName)
+	err = r.ExecPostgreSQLQuery(ctx, deleteUserQuery, defaultCreds, clusterName, defaultUserSecretNamespacedName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PostgreSQLUserReconciler) ExecPostgreSQLQuery(
+	ctx context.Context,
+	query string,
+	defaultCreds *models.Credentials,
+	clusterName string,
+	defaultUserSecretNamespacedName clusterresourcesv1beta1.NamespacedName,
+) error {
 	serviceName := fmt.Sprintf(models.ExposeServiceNameTemplate, clusterName)
-	host := fmt.Sprintf("%s.%s", serviceName, exposeServiceList.Items[0].Namespace)
+	host := fmt.Sprintf("%s.%s", serviceName, defaultUserSecretNamespacedName.Namespace)
 
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?target_session_attrs=read-write",
-		defaultUsername, defaultPassword, host, models.DefaultPgDbPortValue, models.DefaultPgDbNameValue)
+		defaultCreds.Username, defaultCreds.Password, host, models.DefaultPgDbPortValue, models.DefaultPgDbNameValue)
 
 	conn, err := pgx.Connect(ctx, dbURL)
 	if err != nil {
@@ -256,13 +352,42 @@ func (r *PostgreSQLUserReconciler) createUser(
 	}
 	defer conn.Close(ctx)
 
-	createUserQuery := fmt.Sprintf(`CREATE USER "%s" WITH PASSWORD '%s'`, newUserName, newPassword)
-	_, err = conn.Exec(ctx, createUserQuery)
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return fmt.Errorf("cannot execute creation user query in postgresql, err: %w", err)
+		return fmt.Errorf("cannot execute query in PostgreSQL, err: %w", err)
 	}
 
 	return nil
+}
+
+func (r *PostgreSQLUserReconciler) getDefaultPostgreSQLUserCreds(
+	ctx context.Context,
+	defaultUserSecretNamespacedName clusterresourcesv1beta1.NamespacedName,
+) (*models.Credentials, string, error) {
+	defaultUserSecret := &k8sCore.Secret{}
+
+	namespacedName := types.NamespacedName{
+		Namespace: defaultUserSecretNamespacedName.Namespace,
+		Name:      defaultUserSecretNamespacedName.Name,
+	}
+	err := r.Get(ctx, namespacedName, defaultUserSecret)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot get default PostgreSQL user secret, user reference: %v, err: %w", defaultUserSecretNamespacedName, err)
+	}
+
+	defaultUsername, defaultPassword, err := getUserCreds(defaultUserSecret)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot get default PostgreSQL user credentials, user reference: %v, err: %w", defaultUserSecretNamespacedName, err)
+	}
+
+	clusterName := defaultUserSecret.Labels[models.ControlledByLabel]
+
+	defaultPostgreSQLUserCreds := &models.Credentials{
+		Username: defaultUsername,
+		Password: defaultPassword,
+	}
+
+	return defaultPostgreSQLUserCreds, clusterName, nil
 }
 
 func (r *PostgreSQLUserReconciler) createPostgreSQLFirewallRule(

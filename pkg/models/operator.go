@@ -163,4 +163,9 @@ var (
 	ExitReconcile    = reconcile.Result{}
 )
 
+type Credentials struct {
+	Username string
+	Password string
+}
+
 var ClusterKindsMap = map[string]string{"PostgreSQL": "postgres", "Redis": "redis", "OpenSearch": "opensearch", "Cassandra": "cassandra"}
