@@ -1308,5 +1308,11 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.GenericEvent
 				return true
 			},
-		})).Complete(reconcilerutils.ReconcilerWithLimit(r))
+		})).Complete(reconcilerutils.ReconcilerWithLimit(r, reconcilerutils.ReconcilerWithLimitOptions{
+		EventRecorder: r.EventRecorder,
+		Client:        r.Client,
+		MaxRetries:    2,
+		For:           &v1beta1.Cassandra{},
+		Scheme:        r.Scheme,
+	}))
 }
