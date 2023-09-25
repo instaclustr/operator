@@ -569,6 +569,129 @@ func (r *PostgreSQLReconciler) createUser(
 	return nil
 }
 
+func (r *PostgreSQLReconciler) handleUsersDelete(
+	ctx context.Context,
+	l logr.Logger,
+	pg *v1beta1.PostgreSQL,
+	uRef *v1beta1.UserReference,
+) error {
+	req := types.NamespacedName{
+		Namespace: uRef.Namespace,
+		Name:      uRef.Name,
+	}
+
+	u := &clusterresourcesv1beta1.PostgreSQLUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Error(err, "Cannot delete a PostgreSQL user, the user is not found", "request", req)
+			r.EventRecorder.Eventf(pg, models.Warning, models.NotFound,
+				"Cannot delete a PostgreSQL user, the user %v is not found", req)
+			return nil
+		}
+
+		l.Error(err, "Cannot get PostgreSQL user", "user", req)
+		r.EventRecorder.Eventf(pg, models.Warning, models.DeletionFailed,
+			"Cannot get PostgreSQL user. user reference: %v", req)
+		return err
+	}
+
+	if _, exist := u.Status.ClustersInfo[pg.Status.ID]; !exist {
+		l.Info("User is not existing on the cluster",
+			"user reference", uRef)
+		r.EventRecorder.Eventf(pg, models.Normal, models.DeletionFailed,
+			"User is not existing on the cluster. User reference: %v", req)
+
+		return nil
+	}
+
+	patch := u.NewPatch()
+
+	defaultSecretNamespacedName := u.Status.ClustersInfo[pg.Status.ID].DefaultSecretNamespacedName
+
+	u.Status.ClustersInfo[pg.Status.ID] = clusterresourcesv1beta1.ClusterInfo{
+		DefaultSecretNamespacedName: clusterresourcesv1beta1.NamespacedName{
+			Namespace: defaultSecretNamespacedName.Namespace,
+			Name:      defaultSecretNamespacedName.Name,
+		},
+		Event: models.DeletingEvent,
+	}
+
+	err = r.Status().Patch(ctx, u, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch the PostgreSQL User status with the DeletingEvent",
+			"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
+		r.EventRecorder.Eventf(pg, models.Warning, models.DeletionFailed,
+			"Cannot patch the PostgreSQL User status with the DeletingEvent. Reason: %v", err)
+		return err
+	}
+
+	l.Info("User has been added to the queue for deletion",
+		"User resource", u.Namespace+"/"+u.Name,
+		"PostgreSQL resource", pg.Namespace+"/"+pg.Name)
+
+	return nil
+}
+
+func (r *PostgreSQLReconciler) handleUsersDetach(
+	ctx context.Context,
+	l logr.Logger,
+	c *v1beta1.PostgreSQL,
+	uRef *v1beta1.UserReference,
+) error {
+	req := types.NamespacedName{
+		Namespace: uRef.Namespace,
+		Name:      uRef.Name,
+	}
+
+	u := &clusterresourcesv1beta1.PostgreSQLUser{}
+	err := r.Get(ctx, req, u)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Error(err, "Cannot detach a PostgreSQL user, the user is not found", "request", req)
+			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
+				"Cannot detach a PostgreSQL user, the user %v is not found", req)
+			return nil
+		}
+
+		l.Error(err, "Cannot get PostgreSQL user", "user", req)
+		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
+			"Cannot get PostgreSQL user. user reference: %v", req)
+		return err
+	}
+
+	if _, exist := u.Status.ClustersInfo[c.Status.ID]; !exist {
+		l.Info("User is not existing in the cluster", "user reference", uRef)
+		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
+			"User is not existing in the cluster. User reference: %v", uRef)
+		return nil
+	}
+
+	defaultSecretNamespacedName := u.Status.ClustersInfo[c.Status.ID].DefaultSecretNamespacedName
+
+	patch := u.NewPatch()
+	u.Status.ClustersInfo[c.Status.ID] = clusterresourcesv1beta1.ClusterInfo{
+		DefaultSecretNamespacedName: clusterresourcesv1beta1.NamespacedName{
+			Namespace: defaultSecretNamespacedName.Namespace,
+			Name:      defaultSecretNamespacedName.Name,
+		},
+		Event: models.DeletingEvent,
+	}
+
+	err = r.Status().Patch(ctx, u, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch the PostgreSQL user status with the ClusterDeletingEvent",
+			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
+		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
+			"Cannot patch the PostgreSQL user status with the ClusterDeletingEvent. Reason: %v", err)
+		return err
+	}
+
+	l.Info("User has been added to the queue for detaching", "username", u.Name)
+
+	return nil
+}
+
 func (r *PostgreSQLReconciler) handleUserEvent(
 	newObj *v1beta1.PostgreSQL,
 	oldUsers []*v1beta1.UserReference,
@@ -614,7 +737,12 @@ func (r *PostgreSQLReconciler) handleUserEvent(
 			continue
 		}
 
-		// TODO: implement user deletion
+		err := r.handleUsersDelete(ctx, l, newObj, oldUser)
+		if err != nil {
+			l.Error(err, "Cannot delete Cassandra user", "user", oldUser)
+			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+				"Cannot delete user from cluster. Reason: %v", err)
+		}
 	}
 }
 
@@ -730,30 +858,6 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 		"cluster ID", pg.Status.ID,
 	)
 
-	err = r.deleteSecret(ctx, pg)
-	if client.IgnoreNotFound(err) != nil {
-		logger.Error(err, "Cannot delete PostgreSQL default user secret",
-			"cluster ID", pg.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			pg, models.Warning, models.DeletionFailed,
-			"Default user secret deletion is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
-	logger.Info("Cluster PostgreSQL default user secret was deleted",
-		"cluster ID", pg.Status.ID,
-	)
-
-	r.EventRecorder.Eventf(
-		pg, models.Normal, models.Deleted,
-		"Default user secret is deleted. Cluster ID: %s",
-		pg.Status.ID,
-	)
-
 	logger.Info("Deleting cluster backup resources",
 		"cluster ID", pg.Status.ID,
 	)
@@ -780,8 +884,17 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 		"Cluster backup resources are deleted",
 	)
 
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+
+	for _, ref := range pg.Spec.UserRefs {
+		err = r.handleUsersDetach(ctx, logger, pg, ref)
+		if err != nil {
+			return models.ReconcileRequeue
+		}
+	}
+
 	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
 	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.patchClusterMetadata(ctx, pg, logger)
@@ -799,6 +912,30 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 		)
 		return models.ReconcileRequeue
 	}
+
+	err = r.deleteSecret(ctx, pg)
+	if client.IgnoreNotFound(err) != nil {
+		logger.Error(err, "Cannot delete PostgreSQL default user secret",
+			"cluster ID", pg.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.DeletionFailed,
+			"Default user secret deletion is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue
+	}
+
+	logger.Info("Cluster PostgreSQL default user secret was deleted",
+		"cluster ID", pg.Status.ID,
+	)
+
+	r.EventRecorder.Eventf(
+		pg, models.Normal, models.Deleted,
+		"Default user secret is deleted. Cluster ID: %s",
+		pg.Status.ID,
+	)
 
 	err = exposeservice.Delete(r.Client, pg.Name, pg.Namespace)
 	if err != nil {
@@ -952,6 +1089,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
 			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
 			return nil
 		}
 		if err != nil {
