@@ -2,10 +2,9 @@ package reconcilerutils
 
 import (
 	"context"
-
+	"fmt"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,52 +15,61 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-const MaxReconcileRequeueRetries = 5
+const DefaultMaxReconcileRequeueRetries = 5
 
-type ReconcilerWithLimitOptions struct {
-	EventRecorder record.EventRecorder
-	Client        client.Client
-	MaxRetries    int
-	For           client.Object
-	Scheme        *runtime.Scheme
+type reconcilerBuilder struct {
+	maxRetries int
+
+	eventRecorder record.EventRecorder
+	client        client.Client
+	forObject     client.Object
+	scheme        *runtime.Scheme
+	withEvents    bool
 }
 
-func ReconcilerWithLimit(r reconcile.Reconciler, opts ...ReconcilerWithLimitOptions) reconcile.Func {
-	limiter := &ReconcileRequeueLimiter{
+func NewReconciler(scheme *runtime.Scheme) *reconcilerBuilder {
+	return &reconcilerBuilder{scheme: scheme}
+}
+
+func (bld *reconcilerBuilder) WithReconcileRequeueLimit(maxRetries int) *reconcilerBuilder {
+	bld.maxRetries = maxRetries
+	return bld
+}
+
+func (bld *reconcilerBuilder) For(object client.Object) *reconcilerBuilder {
+	bld.forObject = object
+	return bld
+}
+
+type WithEventsOptions struct {
+	EventRecorder record.EventRecorder
+	Client        client.Client
+}
+
+func (bld *reconcilerBuilder) WithEvents(opt *WithEventsOptions) *reconcilerBuilder {
+	bld.withEvents = true
+	bld.client = opt.Client
+	bld.eventRecorder = opt.EventRecorder
+	return bld
+}
+
+func (bld *reconcilerBuilder) Complete(r reconcile.Reconciler) reconcile.Func {
+	requeueLimiter := ReconcileRequeueLimiter{
 		m: make(map[types.NamespacedName]int),
 	}
 
-	var (
-		eventRecorder record.EventRecorder
-		client        client.Client
-		withEvents    bool
-		gvk           schema.GroupVersionKind
-	)
+	if bld.maxRetries < 1 {
+		bld.maxRetries = DefaultMaxReconcileRequeueRetries
+	}
 
-	if opts != nil {
-		opt := opts[0]
-		if opt.EventRecorder != nil && opt.Client != nil && opt.For != nil && opt.Scheme != nil {
-			withEvents = true
-			eventRecorder = opt.EventRecorder
-			client = opt.Client
-
-			var err error
-			gvk, err = apiutil.GVKForObject(opt.For, opt.Scheme)
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		if opt.MaxRetries < 1 {
-			limiter.maxRetries = MaxReconcileRequeueRetries
-		} else {
-			limiter.maxRetries = opt.MaxRetries
-		}
+	gvk, err := apiutil.GVKForObject(bld.forObject, bld.scheme)
+	if err != nil {
+		panic(fmt.Errorf("failed to create reconciler, err: %w", err))
 	}
 
 	return func(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-		if !limiter.RequeueAllowed(req.NamespacedName) {
-			limiter.Reset(req.NamespacedName)
+		if !requeueLimiter.RequeueAllowed(req.NamespacedName) {
+			requeueLimiter.Reset(req.NamespacedName)
 
 			l := log.FromContext(ctx).WithValues("component", "reconcile-requeue-limiter")
 
@@ -69,18 +77,18 @@ func ReconcilerWithLimit(r reconcile.Reconciler, opts ...ReconcilerWithLimitOpti
 				"req", req.NamespacedName,
 			)
 
-			if withEvents {
+			if bld.withEvents {
 				obj := &unstructured.Unstructured{}
 				obj.SetGroupVersionKind(gvk)
 
-				err := client.Get(ctx, req.NamespacedName, obj)
+				err := bld.client.Get(ctx, req.NamespacedName, obj)
 				if err != nil {
 					l.Error(err, "Failed to get the resource", "req", req.NamespacedName)
 					return models.ExitReconcile, nil
 				}
 
-				eventRecorder.Eventf(obj, models.Warning, models.GenericEvent,
-					"Amount of reconcile requeue retries reached its maximum: %v", limiter.maxRetries,
+				bld.eventRecorder.Eventf(obj, models.Warning, models.GenericEvent,
+					"Amount of reconcile requeue retries reached its maximum: %v", requeueLimiter.maxRetries,
 				)
 			}
 
@@ -89,14 +97,15 @@ func ReconcilerWithLimit(r reconcile.Reconciler, opts ...ReconcilerWithLimitOpti
 
 		result, err := r.Reconcile(ctx, req)
 		if err != nil || result == models.ReconcileRequeue {
-			limiter.Requeue(req.NamespacedName)
+			requeueLimiter.Requeue(req.NamespacedName)
 			return result, err
 		}
 
-		limiter.Reset(req.NamespacedName)
+		requeueLimiter.Reset(req.NamespacedName)
 
 		return result, nil
 	}
+
 }
 
 type ReconcileRequeueLimiter struct {
