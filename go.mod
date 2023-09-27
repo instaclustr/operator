@@ -7,7 +7,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/jackc/pgx/v5 v5.4.3
-	github.com/lib/pq v1.10.9
 	github.com/onsi/ginkgo/v2 v2.0.0
 	github.com/onsi/gomega v1.18.1
 	go.uber.org/zap v1.19.1
