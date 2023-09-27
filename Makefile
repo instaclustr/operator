@@ -188,3 +188,11 @@ cert-deploy: ## Deploy cert-manager
 .PHONY: cert-undeploy
 cert-undeploy: ## UnDeploy cert-manager
 	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.0/cert-manager.yaml
+
+.PHONY dev-build:
+dev-build: docker-build kind-load deploy ## builds docker-image, loads it to kind cluster and deploys operator
+
+.PHONY: kind-load
+kind-load: ## loads given image to kind cluster
+	kind load docker-image ${IMG}
+
