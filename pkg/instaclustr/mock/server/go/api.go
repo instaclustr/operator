@@ -548,6 +548,7 @@ type AzureVnetPeerV2APIServicer interface {
 type BundleUserAPIServicer interface {
 	CreateUser(context.Context, string, string, BundleUserCreateRequest) (ImplResponse, error)
 	DeleteUser(context.Context, string, string, BundleUserDeleteRequest) (ImplResponse, error)
+	GetDefaultCreds(ctx context.Context, clusterID string) (ImplResponse, error)
 }
 
 // CadenceProvisioningV2APIServicer defines the api actions for the CadenceProvisioningV2API service

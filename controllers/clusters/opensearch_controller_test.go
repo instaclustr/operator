@@ -28,7 +28,9 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/controllers/tests"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 const newOpenSearchNodeSize = "SRH-DEV-t4g.small-30"
@@ -102,4 +104,51 @@ var _ = Describe("OpenSearch Controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
+
+	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+		It("should try to get the cluster details and receive StatusNotFound", func() {
+			openSearchManifest2 := openSearchManifest.DeepCopy()
+			openSearchManifest2.Name += "-test-external-delete"
+			openSearchManifest2.ResourceVersion = ""
+
+			openSearch2 := v1beta1.OpenSearch{}
+			openSearch2NamespacedName := types.NamespacedName{
+				Namespace: openSearchManifest2.Namespace,
+				Name:      openSearchManifest2.Name,
+			}
+
+			Expect(k8sClient.Create(ctx, openSearchManifest2)).Should(Succeed())
+
+			doneCh := tests.NewChannelWithTimeout(timeout)
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, openSearch2NamespacedName, &openSearch2); err != nil {
+					return false
+				}
+
+				if openSearch2.Status.State != models.RunningStatus {
+					return false
+				}
+
+				doneCh <- struct{}{}
+
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			<-doneCh
+
+			By("testing by deleting the cluster by Instaclutr API client")
+			Expect(instaClient.DeleteCluster(openSearch2.Status.ID, instaclustr.OpenSearchEndpoint)).Should(Succeed())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, openSearch2NamespacedName, &openSearch2)
+				if err != nil {
+					return false
+				}
+
+				return openSearch2.Status.State == models.DeletedStatus
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
 })

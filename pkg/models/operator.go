@@ -139,6 +139,7 @@ const (
 	DeletionStarted  = "DeletionStarted"
 	DeletionFailed   = "DeletionFailed"
 	Deleted          = "Deleted"
+	ExternalDeleted  = "ExternalDeleted"
 )
 
 const (

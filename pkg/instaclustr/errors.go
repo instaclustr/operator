@@ -25,3 +25,4 @@ var (
 )
 
 const MsgDeleteUser = "If you want to delete the user, remove it from the clusters specifications first"
+const MsgInstaclustrResourceNotFound = "The resource is not found on Instaclustr, changing its state to deleted"

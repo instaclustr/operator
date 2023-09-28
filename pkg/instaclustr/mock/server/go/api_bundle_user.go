@@ -60,6 +60,11 @@ func (c *BundleUserAPIController) Routes() Routes {
 			"/provisioning/v1/{clusterId}/{bundle}/users",
 			c.DeleteUser,
 		},
+		"GetDefaultCreds": Route{
+			strings.ToUpper("Get"),
+			"/provisioning/v1/{clusterId}",
+			c.GetDefaultCreds,
+		},
 	}
 }
 
@@ -120,5 +125,19 @@ func (c *BundleUserAPIController) DeleteUser(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+}
+
+func (c *BundleUserAPIController) GetDefaultCreds(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	clusterID := params["clusterId"]
+
+	result, err := c.service.GetDefaultCreds(r.Context(), clusterID)
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+
 	EncodeJSONResponse(result.Body, &result.Code, w)
 }

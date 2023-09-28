@@ -19,12 +19,12 @@ import (
 // This service should implement the business logic for every endpoint for the ApacheCassandraProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type ApacheCassandraProvisioningV2APIService struct {
-	MockCassandraClusters []*CassandraClusterV2
+	clusters map[string]*CassandraClusterV2
 }
 
 // NewApacheCassandraProvisioningV2APIService creates a default api service
 func NewApacheCassandraProvisioningV2APIService() ApacheCassandraProvisioningV2APIServicer {
-	return &ApacheCassandraProvisioningV2APIService{}
+	return &ApacheCassandraProvisioningV2APIService{clusters: map[string]*CassandraClusterV2{}}
 }
 
 // ClusterManagementV2DataSourcesApplicationsCassandraClustersV2ClusterIdListBackupsV2Get - List recent cluster backup events.
@@ -64,12 +64,12 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2OperationsA
 func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdDelete(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
-	c := s.getCluster(clusterId)
-	if c == nil {
+	_, exists := s.clusters[clusterId]
+	if !exists {
 		return Response(http.StatusNotFound, nil), nil
 	}
 
-	c = nil
+	delete(s.clusters, clusterId)
 
 	return Response(http.StatusNoContent, nil), nil
 }
@@ -79,8 +79,8 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesAp
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	c := s.getCluster(clusterId)
-	if c == nil {
+	c, exists := s.clusters[clusterId]
+	if !exists {
 		return Response(http.StatusNotFound, nil), nil
 	}
 
@@ -94,9 +94,9 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesAp
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	c := s.getCluster(clusterId)
-	if c == nil {
-		return Response(404, nil), nil
+	c, exists := s.clusters[clusterId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
 	}
 
 	newNode := []NodeDetailsV2{{
@@ -121,17 +121,7 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesAp
 	newCassandra.Id = cassandraClusterV2.Name + CreatedID
 	newCassandra.DataCentres[0].Nodes = []NodeDetailsV2{{NodeSize: cassandraClusterV2.DataCentres[0].NodeSize}}
 
-	s.MockCassandraClusters = append(s.MockCassandraClusters, newCassandra)
+	s.clusters[newCassandra.Id] = newCassandra
 
 	return Response(http.StatusAccepted, newCassandra), nil
-}
-
-func (s *ApacheCassandraProvisioningV2APIService) getCluster(clusterID string) *CassandraClusterV2 {
-	for _, c := range s.MockCassandraClusters {
-		if c.Id == clusterID {
-			return c
-		}
-	}
-
-	return nil
 }

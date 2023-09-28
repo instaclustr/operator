@@ -208,43 +208,60 @@ func (r *RedisReconciler) handleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	err = r.startClusterStatusJob(redis)
-	if err != nil {
-		logger.Error(err, "Cannot start cluster status job",
-			"redis cluster ID", redis.Status.ID,
-		)
+	if redis.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(redis)
+		if err != nil {
+			logger.Error(err, "Cannot start cluster status job",
+				"redis cluster ID", redis.Status.ID,
+			)
+
+			r.EventRecorder.Eventf(
+				redis, models.Warning, models.CreationFailed,
+				"Cluster status job creation is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 
 		r.EventRecorder.Eventf(
-			redis, models.Warning, models.CreationFailed,
-			"Cluster status job creation is failed. Reason: %v",
-			err,
+			redis, models.Normal, models.Created,
+			"Cluster status check job is started",
 		)
-		return models.ReconcileRequeue
-	}
 
-	r.EventRecorder.Eventf(
-		redis, models.Normal, models.Created,
-		"Cluster status check job is started",
-	)
+		err = r.startClusterBackupsJob(redis)
+		if err != nil {
+			logger.Error(err, "Cannot start Redis cluster backups check job",
+				"cluster ID", redis.Status.ID,
+			)
 
-	err = r.startClusterBackupsJob(redis)
-	if err != nil {
-		logger.Error(err, "Cannot start Redis cluster backups check job",
-			"cluster ID", redis.Status.ID,
-		)
+			r.EventRecorder.Eventf(
+				redis, models.Warning, models.CreationFailed,
+				"Cluster backups job creation is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 
 		r.EventRecorder.Eventf(
-			redis, models.Warning, models.CreationFailed,
-			"Cluster backups job creation is failed. Reason: %v",
-			err,
+			redis, models.Normal, models.Created,
+			"Cluster backups check job is started",
 		)
-		return models.ReconcileRequeue
-	}
 
-	r.EventRecorder.Eventf(
-		redis, models.Normal, models.Created,
-		"Cluster backups check job is started",
-	)
+		if redis.Spec.UserRefs != nil {
+			err = r.startUsersCreationJob(redis)
+
+			if err != nil {
+				logger.Error(err, "Failed to start user creation job")
+				r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
+					"User creation job is failed. Reason: %v", err,
+				)
+				return models.ReconcileRequeue
+			}
+
+			r.EventRecorder.Event(redis, models.Normal, models.Created,
+				"Cluster user creation job is started")
+		}
+	}
 
 	logger.Info(
 		"Redis resource has been created",
@@ -254,23 +271,6 @@ func (r *RedisReconciler) handleCreateCluster(
 		"api version", redis.APIVersion,
 		"namespace", redis.Namespace,
 	)
-
-	// Adding users is allowed when the cluster is running.
-
-	if redis.Spec.UserRefs != nil {
-		err = r.startUsersCreationJob(redis)
-
-		if err != nil {
-			logger.Error(err, "Failed to start user creation job")
-			r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err,
-			)
-			return models.ReconcileRequeue
-		}
-
-		r.EventRecorder.Event(redis, models.Normal, models.Created,
-			"Cluster user creation job is started")
-	}
 
 	return models.ExitReconcile
 }
@@ -896,45 +896,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 		iData, err := r.API.GetRedis(redis.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				activeClusters, err := r.API.ListClusters()
-				if err != nil {
-					l.Error(err, "Cannot list account active clusters")
-					return err
-				}
-
-				if !isClusterActive(redis.Status.ID, activeClusters) {
-					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-						"cluster ID", redis.Status.ClusterStatus.ID,
-						"cluster name", redis.Spec.Name,
-					)
-
-					patch := redis.NewPatch()
-					redis.Annotations[models.ClusterDeletionAnnotation] = ""
-					redis.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					err = r.Patch(context.TODO(), redis, patch)
-					if err != nil {
-						l.Error(err, "Cannot patch Redis cluster resource",
-							"cluster ID", redis.Status.ID,
-							"cluster name", redis.Spec.Name,
-							"resource name", redis.Name,
-						)
-
-						return err
-					}
-
-					err = r.Delete(context.TODO(), redis)
-					if err != nil {
-						l.Error(err, "Cannot delete Redis cluster resource",
-							"cluster ID", redis.Status.ID,
-							"cluster name", redis.Spec.Name,
-							"resource name", redis.Name,
-						)
-
-						return err
-					}
-
-					return nil
-				}
+				return r.handleExternalDelete(context.Background(), redis)
 			}
 
 			l.Error(err, "Cannot get Redis cluster status from Instaclustr",
@@ -1281,6 +1243,26 @@ func (r *RedisReconciler) reconcileMaintenanceEvents(ctx context.Context, redis 
 			"events", redis.Status.MaintenanceEvents,
 		)
 	}
+
+	return nil
+}
+
+func (r *RedisReconciler) handleExternalDelete(ctx context.Context, redis *v1beta1.Redis) error {
+	l := log.FromContext(ctx)
+
+	patch := redis.NewPatch()
+	redis.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, redis, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(redis, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

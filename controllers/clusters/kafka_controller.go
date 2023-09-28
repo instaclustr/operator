@@ -151,36 +151,43 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 			)
 			return models.ReconcileRequeue
 		}
-	}
 
-	err = r.startClusterStatusJob(kafka)
-	if err != nil {
-		l.Error(err, "Cannot start cluster status job",
-			"cluster ID", kafka.Status.ID)
-		r.EventRecorder.Eventf(
-			kafka, models.Warning, models.CreationFailed,
-			"Cluster status check job creation is failed. Reason: %v",
-			err,
+		l.Info("Cluster has been created",
+			"cluster ID", kafka.Status.ID,
 		)
-		return models.ReconcileRequeue
 	}
 
-	r.EventRecorder.Eventf(
-		kafka, models.Normal, models.Created,
-		"Cluster status check job is started",
-	)
-
-	l.Info("Cluster has been created",
-		"cluster ID", kafka.Status.ID)
-
-	if kafka.Spec.UserRefs != nil {
-		err = r.startUsersCreationJob(kafka)
+	if kafka.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(kafka)
 		if err != nil {
-			l.Error(err, "Failed to start user creation job")
-			r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err,
+			l.Error(err, "Cannot start cluster status job",
+				"cluster ID", kafka.Status.ID)
+			r.EventRecorder.Eventf(
+				kafka, models.Warning, models.CreationFailed,
+				"Cluster status check job creation is failed. Reason: %v",
+				err,
 			)
 			return models.ReconcileRequeue
+		}
+
+		r.EventRecorder.Eventf(
+			kafka, models.Normal, models.Created,
+			"Cluster status check job is started",
+		)
+
+		if kafka.Spec.UserRefs != nil {
+			err = r.startUsersCreationJob(kafka)
+			if err != nil {
+				l.Error(err, "Failed to start user creation job")
+				r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
+					"User creation job is failed. Reason: %v", err,
+				)
+				return models.ReconcileRequeue
+			}
+
+			r.EventRecorder.Event(kafka, models.Normal, models.Created,
+				"Cluster user creation job is started",
+			)
 		}
 	}
 
@@ -677,6 +684,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
+			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.BackupsChecker))
 			return nil
 		}
 		if err != nil {
@@ -688,7 +696,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 		iData, err := r.API.GetKafka(kafka.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				return r.handleDeleteFromInstaclustrUI(kafka, l)
+				return r.handleExternalDelete(context.Background(), kafka)
 			}
 
 			l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", kafka.Status.ID)
@@ -868,47 +876,22 @@ func (r *KafkaReconciler) newUsersCreationJob(kafka *v1beta1.Kafka) scheduler.Jo
 	}
 }
 
-func (r *KafkaReconciler) handleDeleteFromInstaclustrUI(kafka *v1beta1.Kafka, l logr.Logger) error {
-	activeClusters, err := r.API.ListClusters()
-	if err != nil {
-		l.Error(err, "Cannot list account active clusters")
-		return err
-	}
-
-	if isClusterActive(kafka.Status.ID, activeClusters) {
-		l.Info("Kafka is not found in the Instaclustr but still exist in the Instaclustr list of active cluster",
-			"cluster ID", kafka.Status.ID,
-			"cluster name", kafka.Spec.Name,
-			"resource name", kafka.Name)
-
-		return nil
-	}
-
-	l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-		"cluster ID", kafka.Status.ClusterStatus.ID,
-		"cluster name", kafka.Spec.Name)
+func (r *KafkaReconciler) handleExternalDelete(ctx context.Context, kafka *v1beta1.Kafka) error {
+	l := log.FromContext(ctx)
 
 	patch := kafka.NewPatch()
-
-	kafka.Annotations[models.ClusterDeletionAnnotation] = ""
-	kafka.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-	err = r.Patch(context.TODO(), kafka, patch)
+	kafka.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, kafka, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Kafka cluster resource",
-			"cluster ID", kafka.Status.ID,
-			"cluster name", kafka.Spec.Name,
-			"resource name", kafka.Name)
 		return err
 	}
 
-	err = r.Delete(context.TODO(), kafka)
-	if err != nil {
-		l.Error(err, "Cannot delete Kafka cluster resource",
-			"cluster ID", kafka.Status.ID,
-			"cluster name", kafka.Spec.Name,
-			"resource name", kafka.Name)
-		return err
-	}
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(kafka, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

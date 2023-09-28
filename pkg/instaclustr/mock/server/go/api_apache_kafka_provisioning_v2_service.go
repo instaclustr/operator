@@ -17,12 +17,12 @@ import (
 // This service should implement the business logic for every endpoint for the ApacheKafkaProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type ApacheKafkaProvisioningV2APIService struct {
-	MockKafkaCluster *KafkaClusterV2
+	clusters map[string]*KafkaClusterV2
 }
 
 // NewApacheKafkaProvisioningV2APIService creates a default api service
 func NewApacheKafkaProvisioningV2APIService() ApacheKafkaProvisioningV2APIServicer {
-	return &ApacheKafkaProvisioningV2APIService{}
+	return &ApacheKafkaProvisioningV2APIService{clusters: map[string]*KafkaClusterV2{}}
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdDelete - Delete cluster
@@ -30,7 +30,7 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockKafkaCluster = nil
+	delete(s.clusters, clusterId)
 	return Response(204, nil), nil
 }
 
@@ -39,19 +39,25 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	if s.MockKafkaCluster != nil {
-		s.MockKafkaCluster.Status = RUNNING
-	} else {
+	cluster, exists := s.clusters[clusterId]
+	if !exists {
 		return Response(404, nil), nil
 	}
 
-	return Response(200, s.MockKafkaCluster), nil
+	cluster.Status = RUNNING
+
+	return Response(200, cluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut - Update Kafka Cluster Details
 func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut(ctx context.Context, clusterId string, kafkaClusterUpdateV2 KafkaClusterUpdateV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+
+	cluster, exists := s.clusters[clusterId]
+	if !exists {
+		return Response(404, nil), nil
+	}
 
 	newNode := []NodeDetailsV2{{
 		NodeRoles:     []NodeRolesV2{"KAFKA_BROKER", "KAFKA_ZOOKEEPER"},
@@ -60,7 +66,7 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 		PublicAddress: "54.146.160.89",
 	}}
 
-	s.MockKafkaCluster.DataCentres[0].Nodes = newNode
+	cluster.DataCentres[0].Nodes = newNode
 
 	return Response(202, nil), nil
 
@@ -73,7 +79,8 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2Post with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	s.MockKafkaCluster = &kafkaClusterV2
-	s.MockKafkaCluster.Id = CreatedID
-	return Response(202, s.MockKafkaCluster), nil
+	kafkaClusterV2.Id = kafkaClusterV2.Name + CreatedID
+	s.clusters[kafkaClusterV2.Id] = &kafkaClusterV2
+
+	return Response(202, kafkaClusterV2), nil
 }

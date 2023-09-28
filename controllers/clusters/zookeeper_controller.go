@@ -153,40 +153,42 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 			)
 			return models.ReconcileRequeue
 		}
+
+		l.Info("Zookeeper cluster has been created", "cluster ID", zook.Status.ID)
+
+		err = r.createDefaultSecret(ctx, zook, l)
+		if err != nil {
+			l.Error(err, "Cannot create default secret for Zookeeper cluster",
+				"cluster name", zook.Spec.Name,
+				"clusterID", zook.Status.ID,
+			)
+			r.EventRecorder.Eventf(
+				zook, models.Warning, models.CreationFailed,
+				"Default user secret creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
+
+			return models.ReconcileRequeue
+		}
 	}
 
-	err = r.startClusterStatusJob(zook)
-	if err != nil {
-		l.Error(err, "Cannot start cluster status job",
-			"zookeeper cluster ID", zook.Status.ID)
+	if zook.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(zook)
+		if err != nil {
+			l.Error(err, "Cannot start cluster status job",
+				"zookeeper cluster ID", zook.Status.ID)
+			r.EventRecorder.Eventf(
+				zook, models.Warning, models.CreationFailed,
+				"Cluster status check job creation is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
+
 		r.EventRecorder.Eventf(
-			zook, models.Warning, models.CreationFailed,
-			"Cluster status check job creation is failed. Reason: %v",
-			err,
+			zook, models.Normal, models.Created,
+			"Cluster status check job is started",
 		)
-		return models.ReconcileRequeue
-	}
-
-	r.EventRecorder.Eventf(
-		zook, models.Normal, models.Created,
-		"Cluster status check job is started",
-	)
-
-	l.Info("Zookeeper cluster has been created", "cluster ID", zook.Status.ID)
-
-	err = r.createDefaultSecret(ctx, zook, l)
-	if err != nil {
-		l.Error(err, "Cannot create default secret for Zookeeper cluster",
-			"cluster name", zook.Spec.Name,
-			"clusterID", zook.Status.ID,
-		)
-		r.EventRecorder.Eventf(
-			zook, models.Warning, models.CreationFailed,
-			"Default user secret creation on the Instaclustr is failed. Reason: %v",
-			err,
-		)
-
-		return models.ReconcileRequeue
 	}
 
 	return models.ExitReconcile
@@ -422,7 +424,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 		iData, err := r.API.GetZookeeper(zook.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				return r.handleDeleteFromInstaclustrUI(zook, l)
+				return r.handleExternalDelete(context.Background(), zook)
 			}
 
 			l.Error(err, "Cannot get Zookeeper cluster status from Instaclustr",
@@ -507,50 +509,21 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 	}
 }
 
-func (r *ZookeeperReconciler) handleDeleteFromInstaclustrUI(zook *v1beta1.Zookeeper, l logr.Logger) error {
-	activeClusters, err := r.API.ListClusters()
-	if err != nil {
-		l.Error(err, "Cannot list account active clusters")
-		return err
-	}
-
-	if isClusterActive(zook.Status.ID, activeClusters) {
-		l.Info("Zookeeper is not found in the Instaclustr but still exist in the Instaclustr list of active cluster",
-			"cluster ID", zook.Status.ID,
-			"cluster name", zook.Spec.Name,
-			"resource name", zook.Name)
-
-		return nil
-	}
-
-	l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-		"cluster ID", zook.Status.ID,
-		"cluster name", zook.Spec.Name)
+func (r *ZookeeperReconciler) handleExternalDelete(ctx context.Context, zook *v1beta1.Zookeeper) error {
+	l := log.FromContext(ctx)
 
 	patch := zook.NewPatch()
-	zook.Annotations[models.ClusterDeletionAnnotation] = ""
-	zook.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-	err = r.Patch(context.TODO(), zook, patch)
+	zook.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, zook, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Zookeeper cluster resource",
-			"cluster ID", zook.Status.ID,
-			"cluster name", zook.Spec.Name,
-			"resource name", zook.Name,
-		)
-
 		return err
 	}
 
-	err = r.Delete(context.TODO(), zook)
-	if err != nil {
-		l.Error(err, "Cannot delete Zookeeper cluster resource",
-			"cluster ID", zook.Status.ID,
-			"cluster name", zook.Spec.Name,
-			"resource name", zook.Name,
-		)
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(zook, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-		return err
-	}
+	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }
