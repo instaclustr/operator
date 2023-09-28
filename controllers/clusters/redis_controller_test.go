@@ -28,7 +28,9 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/controllers/tests"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 const newRedisNodeSize = "RDS-DEV-t4g.medium-80"
@@ -103,4 +105,51 @@ var _ = Describe("Redis Controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
+
+	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+		It("should try to get the cluster details and receive StatusNotFound", func() {
+			redisManifest2 := redisManifest.DeepCopy()
+			redisManifest2.Name += "-test-external-delete"
+			redisManifest2.ResourceVersion = ""
+
+			redis2 := v1beta1.Redis{}
+			redis2NamespacedName := types.NamespacedName{
+				Namespace: redisManifest2.Namespace,
+				Name:      redisManifest2.Name,
+			}
+
+			Expect(k8sClient.Create(ctx, redisManifest2)).Should(Succeed())
+
+			doneCh := tests.NewChannelWithTimeout(timeout)
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, redis2NamespacedName, &redis2); err != nil {
+					return false
+				}
+
+				if redis2.Status.State != models.RunningStatus {
+					return false
+				}
+
+				doneCh <- struct{}{}
+
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			<-doneCh
+
+			By("using all possible ways other than k8s to delete a resource, the k8s operator scheduler should notice the changes and set the status of the deleted resource accordingly")
+			Expect(instaClient.DeleteCluster(redis2.Status.ID, instaclustr.RedisEndpoint)).Should(Succeed())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, redis2NamespacedName, &redis2)
+				if err != nil {
+					return false
+				}
+
+				return redis2.Status.State == models.DeletedStatus
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
 })

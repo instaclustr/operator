@@ -53,6 +53,8 @@ var (
 
 	timeout  = time.Millisecond * 1000
 	interval = time.Millisecond * 10
+
+	instaClient = instaclustr.NewClient("test", "test", "http://localhost:8082", time.Second*10)
 )
 
 func TestAPIs(t *testing.T) {
@@ -76,8 +78,6 @@ var _ = BeforeSuite(func() {
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
-
-	instaClient := instaclustr.NewClient("test", "test", "http://localhost:8082", time.Second*10)
 
 	err = v1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())

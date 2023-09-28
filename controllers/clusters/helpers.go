@@ -135,18 +135,6 @@ func isDataCentreNodesEqual(a, b []*v1beta1.Node) bool {
 	return true
 }
 
-func isClusterActive(clusterID string, activeClusters []*models.ActiveClusters) bool {
-	for _, activeCluster := range activeClusters {
-		for _, cluster := range activeCluster.Clusters {
-			if cluster.ID == clusterID {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 func getSortedAppVersions(versions []*models.AppVersions, appType string) []*version.Version {
 	for _, apps := range versions {
 		if apps.Application == appType {

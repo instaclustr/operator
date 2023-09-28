@@ -19,12 +19,12 @@ import (
 // This service should implement the business logic for every endpoint for the OpenSearchProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type OpenSearchProvisioningV2APIService struct {
-	MockOpenSearchCluster []*OpenSearchClusterV2
+	clusters map[string]*OpenSearchClusterV2
 }
 
 // NewOpenSearchProvisioningV2APIService creates a default api service
 func NewOpenSearchProvisioningV2APIService() OpenSearchProvisioningV2APIServicer {
-	return &OpenSearchProvisioningV2APIService{}
+	return &OpenSearchProvisioningV2APIService{clusters: map[string]*OpenSearchClusterV2{}}
 }
 
 // ClusterManagementV2DataSourcesApplicationsOpensearchClustersV2ClusterIdListBackupsV2Get - List recent cluster backup events.
@@ -65,12 +65,13 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	o := s.getCluster(clusterId)
-	if o == nil {
+	_, exists := s.clusters[clusterId]
+	if !exists {
 		return Response(http.StatusNotFound, nil), nil
 	}
 
-	o = nil
+	delete(s.clusters, clusterId)
+
 	return Response(http.StatusNoContent, nil), nil
 }
 
@@ -79,8 +80,8 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	o := s.getCluster(clusterId)
-	if o == nil {
+	o, exists := s.clusters[clusterId]
+	if !exists {
 		return Response(http.StatusNotFound, nil), nil
 	}
 
@@ -94,8 +95,8 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	o := s.getCluster(clusterId)
-	if o == nil {
+	o, exists := s.clusters[clusterId]
+	if !exists {
 		return Response(http.StatusNotFound, nil), nil
 	}
 
@@ -119,17 +120,7 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 	newOpenSearch = &openSearchClusterV2
 	newOpenSearch.Id = openSearchClusterV2.Name + CreatedID
 
-	s.MockOpenSearchCluster = append(s.MockOpenSearchCluster, newOpenSearch)
+	s.clusters[newOpenSearch.Id] = newOpenSearch
 
 	return Response(202, newOpenSearch), nil
-}
-
-func (s *OpenSearchProvisioningV2APIService) getCluster(clusterID string) *OpenSearchClusterV2 {
-	for _, o := range s.MockOpenSearchCluster {
-		if o.Id == clusterID {
-			return o
-		}
-	}
-
-	return nil
 }

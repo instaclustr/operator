@@ -221,54 +221,56 @@ func (r *CassandraReconciler) handleCreateCluster(
 		)
 	}
 
-	err = r.startClusterStatusJob(cassandra)
-	if err != nil {
-		l.Error(err, "Cannot start cluster status job",
-			"cassandra cluster ID", cassandra.Status.ID)
-
-		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
-	r.EventRecorder.Eventf(
-		cassandra, models.Normal, models.Created,
-		"Cluster status check job is started",
-	)
-
-	err = r.startClusterBackupsJob(cassandra)
-	if err != nil {
-		l.Error(err, "Cannot start cluster backups check job",
-			"cluster ID", cassandra.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.CreationFailed,
-			"Cluster backups check job is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
-	}
-
-	r.EventRecorder.Eventf(
-		cassandra, models.Normal, models.Created,
-		"Cluster backups check job is started",
-	)
-
-	if cassandra.Spec.UserRefs != nil {
-		err = r.startUsersCreationJob(cassandra)
+	if cassandra.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(cassandra)
 		if err != nil {
-			l.Error(err, "Failed to start user creation job")
-			r.EventRecorder.Eventf(cassandra, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err)
+			l.Error(err, "Cannot start cluster status job",
+				"cassandra cluster ID", cassandra.Status.ID)
+
+			r.EventRecorder.Eventf(
+				cassandra, models.Warning, models.CreationFailed,
+				"Cluster status check job is failed. Reason: %v",
+				err,
+			)
 			return models.ReconcileRequeue
 		}
 
-		r.EventRecorder.Event(cassandra, models.Normal, models.Created,
-			"Cluster user creation job is started")
+		r.EventRecorder.Eventf(
+			cassandra, models.Normal, models.Created,
+			"Cluster status check job is started",
+		)
+
+		err = r.startClusterBackupsJob(cassandra)
+		if err != nil {
+			l.Error(err, "Cannot start cluster backups check job",
+				"cluster ID", cassandra.Status.ID,
+			)
+
+			r.EventRecorder.Eventf(
+				cassandra, models.Warning, models.CreationFailed,
+				"Cluster backups check job is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
+
+		r.EventRecorder.Eventf(
+			cassandra, models.Normal, models.Created,
+			"Cluster backups check job is started",
+		)
+
+		if cassandra.Spec.UserRefs != nil {
+			err = r.startUsersCreationJob(cassandra)
+			if err != nil {
+				l.Error(err, "Failed to start user creation job")
+				r.EventRecorder.Eventf(cassandra, models.Warning, models.CreationFailed,
+					"User creation job is failed. Reason: %v", err)
+				return models.ReconcileRequeue
+			}
+
+			r.EventRecorder.Event(cassandra, models.Normal, models.Created,
+				"Cluster user creation job is started")
+		}
 	}
 
 	return models.ExitReconcile
@@ -885,45 +887,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 		iData, err := r.API.GetCassandra(cassandra.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				activeClusters, err := r.API.ListClusters()
-				if err != nil {
-					l.Error(err, "Cannot list account active clusters")
-					return err
-				}
-
-				if !isClusterActive(cassandra.Status.ID, activeClusters) {
-					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-						"cluster ID", cassandra.Status.ClusterStatus.ID,
-						"cluster name", cassandra.Spec.Name,
-					)
-
-					patch := cassandra.NewPatch()
-					cassandra.Annotations[models.ClusterDeletionAnnotation] = ""
-					cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					err = r.Patch(context.TODO(), cassandra, patch)
-					if err != nil {
-						l.Error(err, "Cannot patch Cassandra cluster resource",
-							"cluster ID", cassandra.Status.ID,
-							"cluster name", cassandra.Spec.Name,
-							"resource name", cassandra.Name,
-						)
-
-						return err
-					}
-
-					err = r.Delete(context.TODO(), cassandra)
-					if err != nil {
-						l.Error(err, "Cannot delete Cassandra cluster resource",
-							"cluster ID", cassandra.Status.ID,
-							"cluster name", cassandra.Spec.Name,
-							"resource name", cassandra.Name,
-						)
-
-						return err
-					}
-
-					return nil
-				}
+				return r.handleExternalDelete(context.Background(), cassandra)
 			}
 
 			l.Error(err, "Cannot get cluster from the Instaclustr API",
@@ -1258,6 +1222,26 @@ func (r *CassandraReconciler) reconcileMaintenanceEvents(ctx context.Context, c 
 			"events", c.Status.MaintenanceEvents,
 		)
 	}
+
+	return nil
+}
+
+func (r *CassandraReconciler) handleExternalDelete(ctx context.Context, c *v1beta1.Cassandra) error {
+	l := log.FromContext(ctx)
+
+	patch := c.NewPatch()
+	c.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, c, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(c, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

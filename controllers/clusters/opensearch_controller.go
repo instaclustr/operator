@@ -192,53 +192,56 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 
 			return models.ReconcileRequeue
 		}
+
+		logger.Info(
+			"OpenSearch resource has been created",
+			"cluster name", o.Name, "cluster ID", o.Status.ID,
+			"api version", o.APIVersion, "namespace", o.Namespace,
+		)
 	}
 
-	err = r.startClusterStatusJob(o)
-	if err != nil {
-		logger.Error(err, "Cannot start OpenSearch cluster status job",
-			"cluster ID", o.Status.ID)
-
-		r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v", err)
-
-		return models.ReconcileRequeue
-	}
-
-	r.EventRecorder.Event(o, models.Normal, models.Created,
-		"Cluster status check job is started")
-
-	err = r.startClusterBackupsJob(o)
-	if err != nil {
-		logger.Error(err, "Cannot start OpenSearch cluster backups check job",
-			"cluster ID", o.Status.ID)
-
-		r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-			"Cluster backups check job is failed. Reason: %v", err)
-
-		return models.ReconcileRequeue
-	}
-
-	r.EventRecorder.Event(o, models.Normal, models.Created,
-		"Cluster backups check job is started")
-
-	logger.Info(
-		"OpenSearch resource has been created",
-		"cluster name", o.Name, "cluster ID", o.Status.ID,
-		"api version", o.APIVersion, "namespace", o.Namespace)
-
-	if o.Spec.UserRefs != nil {
-		err = r.startUsersCreationJob(o)
+	if o.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(o)
 		if err != nil {
-			logger.Error(err, "Failed to start user creation job")
+			logger.Error(err, "Cannot start OpenSearch cluster status job",
+				"cluster ID", o.Status.ID)
+
 			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err,
-			)
+				"Cluster status check job is failed. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
 
 		r.EventRecorder.Event(o, models.Normal, models.Created,
-			"Cluster user creation job is started")
+			"Cluster status check job is started")
+
+		err = r.startClusterBackupsJob(o)
+		if err != nil {
+			logger.Error(err, "Cannot start OpenSearch cluster backups check job",
+				"cluster ID", o.Status.ID)
+
+			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+				"Cluster backups check job is failed. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		r.EventRecorder.Event(o, models.Normal, models.Created,
+			"Cluster backups check job is started")
+
+		if o.Spec.UserRefs != nil {
+			err = r.startUsersCreationJob(o)
+			if err != nil {
+				logger.Error(err, "Failed to start user creation job")
+				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+					"User creation job is failed. Reason: %v", err,
+				)
+				return models.ReconcileRequeue
+			}
+
+			r.EventRecorder.Event(o, models.Normal, models.Created,
+				"Cluster user creation job is started")
+		}
 	}
 
 	return models.ExitReconcile
@@ -597,45 +600,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 		iData, err := r.API.GetOpenSearch(o.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				activeClusters, err := r.API.ListClusters()
-				if err != nil {
-					l.Error(err, "Cannot list account active clusters")
-					return err
-				}
-
-				if !isClusterActive(o.Status.ID, activeClusters) {
-					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-						"cluster ID", o.Status.ClusterStatus.ID,
-						"cluster name", o.Spec.Name,
-					)
-
-					patch := o.NewPatch()
-					o.Annotations[models.ClusterDeletionAnnotation] = ""
-					o.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					err = r.Patch(context.TODO(), o, patch)
-					if err != nil {
-						l.Error(err, "Cannot patch OpenSearch cluster resource",
-							"cluster ID", o.Status.ID,
-							"cluster name", o.Spec.Name,
-							"resource name", o.Name,
-						)
-
-						return err
-					}
-
-					err = r.Delete(context.TODO(), o)
-					if err != nil {
-						l.Error(err, "Cannot delete OpenSearch cluster resource",
-							"cluster ID", o.Status.ID,
-							"cluster name", o.Spec.Name,
-							"resource name", o.Name,
-						)
-
-						return err
-					}
-
-					return nil
-				}
+				return r.handleExternalDelete(context.Background(), o)
 			}
 
 			l.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
@@ -1245,6 +1210,26 @@ func (r *OpenSearchReconciler) reconcileMaintenanceEvents(ctx context.Context, o
 			"events", o.Status.MaintenanceEvents,
 		)
 	}
+
+	return nil
+}
+
+func (r *OpenSearchReconciler) handleExternalDelete(ctx context.Context, o *v1beta1.OpenSearch) error {
+	l := log.FromContext(ctx)
+
+	patch := o.NewPatch()
+	o.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, o, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(o, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

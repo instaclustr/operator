@@ -227,43 +227,58 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	err = r.startClusterStatusJob(pg)
-	if err != nil {
-		logger.Error(err, "Cannot start PostgreSQL cluster status check job",
-			"cluster ID", pg.Status.ID,
-		)
+	if pg.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(pg)
+		if err != nil {
+			logger.Error(err, "Cannot start PostgreSQL cluster status check job",
+				"cluster ID", pg.Status.ID,
+			)
+
+			r.EventRecorder.Eventf(
+				pg, models.Warning, models.CreationFailed,
+				"Cluster status check job is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 
 		r.EventRecorder.Eventf(
-			pg, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v",
-			err,
+			pg, models.Normal, models.Created,
+			"Cluster status check job is started",
 		)
-		return models.ReconcileRequeue
-	}
 
-	r.EventRecorder.Eventf(
-		pg, models.Normal, models.Created,
-		"Cluster status check job is started",
-	)
+		err = r.startClusterBackupsJob(pg)
+		if err != nil {
+			logger.Error(err, "Cannot start PostgreSQL cluster backups check job",
+				"cluster ID", pg.Status.ID,
+			)
 
-	err = r.startClusterBackupsJob(pg)
-	if err != nil {
-		logger.Error(err, "Cannot start PostgreSQL cluster backups check job",
-			"cluster ID", pg.Status.ID,
-		)
+			r.EventRecorder.Eventf(
+				pg, models.Warning, models.CreationFailed,
+				"Cluster backups check job is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
 
 		r.EventRecorder.Eventf(
-			pg, models.Warning, models.CreationFailed,
-			"Cluster backups check job is failed. Reason: %v",
-			err,
+			pg, models.Normal, models.Created,
+			"Cluster backups check job is started",
 		)
-		return models.ReconcileRequeue
-	}
 
-	r.EventRecorder.Eventf(
-		pg, models.Normal, models.Created,
-		"Cluster backups check job is started",
-	)
+		if pg.Spec.UserRefs != nil {
+			err = r.startUsersCreationJob(pg)
+			if err != nil {
+				logger.Error(err, "Failed to start user PostreSQL creation job")
+				r.EventRecorder.Eventf(pg, models.Warning, models.CreationFailed,
+					"User creation job is failed. Reason: %v", err)
+				return models.ReconcileRequeue
+			}
+
+			r.EventRecorder.Event(pg, models.Normal, models.Created,
+				"Cluster user creation job is started")
+		}
+	}
 
 	err = r.createDefaultPassword(ctx, pg, logger)
 	if err != nil {
@@ -279,19 +294,6 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 		)
 
 		return models.ReconcileRequeue
-	}
-
-	if pg.Spec.UserRefs != nil {
-		err = r.startUsersCreationJob(pg)
-		if err != nil {
-			logger.Error(err, "Failed to start user PostreSQL creation job")
-			r.EventRecorder.Eventf(pg, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err)
-			return models.ReconcileRequeue
-		}
-
-		r.EventRecorder.Event(pg, models.Normal, models.Created,
-			"Cluster user creation job is started")
 	}
 
 	return models.ExitReconcile
@@ -964,45 +966,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 		instPGData, err := r.API.GetPostgreSQL(pg.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				activeClusters, err := r.API.ListClusters()
-				if err != nil {
-					l.Error(err, "Cannot list account active clusters")
-					return err
-				}
-
-				if !isClusterActive(pg.Status.ID, activeClusters) {
-					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-						"cluster ID", pg.Status.ClusterStatus.ID,
-						"cluster name", pg.Spec.Name,
-					)
-
-					patch := pg.NewPatch()
-					pg.Annotations[models.ClusterDeletionAnnotation] = ""
-					pg.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					err = r.Patch(context.TODO(), pg, patch)
-					if err != nil {
-						l.Error(err, "Cannot patch PostgreSQL cluster resource",
-							"cluster ID", pg.Status.ID,
-							"cluster name", pg.Spec.Name,
-							"resource name", pg.Name,
-						)
-
-						return err
-					}
-
-					err = r.Delete(context.TODO(), pg)
-					if err != nil {
-						l.Error(err, "Cannot delete PostgreSQL cluster resource",
-							"cluster ID", pg.Status.ID,
-							"cluster name", pg.Spec.Name,
-							"resource name", pg.Name,
-						)
-
-						return err
-					}
-
-					return nil
-				}
+				return r.handleExternalDelete(context.Background(), pg)
 			}
 
 			l.Error(err, "Cannot get PostgreSQL cluster status",
@@ -1634,6 +1598,26 @@ func (r *PostgreSQLReconciler) reconcileMaintenanceEvents(ctx context.Context, p
 			"events", pg.Status.MaintenanceEvents,
 		)
 	}
+
+	return nil
+}
+
+func (r *PostgreSQLReconciler) handleExternalDelete(ctx context.Context, pg *v1beta1.PostgreSQL) error {
+	l := log.FromContext(ctx)
+
+	patch := pg.NewPatch()
+	pg.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, pg, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(pg, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

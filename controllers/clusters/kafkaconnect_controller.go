@@ -138,40 +138,43 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 			)
 			return models.ReconcileRequeue
 		}
+
+		err = r.createDefaultSecret(ctx, kc, l)
+		if err != nil {
+			l.Error(err, "Cannot create default secret for Kafka Connect",
+				"cluster name", kc.Spec.Name,
+				"clusterID", kc.Status.ID,
+			)
+			r.EventRecorder.Eventf(
+				kc, models.Warning, models.CreationFailed,
+				"Default user secret creation on the Instaclustr is failed. Reason: %v",
+				err,
+			)
+
+			return models.ReconcileRequeue
+		}
+
+		l.Info("Kafka Connect cluster has been created",
+			"cluster ID", kc.Status.ID,
+		)
 	}
 
-	err := r.startClusterStatusJob(kc)
-	if err != nil {
-		l.Error(err, "Cannot start cluster status job", "cluster ID", kc.Status.ID)
+	if kc.Status.State != models.DeletedStatus {
+		err := r.startClusterStatusJob(kc)
+		if err != nil {
+			l.Error(err, "Cannot start cluster status job", "cluster ID", kc.Status.ID)
+			r.EventRecorder.Eventf(
+				kc, models.Warning, models.CreationFailed,
+				"Cluster status check job is failed. Reason: %v",
+				err,
+			)
+			return models.ReconcileRequeue
+		}
+
 		r.EventRecorder.Eventf(
-			kc, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v",
-			err,
+			kc, models.Normal, models.Created,
+			"Cluster status check job is started",
 		)
-		return models.ReconcileRequeue
-	}
-
-	l.Info("Kafka Connect cluster has been created",
-		"cluster ID", kc.Status.ID)
-
-	r.EventRecorder.Eventf(
-		kc, models.Normal, models.Created,
-		"Cluster status check job is started",
-	)
-
-	err = r.createDefaultSecret(ctx, kc, l)
-	if err != nil {
-		l.Error(err, "Cannot create default secret for Kafka Connect",
-			"cluster name", kc.Spec.Name,
-			"clusterID", kc.Status.ID,
-		)
-		r.EventRecorder.Eventf(
-			kc, models.Warning, models.CreationFailed,
-			"Default user secret creation on the Instaclustr is failed. Reason: %v",
-			err,
-		)
-
-		return models.ReconcileRequeue
 	}
 
 	return models.ExitReconcile
@@ -434,6 +437,11 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 		return err
 	}
 
+	l.Info("Default secret was created",
+		"secret name", secret.Name,
+		"secret namespace", secret.Namespace,
+	)
+
 	return nil
 }
 
@@ -468,45 +476,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				activeClusters, err := r.API.ListClusters()
-				if err != nil {
-					l.Error(err, "Cannot list account active clusters")
-					return err
-				}
-
-				if !isClusterActive(kc.Status.ID, activeClusters) {
-					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-						"cluster ID", kc.Status.ClusterStatus.ID,
-						"cluster name", kc.Spec.Name,
-					)
-
-					patch := kc.NewPatch()
-					kc.Annotations[models.ClusterDeletionAnnotation] = ""
-					kc.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					err = r.Patch(context.TODO(), kc, patch)
-					if err != nil {
-						l.Error(err, "Cannot patch KafkaConnect cluster resource",
-							"cluster ID", kc.Status.ID,
-							"cluster name", kc.Spec.Name,
-							"resource name", kc.Name,
-						)
-
-						return err
-					}
-
-					err = r.Delete(context.TODO(), kc)
-					if err != nil {
-						l.Error(err, "Cannot delete KafkaConnect cluster resource",
-							"cluster ID", kc.Status.ID,
-							"cluster name", kc.Spec.Name,
-							"resource name", kc.Name,
-						)
-
-						return err
-					}
-
-					return nil
-				}
+				return r.handleExternalDelete(context.Background(), kc)
 			}
 
 			l.Error(err, "Cannot get Kafka Connect from Instaclustr",
@@ -654,6 +624,25 @@ func (r *KafkaConnectReconciler) reconcileMaintenanceEvents(ctx context.Context,
 			"events", kc.Status.MaintenanceEvents,
 		)
 	}
+
+	return nil
+}
+
+func (r *KafkaConnectReconciler) handleExternalDelete(ctx context.Context, kc *v1beta1.KafkaConnect) error {
+	l := log.FromContext(ctx)
+
+	patch := kc.NewPatch()
+	kc.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, kc, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(kc, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

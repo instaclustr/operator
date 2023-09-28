@@ -28,7 +28,9 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/controllers/tests"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 const zookeeperNodeSizeFromYAML = "zookeeper-developer-t3.small-20"
@@ -62,6 +64,22 @@ var _ = Describe("Zookeeper Controller", func() {
 			}).Should(BeTrue())
 
 			<-done
+
+			By("creating secret with the default user credentials")
+			secret := zookeeper.NewDefaultUserSecret("", "")
+			secretNamespacedName := types.NamespacedName{
+				Namespace: secret.Namespace,
+				Name:      secret.Name,
+			}
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, secretNamespacedName, secret); err != nil {
+					return false
+				}
+
+				return string(secret.Data[models.Username]) == zookeeper.Status.ID+"_username" &&
+					string(secret.Data[models.Password]) == zookeeper.Status.ID+"_password"
+			}).Should(BeTrue())
 		})
 
 		When("zookeeper is created, the status job get new data from the InstAPI.", func() {
@@ -98,4 +116,51 @@ var _ = Describe("Zookeeper Controller", func() {
 			})
 		})
 	})
+
+	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+		It("should try to get the cluster details and receive StatusNotFound", func() {
+			zookeeperManifest2 := zookeeperManifest.DeepCopy()
+			zookeeperManifest2.Name += "-test-external-delete"
+			zookeeperManifest2.ResourceVersion = ""
+
+			zookeeper2 := v1beta1.Zookeeper{}
+			kafkaConnect2NamespacedName := types.NamespacedName{
+				Namespace: zookeeperManifest2.Namespace,
+				Name:      zookeeperManifest2.Name,
+			}
+
+			Expect(k8sClient.Create(ctx, zookeeperManifest2)).Should(Succeed())
+
+			doneCh := tests.NewChannelWithTimeout(timeout)
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, kafkaConnect2NamespacedName, &zookeeper2); err != nil {
+					return false
+				}
+
+				if zookeeper2.Status.State != models.RunningStatus {
+					return false
+				}
+
+				doneCh <- struct{}{}
+
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			<-doneCh
+
+			By("using all possible ways other than k8s to delete a resource, the k8s operator scheduler should notice the changes and set the status of the deleted resource accordingly")
+			Expect(instaClient.DeleteCluster(zookeeper2.Status.ID, instaclustr.ZookeeperEndpoint)).Should(Succeed())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, kafkaConnect2NamespacedName, &zookeeper2)
+				if err != nil {
+					return false
+				}
+
+				return zookeeper2.Status.State == models.DeletedStatus
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
 })

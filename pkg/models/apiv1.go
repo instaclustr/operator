@@ -18,7 +18,6 @@ package models
 
 const (
 	RunningStatus = "RUNNING"
-	Disabled      = "DISABLED"
 )
 
 type ClusterProviderV1 struct {

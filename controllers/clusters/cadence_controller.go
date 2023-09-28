@@ -222,20 +222,22 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			"Cluster creation request is sent. Cluster ID: %s", id)
 	}
 
-	err := r.startClusterStatusJob(cadence)
-	if err != nil {
-		logger.Error(err, "Cannot start cluster status job",
-			"cadence cluster ID", cadence.Status.ID,
-		)
+	if cadence.Status.State != models.DeletedStatus {
+		err := r.startClusterStatusJob(cadence)
+		if err != nil {
+			logger.Error(err, "Cannot start cluster status job",
+				"cadence cluster ID", cadence.Status.ID,
+			)
 
-		r.EventRecorder.Eventf(cadence, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v", err)
+			r.EventRecorder.Eventf(cadence, models.Warning, models.CreationFailed,
+				"Cluster status check job is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+			return models.ReconcileRequeue
+		}
+
+		r.EventRecorder.Event(cadence, models.Normal, models.Created,
+			"Cluster status check job is started")
 	}
-
-	r.EventRecorder.Event(cadence, models.Normal, models.Created,
-		"Cluster status check job is started")
 
 	return models.ExitReconcile
 }
@@ -790,45 +792,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 		iData, err := r.API.GetCadence(cadence.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				activeClusters, err := r.API.ListClusters()
-				if err != nil {
-					l.Error(err, "Cannot list account active clusters")
-					return err
-				}
-
-				if !isClusterActive(cadence.Status.ID, activeClusters) {
-					l.Info("Cluster is not found in Instaclustr. Deleting resource.",
-						"cluster ID", cadence.Status.ClusterStatus.ID,
-						"cluster name", cadence.Spec.Name,
-					)
-
-					patch := cadence.NewPatch()
-					cadence.Annotations[models.ClusterDeletionAnnotation] = ""
-					cadence.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
-					err = r.Patch(context.TODO(), cadence, patch)
-					if err != nil {
-						l.Error(err, "Cannot patch Cadence cluster resource",
-							"cluster ID", cadence.Status.ID,
-							"cluster name", cadence.Spec.Name,
-							"resource name", cadence.Name,
-						)
-
-						return err
-					}
-
-					err = r.Delete(context.TODO(), cadence)
-					if err != nil {
-						l.Error(err, "Cannot delete Cadence cluster resource",
-							"cluster ID", cadence.Status.ID,
-							"cluster name", cadence.Spec.Name,
-							"resource name", cadence.Name,
-						)
-
-						return err
-					}
-
-					return nil
-				}
+				return r.handleExternalDelete(context.Background(), cadence)
 			}
 
 			l.Error(err, "Cannot get Cadence cluster from the Instaclustr API",
@@ -1278,6 +1242,25 @@ func (r *CadenceReconciler) reconcileMaintenanceEvents(ctx context.Context, c *v
 			"events", c.Status.MaintenanceEvents,
 		)
 	}
+
+	return nil
+}
+
+func (r *CadenceReconciler) handleExternalDelete(ctx context.Context, c *v1beta1.Cadence) error {
+	l := log.FromContext(ctx)
+
+	patch := c.NewPatch()
+	c.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, c, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(c, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

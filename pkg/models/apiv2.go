@@ -20,6 +20,8 @@ const (
 	NoOperation         = "NO_OPERATION"
 	OperationInProgress = "OPERATION_IN_PROGRESS"
 
+	DeletedStatus = "DELETED"
+
 	DefaultAccountName = "INSTACLUSTR"
 
 	AWSVPC  = "AWS_VPC"

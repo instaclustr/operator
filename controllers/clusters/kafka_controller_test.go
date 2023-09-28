@@ -18,6 +18,7 @@ package clusters
 
 import (
 	"context"
+	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,7 +29,8 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/controllers/tests"
-	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
+	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 const newKafkaNodeSize = "KFK-DEV-t4g.medium-80"
@@ -47,6 +49,7 @@ var _ = Describe("Kafka Controller", func() {
 
 	ctx := context.Background()
 
+	clusterID := kafkaManifest.Spec.Name + openapi.CreatedID
 	When("apply a Kafka manifest", func() {
 		It("should create a Kafka resources", func() {
 			Expect(k8sClient.Create(ctx, &kafkaManifest)).Should(Succeed())
@@ -58,7 +61,7 @@ var _ = Describe("Kafka Controller", func() {
 					return false
 				}
 
-				return kafka.Status.ID == openapi.CreatedID
+				return kafka.Status.ID == clusterID
 			}).Should(BeTrue())
 
 			<-done
@@ -104,4 +107,51 @@ var _ = Describe("Kafka Controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
+
+	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+		It("should try to get the cluster details and receive StatusNotFound", func() {
+			kafkaManifest2 := kafkaManifest.DeepCopy()
+			kafkaManifest2.Name += "-test-external-delete"
+			kafkaManifest2.ResourceVersion = ""
+
+			kafka2 := v1beta1.Kafka{}
+			kafkaConnect2NamespacedName := types.NamespacedName{
+				Namespace: kafkaManifest2.Namespace,
+				Name:      kafkaManifest2.Name,
+			}
+
+			Expect(k8sClient.Create(ctx, kafkaManifest2)).Should(Succeed())
+
+			doneCh := tests.NewChannelWithTimeout(timeout)
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, kafkaConnect2NamespacedName, &kafka2); err != nil {
+					return false
+				}
+
+				if kafka2.Status.State != models.RunningStatus {
+					return false
+				}
+
+				doneCh <- struct{}{}
+
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			<-doneCh
+
+			By("using all possible ways other than k8s to delete a resource, the k8s operator scheduler should notice the changes and set the status of the deleted resource accordingly")
+			Expect(instaClient.DeleteCluster(kafka2.Status.ID, instaclustr.KafkaEndpoint)).Should(Succeed())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, kafkaConnect2NamespacedName, &kafka2)
+				if err != nil {
+					return false
+				}
+
+				return kafka2.Status.State == models.DeletedStatus
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
 })

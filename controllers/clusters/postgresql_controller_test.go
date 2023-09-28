@@ -28,7 +28,9 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/controllers/tests"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 const newPostgreSQLNodeSize = "PGS-DEV-t4g.medium-30"
@@ -104,4 +106,51 @@ var _ = Describe("PostgreSQL Controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
+
+	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+		It("should try to get the cluster details and receive StatusNotFound", func() {
+			postgresqlManifest2 := postgresqlManifest.DeepCopy()
+			postgresqlManifest2.Name += "-test-external-delete"
+			postgresqlManifest2.ResourceVersion = ""
+
+			pg2 := v1beta1.PostgreSQL{}
+			pg2NamespacedName := types.NamespacedName{
+				Namespace: postgresqlManifest2.Namespace,
+				Name:      postgresqlManifest2.Name,
+			}
+
+			Expect(k8sClient.Create(ctx, postgresqlManifest2)).Should(Succeed())
+
+			doneCh := tests.NewChannelWithTimeout(timeout)
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, pg2NamespacedName, &pg2); err != nil {
+					return false
+				}
+
+				if pg2.Status.State != models.RunningStatus {
+					return false
+				}
+
+				doneCh <- struct{}{}
+
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			<-doneCh
+
+			By("testing by deleting the cluster by Instaclutr API client")
+			Expect(instaClient.DeleteCluster(pg2.Status.ID, instaclustr.PGSQLEndpoint)).Should(Succeed())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, pg2NamespacedName, &pg2)
+				if err != nil {
+					return false
+				}
+
+				return pg2.Status.State == models.DeletedStatus
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+
 })

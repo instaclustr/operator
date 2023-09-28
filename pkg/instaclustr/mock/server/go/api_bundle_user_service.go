@@ -11,6 +11,7 @@ package openapi
 
 import (
 	"context"
+	"net/http"
 )
 
 // BundleUserAPIService is a service that implements the logic for the BundleUserAPIServicer
@@ -68,4 +69,16 @@ func (s *BundleUserAPIService) DeleteUser(ctx context.Context, clusterId string,
 	// return Response(504, nil),nil
 
 	return Response(200, GenericResponse{}), nil
+}
+
+func (s *BundleUserAPIService) GetDefaultCreds(ctx context.Context, clusterID string) (ImplResponse, error) {
+	creds := &struct {
+		Username                string `json:"username"`
+		InstaclustrUserPassword string `json:"instaclustrUserPassword"`
+	}{
+		Username:                clusterID + "_username",
+		InstaclustrUserPassword: clusterID + "_password",
+	}
+
+	return Response(http.StatusAccepted, creds), nil
 }
