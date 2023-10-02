@@ -166,8 +166,6 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				"User has been created for a cluster. Cluster ID: %s, username: %s",
 				clusterID, newUsername)
 
-			// TODO: Add deletion user finalizers
-
 			continue
 		}
 
