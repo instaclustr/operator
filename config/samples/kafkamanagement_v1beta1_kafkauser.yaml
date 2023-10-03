@@ -4,7 +4,7 @@ metadata:
   name: secret-test
 data:
   username: "U2FuY2gtdHdvCg=="
-  password: "Qm9oZGFuXyF1YmVyX3VudGVyX3ZhZmVsb2sxNDg4X2lnb3JfdG9saWsxNDg4Cg=="
+  password: "Qm9oZGFuX3ViZXJfdW50ZXJfaWdvcl90b2xpazEK"
 ---
 apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: KafkaUser
@@ -34,6 +34,6 @@ spec:
 #      validPeriod: 6
 #      autoRenew: false
   initialPermissions: "standard"
-  options:
-    overrideExistingUser: true
-    saslScramMechanism: "SCRAM-SHA-256"
+  overrideExistingUser: true
+  saslScramMechanism: "SCRAM-SHA-256"
+  authMechanism: "SASL"

@@ -144,7 +144,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			l.Info(
 				"Creating Kafka user",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 			)
 			iKafkaUser := user.Spec.ToInstAPI(clusterID, username, password)
 			_, err = r.API.CreateKafkaUser(instaclustr.KafkaUserEndpoint, iKafkaUser)
@@ -178,7 +177,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka user resource status",
 					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
 					"kafka user metadata", user.ObjectMeta,
 				)
 				r.EventRecorder.Eventf(
@@ -193,7 +191,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			l.Info(
 				"Kafka user was created",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 			)
 
 			continue
@@ -205,7 +202,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			if err != nil {
 				l.Error(err, "cannot delete Kafka user",
 					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
 					"kafka user metadata", user.ObjectMeta,
 				)
 				r.EventRecorder.Eventf(
@@ -228,7 +224,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka user resource status",
 					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
 					"kafka user metadata", user.ObjectMeta,
 				)
 				r.EventRecorder.Eventf(
@@ -242,7 +237,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 			l.Info("Kafka user has been deleted",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 			)
 
 			r.EventRecorder.Eventf(user, models.Normal, models.Deleted,
@@ -258,7 +252,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka user resource status",
 					"initial permissions", user.Spec.InitialPermissions,
-					"kafka user options", user.Spec.Options,
 					"kafka user metadata", user.ObjectMeta,
 				)
 				r.EventRecorder.Eventf(
@@ -272,7 +265,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 			l.Info("Kafka user has been detached",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 			)
 			r.EventRecorder.Eventf(
 				user, models.Normal, models.Deleted,
@@ -289,7 +281,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			l.Error(err, "Cannot update Kafka user",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 			)
 			r.EventRecorder.Eventf(
 				user, models.Warning, models.UpdateFailed,
@@ -305,7 +296,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			l.Error(err, "Cannot patch Kafka user resource metadata",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 				"kafka user metadata", user.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
@@ -322,7 +312,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			l.Error(err, "Cannot patch Kafka user resource status",
 				"initial permissions", user.Spec.InitialPermissions,
-				"kafka user options", user.Spec.Options,
 				"kafka user metadata", user.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
@@ -336,7 +325,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 		l.Info("Kafka user resource has been updated",
 			"initial permissions", user.Spec.InitialPermissions,
-			"kafka user options", user.Spec.Options,
 		)
 
 		continue

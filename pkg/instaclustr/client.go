@@ -887,40 +887,6 @@ func (c *Client) UpdateKafkaTopic(url string, t *kafkamanagementv1beta1.Topic) e
 	return nil
 }
 
-func (c *Client) GetKafkaUserStatus(
-	kafkaUserID,
-	kafkaUserEndpoint string,
-) (*kafkamanagementv1beta1.KafkaUserStatus, error) {
-	url := c.serverHostname + kafkaUserEndpoint + kafkaUserID
-
-	resp, err := c.DoRequest(url, http.MethodGet, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, NotFound
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
-	}
-
-	var kafkaUserStatus kafkamanagementv1beta1.KafkaUserStatus
-	err = json.Unmarshal(body, &kafkaUserStatus)
-	if err != nil {
-		return nil, err
-	}
-
-	return &kafkaUserStatus, nil
-}
-
 func (c *Client) CreateKafkaUser(
 	url string,
 	kafkaUser *models.KafkaUser,

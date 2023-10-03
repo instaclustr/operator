@@ -17,16 +17,13 @@ limitations under the License.
 package models
 
 type KafkaUser struct {
-	Username           string            `json:"username,omitempty"`
-	Password           string            `json:"password,omitempty"`
-	Options            *KafkaUserOptions `json:"options"`
-	ClusterID          string            `json:"clusterId"`
-	InitialPermissions string            `json:"initialPermissions"`
-}
-
-type KafkaUserOptions struct {
+	Password             string `json:"password,omitempty"`
 	OverrideExistingUser bool   `json:"overrideExistingUser,omitempty"`
-	SASLSCRAMMechanism   string `json:"saslScramMechanism"`
+	SASLSCRAMMechanism   string `json:"saslScramMechanism,omitempty"`
+	AuthMechanism        string `json:"authMechanism"`
+	ClusterID            string `json:"clusterId"`
+	InitialPermissions   string `json:"initialPermissions"`
+	Username             string `json:"username"`
 }
 
 type CertificateRequest struct {

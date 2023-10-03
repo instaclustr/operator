@@ -35,6 +35,8 @@ spec:
           spec:
             description: KafkaUserSpec defines the desired state of KafkaUser
             properties:
+              authMechanism:
+                type: string
               certificateRequests:
                 items:
                   properties:
@@ -68,15 +70,10 @@ spec:
                 type: array
               initialPermissions:
                 type: string
-              options:
-                properties:
-                  overrideExistingUser:
-                    type: boolean
-                  saslScramMechanism:
-                    type: string
-                required:
-                - saslScramMechanism
-                type: object
+              overrideExistingUser:
+                type: boolean
+              saslScramMechanism:
+                type: string
               secretRef:
                 properties:
                   name:
@@ -88,8 +85,9 @@ spec:
                 - namespace
                 type: object
             required:
+            - authMechanism
             - initialPermissions
-            - options
+            - saslScramMechanism
             - secretRef
             type: object
           status:
