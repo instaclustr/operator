@@ -382,8 +382,8 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 					return false
 				}
 
-				for i, useRef := range cassandra1.Spec.UserRefs {
-					if user2.Name == useRef.Name && user2.Namespace == useRef.Namespace {
+				for i, userRef := range cassandra1.Spec.UserRefs {
+					if user2.Name == userRef.Name && user2.Namespace == userRef.Namespace {
 						cassandra1.Spec.UserRefs = removeUserByIndex(cassandra1.Spec.UserRefs, i)
 						Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
 					}
