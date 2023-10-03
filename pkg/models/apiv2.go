@@ -92,7 +92,7 @@ type Node struct {
 
 type TwoFactorDelete struct {
 	ConfirmationPhoneNumber string `json:"confirmationPhoneNumber,omitempty"`
-	ConfirmationEmail       string `json:"confirmationEmail"`
+	ConfirmationEmail       string `json:"confirmationEmail,omitempty"`
 }
 
 type NodeReloadStatus struct {
@@ -127,7 +127,7 @@ type PrivateLink struct {
 
 type ClusterSettings struct {
 	Description     string           `json:"description"`
-	TwoFactorDelete *TwoFactorDelete `json:"twoFactorDelete"`
+	TwoFactorDelete *TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 }
 
 // ResizeSettings determines how resize requests will be performed for the cluster

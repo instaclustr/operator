@@ -68,8 +68,8 @@ type RedisSpec struct {
 	PasswordAndUserAuth bool `json:"passwordAndUserAuth,omitempty"`
 	//+kubebuilder:validation:MaxItems:=2
 	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
-	Description string             `json:"description,omitempty"`
-	UserRefs    []*UserReference   `json:"userRefs,omitempty"`
+
+	UserRefs []*UserReference `json:"userRefs,omitempty"`
 	//+kubebuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
@@ -157,6 +157,7 @@ func (rs *RedisSpec) ToInstAPI() *models.RedisCluster {
 		PrivateNetworkCluster:  rs.PrivateNetworkCluster,
 		PasswordAndUserAuth:    rs.PasswordAndUserAuth,
 		SLATier:                rs.SLATier,
+		Description:            rs.Description,
 		DataCentres:            rs.DCsToInstAPI(),
 		TwoFactorDelete:        rs.TwoFactorDeletesToInstAPI(),
 	}
@@ -273,11 +274,11 @@ func (rs *RedisSpec) FromInstAPI(iRedis *models.RedisCluster) RedisSpec {
 			PrivateNetworkCluster: iRedis.PrivateNetworkCluster,
 			SLATier:               iRedis.SLATier,
 			TwoFactorDelete:       rs.Cluster.TwoFactorDeleteFromInstAPI(iRedis.TwoFactorDelete),
+			Description:           iRedis.Description,
 		},
 		ClientEncryption:    iRedis.ClientToNodeEncryption,
 		PasswordAndUserAuth: iRedis.PasswordAndUserAuth,
 		DataCentres:         rs.DCsFromInstAPI(iRedis.DataCentres),
-		Description:         rs.Description,
 	}
 }
 

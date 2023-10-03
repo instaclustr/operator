@@ -35,6 +35,10 @@ func (c *Cluster) ValidateCreation() error {
 		return fmt.Errorf("two factor delete should not have more than 1 item")
 	}
 
+	if c.Description != "" {
+		return fmt.Errorf("description is not supported yet, when create a cluster. You can add this field when the cluster is in the running state")
+	}
+
 	if !validation.Contains(c.SLATier, models.SLATiers) {
 		return fmt.Errorf("cluster SLATier %s is unavailable, available values: %v",
 			c.SLATier, models.SLATiers)

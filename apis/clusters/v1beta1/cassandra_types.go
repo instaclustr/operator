@@ -303,6 +303,7 @@ func (cs *CassandraSpec) FromInstAPI(iCass *models.CassandraCluster) CassandraSp
 			PrivateNetworkCluster: iCass.PrivateNetworkCluster,
 			SLATier:               iCass.SLATier,
 			TwoFactorDelete:       cs.Cluster.TwoFactorDeleteFromInstAPI(iCass.TwoFactorDelete),
+			Description:           iCass.Description,
 		},
 		DataCentres:         cs.DCsFromInstAPI(iCass.DataCentres),
 		LuceneEnabled:       iCass.LuceneEnabled,
@@ -355,6 +356,7 @@ func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 		PCIComplianceMode:     cs.PCICompliance,
 		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
 		BundledUseOnly:        cs.BundledUseOnly,
+		Description:           cs.Description,
 		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
 	}
 }
