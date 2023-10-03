@@ -125,15 +125,27 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if event == models.CreatingEvent {
 			l.Info("Creating user", "user", u, "cluster ID", clusterID)
 
-			err = r.API.CreateUser(u.ToInstAPI(username, password), clusterID, instaclustr.CassandraBundleUser)
+			exists, err := CheckIfUserExistsOnInstaclustrAPI(username, clusterID, instaclustr.CassandraBundleUser, r.API)
 			if err != nil {
-				l.Error(err, "Cannot create a user for the Cassandra cluster",
-					"cluster ID", clusterID,
-					"username", username)
-				r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
-					"Cannot create user. Reason: %v", err)
-
+				l.Error(err, "Cannot check if user exists ")
+				r.EventRecorder.Eventf(
+					u, models.Warning, models.CreationFailed,
+					"Cannot check if user exists. Reason: %v", err,
+				)
 				return models.ReconcileRequeue, nil
+			}
+
+			if !exists {
+				err = r.API.CreateUser(u.ToInstAPI(username, password), clusterID, instaclustr.CassandraBundleUser)
+				if err != nil {
+					l.Error(err, "Cannot create a user for the Cassandra cluster",
+						"cluster ID", clusterID,
+						"username", username)
+					r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
+						"Cannot create user. Reason: %v", err)
+
+					return models.ReconcileRequeue, nil
+				}
 			}
 
 			event = models.Created
@@ -159,13 +171,25 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if event == models.DeletingEvent {
 			l.Info("Deleting user from a cluster", "cluster ID", clusterID)
 
-			err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
+			exists, err := CheckIfUserExistsOnInstaclustrAPI(username, clusterID, instaclustr.CassandraBundleUser, r.API)
 			if err != nil {
-				l.Error(err, "Cannot delete Cassandra user")
-				r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
-					"Cannot delete user. Reason: %v", err)
-
+				l.Error(err, "Cannot check if user exists ")
+				r.EventRecorder.Eventf(
+					u, models.Warning, models.CreationFailed,
+					"Cannot check if user exists. Reason: %v", err,
+				)
 				return models.ReconcileRequeue, nil
+			}
+
+			if exists {
+				err = r.API.DeleteUser(username, clusterID, instaclustr.CassandraBundleUser)
+				if err != nil {
+					l.Error(err, "Cannot delete Cassandra user")
+					r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
+						"Cannot delete user. Reason: %v", err)
+
+					return models.ReconcileRequeue, nil
+				}
 			}
 
 			l.Info("User has been deleted for cluster", "username", username,
