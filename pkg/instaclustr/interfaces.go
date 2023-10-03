@@ -41,7 +41,6 @@ type API interface {
 	GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1beta1.FirewallRuleStatus, error)
 	CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1beta1.FirewallRuleStatus, error)
 	DeleteFirewallRule(firewallRuleID string, firewallRuleEndpoint string) error
-	GetKafkaUserStatus(kafkaUserID, kafkaUserEndpoint string) (*kafkamanagementv1beta1.KafkaUserStatus, error)
 	CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*kafkamanagementv1beta1.KafkaUserStatus, error)
 	UpdateKafkaUser(kafkaUserID string, kafkaUserSpec *models.KafkaUser) error
 	DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error

@@ -27,15 +27,12 @@ import (
 
 // KafkaUserSpec defines the desired state of KafkaUser
 type KafkaUserSpec struct {
-	Options             *KafkaUserOptions        `json:"options"`
-	SecretRef           *v1beta1.SecretReference `json:"secretRef"`
-	CertificateRequests []*CertificateRequest    `json:"certificateRequests,omitempty"`
-	InitialPermissions  string                   `json:"initialPermissions"`
-}
-
-type KafkaUserOptions struct {
-	OverrideExistingUser bool   `json:"overrideExistingUser,omitempty"`
-	SASLSCRAMMechanism   string `json:"saslScramMechanism"`
+	SecretRef            *v1beta1.SecretReference `json:"secretRef"`
+	CertificateRequests  []*CertificateRequest    `json:"certificateRequests,omitempty"`
+	InitialPermissions   string                   `json:"initialPermissions"`
+	OverrideExistingUser bool                     `json:"overrideExistingUser,omitempty"`
+	SASLSCRAMMechanism   string                   `json:"saslScramMechanism"`
+	AuthMechanism        string                   `json:"authMechanism"`
 }
 
 // KafkaUserStatus defines the observed state of KafkaUser
@@ -121,20 +118,14 @@ func init() {
 
 func (ks *KafkaUserSpec) ToInstAPI(clusterID string, username string, password string) *models.KafkaUser {
 	return &models.KafkaUser{
-		ClusterID:          clusterID,
-		InitialPermissions: ks.InitialPermissions,
-		Options:            ks.Options.ToInstAPI(),
-		Username:           username,
-		Password:           password,
+		Password:             password,
+		OverrideExistingUser: ks.OverrideExistingUser,
+		SASLSCRAMMechanism:   ks.SASLSCRAMMechanism,
+		AuthMechanism:        ks.AuthMechanism,
+		ClusterID:            clusterID,
+		InitialPermissions:   ks.InitialPermissions,
+		Username:             username,
 	}
-}
-
-func (ko *KafkaUserOptions) ToInstAPI() *models.KafkaUserOptions {
-	return &models.KafkaUserOptions{
-		OverrideExistingUser: ko.OverrideExistingUser,
-		SASLSCRAMMechanism:   ko.SASLSCRAMMechanism,
-	}
-
 }
 
 func (cr *CertificateRequest) ToInstAPI(username string) *models.CertificateRequest {
