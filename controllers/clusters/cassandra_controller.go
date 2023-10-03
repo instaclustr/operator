@@ -324,6 +324,10 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 	if len(cassandra.Spec.TwoFactorDelete) != 0 && len(iCassandra.Spec.TwoFactorDelete) == 0 ||
 		cassandra.Spec.Description != iCassandra.Spec.Description {
+		l.Info("Updating cluster settings",
+			"instaclustr description", iCassandra.Spec.Description,
+			"instaclustr two factor delete", iCassandra.Spec.TwoFactorDelete)
+
 		settingsToInstAPI, err := cassandra.Spec.ClusterSettingsUpdateToInstAPI()
 		if err != nil {
 			l.Error(err, "Cannot convert cluster settings to Instaclustr API",

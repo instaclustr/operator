@@ -324,15 +324,17 @@ func (c *Cluster) ClusterSettingsUpdateToInstAPI() (*models.ClusterSettings, err
 		return nil, models.ErrOnlyOneEntityTwoFactorDelete
 	}
 
-	iTFD := &models.TwoFactorDelete{}
-	for _, tfd := range c.TwoFactorDelete {
-		iTFD = tfd.ToInstAPI()
+	settingsToAPI := &models.ClusterSettings{}
+	if c.TwoFactorDelete != nil {
+		iTFD := &models.TwoFactorDelete{}
+		for _, tfd := range c.TwoFactorDelete {
+			iTFD = tfd.ToInstAPI()
+		}
+		settingsToAPI.TwoFactorDelete = iTFD
 	}
+	settingsToAPI.Description = c.Description
 
-	return &models.ClusterSettings{
-		Description:     c.Description,
-		TwoFactorDelete: iTFD,
-	}, nil
+	return settingsToAPI, nil
 }
 
 func (c *Cluster) TwoFactorDeleteToInstAPIv1() *models.TwoFactorDeleteV1 {

@@ -179,16 +179,18 @@ func (r *RedisReconciler) handleCreateCluster(
 		redis.Status.ID = id
 		err = r.Status().Patch(ctx, redis, patch)
 		if err != nil {
-			logger.Error(err, "Cannot update Redis cluster status",
-				"cluster name", redis.Spec.Name,
-			)
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v",
-				err,
-			)
+			logger.Error(err, "Cannot patch Redis cluster status",
+				"cluster name", redis.Spec.Name)
+			r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
+				"Cluster resource status patch is failed. Reason: %v", err)
+
 			return models.ReconcileRequeue
 		}
+
+		logger.Info("Redis resource has been created",
+			"cluster name", redis.Name,
+			"cluster ID", redis.Status.ID,
+			"api version", redis.APIVersion)
 	}
 
 	patch := redis.NewPatch()
@@ -325,6 +327,35 @@ func (r *RedisReconciler) handleUpdateCluster(
 
 	if redis.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return r.handleExternalChanges(redis, iRedis, logger)
+	}
+
+	if len(redis.Spec.TwoFactorDelete) != 0 && len(iRedis.Spec.TwoFactorDelete) == 0 ||
+		redis.Spec.Description != iRedis.Spec.Description {
+		logger.Info("Updating cluster settings",
+			"instaclustr description", iRedis.Spec.Description,
+			"instaclustr two factor delete", iRedis.Spec.TwoFactorDelete)
+
+		settingsToInstAPI, err := redis.Spec.ClusterSettingsUpdateToInstAPI()
+		if err != nil {
+			logger.Error(err, "Cannot convert cluster settings to Instaclustr API",
+				"cluster ID", redis.Status.ID,
+				"cluster spec", redis.Spec)
+			r.EventRecorder.Eventf(redis, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+
+		err = r.API.UpdateClusterSettings(redis.Status.ID, settingsToInstAPI)
+		if err != nil {
+			logger.Error(err, "Cannot update cluster settings",
+				"cluster ID", redis.Status.ID, "cluster spec", redis.Spec)
+
+			r.EventRecorder.Eventf(redis, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
 	}
 
 	if !redis.Spec.IsEqual(iRedis.Spec) {
