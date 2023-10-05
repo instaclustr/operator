@@ -296,62 +296,6 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 		return models.ReconcileRequeue
 	}
 
-	if pg.Spec.UserRefs != nil {
-		nodeList := &k8sCore.NodeList{}
-
-		err = r.List(ctx, nodeList, &client.ListOptions{})
-		if err != nil {
-			logger.Error(err, "Cannot list all nodes",
-				"cluster name", pg.Spec.Name,
-				"clusterID", pg.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				pg, models.Warning, models.CreationFailed,
-				"Fetching all nodes is failed. Reason: %v",
-				err,
-			)
-
-			return models.ReconcileRequeue
-		}
-
-		var externalIPExists bool
-		for _, node := range nodeList.Items {
-			for _, nodeAddress := range node.Status.Addresses {
-				if nodeAddress.Type == k8sCore.NodeExternalIP {
-					externalIPExists = true
-					break
-				}
-			}
-		}
-
-		if !externalIPExists || pg.Spec.PrivateNetworkCluster {
-			logger.Error(err, "Cannot create PostgreSQL user, if your cluster is private or has no external ips "+
-				"you need to configure peering and remove user references from cluster specification",
-				"cluster name", pg.Spec.Name,
-				"clusterID", pg.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				pg, models.Warning, models.CreationFailed,
-				"Creating PostgreSQL user has been failed. Reason: %v", err,
-			)
-
-			return models.ReconcileRequeue
-		}
-
-		err = r.startUsersCreationJob(pg)
-		if err != nil {
-			logger.Error(err, "Failed to start user PostreSQL creation job")
-			r.EventRecorder.Eventf(pg, models.Warning, models.CreationFailed,
-				"User creation job is failed. Reason: %v", err)
-			return models.ReconcileRequeue
-		}
-
-		r.EventRecorder.Event(pg, models.Normal, models.Created,
-			"Cluster user creation job is started")
-	}
-
 	return models.ExitReconcile
 }
 
