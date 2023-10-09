@@ -104,3 +104,12 @@ type API interface {
 	DeleteAWSEndpointServicePrincipal(principalID string) error
 	GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*v1beta1.ResizeOperation, error)
 }
+
+type IcadminAPI interface {
+	GetGateways(cdcID string) ([]*v1beta1.Gateway, error)
+	GetOnPremisesNodes(clusterID string) ([]*v1beta1.OnPremiseNode, error)
+	SetPrivateGatewayIP(gatewayID, ip string) error
+	SetPublicGatewayIP(gatewayID, ip string) error
+	SetNodeIPs(nodeID string, request *v1beta1.OnPremiseNode) error
+	GetIgnitionScript(nodeID string) (string, error)
+}

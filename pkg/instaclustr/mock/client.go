@@ -375,3 +375,32 @@ func (c *mockClient) GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*
 func (c *mockClient) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error) {
 	panic("GetAWSVPCPeering: is not implemented")
 }
+
+//
+//func (c *mockClient) CreateOnPremisesCluster(url string, cluster any) (string, error) {
+//	panic("CreateOnPremisesCluster: is not implemented)")
+//}
+
+func (c *mockClient) GetGateways(cdcID string) ([]*clustersv1beta1.Gateway, error) {
+	panic("GetGateways: is not implemented")
+}
+
+func (c *mockClient) GetOnPremisesNodes(clusterID string) ([]*clustersv1beta1.OnPremiseNode, error) {
+	panic("GetOnPremisesNodes: is not implemented")
+}
+
+func (c *mockClient) SetPrivateGatewayIP(gatewayID, ip string) error {
+	panic("SetPrivateGatewayIP: is not implemented")
+}
+
+func (c *mockClient) SetPublicGatewayIP(gatewayID, ip string) error {
+	panic("SetPublicGatewayIP: is not implemented")
+}
+
+func (c *mockClient) SetNodeIPs(nodeID string, request *clustersv1beta1.OnPremiseNode) error {
+	panic("SetNodeIPs: is not implemented")
+}
+
+func (c *mockClient) GetIgnitionScript(nodeID string) (string, error) {
+	panic("GetIgnitionScript: is not implemented")
+}

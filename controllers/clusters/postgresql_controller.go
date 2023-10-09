@@ -331,7 +331,7 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			pg, models.Warning, models.ConvertionFailed,
+			pg, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)

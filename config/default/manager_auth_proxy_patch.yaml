@@ -49,6 +49,16 @@ spec:
               secretKeyRef:
                 name: creds-secret
                 key: HOSTNAME
+          - name: ICADMIN_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: creds-secret
+                key: ICADMIN_USERNAME
+          - name: ICADMIN_APIKEY
+            valueFrom:
+              secretKeyRef:
+                name: creds-secret
+                key: ICADMIN_APIKEY
         args:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"

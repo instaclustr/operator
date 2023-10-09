@@ -409,7 +409,7 @@ func (r *PostgreSQLUserReconciler) createPostgreSQLFirewallRule(
 	firewallRule := &clusterresourcesv1beta1.ClusterNetworkFirewallRule{
 		TypeMeta: ctrl.TypeMeta{
 			Kind:       models.ClusterNetworkFirewallRuleKind,
-			APIVersion: models.ClusterresourcesV1beta1APIVersion,
+			APIVersion: models.ClusterResourcesV1beta1APIVersion,
 		},
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        firewallRuleName,

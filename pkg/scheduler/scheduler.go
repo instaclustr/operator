@@ -24,13 +24,18 @@ import (
 	"github.com/go-logr/logr"
 )
 
-var ClusterStatusInterval time.Duration
-var ClusterBackupsInterval time.Duration
-var UserCreationInterval time.Duration
+var (
+	ClusterStatusInterval  time.Duration
+	ClusterBackupsInterval time.Duration
+	UserCreationInterval   time.Duration
+)
 
-const StatusChecker = "statusChecker"
-const BackupsChecker = "backupsChecker"
-const UserCreator = "userCreator"
+const (
+	StatusChecker        = "statusChecker"
+	BackupsChecker       = "backupsChecker"
+	UserCreator          = "userCreator"
+	OnPremisesIPsChecker = "onPremisesIPsChecker"
+)
 
 type Job func() error
 

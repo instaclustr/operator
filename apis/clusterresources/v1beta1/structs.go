@@ -57,3 +57,8 @@ type SecretReference struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 }
+
+type NamespacedName struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}

@@ -38,8 +38,8 @@ type Client struct {
 }
 
 func NewClient(
-	username string,
-	key string,
+	username,
+	key,
 	serverHostname string,
 	timeout time.Duration,
 ) *Client {

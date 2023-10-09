@@ -143,6 +143,61 @@ type privateLinkStatus struct {
 	EndPointServiceName string `json:"endPointServiceName,omitempty"`
 }
 
+type NamespacedName struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
+
+type Gateway struct {
+	ID                   string `json:"id,omitempty"`
+	ClusterDataCentre    string `json:"clusterDataCentre,omitempty"`
+	ClusterID            string `json:"clusterId,omitempty"`
+	PublicAddress        string `json:"publicAddress,omitempty"`
+	PrivateAddress       string `json:"privateAddress,omitempty"`
+	NatID                string `json:"natId,omitempty"`
+	NatPublicAddress     string `json:"natPublicAddress,omitempty"`
+	NatPrivateAddress    string `json:"natPrivateAddress,omitempty"`
+	NodeAgentVersion     string `json:"nodeAgentVersion,omitempty"`
+	SSHMarkedForDeletion string `json:"sshMarkedForDeletion,omitempty"`
+	SSHReplaces          string `json:"sshReplaces,omitempty"`
+	NatMarkedForDeletion string `json:"natMarkedForDeletion,omitempty"`
+	Rack                 string `json:"rack,omitempty"`
+	RackID               string `json:"rackId,omitempty"`
+	SSHAWSID             string `json:"sshAWSId,omitempty"`
+}
+
+type OnPremiseNode struct {
+	ID                         string `json:"id,omitempty"`
+	ClusterDataCentre          string `json:"clusterDataCentre,omitempty"`
+	AccountID                  string `json:"accountId,omitempty"`
+	Status                     string `json:"status,omitempty"`
+	PublicAddress              string `json:"publicAddress,omitempty"`
+	PrivateAddress             string `json:"privateAddress,omitempty"`
+	Provider                   string `json:"provider,omitempty"`
+	Size                       string `json:"size,omitempty"`
+	DeferredReason             string `json:"deferredReason,omitempty"`
+	MarkedForDeletion          string `json:"markedForDeletion,omitempty"`
+	NodeAgentStartDate         string `json:"nodeAgentStartDate,omitempty"`
+	ChargifyDateLastBilled     string `json:"chargifyDateLastBilled,omitempty"`
+	LastOSUpdate               string `json:"lastOSUpdate,omitempty"`
+	Replaces                   string `json:"replaces,omitempty"`
+	Rack                       string `json:"rack,omitempty"`
+	RackID                     string `json:"rackId,omitempty"`
+	DataCentre                 string `json:"dataCentre,omitempty"`
+	ForceStart                 bool   `json:"forceStart,omitempty"`
+	BundleStartEnabled         bool   `json:"bundleStartEnabled,omitempty"`
+	ClusterID                  string `json:"clusterId,omitempty"`
+	EphemeralStorageDiskCount  int    `json:"ephemeralStorageDiskCount,omitempty"`
+	PersistentStorageDiskCount int    `json:"persistentStorageDiskCount,omitempty"`
+	CacheDiskQuota             int    `json:"cacheDiskQuota,omitempty"`
+	FailureReason              string `json:"failureReason,omitempty"`
+	NodeAgentVersion           string `json:"nodeAgentVersion,omitempty"`
+	OSVersionID                string `json:"osVersionId,omitempty"`
+	OSBuildID                  string `json:"osBuildId,omitempty"`
+	DiskQuota                  int    `json:"diskQuota,omitempty"`
+	InstanceStore              bool   `json:"instanceStore,omitempty"`
+}
+
 type PrivateLinkStatuses []*privateLinkStatus
 
 func (p1 PrivateLinkStatuses) Equal(p2 PrivateLinkStatuses) bool {

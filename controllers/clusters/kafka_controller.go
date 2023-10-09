@@ -213,7 +213,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		return models.ExitReconcile
 	}
 
-	if iKafka.Status.ClusterStatus.State != StatusRUNNING {
+	if iKafka.Status.ClusterStatus.State != models.RunningStatus {
 		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
 			"cluster name", k.Spec.Name,
 			"cluster state", iKafka.Status.ClusterStatus.State)

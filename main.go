@@ -26,6 +26,8 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	virtcorev1 "kubevirt.io/api/core/v1"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -56,6 +58,8 @@ func init() {
 	utilruntime.Must(clustersv1beta1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv1beta1.AddToScheme(scheme))
 	utilruntime.Must(kafkamanagementv1beta1.AddToScheme(scheme))
+	utilruntime.Must(cdiv1beta1.AddToScheme(scheme))
+	utilruntime.Must(virtcorev1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -109,10 +113,19 @@ func main() {
 	username := os.Getenv("USERNAME")
 	key := os.Getenv("APIKEY")
 	serverHostname := os.Getenv("HOSTNAME")
+	icadminUsername := os.Getenv("ICADMIN_USERNAME")
+	icadminKey := os.Getenv("ICADMIN_APIKEY")
 
 	instaClient := instaclustr.NewClient(
 		username,
 		key,
+		serverHostname,
+		instaclustr.DefaultTimeout,
+	)
+
+	icadminClient := instaclustr.NewIcadminClient(
+		icadminUsername,
+		icadminKey,
 		serverHostname,
 		instaclustr.DefaultTimeout,
 	)
@@ -125,6 +138,7 @@ func main() {
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		API:           instaClient,
+		IcadminAPI:    icadminClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {

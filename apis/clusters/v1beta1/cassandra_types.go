@@ -55,7 +55,8 @@ type CassandraRestoreFrom struct {
 
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
+	RestoreFrom         *CassandraRestoreFrom    `json:"restoreFrom,omitempty"`
+	OnPremisesSpec      *CassandraOnPremisesSpec `json:"onPremisesSpec,omitempty"`
 	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
@@ -65,6 +66,18 @@ type CassandraSpec struct {
 	UserRefs            []*UserReference       `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+}
+
+type CassandraOnPremisesSpec struct {
+	StorageClassName              string          `json:"storageClassName"`
+	OSDiskSize                    string          `json:"osDiskSize"`
+	DataDiskSize                  string          `json:"dataDiskSize"`
+	SSHGatewayCPU                 int64           `json:"sshGatewayCPU,omitempty"`
+	SSHGatewayMemory              string          `json:"sshGatewayMemory,omitempty"`
+	NodeCPU                       int64           `json:"nodeCPU"`
+	NodeMemory                    string          `json:"nodeMemory"`
+	OSImageURL                    string          `json:"osImageURL"`
+	CloudInitScriptNamespacedName *NamespacedName `json:"cloudInitScriptNamespacedName"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
@@ -141,7 +154,7 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.C
 	return &clusterresourcesv1beta1.ClusterBackup{
 		TypeMeta: ctrl.TypeMeta{
 			Kind:       models.ClusterBackupKind,
-			APIVersion: models.ClusterresourcesV1beta1APIVersion,
+			APIVersion: models.ClusterResourcesV1beta1APIVersion,
 		},
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        models.SnapshotUploadPrefix + c.Status.ID + "-" + strconv.Itoa(startTimestamp),

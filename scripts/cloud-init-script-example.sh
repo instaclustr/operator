@@ -1,0 +1,22 @@
+#!/bin/bash
+
+export NEW_PASS="qwerty12345"
+export SSH_PUB_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC9/SUQIwJ58Fl67lMse4YIvWTjW5xdvwLkCXvWHcnxgoY/84WmpiU58X70mlEZTgC0C5QM6HOdDfuGsE8joUDLsBa3i0SQnK33gIy6tMYxRcmhN4E2W4JOjCkefoDD00wZaiVO4oEYun9nRRx0G9ICPHXRjMnK860mnY2WBXQyzvELrjcHJqBj8fE5xODtGULF/feusYaUsdMhVKM2lVI9WPtLyoDaaTxnd/GgBhy+LiixqrhDhOoSG8ng3yfLvs1nso71WD4J/FDUmVn5WuwCckSRYeCBuYWDpGUbu8WEtrCu6bW2jHTQyWIv0XiNgzkmqG6SySzrDx4nQoOJtqbaFT+lLzmp2ZWD9skTdWNSAIQLCRPeHUPQ9e9DXXFSfIQ8d8AgiBTobeeiWxXZ4qu+85Dbr/YgUMi0RZu9uB0YuGCzpYrqkPHSOQtihqUXW8CzoAcr8r5HEGPEcG+gW2u+sRpNW3msMelxLtDprI3EwmhvKQ/aWyj9wFCqgrO9SJc= danil@danil-mint"
+export BOOTSTRAP_SSH_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAEAQDgeaO3zkY5v1dww3fFONPzUnEgIqJ4kUK0Usu8iFdp+TWIulw9dDeQHa+PdWXP97l5Vv1mG9ipqShEIu7/2bp13KxSblWX4iV1MYZbtimhY3UDOsPn1G3E1Ipis6y+/tosDAm8LoWaGEMcLuE5UjP6gs6K57rCEjkVGjg7vjhIypAMC0J2N2+CxK9o/Y1+LZAec+FL5cmSJoajoo9y/VYJjz/a52jJ93wRafD2uu6ObAl5gkN/+gqY4IJFSMx20sPsIRXdbiBNDqiap56ibHHPKTeZhRbdXvZfjYkHtutXnSM2xn7BjnV8CguISxS3rXlzlzRVYwSUjnKUf5SKBbeyZbCokx271vCeUd5EXfHphvW6FIOna2AI5lpCSYkw5Kho3HaPi2NjXJ9i2dCr1zpcZpCiettDuaEjxR0Cl4Jd6PrAiAEZ0Ns0u2ysVhudshVzQrq6qdd7W9/MLjbDIHdTToNjFLZA6cbE0MQf18LXwJAl+G/QrXgcVaiopUmld+68JL89Xym55LzkMhI0NiDtWufawd/NiZ6jm13Z3+atvnOimdyuqBYeFWgbtcxjs0yN9v7h7PfPh6TbiQYFx37DCfQiIucqx1GWmMijmd7HMY6Nv3UvnoTUTSn4yz1NxhEpC61N+iAInZDpeJEtULSzlEMWlbzL4t5cF+Rm1dFdq3WpZt1mi8F4DgrsgZEuLGAw22RNW3++EWYFUNnJXaYyctPrMpWQktr4DB5nQGIHF92WR8uncxTNUXfWuT29O9e+bFYh1etmq8rsCoLcxN0zFHWvcECK55aE+47lfNAR+HEjuwYW10mGU/pFmO0F9FFmcQRSw4D4tnVUgl3XjKe3bBiTa4lUrzrKkLZ6n9/buW2e7c3jbjmXdPh2R+2Msr/vfuWs9glxQf+CYEbBW6Ye4pekIyI77SaB/bVhaHtXutKxm+QWdNle8aeqiA8Ji1Ml+s75vIg+n5v6viCnl5aV33xHRFpGQJzj2ktsXl9P9d5kgal9eXJYTywC2SnVbZVLb6FGN4kPZTVwX1f+u7v7JCm4YWlbQZtwwiXKjs99AVtQnBWqQvUH5sFUkVXlHA1Y9W6wlup0r+F6URL+7Yw+d0dHByfevrJg3pvmpLb3sEpjIAZodW3dIUReE7Ku3s/q/O9foFnfRBnCcZ2QsnxI5pqNrbrundD1ApOnNXEvICvPXHBBQ44cW0hzAO+WxY5VxyG8y/kXnb48G9efkIQFkNaITJrU9SiOk6bFP4QANdS/pmaSLjJIsHixa+7vmYjRy1SVoQ/39vDUnyCbqKtO56QMH32hQLRO3Vk7NVG6o4dYjFkiaMSaqVlHKMkJQHVzlK2PW9/fjVXfkAHmmhoD debian"
+export SSH_POD="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDNJoDynzwPT9VrgCdGG33xNhkboXNmDObjQTI88GQy+r/y9rwShvA+B+9+J9owuBdKuEnqk/CPFgTwbxHPS4SFoSnlS4dfL+stwVzQ0aTrI+Wz71xm91dVjS/N6xPIGCzSEZ3dzU+GNDObn5eZhlRx60S+zGI3Vj6siKszatCWhKR9I9ZyyJxArLTvhyY9uLCGDvBFoyLcCdwI8OjaZwBHn1HxkOc9Zi2roXZ01con5ABFFPADbit6AXjzfKfRjfh2gqfyTq9kXqGgqhF8ccTWA2YdPrxJfZ617FqJ1IvPzjzmSOp6ToIBP3UrGg0T+wC0TqFT+WDEj+udxW8y4y0hnA9HjzZEoEHoWcfz1LajqQY6FEb10+IHRj3BErn5SBUgvsrhrZlDoiKBWe4ZSLxdq0ElGWMs7uLz70YIkMuD8iAg2nIDRKfRLdnpmGfvneu55zP1edccdCmlT2emx+llO6fs5rzWS3vYOQkLM0qZBemuXvpPXUarp7CPCUenXU0= root@ssh"
+
+echo "debian:$NEW_PASS" | chpasswd
+echo "root:$NEW_PASS" | sudo chpasswd root
+sudo echo "$SSH_PUB_KEY" > /home/debian/.ssh/authorized_keys
+sudo echo "$BOOTSTRAP_SSH_KEY" >> /home/debian/.ssh/authorized_keys
+sudo echo "$SSH_POD" >> /home/debian/.ssh/authorized_keys
+sudo chown -R debian: /home/debian/.ssh
+sudo cp /usr/share/doc/apt/examples/sources.list /etc/apt/sources.list
+data_device=$(lsblk -dfn -o NAME,SERIAL | awk '$2 == "DATADISK" {print $1}')
+sudo mkfs -t ext4 /dev/"${data_device}"
+ignition_device=$(lsblk -dfn -o NAME,SERIAL | awk '$2 == "IGNITION" {print $1}')
+sudo mkdir /ignition
+sudo mount /dev/"${ignition_device}" /ignition/
+sudo cp /ignition/script /ignition.sh
+sudo chmod +x /ignition.sh
+/ignition.sh

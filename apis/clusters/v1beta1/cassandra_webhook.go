@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -87,6 +88,37 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return err
 	}
 
+	if c.Spec.OnPremisesSpec != nil {
+		osDiskSizeMatched, err := regexp.Match(models.StorageRegExp, []byte(c.Spec.OnPremisesSpec.OSDiskSize))
+		if !osDiskSizeMatched || err != nil {
+			return fmt.Errorf("disk size field for node OS must fit pattern: %s",
+				models.StorageRegExp)
+		}
+
+		dataDiskSizeMatched, err := regexp.Match(models.StorageRegExp, []byte(c.Spec.OnPremisesSpec.DataDiskSize))
+		if !dataDiskSizeMatched || err != nil {
+			return fmt.Errorf("disk size field for storring cluster data must fit pattern: %s",
+				models.StorageRegExp)
+		}
+
+		nodeMemoryMatched, err := regexp.Match(models.MemoryRegExp, []byte(c.Spec.OnPremisesSpec.DataDiskSize))
+		if !nodeMemoryMatched || err != nil {
+			return fmt.Errorf("node memory field must fit pattern: %s",
+				models.MemoryRegExp)
+		}
+
+		if c.Spec.PrivateNetworkCluster {
+			if c.Spec.OnPremisesSpec.SSHGatewayCPU == 0 || c.Spec.OnPremisesSpec.SSHGatewayMemory == "" {
+				return fmt.Errorf("fields SSHGatewayCPU and SSHGatewayMemory must not be empty")
+			}
+			sshGatewayMemoryMatched, err := regexp.Match(models.MemoryRegExp, []byte(c.Spec.OnPremisesSpec.DataDiskSize))
+			if !sshGatewayMemoryMatched || err != nil {
+				return fmt.Errorf("ssh gateway memory field must fit pattern: %s",
+					models.MemoryRegExp)
+			}
+		}
+	}
+
 	if len(c.Spec.Spark) > 1 {
 		return fmt.Errorf("spark should not have more than 1 item")
 	}
@@ -113,10 +145,22 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return fmt.Errorf("data centres field is empty")
 	}
 
+	//TODO: add support of multiple DCs for OnPrem clusters
+	if len(c.Spec.DataCentres) > 1 && c.Spec.OnPremisesSpec != nil {
+		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
+	}
+
 	for _, dc := range c.Spec.DataCentres {
-		err := dc.DataCentre.ValidateCreation()
-		if err != nil {
-			return err
+		if c.Spec.OnPremisesSpec != nil {
+			err := dc.DataCentre.ValidateOnPremisesCreation()
+			if err != nil {
+				return err
+			}
+		} else {
+			err := dc.DataCentre.ValidateCreation()
+			if err != nil {
+				return err
+			}
 		}
 
 		if !c.Spec.PrivateNetworkCluster && dc.PrivateIPBroadcastForDiscovery {

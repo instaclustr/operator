@@ -150,7 +150,7 @@ func (pg *PostgreSQL) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1
 	return &clusterresourcesv1beta1.ClusterBackup{
 		TypeMeta: ctrl.TypeMeta{
 			Kind:       models.ClusterBackupKind,
-			APIVersion: models.ClusterresourcesV1beta1APIVersion,
+			APIVersion: models.ClusterResourcesV1beta1APIVersion,
 		},
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        models.PgBackupPrefix + pg.Status.ID + "-" + strconv.Itoa(startTimestamp),

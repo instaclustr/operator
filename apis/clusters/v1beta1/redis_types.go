@@ -132,7 +132,7 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.Clust
 	return &clusterresourcesv1beta1.ClusterBackup{
 		TypeMeta: ctrl.TypeMeta{
 			Kind:       models.ClusterBackupKind,
-			APIVersion: models.ClusterresourcesV1beta1APIVersion,
+			APIVersion: models.ClusterResourcesV1beta1APIVersion,
 		},
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        models.SnapshotUploadPrefix + r.Status.ID + "-" + strconv.Itoa(startTimestamp),

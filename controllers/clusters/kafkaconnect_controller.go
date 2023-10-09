@@ -200,7 +200,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		l.Error(err, "Cannot convert Kafka Connect from Instaclustr",
 			"ClusterID", kc.Status.ID)
 		r.EventRecorder.Eventf(
-			kc, models.Warning, models.ConvertionFailed,
+			kc, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)

@@ -318,7 +318,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 		)
 
 		r.EventRecorder.Eventf(
-			redis, models.Warning, models.ConvertionFailed,
+			redis, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)

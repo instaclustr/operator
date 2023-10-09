@@ -58,6 +58,12 @@ var (
 	S3URIRegExp              = "^s3:\\/\\/[a-zA-Z0-9_-]+[^\\/]$"
 	DependencyVPCs           = []string{"TARGET_VPC", "VPC_PEERED", "SEPARATE_VPC"}
 	EncryptionKeyAliasRegExp = "^[a-zA-Z0-9_-]{1}[a-zA-Z0-9 _-]*$"
+	MemoryRegExp             = "^\\d+(Ei|Pi|Ti|Gi|Mi|Ki)?$"
+	StorageRegExp            = "^\\d+(Gi|Ti|Pi|Ei)?$"
+
+	CassandraOnPremNodes = []string{"CAS-PRD-OP.4.8-400", "CAS-PRD-OP.4.8-200", "CAS-PRD-OP.8.16-200",
+		"CAS-PRD-OP.8.16-400", "CAS-PRD-OP.16.32-400", "CAS-PRD-OP.16.32-200", "CAS-PRD-OP.32.64-200",
+		"CAS-PRD-OP.32.64-400"}
 
 	CassandraReplicationFactors    = []int{2, 3, 5}
 	KafkaReplicationFactors        = []int{3, 5}

@@ -118,16 +118,24 @@ func isDataCentreNodesEqual(a, b []*v1beta1.Node) bool {
 	}
 
 	for i := range a {
-		if a[i].ID != b[i].ID {
-			continue
+		var eq bool
+		for j := range b {
+			if a[i].ID != b[j].ID {
+				continue
+			}
+
+			if a[i].Size != b[j].Size ||
+				a[i].PublicAddress != b[j].PublicAddress ||
+				a[i].PrivateAddress != b[j].PrivateAddress ||
+				a[i].Status != b[j].Status ||
+				!slices.Equal(a[i].Roles, b[j].Roles) ||
+				a[i].Rack != b[j].Rack {
+				return false
+			}
+			eq = true
 		}
 
-		if a[i].Size != b[i].Size ||
-			a[i].PublicAddress != b[i].PublicAddress ||
-			a[i].PrivateAddress != b[i].PrivateAddress ||
-			a[i].Status != b[i].Status ||
-			!slices.Equal(a[i].Roles, b[i].Roles) ||
-			a[i].Rack != b[i].Rack {
+		if !eq {
 			return false
 		}
 	}

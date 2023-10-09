@@ -274,7 +274,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			"cluster ID", o.Status.ID,
 		)
 
-		r.EventRecorder.Eventf(o, models.Warning, models.ConvertionFailed,
+		r.EventRecorder.Eventf(o, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue

@@ -77,3 +77,14 @@ const (
 	RedisUserIDFmt      = "%s_%s"
 	CassandraBundleUser = "apache_cassandra"
 )
+
+// constants for icadminAPI v1
+const (
+	GatewayEndpoint          = "%s/admin/v1/gateways?term=%s"
+	GatewayPrivateIPEndpoint = "%s/admin/v1/gateways/%s/private-gateway?private_address=%s&gateway_type=SSH"
+	GatewayPublicIPEndpoint  = "%s/admin/v1/gateways/%s/public-gateway?public_address=%s&gateway_type=SSH"
+	NodeIPsEndpoint          = "%s/admin/v1/nodes/%s"
+	NodesEndpoint            = "%s/admin/v1/nodes?term=%s"
+	IgnitionScriptEndpoint   = "%s/admin/v1/nodes/%s/debian-ignition-script"
+	NodeReplaceEndpoint      = "%s/admin/v1/replaceOperations?"
+)

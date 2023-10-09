@@ -40,11 +40,6 @@ type ClusterInfo struct {
 	Event                       string         `json:"event,omitempty"`
 }
 
-type NamespacedName struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 

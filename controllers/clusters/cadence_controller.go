@@ -149,7 +149,7 @@ func (r *CadenceReconciler) HandleCreateCluster(
 			logger.Error(err, "Cannot convert Cadence cluster manifest to API spec",
 				"cluster manifest", cadence.Spec)
 
-			r.EventRecorder.Eventf(cadence, models.Warning, models.ConvertionFailed,
+			r.EventRecorder.Eventf(cadence, models.Warning, models.ConversionFailed,
 				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
 
 			return models.ReconcileRequeue
@@ -269,7 +269,7 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 			"cluster ID", cadence.Status.ID,
 		)
 
-		r.EventRecorder.Eventf(cadence, models.Warning, models.ConvertionFailed,
+		r.EventRecorder.Eventf(cadence, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
 
 		return models.ReconcileRequeue

@@ -1,54 +1,37 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
-  name: cassandra-cluster
+  name: cassandra-on-prem-cluster
 spec:
-  name: "username-Cassandra"
+  name: "danylo-on-prem-cassandra"
   version: "4.0.10"
-  privateNetworkCluster: false
+  privateNetworkCluster: true
+  onPremisesSpec:
+    storageClassName: managed-csi-premium
+    osDiskSize: 20Gi
+    dataDiskSize: 200Gi
+    sshGatewayCPU: 2
+    sshGatewayMemory: 4096Mi
+    nodeCPU: 2
+    nodeMemory: 8192Mi
+    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
+    cloudInitScriptNamespacedName:
+      namespace: default
+      name: instaclustr-cloud-init-secret
   dataCentres:
-    - name: "AWS_cassandra"
-      region: "US_WEST_2"
-      cloudProvider: "AWS_VPC"
+    - name: "onPremCassandra"
+      region: "CLIENT_DC"
+      cloudProvider: "ONPREMISES"
       continuousBackup: false
-      nodesNumber: 2
-      replicationFactor: 2
-      privateIpBroadcastForDiscovery: false
-      network: "172.16.0.0/19"
+      nodesNumber: 3
+      replicationFactor: 3
+      privateIpBroadcastForDiscovery: true
+      network: "192.168.0.0/16"
       tags:
-        "tag": "testTag"
+        "onprem": "test"
       clientToClusterEncryption: false
-      # cloudProviderSettings:
-      #   - customVirtualNetworkId: "vpc-0b69c781969e980a9"
-      nodeSize: "CAS-DEV-t4g.small-5"
-      # accountName: "InstaclustrRIYOA"
-  #    - name: "AWS_cassandra2"
-  #      region: "US_EAST_1"
-  #      cloudProvider: "AWS_VPC"
-  #      continuousBackup: false
-  #      nodesNumber: 2
-  #      replicationFactor: 2
-  #      privateIpBroadcastForDiscovery: false
-  #      network: "172.17.0.0/19"
-  #      tags:
-  #        "tag": "testTag"
-  #      clientToClusterEncryption: false
-  #      nodeSize: "CAS-DEV-t4g.small-30"
+      nodeSize: "CAS-PRD-OP.4.8-200"
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
-  passwordAndUserAuth: true
-#  userRefs:
-#    - namespace: default
-#      name: cassandrauser-sample
-#    - namespace: default
-#      name: cassandrauser-sample2
+  passwordAndUserAuth: false
   slaTier: "NON_PRODUCTION"
-#  resizeSettings:
-#    - notifySupportContacts: false
-#      concurrency: 2
-#  description: "this is a sample of description"
-#  twoFactorDelete:
-#    - email: "rostyslp@netapp.com"
-    #spark:
-  # - version: "2.3.2"         # 3.0.1 for 4.0.4 version of Cassandra | 2.3.2 for 3.11.13 version of Cassandra
-

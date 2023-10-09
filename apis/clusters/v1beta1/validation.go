@@ -47,6 +47,25 @@ func (c *Cluster) ValidateCreation() error {
 	return nil
 }
 
+func (dc *DataCentre) ValidateOnPremisesCreation() error {
+	if dc.CloudProvider != models.ONPREMISES {
+		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available value: %s",
+			dc.CloudProvider, dc.Name, models.ONPREMISES)
+	}
+
+	if dc.Region != models.CLIENTDC {
+		return fmt.Errorf("region %s is unavailable for data centre: %s, available value: %s",
+			dc.Region, dc.Name, models.CLIENTDC)
+	}
+
+	if !validation.Contains(dc.NodeSize, models.CassandraOnPremNodes) {
+		return fmt.Errorf("on-premises node size: %s is unavailable, available sizes: %v",
+			dc.Region, models.CassandraOnPremNodes)
+	}
+
+	return nil
+}
+
 func (dc *DataCentre) ValidateCreation() error {
 	if !validation.Contains(dc.CloudProvider, models.CloudProviders) {
 		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
