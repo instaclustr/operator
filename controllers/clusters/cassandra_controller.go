@@ -229,13 +229,13 @@ func (r *CassandraReconciler) handleCreateCluster(
 			l.Error(err, "Cannot start cluster status job",
 				"cassandra cluster ID", cassandra.Status.ID)
 
-		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.CreationFailed,
-			"Cluster status check job is failed. Reason: %v",
-			err,
-		)
-		return reconcile.Result{}, err
-	}
+			r.EventRecorder.Eventf(
+				cassandra, models.Warning, models.CreationFailed,
+				"Cluster status check job is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Normal, models.Created,
@@ -248,13 +248,13 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"cluster ID", cassandra.Status.ID,
 			)
 
-		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.CreationFailed,
-			"Cluster backups check job is failed. Reason: %v",
-			err,
-		)
-		return reconcile.Result{}, err
-	}
+			r.EventRecorder.Eventf(
+				cassandra, models.Warning, models.CreationFailed,
+				"Cluster backups check job is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
 
 		r.EventRecorder.Eventf(
 			cassandra, models.Normal, models.Created,
