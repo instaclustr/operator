@@ -50,6 +50,15 @@ spec:
           status:
             description: NodeReloadStatus defines the observed state of NodeReload
             properties:
+              completedNodes:
+                items:
+                  properties:
+                    nodeID:
+                      type: string
+                  required:
+                  - nodeID
+                  type: object
+                type: array
               currentOperationStatus:
                 properties:
                   message:
@@ -68,6 +77,15 @@ spec:
                 - timeCreated
                 - timeModified
                 type: object
+              failedNodes:
+                items:
+                  properties:
+                    nodeID:
+                      type: string
+                  required:
+                  - nodeID
+                  type: object
+                type: array
               nodeInProgress:
                 properties:
                   nodeID:
@@ -75,6 +93,15 @@ spec:
                 required:
                 - nodeID
                 type: object
+              pendingNodes:
+                items:
+                  properties:
+                    nodeID:
+                      type: string
+                  required:
+                  - nodeID
+                  type: object
+                type: array
             type: object
         type: object
     served: true

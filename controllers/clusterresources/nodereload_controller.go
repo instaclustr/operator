@@ -18,6 +18,7 @@ package clusterresources
 
 import (
 	"context"
+	"errors"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,13 +26,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // NodeReloadReconciler reconciles a NodeReload object
@@ -41,6 +45,10 @@ type NodeReloadReconciler struct {
 	API           instaclustr.API
 	EventRecorder record.EventRecorder
 }
+
+const (
+	nodeReloadOperationStatusCompleted = "COMPLETED"
+)
 
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=nodereloads,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=clusterresources.instaclustr.com,resources=nodereloads/status,verbs=get;update;patch
@@ -60,151 +68,188 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Node Reload resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return reconcile.Result{}, nil
 		}
 		l.Error(err, "Unable to fetch Node Reload", "request", req)
-		return models.ReconcileRequeue, err
+		return reconcile.Result{}, err
 	}
 
-	if len(nrs.Spec.Nodes) == 0 {
-		err = r.Client.Delete(ctx, nrs)
-		if err != nil {
-			l.Error(err,
-				"Cannot delete Node Reload resource from K8s cluster",
-				"Node Reload spec", nrs.Spec,
-			)
-			r.EventRecorder.Eventf(
-				nrs, models.Warning, models.DeletionFailed,
-				"Resource deletion is failed. Reason: %v",
-				err,
-			)
-			return models.ReconcileRequeue, nil
-		}
-		r.EventRecorder.Eventf(
-			nrs, models.Normal, models.DeletionStarted,
-			"Resource is deleted.",
-		)
-		l.Info(
-			"Nodes were reloaded, resource was deleted",
-			"Node Reload spec", nrs.Spec,
-		)
-		return models.ExitReconcile, nil
-	}
 	patch := nrs.NewPatch()
 
-	if nrs.Status.NodeInProgress.ID == "" {
-		nodeInProgress := &v1beta1.Node{
-			ID: nrs.Spec.Nodes[len(nrs.Spec.Nodes)-1].ID,
-		}
-		nrs.Status.NodeInProgress.ID = nodeInProgress.ID
-
-		err = r.API.CreateNodeReload(nodeInProgress)
+	if len(nrs.Status.PendingNodes)+len(nrs.Status.CompletedNodes)+len(nrs.Status.FailedNodes) == 0 {
+		nrs.Status.PendingNodes = nrs.Spec.Nodes
+		err := r.Status().Patch(ctx, nrs, patch)
 		if err != nil {
-			l.Error(err,
-				"Cannot start Node Reload process",
-				"nodeID", nodeInProgress.ID,
+			l.Error(err, "Failed to patch pending nodes to the resource")
+			r.EventRecorder.Eventf(nrs, models.Warning, models.PatchFailed,
+				"Failed to patch pending nodes to the resource. Reason: %w", err,
 			)
-			r.EventRecorder.Eventf(
-				nrs, models.Warning, models.CreationFailed,
-				"Resource creation on the Instaclustr is failed. Reason: %v",
-				err,
+
+			return reconcile.Result{}, err
+		}
+	}
+
+	if len(nrs.Status.PendingNodes) == 0 && nrs.Status.NodeInProgress == nil {
+		r.EventRecorder.Eventf(
+			nrs, models.Normal, models.UpdatedEvent,
+			"The controller has finished working",
+		)
+		l.Info(
+			"The controller has finished working",
+			"completed nodes", nrs.Status.CompletedNodes,
+			"failed nodes", nrs.Status.FailedNodes,
+		)
+
+		return reconcile.Result{}, nil
+	}
+
+	if nrs.Status.NodeInProgress == nil {
+		nodeInProgress := nrs.Status.PendingNodes[0]
+
+		err := r.API.CreateNodeReload(nodeInProgress)
+		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				return r.handleNodeNotFound(ctx, nodeInProgress, nrs)
+			}
+
+			l.Error(err, "Failed to trigger node reload", "node ID", nodeInProgress.ID)
+			r.EventRecorder.Eventf(nrs, models.Warning, models.CreationFailed,
+				"Failed to trigger node reload. Reason: %w", err,
 			)
-			return models.ReconcileRequeue, nil
+
+			return reconcile.Result{}, err
 		}
 
-		r.EventRecorder.Eventf(
-			nrs, models.Normal, models.Created,
-			"Resource creation request is sent. Node ID: %s",
-			nrs.Status.NodeInProgress.ID,
-		)
+		nrs.Status.NodeInProgress = nodeInProgress
+		if len(nrs.Status.PendingNodes) > 0 {
+			nrs.Status.PendingNodes = nrs.Status.PendingNodes[1:]
+		}
 
 		err = r.Status().Patch(ctx, nrs, patch)
 		if err != nil {
-			l.Error(err,
-				"Cannot patch Node Reload status",
-				"nodeID", nrs.Status.NodeInProgress,
+			l.Error(err, "Failed to patch node in progress",
+				"node ID", nodeInProgress.ID,
 			)
-			r.EventRecorder.Eventf(
-				nrs, models.Warning, models.PatchFailed,
-				"Resource status patch is failed. Reason: %v",
-				err,
+			r.EventRecorder.Eventf(nrs, models.Warning, models.PatchFailed,
+				"Failed to patch node in progress. Reason: %w", err,
 			)
-			return models.ReconcileRequeue, nil
+
+			return reconcile.Result{}, err
 		}
 	}
 
 	nodeReloadStatus, err := r.API.GetNodeReloadStatus(nrs.Status.NodeInProgress.ID)
 	if err != nil {
-		l.Error(err,
-			"Cannot get Node Reload status",
-			"nodeID", nrs.Status.NodeInProgress,
+		if errors.Is(err, instaclustr.NotFound) {
+			return r.handleNodeNotFound(ctx, nrs.Status.NodeInProgress, nrs)
+		}
+
+		l.Error(err, "Failed to fetch node reload status from Instaclustr",
+			"node ID", nrs.Status.NodeInProgress.ID,
 		)
-		r.EventRecorder.Eventf(
-			nrs, models.Warning, models.FetchFailed,
-			"Fetch resource from the Instaclustr API is failed. Reason: %v",
-			err,
+		r.EventRecorder.Eventf(nrs, models.Warning, models.FetchFailed,
+			"Failed to fetch node reload status from Instaclustr. Reason: %w", err,
 		)
-		return models.ReconcileRequeue, nil
+
+		return reconcile.Result{}, err
 	}
 
-	nrs.Status = *nrs.Status.FromInstAPI(nodeReloadStatus)
+	nrs.Status.CurrentOperationStatus = &v1beta1.Operation{
+		OperationID:  nodeReloadStatus.OperationID,
+		TimeCreated:  nodeReloadStatus.TimeCreated,
+		TimeModified: nodeReloadStatus.TimeModified,
+		Status:       nodeReloadStatus.Status,
+		Message:      nodeReloadStatus.Message,
+	}
+
 	err = r.Status().Patch(ctx, nrs, patch)
 	if err != nil {
-		l.Error(err,
-			"Cannot patch Node Reload status",
-			"nodeID", nrs.Status.NodeInProgress,
+		l.Error(err, "Failed to patch current operation status",
+			"node ID", nrs.Status.NodeInProgress.ID,
+			"currentOperationStatus", nodeReloadStatus,
 		)
-		r.EventRecorder.Eventf(
-			nrs, models.Warning, models.PatchFailed,
-			"Resource status patch is failed. Reason: %v",
-			err,
+		r.EventRecorder.Eventf(nrs, models.Warning, models.FetchFailed,
+			"Failed to patch current operation status. Reason: %w", err,
 		)
-		return models.ReconcileRequeue, nil
+
+		return reconcile.Result{}, err
 	}
 
-	if nrs.Status.CurrentOperationStatus.Status != "COMPLETED" {
+	if nodeReloadStatus.Status != nodeReloadOperationStatusCompleted {
 		l.Info("Node Reload operation is not completed yet, please wait a few minutes",
 			"nodeID", nrs.Status.NodeInProgress,
 			"status", nrs.Status,
 		)
+
 		return models.ReconcileRequeue, nil
 	}
 
-	nrs.Status.NodeInProgress.ID = ""
+	l.Info("The node has been successfully reloaded",
+		"Node ID", nrs.Status.NodeInProgress.ID,
+	)
+	r.EventRecorder.Eventf(nrs, models.Normal, models.UpdatedEvent,
+		"Node %s has been successfully reloaded", nrs.Status.NodeInProgress.ID,
+	)
+
+	patch = nrs.NewPatch()
+
+	nrs.Status.CompletedNodes = append(nrs.Status.CompletedNodes, nrs.Status.NodeInProgress)
+	nrs.Status.CurrentOperationStatus, nrs.Status.NodeInProgress = nil, nil
+
 	err = r.Status().Patch(ctx, nrs, patch)
 	if err != nil {
-		l.Error(err,
-			"Cannot patch Node Reload status",
-			"nodeID", nrs.Status.NodeInProgress,
+		l.Error(err, "Failed to patch completed nodes")
+		r.EventRecorder.Eventf(nrs, models.Warning, models.PatchFailed,
+			"Failed to patch completed nodes. Reason: %w", err,
 		)
-		r.EventRecorder.Eventf(
-			nrs, models.Warning, models.PatchFailed,
-			"Resource status patch is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue, nil
+
+		return reconcile.Result{}, err
 	}
 
-	nrs.Spec.Nodes = nrs.Spec.Nodes[:len(nrs.Spec.Nodes)-1]
-	err = r.Patch(ctx, nrs, patch)
+	return models.ImmediatelyRequeue, nil
+}
+
+func (r *NodeReloadReconciler) handleNodeNotFound(ctx context.Context, node *v1beta1.Node, nrs *v1beta1.NodeReload) (reconcile.Result, error) {
+	l := log.FromContext(ctx)
+
+	patch := nrs.NewPatch()
+
+	if nrs.Status.NodeInProgress == nil && len(nrs.Status.PendingNodes) > 0 {
+		nrs.Status.PendingNodes = nrs.Status.PendingNodes[1:]
+	}
+
+	nrs.Status.FailedNodes = append(nrs.Status.FailedNodes, node)
+	nrs.Status.CurrentOperationStatus, nrs.Status.NodeInProgress = nil, nil
+
+	err := r.Status().Patch(ctx, nrs, patch)
 	if err != nil {
-		l.Error(err, "Cannot patch Node Reload cluster",
-			"spec", nrs.Spec,
+		l.Error(err, "Cannot patch failed node")
+		r.EventRecorder.Event(nrs, models.Warning, models.PatchFailed,
+			"Cannot patch failed node",
 		)
-		r.EventRecorder.Eventf(
-			nrs, models.Warning, models.PatchFailed,
-			"Resource patch is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue, nil
+
+		return reconcile.Result{}, err
 	}
 
-	return models.ExitReconcile, nil
+	l.Error(err, "Node is not found on the Instaclustr side",
+		"nodeID", node.ID,
+	)
+	r.EventRecorder.Eventf(nrs, models.Warning, models.FetchFailed,
+		"Node %s is not found on Instaclustr", node.ID,
+	)
+
+	return models.ImmediatelyRequeue, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeReloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(
+				ratelimiter.DefaultBaseDelay,
+				ratelimiter.DefaultMaxDelay,
+			),
+		}).
 		For(&v1beta1.NodeReload{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return event.ObjectNew.GetGeneration() != event.ObjectOld.GetGeneration()

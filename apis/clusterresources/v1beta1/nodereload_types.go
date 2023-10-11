@@ -19,8 +19,6 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/instaclustr/operator/pkg/models"
 )
 
 // NodeReloadSpec defines the desired state of NodeReload
@@ -30,8 +28,11 @@ type NodeReloadSpec struct {
 
 // NodeReloadStatus defines the observed state of NodeReload
 type NodeReloadStatus struct {
-	NodeInProgress         Node       `json:"nodeInProgress,omitempty"`
+	NodeInProgress         *Node      `json:"nodeInProgress,omitempty"`
 	CurrentOperationStatus *Operation `json:"currentOperationStatus,omitempty"`
+	PendingNodes           []*Node    `json:"pendingNodes,omitempty"`
+	CompletedNodes         []*Node    `json:"completedNodes,omitempty"`
+	FailedNodes            []*Node    `json:"failedNodes,omitempty"`
 }
 
 type Node struct {
@@ -74,21 +75,4 @@ func (nr *NodeReload) NewPatch() client.Patch {
 
 func init() {
 	SchemeBuilder.Register(&NodeReload{}, &NodeReloadList{})
-}
-
-func (nr *NodeReloadStatus) FromInstAPI(status *models.NodeReloadStatus) *NodeReloadStatus {
-	var nrStatus = &NodeReloadStatus{
-		NodeInProgress: Node{
-			ID: status.NodeID,
-		},
-		CurrentOperationStatus: &Operation{
-			OperationID:  status.OperationID,
-			TimeCreated:  status.TimeCreated,
-			TimeModified: status.TimeModified,
-			Status:       status.Status,
-			Message:      status.Message,
-		},
-	}
-
-	return nrStatus
 }

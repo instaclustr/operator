@@ -1442,6 +1442,10 @@ func (c *Client) CreateNodeReload(nr *clusterresourcesv1beta1.Node) error {
 		return err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}

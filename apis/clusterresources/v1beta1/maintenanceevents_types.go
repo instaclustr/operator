@@ -51,9 +51,9 @@ type MaintenanceEventStatus struct {
 }
 
 type ClusteredMaintenanceEventStatus struct {
-	InProgress []*MaintenanceEventStatus `json:"inProgress"`
-	Past       []*MaintenanceEventStatus `json:"past"`
-	Upcoming   []*MaintenanceEventStatus `json:"upcoming"`
+	InProgress []*MaintenanceEventStatus `json:"inProgress,omitempty"`
+	Past       []*MaintenanceEventStatus `json:"past,omitempty"`
+	Upcoming   []*MaintenanceEventStatus `json:"upcoming,omitempty"`
 }
 
 //+kubebuilder:object:root=true
