@@ -24,7 +24,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -208,7 +207,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 	}
 
 	if aws.Annotations[models.ExternalChangesAnnotation] == models.True {
-		if !slices.Equal(instaAWSPeering.PeerSubnets, aws.Spec.PeerSubnets) {
+		if !subnetsEqual(instaAWSPeering.PeerSubnets, aws.Spec.PeerSubnets) {
 			l.Info("The resource specification still differs from the Instaclustr resource specification, please reconcile it manually",
 				"AWS VPC ID", aws.Status.ID,
 				"k8s peerSubnets", aws.Spec.PeerSubnets,
@@ -404,8 +403,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 		instaAWSPeering, err := r.API.GetAWSVPCPeering(awsPeering.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				l.Info("The resource has been deleted on Instaclustr, deleting resource in k8s...")
-				return r.Delete(ctx, awsPeering)
+				return r.handleExternalDelete(ctx, awsPeering)
 			}
 
 			l.Error(err, "cannot get AWS VPC Peering Status from Inst API",
@@ -432,9 +430,20 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 			}
 		}
 
+		if awsPeering.Status.StatusCode == models.AWSVPCPeeringStatusCodeDeleted {
+			l.Info("The AWSPeering was deleted on AWS, stopping job...")
+			r.EventRecorder.Event(awsPeering, models.Warning, models.DeletedEvent,
+				"The AWSPeering was deleted on AWS, stopping job...",
+			)
+
+			r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.StatusChecker))
+
+			return nil
+		}
+
 		if awsPeering.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			awsPeering.Annotations[models.ExternalChangesAnnotation] != models.True &&
-			!slices.Equal(instaAWSPeering.PeerSubnets, awsPeering.Spec.PeerSubnets) {
+			!subnetsEqual(instaAWSPeering.PeerSubnets, awsPeering.Spec.PeerSubnets) {
 			l.Info("The k8s resource specification doesn't match the specification of Instaclustr, please change it manually",
 				"k8s peerSubnets", instaAWSPeering.PeerSubnets,
 				"instaclutr peerSubnets", awsPeering.Spec.PeerSubnets,
@@ -497,4 +506,22 @@ func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		})).Complete(r)
+}
+
+func (r *AWSVPCPeeringReconciler) handleExternalDelete(ctx context.Context, key *v1beta1.AWSVPCPeering) error {
+	l := log.FromContext(ctx)
+
+	patch := key.NewPatch()
+	key.Status.StatusCode = models.DeletedStatus
+	err := r.Status().Patch(ctx, key, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+
+	return nil
 }

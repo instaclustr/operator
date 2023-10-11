@@ -34,6 +34,7 @@ type AWSEncryptionKeySpec struct {
 type AWSEncryptionKeyStatus struct {
 	ID    string `json:"id,omitempty"`
 	InUse bool   `json:"inUse,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 //+kubebuilder:object:root=true

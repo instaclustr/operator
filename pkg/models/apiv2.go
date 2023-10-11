@@ -20,6 +20,7 @@ const (
 	NoOperation         = "NO_OPERATION"
 	OperationInProgress = "OPERATION_IN_PROGRESS"
 
+	CreatedStatus = "CREATED"
 	DeletedStatus = "DELETED"
 
 	DefaultAccountName = "INSTACLUSTR"
@@ -204,4 +205,11 @@ type AWSVPCPeering struct {
 	PeerSubnets      []string `json:"peerSubnets"`
 	PeerVpcID        string   `json:"peerVpcId"`
 	StatusCode       string   `json:"statusCode"`
+}
+
+type AWSEndpointServicePrincipal struct {
+	ID                  string `json:"id,omitempty"`
+	ClusterDataCenterID string `json:"clusterDataCenterId,omitempty"`
+	EndPointServiceID   string `json:"endPointServiceId,omitempty"`
+	PrincipalARN        string `json:"principalArn,omitempty"`
 }

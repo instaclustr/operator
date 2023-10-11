@@ -2181,6 +2181,37 @@ func (c *Client) UpdateClusterSettings(clusterID string, settings *models.Cluste
 	return nil
 }
 
+func (c *Client) GetAWSEndpointServicePrincipal(principalID string) (*models.AWSEndpointServicePrincipal, error) {
+	url := c.serverHostname + AWSEndpointServicePrincipalEndpoint + principalID
+
+	resp, err := c.DoRequest(url, http.MethodGet, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, NotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+	}
+
+	var principal models.AWSEndpointServicePrincipal
+	err = json.Unmarshal(b, &principal)
+	if err != nil {
+		return nil, err
+	}
+
+	return &principal, nil
+}
+
 func (c *Client) CreateAWSEndpointServicePrincipal(spec any) ([]byte, error) {
 	url := c.serverHostname + AWSEndpointServicePrincipalEndpoint
 

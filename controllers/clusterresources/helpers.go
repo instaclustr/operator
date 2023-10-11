@@ -98,3 +98,24 @@ func getUserCreds(secret *k8sCore.Secret) (username, password string, err error)
 
 	return username, password, nil
 }
+
+func subnetsEqual(subnets1, subnets2 []string) bool {
+	if len(subnets1) != len(subnets2) {
+		return false
+	}
+
+	for _, s1 := range subnets1 {
+		var equal bool
+		for _, s2 := range subnets2 {
+			if s1 == s2 {
+				equal = true
+			}
+		}
+
+		if !equal {
+			return false
+		}
+	}
+
+	return true
+}

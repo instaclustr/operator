@@ -288,11 +288,27 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 	l := log.Log.WithValues("component", "FirewallRuleStatusJob")
 	return func() error {
 		ctx := context.Background()
+
+		key := client.ObjectKeyFromObject(firewallRule)
+		err := r.Get(ctx, key, firewallRule)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+					"namespaced name", key,
+				)
+
+				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+
+				return nil
+			}
+
+			return err
+		}
+
 		instaFirewallRuleStatus, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				l.Info("The resource has been deleted on Instaclustr, deleting resource in k8s...")
-				return r.Delete(ctx, firewallRule)
+				return r.handleExternalDelete(ctx, firewallRule)
 			}
 
 			l.Error(err, "Cannot get AWS security group firewall rule status from Inst API", "firewall rule ID", firewallRule.Status.ID)
@@ -309,14 +325,28 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 			if err != nil {
 				return err
 			}
-
-			if instaFirewallRuleStatus.Status == statusDELETED {
-				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
-			}
 		}
 
 		return nil
 	}
+}
+
+func (r *AWSSecurityGroupFirewallRuleReconciler) handleExternalDelete(ctx context.Context, rule *v1beta1.AWSSecurityGroupFirewallRule) error {
+	l := log.FromContext(ctx)
+
+	patch := rule.NewPatch()
+	rule.Status.Status = models.DeletedStatus
+	err := r.Status().Patch(ctx, rule, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(rule, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(rule.GetJobID(scheduler.StatusChecker))
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
