@@ -129,6 +129,7 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 		)
 
 		encryptionKey.Status = *encryptionKeyStatus
+		encryptionKey.Status.State = models.CreatedStatus
 		err = r.Status().Patch(ctx, encryptionKey, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch AWS encryption key status ", "ID", encryptionKey.Status.ID)
@@ -274,8 +275,30 @@ func (r *AWSEncryptionKeyReconciler) startEncryptionKeyStatusJob(encryptionKey *
 func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *v1beta1.AWSEncryptionKey) scheduler.Job {
 	l := log.Log.WithValues("component", "EncryptionKeyStatusJob")
 	return func() error {
+		ctx := context.Background()
+
+		key := client.ObjectKeyFromObject(encryptionKey)
+		err := r.Get(ctx, key, encryptionKey)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+					"namespaced name", key,
+				)
+
+				r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.StatusChecker))
+
+				return nil
+			}
+
+			return err
+		}
+
 		instaEncryptionKeyStatus, err := r.API.GetEncryptionKeyStatus(encryptionKey.Status.ID, instaclustr.AWSEncryptionKeyEndpoint)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				return r.handleExternalDelete(ctx, encryptionKey)
+			}
+
 			l.Error(err, "Cannot get AWS encryption key status from Inst API", "encryption key ID", encryptionKey.Status.ID)
 			return err
 		}
@@ -286,7 +309,7 @@ func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *v1beta1.AW
 				"encryption key status", encryptionKey.Status)
 			patch := encryptionKey.NewPatch()
 			encryptionKey.Status = *instaEncryptionKeyStatus
-			err := r.Status().Patch(context.Background(), encryptionKey, patch)
+			err := r.Status().Patch(ctx, encryptionKey, patch)
 			if err != nil {
 				return err
 			}
@@ -294,6 +317,24 @@ func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *v1beta1.AW
 
 		return nil
 	}
+}
+
+func (r *AWSEncryptionKeyReconciler) handleExternalDelete(ctx context.Context, key *v1beta1.AWSEncryptionKey) error {
+	l := log.FromContext(ctx)
+
+	patch := key.NewPatch()
+	key.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, key, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

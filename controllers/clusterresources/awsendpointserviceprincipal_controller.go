@@ -144,6 +144,19 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 		"AWS endpoint service principal resource has been created",
 	)
 
+	err = r.startWatchStatusJob(ctx, principal)
+	if err != nil {
+		l.Error(err, "failed to start status checker job")
+		r.EventRecorder.Eventf(principal, models.Warning, models.CreationFailed,
+			"Failed to start status checker job. Reason: %w", err,
+		)
+
+		return err
+	}
+	r.EventRecorder.Eventf(principal, models.Normal, models.Created,
+		"Status check job %s has been started", principal.GetJobID(scheduler.StatusChecker),
+	)
+
 	return nil
 }
 
@@ -171,6 +184,62 @@ func (r *AWSEndpointServicePrincipalReconciler) handleDelete(ctx context.Context
 	}
 
 	logger.Info("AWS endpoint service principal resource has been deleted")
+
+	return nil
+}
+
+func (r *AWSEndpointServicePrincipalReconciler) startWatchStatusJob(ctx context.Context, resource *clusterresourcesv1beta1.AWSEndpointServicePrincipal) error {
+	job := r.newWatchStatusJob(ctx, resource)
+	return r.Scheduler.ScheduleJob(resource.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+}
+
+func (r *AWSEndpointServicePrincipalReconciler) newWatchStatusJob(ctx context.Context, principal *clusterresourcesv1beta1.AWSEndpointServicePrincipal) scheduler.Job {
+	l := log.FromContext(ctx, "components", "WatchStatusJob")
+
+	return func() error {
+		key := client.ObjectKeyFromObject(principal)
+		err := r.Get(ctx, key, principal)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+					"namespaced name", key,
+				)
+
+				r.Scheduler.RemoveJob(principal.GetJobID(scheduler.StatusChecker))
+
+				return nil
+			}
+
+			return err
+		}
+
+		_, err = r.API.GetAWSEndpointServicePrincipal(principal.Status.ID)
+		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				return r.handleExternalDelete(ctx, principal)
+			}
+
+			return err
+		}
+
+		return nil
+	}
+}
+
+func (r *AWSEndpointServicePrincipalReconciler) handleExternalDelete(ctx context.Context, principal *clusterresourcesv1beta1.AWSEndpointServicePrincipal) error {
+	l := log.FromContext(ctx)
+
+	patch := principal.NewPatch()
+	principal.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, principal, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(principal, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(principal.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

@@ -40,6 +40,9 @@ type AWSEndpointServicePrincipalStatus struct {
 
 	// The Instaclustr ID of the AWS endpoint service
 	EndPointServiceID string `json:"endPointServiceId,omitempty"`
+
+	// State describe current state of the resource
+	State string `json:"state,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -56,6 +59,10 @@ type AWSEndpointServicePrincipal struct {
 
 func (r *AWSEndpointServicePrincipal) NewPatch() client.Patch {
 	return client.MergeFrom(r.DeepCopy())
+}
+
+func (r *AWSEndpointServicePrincipal) GetJobID(job string) string {
+	return r.Namespace + "/" + r.Name + "/" + job
 }
 
 //+kubebuilder:object:root=true

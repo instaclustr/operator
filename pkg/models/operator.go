@@ -157,6 +157,10 @@ const (
 	UpcomingME   = "upcoming"
 )
 
+const (
+	AWSVPCPeeringStatusCodeDeleted = "deleted"
+)
+
 const Requeue60 = time.Second * 60
 
 var (

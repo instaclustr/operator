@@ -375,3 +375,7 @@ func (c *mockClient) GetResizeOperationsByClusterDataCentreID(cdcID string) ([]*
 func (c *mockClient) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error) {
 	panic("GetAWSVPCPeering: is not implemented")
 }
+
+func (c *mockClient) GetAWSEndpointServicePrincipal(id string) (*models.AWSEndpointServicePrincipal, error) {
+	panic("GetAWSEndpointServicePrincipal: is not implemented")
+}

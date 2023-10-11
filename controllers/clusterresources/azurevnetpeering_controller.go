@@ -304,8 +304,30 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *v1beta1
 ) scheduler.Job {
 	l := log.Log.WithValues("component", "AzureVNetPeeringStatusJob")
 	return func() error {
+		ctx := context.Background()
+
+		key := client.ObjectKeyFromObject(azureVNetPeering)
+		err := r.Get(ctx, key, azureVNetPeering)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
+					"namespaced name", key,
+				)
+
+				r.Scheduler.RemoveJob(azureVNetPeering.GetJobID(scheduler.StatusChecker))
+
+				return nil
+			}
+
+			return err
+		}
+
 		instaPeeringStatus, err := r.API.GetPeeringStatus(azureVNetPeering.Status.ID, instaclustr.AzurePeeringEndpoint)
 		if err != nil {
+			if errors.Is(err, instaclustr.NotFound) {
+				return r.handleExternalDelete(ctx, azureVNetPeering)
+			}
+
 			l.Error(err, "cannot get Azure VNet Peering Status from Inst API", "Azure VNet Peering ID", azureVNetPeering.Status.ID)
 			return err
 		}
@@ -317,7 +339,7 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *v1beta1
 
 			patch := azureVNetPeering.NewPatch()
 			azureVNetPeering.Status.PeeringStatus = *instaPeeringStatus
-			err := r.Status().Patch(context.Background(), azureVNetPeering, patch)
+			err := r.Status().Patch(ctx, azureVNetPeering, patch)
 			if err != nil {
 				return err
 			}
@@ -325,6 +347,24 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *v1beta1
 
 		return nil
 	}
+}
+
+func (r *AzureVNetPeeringReconciler) handleExternalDelete(ctx context.Context, key *v1beta1.AzureVNetPeering) error {
+	l := log.FromContext(ctx)
+
+	patch := key.NewPatch()
+	key.Status.StatusCode = models.DeletedStatus
+	err := r.Status().Patch(ctx, key, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
