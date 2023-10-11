@@ -107,6 +107,7 @@ func (zs *ZookeeperSpec) FromInstAPI(iZook *models.ZookeeperCluster) ZookeeperSp
 		Cluster: Cluster{
 			Name:                  iZook.Name,
 			Version:               iZook.ZookeeperVersion,
+			Description:           zs.Description,
 			PrivateNetworkCluster: iZook.PrivateNetworkCluster,
 			SLATier:               iZook.SLATier,
 			TwoFactorDelete:       zs.Cluster.TwoFactorDeleteFromInstAPI(iZook.TwoFactorDelete),
@@ -154,6 +155,7 @@ func (zs *ZookeeperSpec) ToInstAPI() *models.ZookeeperCluster {
 		SLATier:               zs.SLATier,
 		TwoFactorDelete:       zs.Cluster.TwoFactorDeletesToInstAPI(),
 		DataCentres:           zs.DCsToInstAPI(),
+		Description:           zs.Description,
 	}
 }
 

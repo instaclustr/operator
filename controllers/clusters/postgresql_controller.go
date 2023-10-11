@@ -365,6 +365,22 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 		return r.handleExternalChanges(pg, iPg, logger)
 	}
 
+	if pg.Spec.ClusterSettingsNeedUpdate(iPg.Spec.Cluster) {
+		logger.Info("Updating cluster settings",
+			"instaclustr description", iPg.Spec.Description,
+			"instaclustr two factor delete", iPg.Spec.TwoFactorDelete)
+
+		err = r.API.UpdateClusterSettings(pg.Status.ID, pg.Spec.ClusterSettingsUpdateToInstAPI())
+		if err != nil {
+			logger.Error(err, "Cannot update cluster settings",
+				"cluster ID", pg.Status.ID, "cluster spec", pg.Spec)
+			r.EventRecorder.Eventf(pg, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+	}
+
 	if !pg.Spec.AreDCsEqual(iPg.Spec.DataCentres) {
 		logger.Info("Update request to Instaclustr API has been sent",
 			"spec data centres", pg.Spec.DataCentres,
@@ -449,22 +465,6 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 		logger.Info("PostgreSQL cluster configurations were updated",
 			"cluster name", pg.Spec.Name,
 		)
-	}
-
-	err = r.updateDescriptionAndTwoFactorDelete(pg)
-	if err != nil {
-		logger.Error(err, "Cannot update description and twoFactorDelete",
-			"cluster name", pg.Spec.Name,
-			"two factor delete", pg.Spec.TwoFactorDelete,
-			"description", pg.Spec.Description,
-		)
-
-		r.EventRecorder.Eventf(
-			pg, models.Warning, models.UpdateFailed,
-			"Cluster description and TwoFactoDelete update is failed. Reason: %v",
-			err,
-		)
-		return models.ReconcileRequeue
 	}
 
 	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
@@ -1607,20 +1607,6 @@ func (r *PostgreSQLReconciler) patchClusterMetadata(
 		"Finalizers", pgCluster.Finalizers,
 		"Annotations", pgCluster.Annotations,
 	)
-	return nil
-}
-
-func (r *PostgreSQLReconciler) updateDescriptionAndTwoFactorDelete(pgCluster *v1beta1.PostgreSQL) error {
-	var twoFactorDelete *v1beta1.TwoFactorDelete
-	if len(pgCluster.Spec.TwoFactorDelete) != 0 {
-		twoFactorDelete = pgCluster.Spec.TwoFactorDelete[0]
-	}
-
-	err := r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, pgCluster.Status.ID, pgCluster.Spec.Description, twoFactorDelete)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

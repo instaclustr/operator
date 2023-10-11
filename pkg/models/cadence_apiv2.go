@@ -41,6 +41,7 @@ type CadenceCluster struct {
 	TargetPrimaryCadence   []*TargetCadence               `json:"targetPrimaryCadence,omitempty"`
 	TargetSecondaryCadence []*TargetCadence               `json:"targetSecondaryCadence,omitempty"`
 	ResizeSettings         []*ResizeSettings              `json:"resizeSettings,omitempty"`
+	Description            string                         `json:"description,omitempty"`
 }
 
 type CadenceDataCentre struct {

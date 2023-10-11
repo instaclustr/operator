@@ -40,6 +40,7 @@ type OpenSearchCluster struct {
 	SLATier                  string                  `json:"slaTier,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin"`
 	ResizeSettings           []*ResizeSettings       `json:"resizeSettings,omitempty"`
+	Description              string                  `json:"description,omitempty"`
 }
 
 type OpenSearchDataNodes struct {

@@ -39,6 +39,7 @@ type KafkaCluster struct {
 	RestProxy                 []*RestProxy              `json:"restProxy"`
 	SchemaRegistry            []*SchemaRegistry         `json:"schemaRegistry"`
 	ResizeSettings            []*ResizeSettings         `json:"resizeSettings,omitempty"`
+	Description               string                    `json:"description,omitempty"`
 }
 
 type KafkaDataCentre struct {

@@ -77,7 +77,6 @@ type PgSpec struct {
 	Cluster               `json:",inline"`
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
-	Description           string            `json:"description,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
 	UserRefs              []*UserReference  `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
@@ -196,6 +195,7 @@ func (pgs *PgSpec) ToInstAPI() *models.PGCluster {
 		PostgreSQLVersion:     pgs.Version,
 		DataCentres:           pgs.DCsToInstAPI(),
 		SynchronousModeStrict: pgs.SynchronousModeStrict,
+		Description:           pgs.Description,
 		PrivateNetworkCluster: pgs.PrivateNetworkCluster,
 		SLATier:               pgs.SLATier,
 		TwoFactorDelete:       pgs.TwoFactorDeletesToInstAPI(),
@@ -555,6 +555,7 @@ func (pgs *PgSpec) FromInstAPI(iPg *models.PGCluster) PgSpec {
 			Version:               iPg.PostgreSQLVersion,
 			PCICompliance:         iPg.PCIComplianceMode,
 			PrivateNetworkCluster: iPg.PrivateNetworkCluster,
+			Description:           iPg.Description,
 			SLATier:               iPg.SLATier,
 			TwoFactorDelete:       pgs.Cluster.TwoFactorDeleteFromInstAPI(iPg.TwoFactorDelete),
 		},

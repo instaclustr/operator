@@ -319,11 +319,7 @@ func (c *Cluster) TwoFactorDeletesToInstAPI() (TFDs []*models.TwoFactorDelete) {
 	return
 }
 
-func (c *Cluster) ClusterSettingsUpdateToInstAPI() (*models.ClusterSettings, error) {
-	if len(c.TwoFactorDelete) > 1 {
-		return nil, models.ErrOnlyOneEntityTwoFactorDelete
-	}
-
+func (c *Cluster) ClusterSettingsUpdateToInstAPI() *models.ClusterSettings {
 	settingsToAPI := &models.ClusterSettings{}
 	if c.TwoFactorDelete != nil {
 		iTFD := &models.TwoFactorDelete{}
@@ -334,7 +330,7 @@ func (c *Cluster) ClusterSettingsUpdateToInstAPI() (*models.ClusterSettings, err
 	}
 	settingsToAPI.Description = c.Description
 
-	return settingsToAPI, nil
+	return settingsToAPI
 }
 
 func (c *Cluster) TwoFactorDeleteToInstAPIv1() *models.TwoFactorDeleteV1 {
@@ -597,6 +593,11 @@ func (c *Cluster) TagsFromInstAPI(iTags []*models.Tag) map[string]string {
 		newTags[iTag.Key] = iTag.Value
 	}
 	return newTags
+}
+
+func (c *Cluster) ClusterSettingsNeedUpdate(iCluster Cluster) bool {
+	return len(c.TwoFactorDelete) != 0 && len(iCluster.TwoFactorDelete) == 0 ||
+		c.Description != iCluster.Description
 }
 
 func (c *Cluster) CloudProviderSettingsFromInstAPI(iDC models.DataCentre) (settings []*CloudProviderSettings) {

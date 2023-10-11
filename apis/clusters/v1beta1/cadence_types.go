@@ -66,7 +66,6 @@ type CadenceSpec struct {
 	//+kubebuilder:validation:MinItems:=1
 	//+kubebuilder:validation:MaxItems:=1
 	DataCentres          []*CadenceDataCentre    `json:"dataCentres"`
-	Description          string                  `json:"description,omitempty"`
 	UseCadenceWebAuth    bool                    `json:"useCadenceWebAuth"`
 	AWSArchival          []*AWSArchival          `json:"awsArchival,omitempty"`
 	StandardProvisioning []*StandardProvisioning `json:"standardProvisioning,omitempty"`
@@ -192,6 +191,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 		PrivateNetworkCluster: cs.PrivateNetworkCluster,
 		SLATier:               cs.SLATier,
 		AWSArchival:           awsArchival,
+		Description:           cs.Description,
 		SharedProvisioning:    sharedProvisioning,
 		StandardProvisioning:  standardProvisioning,
 		TargetPrimaryCadence:  cs.TargetCadenceToInstAPI(),
@@ -359,6 +359,8 @@ func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
 func (cs *CadenceSpec) FromInstAPI(iCad *models.CadenceCluster) (spec CadenceSpec) {
 	spec.DataCentres = cs.DCsFromInstAPI(iCad.DataCentres)
 	spec.ResizeSettings = resizeSettingsFromInstAPI(iCad.ResizeSettings)
+	spec.TwoFactorDelete = cs.Cluster.TwoFactorDeleteFromInstAPI(iCad.TwoFactorDelete)
+	spec.Description = iCad.Description
 
 	return
 }

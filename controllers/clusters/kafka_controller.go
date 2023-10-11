@@ -239,6 +239,22 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		return r.handleExternalChanges(k, iKafka, l)
 	}
 
+	if k.Spec.ClusterSettingsNeedUpdate(iKafka.Spec.Cluster) {
+		l.Info("Updating cluster settings",
+			"instaclustr description", iKafka.Spec.Description,
+			"instaclustr two factor delete", iKafka.Spec.TwoFactorDelete)
+
+		err = r.API.UpdateClusterSettings(k.Status.ID, k.Spec.ClusterSettingsUpdateToInstAPI())
+		if err != nil {
+			l.Error(err, "Cannot update cluster settings",
+				"cluster ID", k.Status.ID, "cluster spec", k.Spec)
+			r.EventRecorder.Eventf(k, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+	}
+
 	if k.Spec.IsEqual(iKafka.Spec) {
 		return models.ExitReconcile
 	}
