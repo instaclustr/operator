@@ -160,8 +160,9 @@ const (
 const Requeue60 = time.Second * 60
 
 var (
-	ReconcileRequeue = reconcile.Result{RequeueAfter: Requeue60}
-	ExitReconcile    = reconcile.Result{}
+	ReconcileRequeue   = reconcile.Result{RequeueAfter: Requeue60}
+	ImmediatelyRequeue = reconcile.Result{RequeueAfter: 1}
+	ExitReconcile      = reconcile.Result{}
 )
 
 type Credentials struct {

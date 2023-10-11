@@ -18,10 +18,12 @@ package mock
 
 import (
 	"net/http"
+	"time"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	clustersv1beta1 "github.com/instaclustr/operator/apis/clusters/v1beta1"
 	kafkamanagementv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -174,11 +176,43 @@ func (c *mockClient) TriggerClusterBackup(clusterID, clusterKind string) error {
 }
 
 func (c *mockClient) CreateNodeReload(nr *clusterresourcesv1beta1.Node) error {
+	_, exists := nodes[nr.ID]
+	if !exists {
+		return instaclustr.NotFound
+	}
+
 	return nil
 }
 
+var nodes = map[string]*models.NodeReloadStatus{
+	"mock-node-id-1": nil,
+	"mock-node-id-2": nil,
+}
+
 func (c *mockClient) GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error) {
-	return nil, nil
+	op, exists := nodes[nodeID]
+	if !exists {
+		return nil, instaclustr.NotFound
+	}
+
+	if op == nil {
+		op = &models.NodeReloadStatus{
+			NodeID:       nodeID,
+			OperationID:  nodeID + "-operation",
+			TimeCreated:  time.Now().String(),
+			TimeModified: time.Now().String(),
+			Status:       "RUNNING",
+		}
+
+		nodes[nodeID] = op
+
+		_ = time.AfterFunc(time.Millisecond*10, func() {
+			op.TimeModified = time.Now().String()
+			op.Status = "COMPLETED"
+		})
+	}
+
+	return op, nil
 }
 
 func (c *mockClient) CreateKafkaACL(url string, kafkaACL *kafkamanagementv1beta1.KafkaACLSpec) (*kafkamanagementv1beta1.KafkaACLStatus, error) {

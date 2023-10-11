@@ -421,10 +421,6 @@ spec:
                         - isFinalized
                         type: object
                       type: array
-                  required:
-                  - inProgress
-                  - past
-                  - upcoming
                   type: object
                 type: array
               options:

@@ -20,6 +20,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,6 +35,8 @@ import (
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr/mock"
+	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
@@ -45,6 +48,9 @@ var (
 	ctx         context.Context
 	cancel      context.CancelFunc
 	MockInstAPI = mock.NewInstAPI()
+
+	timeout  = time.Second * 10
+	interval = time.Millisecond * 20
 )
 
 func TestAPIs(t *testing.T) {
@@ -62,6 +68,11 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
+
+	ratelimiter.DefaultBaseDelay = interval
+	ratelimiter.DefaultMaxDelay = interval * 3
+
+	models.ReconcileRequeue.RequeueAfter = time.Millisecond * 20
 
 	var err error
 	// cfg is defined in this file globally.
