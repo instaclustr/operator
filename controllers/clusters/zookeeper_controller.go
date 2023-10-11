@@ -231,8 +231,34 @@ func (r *ZookeeperReconciler) handleUpdateCluster(
 
 	if zook.Annotations[models.ExternalChangesAnnotation] == models.True {
 		r.handleExternalChanges(zook, l)
-	} else {
-		l.Info("Cluster update is not implemented yet")
+	}
+
+	iData, err := r.API.GetZookeeper(zook.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", zook.Status.ID)
+		return models.ReconcileRequeue
+	}
+
+	iZook, err := zook.FromInstAPI(iData)
+	if err != nil {
+		l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", zook.Status.ID)
+		return models.ReconcileRequeue
+	}
+
+	if zook.Spec.ClusterSettingsNeedUpdate(iZook.Spec.Cluster) {
+		l.Info("Updating cluster settings",
+			"instaclustr description", iZook.Spec.Description,
+			"instaclustr two factor delete", iZook.Spec.TwoFactorDelete)
+
+		err = r.API.UpdateClusterSettings(zook.Status.ID, zook.Spec.ClusterSettingsUpdateToInstAPI())
+		if err != nil {
+			l.Error(err, "Cannot update cluster settings",
+				"cluster ID", zook.Status.ID, "cluster spec", zook.Spec)
+			r.EventRecorder.Eventf(zook, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
 	}
 
 	return models.ExitReconcile

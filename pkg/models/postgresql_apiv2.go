@@ -28,6 +28,7 @@ type PGCluster struct {
 	PCIComplianceMode             bool               `json:"pciComplianceMode,omitempty"`
 	CurrentClusterOperationStatus string             `json:"currentClusterOperationStatus,omitempty"`
 	Status                        string             `json:"status,omitempty"`
+	Description                   string             `json:"description,omitempty"`
 }
 
 type PGBouncer struct {

@@ -26,6 +26,7 @@ type ZookeeperCluster struct {
 	SLATier                       string                 `json:"slaTier"`
 	TwoFactorDelete               []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
 	DataCentres                   []*ZookeeperDataCentre `json:"dataCentres"`
+	Description                   string                 `json:"description,omitempty"`
 }
 
 type ZookeeperDataCentre struct {

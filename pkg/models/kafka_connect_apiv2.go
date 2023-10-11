@@ -27,6 +27,7 @@ type KafkaConnectCluster struct {
 	TargetCluster         []*TargetCluster          `json:"targetCluster,omitempty"`
 	DataCentres           []*KafkaConnectDataCentre `json:"dataCentres,omitempty"`
 	ResizeSettings        []*ResizeSettings         `json:"resizeSettings,omitempty"`
+	Description           string                    `json:"description,omitempty"`
 }
 
 type ManagedCluster struct {

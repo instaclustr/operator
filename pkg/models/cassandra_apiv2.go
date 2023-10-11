@@ -30,7 +30,7 @@ type CassandraCluster struct {
 	TwoFactorDelete       []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
 	BundledUseOnly        bool                   `json:"bundledUseOnly,omitempty"`
 	ResizeSettings        []*ResizeSettings      `json:"resizeSettings"`
-	Description           string                 `json:"description"`
+	Description           string                 `json:"description,omitempty"`
 }
 
 type CassandraDataCentre struct {

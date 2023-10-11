@@ -211,6 +211,22 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		return r.handleExternalChanges(kc, iKC, l)
 	}
 
+	if kc.Spec.ClusterSettingsNeedUpdate(iKC.Spec.Cluster) {
+		l.Info("Updating cluster settings",
+			"instaclustr description", iKC.Spec.Description,
+			"instaclustr two factor delete", iKC.Spec.TwoFactorDelete)
+
+		err = r.API.UpdateClusterSettings(kc.Status.ID, kc.Spec.ClusterSettingsUpdateToInstAPI())
+		if err != nil {
+			l.Error(err, "Cannot update cluster settings",
+				"cluster ID", kc.Status.ID, "cluster spec", kc.Spec)
+			r.EventRecorder.Eventf(kc, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+	}
+
 	if !kc.Spec.IsEqual(iKC.Spec) {
 		l.Info("Update request to Instaclustr API has been sent",
 			"spec data centres", kc.Spec.DataCentres,

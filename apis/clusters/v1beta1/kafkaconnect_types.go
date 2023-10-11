@@ -314,6 +314,7 @@ func (ks *KafkaConnectSpec) FromInstAPI(iKC *models.KafkaConnectCluster) KafkaCo
 		Cluster: Cluster{
 			Name:                  iKC.Name,
 			Version:               iKC.KafkaConnectVersion,
+			Description:           iKC.Description,
 			PrivateNetworkCluster: iKC.PrivateNetworkCluster,
 			SLATier:               iKC.SLATier,
 			TwoFactorDelete:       ks.Cluster.TwoFactorDeleteFromInstAPI(iKC.TwoFactorDelete),
@@ -584,6 +585,7 @@ func (ks *KafkaConnectSpec) ToInstAPI() models.KafkaConnectCluster {
 		Name:                  ks.Name,
 		KafkaConnectVersion:   ks.Version,
 		PrivateNetworkCluster: ks.PrivateNetworkCluster,
+		Description:           ks.Description,
 		SLATier:               ks.SLATier,
 		TwoFactorDelete:       ks.TwoFactorDeletesToInstAPI(),
 		CustomConnectors:      ks.CustomConnectorsToInstAPI(),

@@ -329,28 +329,15 @@ func (r *RedisReconciler) handleUpdateCluster(
 		return r.handleExternalChanges(redis, iRedis, logger)
 	}
 
-	if len(redis.Spec.TwoFactorDelete) != 0 && len(iRedis.Spec.TwoFactorDelete) == 0 ||
-		redis.Spec.Description != iRedis.Spec.Description {
+	if redis.Spec.ClusterSettingsNeedUpdate(iRedis.Spec.Cluster) {
 		logger.Info("Updating cluster settings",
 			"instaclustr description", iRedis.Spec.Description,
 			"instaclustr two factor delete", iRedis.Spec.TwoFactorDelete)
 
-		settingsToInstAPI, err := redis.Spec.ClusterSettingsUpdateToInstAPI()
-		if err != nil {
-			logger.Error(err, "Cannot convert cluster settings to Instaclustr API",
-				"cluster ID", redis.Status.ID,
-				"cluster spec", redis.Spec)
-			r.EventRecorder.Eventf(redis, models.Warning, models.UpdateFailed,
-				"Cannot update cluster settings. Reason: %v", err)
-
-			return models.ReconcileRequeue
-		}
-
-		err = r.API.UpdateClusterSettings(redis.Status.ID, settingsToInstAPI)
+		err = r.API.UpdateClusterSettings(redis.Status.ID, redis.Spec.ClusterSettingsUpdateToInstAPI())
 		if err != nil {
 			logger.Error(err, "Cannot update cluster settings",
 				"cluster ID", redis.Status.ID, "cluster spec", redis.Spec)
-
 			r.EventRecorder.Eventf(redis, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 

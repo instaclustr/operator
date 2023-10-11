@@ -304,18 +304,20 @@ func (r *CadenceReconciler) HandleUpdateCluster(
 		return r.handleExternalChanges(cadence, iCadence, logger)
 	}
 
-	err = r.updateDescriptionAndTwoFactorDelete(cadence)
-	if err != nil {
-		logger.Error(err, "Cannot update Cadence cluster description and TwoFactorDelete",
-			"cluster ID", cadence.Status.ID,
-			"description", cadence.Spec.Description,
-			"two factor delete", cadence.Spec.TwoFactorDelete,
-		)
+	if cadence.Spec.ClusterSettingsNeedUpdate(iCadence.Spec.Cluster) {
+		logger.Info("Updating cluster settings",
+			"instaclustr description", iCadence.Spec.Description,
+			"instaclustr two factor delete", iCadence.Spec.TwoFactorDelete)
 
-		r.EventRecorder.Eventf(cadence, models.Warning, models.UpdateFailed,
-			"Cluster description and TwoFactoDelete update is failed. Reason: %v", err)
+		err = r.API.UpdateClusterSettings(cadence.Status.ID, cadence.Spec.ClusterSettingsUpdateToInstAPI())
+		if err != nil {
+			logger.Error(err, "Cannot update cluster settings",
+				"cluster ID", cadence.Status.ID, "cluster spec", cadence.Spec)
+			r.EventRecorder.Eventf(cadence, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
 
-		return models.ReconcileRequeue
+			return models.ReconcileRequeue
+		}
 	}
 
 	logger.Info("Update request to Instaclustr API has been sent",
@@ -1141,20 +1143,6 @@ func (r *CadenceReconciler) deletePackagedResources(
 				}
 			}
 		}
-	}
-
-	return nil
-}
-
-func (r *CadenceReconciler) updateDescriptionAndTwoFactorDelete(cadence *v1beta1.Cadence) error {
-	var twoFactorDelete *v1beta1.TwoFactorDelete
-	if len(cadence.Spec.TwoFactorDelete) != 0 {
-		twoFactorDelete = cadence.Spec.TwoFactorDelete[0]
-	}
-
-	err := r.API.UpdateDescriptionAndTwoFactorDelete(instaclustr.ClustersEndpointV1, cadence.Status.ID, cadence.Spec.Description, twoFactorDelete)
-	if err != nil {
-		return err
 	}
 
 	return nil

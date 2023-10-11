@@ -27,7 +27,7 @@ type RedisCluster struct {
 	PasswordAndUserAuth    bool               `json:"passwordAndUserAuth"`
 	TwoFactorDelete        []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 	SLATier                string             `json:"slaTier"`
-	Description            string             `json:"description"`
+	Description            string             `json:"description,omitempty"`
 }
 
 type RedisDataCentre struct {

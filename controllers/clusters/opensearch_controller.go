@@ -309,6 +309,22 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return r.handleExternalChanges(o, iOpenSearch, logger)
 	}
 
+	if o.Spec.ClusterSettingsNeedUpdate(iOpenSearch.Spec.Cluster) {
+		logger.Info("Updating cluster settings",
+			"instaclustr description", iOpenSearch.Spec.Description,
+			"instaclustr two factor delete", iOpenSearch.Spec.TwoFactorDelete)
+
+		err = r.API.UpdateClusterSettings(o.Status.ID, o.Spec.ClusterSettingsUpdateToInstAPI())
+		if err != nil {
+			logger.Error(err, "Cannot update cluster settings",
+				"cluster ID", o.Status.ID, "cluster spec", o.Spec)
+			r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
+				"Cannot update cluster settings. Reason: %v", err)
+
+			return models.ReconcileRequeue
+		}
+	}
+
 	if !o.Spec.IsEqual(iOpenSearch.Spec) {
 		logger.Info("Update request to Instaclustr API has been sent",
 			"spec data centres", o.Spec.DataCentres,

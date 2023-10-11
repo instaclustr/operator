@@ -322,29 +322,15 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 	patch := cassandra.NewPatch()
 
-	if len(cassandra.Spec.TwoFactorDelete) != 0 && len(iCassandra.Spec.TwoFactorDelete) == 0 ||
-		cassandra.Spec.Description != iCassandra.Spec.Description {
+	if cassandra.Spec.ClusterSettingsNeedUpdate(iCassandra.Spec.Cluster) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iCassandra.Spec.Description,
 			"instaclustr two factor delete", iCassandra.Spec.TwoFactorDelete)
 
-		settingsToInstAPI, err := cassandra.Spec.ClusterSettingsUpdateToInstAPI()
-		if err != nil {
-			l.Error(err, "Cannot convert cluster settings to Instaclustr API",
-				"cluster ID", cassandra.Status.ID,
-				"cluster spec", cassandra.Spec)
-
-			r.EventRecorder.Eventf(cassandra, models.Warning, models.UpdateFailed,
-				"Cannot update cluster settings. Reason: %v", err)
-
-			return reconcile.Result{}, err
-		}
-
-		err = r.API.UpdateClusterSettings(cassandra.Status.ID, settingsToInstAPI)
+		err = r.API.UpdateClusterSettings(cassandra.Status.ID, cassandra.Spec.ClusterSettingsUpdateToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot update cluster settings",
 				"cluster ID", cassandra.Status.ID, "cluster spec", cassandra.Spec)
-
 			r.EventRecorder.Eventf(cassandra, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 
