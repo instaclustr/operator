@@ -13,12 +13,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 )
 
 // OpenSearchProvisioningV2APIService is a service that implements the logic for the OpenSearchProvisioningV2APIServicer
 // This service should implement the business logic for every endpoint for the OpenSearchProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type OpenSearchProvisioningV2APIService struct {
+	mu       sync.RWMutex
 	clusters map[string]*OpenSearchClusterV2
 }
 
@@ -64,6 +66,8 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2OperationsApplic
 func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	_, exists := s.clusters[clusterId]
 	if !exists {
@@ -79,6 +83,8 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	o, exists := s.clusters[clusterId]
 	if !exists {
@@ -94,6 +100,8 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut(ctx context.Context, clusterId string, openSearchClusterUpdateV2 OpenSearchClusterUpdateV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	o, exists := s.clusters[clusterId]
 	if !exists {
@@ -114,11 +122,17 @@ func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplica
 func (s *OpenSearchProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post(ctx context.Context, openSearchClusterV2 OpenSearchClusterV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post with the required logic for this service method.
 	// Add api_open_search_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	newOpenSearch := &OpenSearchClusterV2{}
 
 	newOpenSearch = &openSearchClusterV2
 	newOpenSearch.Id = openSearchClusterV2.Name + CreatedID
+
+	for i := range newOpenSearch.DataCentres {
+		newOpenSearch.DataCentres[i].Id = newOpenSearch.DataCentres[i].Name + "-" + CreatedID
+	}
 
 	s.clusters[newOpenSearch.Id] = newOpenSearch
 

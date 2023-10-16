@@ -70,6 +70,11 @@ func (c *CadenceProvisioningV2APIController) Routes() Routes {
 			"/cluster-management/v2/resources/applications/cadence/clusters/v2/",
 			c.ClusterManagementV2ResourcesApplicationsCadenceClustersV2Post,
 		},
+		"ClusterManagementV2ResourcesApplicationsVersions": Route{
+			strings.ToUpper("Get"),
+			"/cluster-management/v2/data-sources/applications/{appKind}/versions/v2/",
+			c.ClusterManagementV2ResourcesApplicationsVersions,
+		},
 	}
 }
 
@@ -153,6 +158,20 @@ func (c *CadenceProvisioningV2APIController) ClusterManagementV2ResourcesApplica
 		c.errorHandler(w, r, err, &result)
 		return
 	}
+	// If no error, encode the body and the result code
+	EncodeJSONResponse(result.Body, &result.Code, w)
+}
+
+func (c *CadenceProvisioningV2APIController) ClusterManagementV2ResourcesApplicationsVersions(w http.ResponseWriter, r *http.Request) {
+	appKind := mux.Vars(r)["appKind"]
+
+	result, err := c.service.ClusterManagementV2ResourcesApplicationsVersions(r.Context(), appKind)
+	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+
 	// If no error, encode the body and the result code
 	EncodeJSONResponse(result.Body, &result.Code, w)
 }
