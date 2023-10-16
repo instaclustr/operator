@@ -562,6 +562,7 @@ type CadenceProvisioningV2APIServicer interface {
 	ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdGet(context.Context, string) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdPut(context.Context, string, CadenceClusterUpdateV2) (ImplResponse, error)
 	ClusterManagementV2ResourcesApplicationsCadenceClustersV2Post(context.Context, CadenceClusterV2) (ImplResponse, error)
+	ClusterManagementV2ResourcesApplicationsVersions(ctx context.Context, appKind string) (ImplResponse, error)
 }
 
 // ClusterExclusionWindowV2APIServicer defines the api actions for the ClusterExclusionWindowV2API service

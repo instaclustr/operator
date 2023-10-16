@@ -11,6 +11,7 @@ package openapi
 
 import (
 	"context"
+	"sync"
 )
 
 // ApacheKafkaProvisioningV2APIService is a service that implements the logic for the ApacheKafkaProvisioningV2APIServicer
@@ -18,6 +19,7 @@ import (
 // Include any external packages or services that will be required by this service.
 type ApacheKafkaProvisioningV2APIService struct {
 	clusters map[string]*KafkaClusterV2
+	mu       sync.RWMutex
 }
 
 // NewApacheKafkaProvisioningV2APIService creates a default api service
@@ -29,6 +31,8 @@ func NewApacheKafkaProvisioningV2APIService() ApacheKafkaProvisioningV2APIServic
 func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdDelete(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	delete(s.clusters, clusterId)
 	return Response(204, nil), nil
@@ -38,6 +42,8 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdGet(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	cluster, exists := s.clusters[clusterId]
 	if !exists {
@@ -53,6 +59,8 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut(ctx context.Context, clusterId string, kafkaClusterUpdateV2 KafkaClusterUpdateV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	cluster, exists := s.clusters[clusterId]
 	if !exists {
@@ -78,8 +86,15 @@ func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplic
 func (s *ApacheKafkaProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsKafkaClustersV2Post(ctx context.Context, kafkaClusterV2 KafkaClusterV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsKafkaClustersV2Post with the required logic for this service method.
 	// Add api_apache_kafka_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	kafkaClusterV2.Id = kafkaClusterV2.Name + CreatedID
+
+	for i := range kafkaClusterV2.DataCentres {
+		kafkaClusterV2.DataCentres[i].Id = kafkaClusterV2.DataCentres[i].Name + "-" + CreatedID
+	}
+
 	s.clusters[kafkaClusterV2.Id] = &kafkaClusterV2
 
 	return Response(202, kafkaClusterV2), nil

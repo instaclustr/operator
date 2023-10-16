@@ -13,12 +13,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 )
 
 // ApacheCassandraProvisioningV2APIService is a service that implements the logic for the ApacheCassandraProvisioningV2APIServicer
 // This service should implement the business logic for every endpoint for the ApacheCassandraProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type ApacheCassandraProvisioningV2APIService struct {
+	mu       sync.RWMutex
 	clusters map[string]*CassandraClusterV2
 }
 
@@ -64,6 +66,9 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2OperationsA
 func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdDelete(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	_, exists := s.clusters[clusterId]
 	if !exists {
 		return Response(http.StatusNotFound, nil), nil
@@ -78,6 +83,8 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesAp
 func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdGet(ctx context.Context, clusterId string) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	c, exists := s.clusters[clusterId]
 	if !exists {
@@ -93,6 +100,8 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesAp
 func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdPut(ctx context.Context, clusterId string, cassandraClusterUpdateV2 CassandraClusterUpdateV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	c, exists := s.clusters[clusterId]
 	if !exists {
@@ -114,12 +123,18 @@ func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesAp
 func (s *ApacheCassandraProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsCassandraClustersV2Post(ctx context.Context, cassandraClusterV2 CassandraClusterV2) (ImplResponse, error) {
 	// TODO - update ClusterManagementV2ResourcesApplicationsCassandraClustersV2Post with the required logic for this service method.
 	// Add api_apache_cassandra_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	newCassandra := &CassandraClusterV2{}
 
 	newCassandra = &cassandraClusterV2
 	newCassandra.Id = cassandraClusterV2.Name + CreatedID
 	newCassandra.DataCentres[0].Nodes = []NodeDetailsV2{{NodeSize: cassandraClusterV2.DataCentres[0].NodeSize}}
+
+	for i := range newCassandra.DataCentres {
+		newCassandra.DataCentres[i].Id = newCassandra.DataCentres[i].Name + "-" + CreatedID
+	}
 
 	s.clusters[newCassandra.Id] = newCassandra
 

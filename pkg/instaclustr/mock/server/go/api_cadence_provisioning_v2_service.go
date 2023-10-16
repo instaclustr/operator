@@ -11,19 +11,23 @@ package openapi
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 )
 
 // CadenceProvisioningV2APIService is a service that implements the logic for the CadenceProvisioningV2APIServicer
 // This service should implement the business logic for every endpoint for the CadenceProvisioningV2API API.
 // Include any external packages or services that will be required by this service.
 type CadenceProvisioningV2APIService struct {
+	clusters map[string]*CadenceClusterV2
+	mu       sync.RWMutex
 }
 
 // NewCadenceProvisioningV2APIService creates a default api service
 func NewCadenceProvisioningV2APIService() CadenceProvisioningV2APIServicer {
-	return &CadenceProvisioningV2APIService{}
+	return &CadenceProvisioningV2APIService{clusters: map[string]*CadenceClusterV2{}}
 }
 
 // ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdDelete - Delete cluster
@@ -31,10 +35,17 @@ func (s *CadenceProvisioningV2APIService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdDelete with the required logic for this service method.
 	// Add api_cadence_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	// return Response(204, nil),nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdDelete method not implemented")
+	_, exists := s.clusters[clusterId]
+	if !exists {
+		return Response(404, notFoundResponse), nil
+	}
+
+	delete(s.clusters, clusterId)
+
+	return Response(204, nil), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdGet - Get Cadence cluster details.
@@ -42,10 +53,15 @@ func (s *CadenceProvisioningV2APIService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdGet with the required logic for this service method.
 	// Add api_cadence_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// TODO: Uncomment the next line to return response Response(200, CadenceClusterV2{}) or use other options such as http.Ok ...
-	// return Response(200, CadenceClusterV2{}), nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdGet method not implemented")
+	cluster, exists := s.clusters[clusterId]
+	if !exists {
+		return Response(404, notFoundResponse), nil
+	}
+
+	return Response(200, cluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdPut - Update a Cadence cluster
@@ -53,13 +69,34 @@ func (s *CadenceProvisioningV2APIService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdPut with the required logic for this service method.
 	// Add api_cadence_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// TODO: Uncomment the next line to return response Response(202, CadenceClusterV2{}) or use other options such as http.Ok ...
-	// return Response(202, CadenceClusterV2{}), nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
-	// return Response(404, ErrorListResponseV2{}), nil
+	cluster, exists := s.clusters[clusterId]
+	if !exists {
+		return Response(404, notFoundResponse), nil
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsCadenceClustersV2ClusterIdPut method not implemented")
+	for i, newDC := range cadenceClusterUpdateV2.DataCentres {
+		for _, oldDc := range cluster.DataCentres {
+			if newDC.Name == oldDc.Name {
+				newNodes := append([]NodeDetailsV2{}, oldDc.Nodes...)
+
+				for i := range newNodes {
+					newNodes[i].NodeSize = newDC.NodeSize
+				}
+
+				cadenceClusterUpdateV2.DataCentres[i].Nodes = newNodes
+			}
+		}
+	}
+
+	cluster.DataCentres = cadenceClusterUpdateV2.DataCentres
+	cluster.Description = cadenceClusterUpdateV2.Description
+	cluster.TwoFactorDelete = cadenceClusterUpdateV2.TwoFactorDelete
+	cluster.ResizeSettings = cadenceClusterUpdateV2.ResizeSettings
+
+	return Response(202, cluster), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsCadenceClustersV2Post - Create a Cadence cluster
@@ -67,8 +104,64 @@ func (s *CadenceProvisioningV2APIService) ClusterManagementV2ResourcesApplicatio
 	// TODO - update ClusterManagementV2ResourcesApplicationsCadenceClustersV2Post with the required logic for this service method.
 	// Add api_cadence_provisioning_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// TODO: Uncomment the next line to return response Response(202, CadenceClusterV2{}) or use other options such as http.Ok ...
-	// return Response(202, CadenceClusterV2{}), nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesApplicationsCadenceClustersV2Post method not implemented")
+	cadenceClusterV2.Id = cadenceClusterV2.Name + "-" + CreatedID
+
+	for i, dc := range cadenceClusterV2.DataCentres {
+		var nodes []NodeDetailsV2
+		for j := int32(0); j < dc.NumberOfNodes; j++ {
+			nodes = append(nodes, NodeDetailsV2{
+				NodeSize: cadenceClusterV2.DataCentres[0].NodeSize,
+				Id:       fmt.Sprintf("%s-%s-node-%d", cadenceClusterV2.Name, cadenceClusterV2.DataCentres[0].Name, j),
+				Status:   "RUNNING",
+			})
+		}
+
+		cadenceClusterV2.DataCentres[i].Nodes = nodes
+	}
+
+	cadenceClusterV2.CurrentClusterOperationStatus = "NO_OPERATION"
+
+	s.clusters[cadenceClusterV2.Id] = &cadenceClusterV2
+
+	return Response(202, cadenceClusterV2), nil
+}
+
+var notFoundResponse = ErrorListResponseV2{
+	Errors: []ErrorResponseV2{
+		{
+			Name:    "clusterId",
+			Message: "Not found",
+		},
+	},
+}
+
+func (s *CadenceProvisioningV2APIService) ClusterManagementV2ResourcesApplicationsVersions(ctx context.Context, appKind string) (ImplResponse, error) {
+	type appVersions struct {
+		Application string   `json:"application"`
+		Versions    []string `json:"versions"`
+	}
+
+	type apiAppVersions struct {
+		AppVersions []appVersions `json:"applicationVersions"`
+	}
+
+	if appKind == "cassandra" {
+		appKind = "APACHE_CASSANDRA"
+	} else {
+		appKind = strings.ToUpper(appKind)
+	}
+
+	return Response(http.StatusOK, []apiAppVersions{
+		{
+			AppVersions: []appVersions{
+				{
+					Application: appKind,
+					Versions:    []string{"0.0.1"},
+				},
+			},
+		},
+	}), nil
 }
