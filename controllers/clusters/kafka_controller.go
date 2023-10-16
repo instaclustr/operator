@@ -28,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -39,6 +40,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -73,19 +75,16 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		l.Error(err, "Unable to fetch Kafka", "request", req)
-		return models.ReconcileRequeue, err
+		return reconcile.Result{}, err
 	}
 
 	switch kafka.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, &kafka, l), nil
-
+		return r.handleCreateCluster(ctx, &kafka, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &kafka, l), nil
-
+		return r.handleUpdateCluster(ctx, &kafka, l)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, &kafka, l), nil
-
+		return r.handleDeleteCluster(ctx, &kafka, l)
 	case models.GenericEvent:
 		l.Info("Event isn't handled", "cluster name", kafka.Spec.Name, "request", req,
 			"event", kafka.Annotations[models.ResourceStateAnnotation])
@@ -95,7 +94,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Kafka creation Event")
 
 	var err error
@@ -115,7 +114,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 				"Cluster creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -134,7 +133,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		kafka.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -149,7 +148,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		l.Info("Cluster has been created",
@@ -167,7 +166,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 				"Cluster status check job creation is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -182,7 +181,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 				r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
 					"User creation job is failed. Reason: %v", err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			r.EventRecorder.Event(kafka, models.Normal, models.Created,
@@ -191,26 +190,26 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 		}
 	}
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *KafkaReconciler) handleUpdateCluster(
 	ctx context.Context,
 	k *v1beta1.Kafka,
 	l logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 	l = l.WithName("Kafka update Event")
 
 	iData, err := r.API.GetKafka(k.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", k.Status.ID)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	iKafka, err := k.FromInstAPI(iData)
 	if err != nil {
 		l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", k.Status.ID)
-		return models.ExitReconcile
+		return reconcile.Result{}, err
 	}
 
 	if iKafka.Status.ClusterStatus.State != StatusRUNNING {
@@ -230,9 +229,9 @@ func (r *KafkaReconciler) handleUpdateCluster(
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -251,12 +250,12 @@ func (r *KafkaReconciler) handleUpdateCluster(
 			r.EventRecorder.Eventf(k, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
 	if k.Spec.IsEqual(iKafka.Spec) {
-		return models.ExitReconcile
+		return models.ExitReconcile, nil
 	}
 
 	l.Info("Update request to Instaclustr API has been sent",
@@ -284,10 +283,10 @@ func (r *KafkaReconciler) handleUpdateCluster(
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	patch := k.NewPatch()
@@ -301,7 +300,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info(
@@ -311,7 +310,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		"data centres", k.Spec.DataCentres,
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *KafkaReconciler) handleCreateUser(
@@ -531,7 +530,7 @@ func (r *KafkaReconciler) handleUserEvent(
 	}
 }
 
-func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	if !k.Spec.IsEqual(ik.Spec) {
 		l.Info("The k8s specification is different from Instaclustr Console. Update operations are blocked.",
 			"specification of k8s resource", k.Spec,
@@ -541,10 +540,10 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Log
 		if err != nil {
 			l.Error(err, "Cannot create specification difference message",
 				"instaclustr data", ik.Spec, "k8s resource spec", k.Spec)
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
-		return models.ExitReconcile
+		return models.ExitReconcile, nil
 	}
 
 	patch := k.NewPatch()
@@ -559,16 +558,16 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Log
 		r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info("External changes have been reconciled", "kafka ID", k.Status.ID)
 	r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) reconcile.Result {
+func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Kafka deletion Event")
 
 	_, err := r.API.GetKafka(kafka.Status.ID)
@@ -581,7 +580,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	patch := kafka.NewPatch()
@@ -600,7 +599,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 				"Cluster deletion is failed on the Instaclustr. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -621,7 +620,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", kafka.Status.ID)
@@ -629,7 +628,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 			r.EventRecorder.Event(kafka, models.Normal, models.DeletionStarted,
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 	}
 
@@ -637,7 +636,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 		err = r.detachUser(ctx, kafka, l, ref)
 		if err != nil {
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -654,7 +653,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	err = exposeservice.Delete(r.Client, kafka.Name, kafka.Namespace)
@@ -664,7 +663,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 			"cluster name", kafka.Spec.Name,
 		)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info("Cluster was deleted",
@@ -676,7 +675,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 		"Cluster resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *KafkaReconciler) startClusterStatusJob(kafka *v1beta1.Kafka) error {
@@ -915,6 +914,8 @@ func (r *KafkaReconciler) handleExternalDelete(ctx context.Context, kafka *v1bet
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.Kafka{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				annots := event.Object.GetAnnotations()

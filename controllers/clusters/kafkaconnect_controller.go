@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -37,6 +38,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -71,16 +73,16 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		l.Error(err, "Unable to fetch KafkaConnect", "request", req)
-		return models.ReconcileRequeue, err
+		return reconcile.Result{}, err
 	}
 
 	switch kafkaConnect.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, kafkaConnect, l), nil
+		return r.handleCreateCluster(ctx, kafkaConnect, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, kafkaConnect, l), nil
+		return r.handleUpdateCluster(ctx, kafkaConnect, l)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, kafkaConnect, l), nil
+		return r.handleDeleteCluster(ctx, kafkaConnect, l)
 	default:
 		l.Info("Event isn't handled", "cluster name", kafkaConnect.Spec.Name,
 			"request", req, "event", kafkaConnect.Annotations[models.ResourceStateAnnotation])
@@ -88,7 +90,7 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 }
 
-func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Creation Event")
 
 	if kc.Status.ID == "" {
@@ -107,7 +109,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 				"Cluster creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -123,7 +125,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		kc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -136,7 +138,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		err = r.createDefaultSecret(ctx, kc, l)
@@ -151,7 +153,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 				err,
 			)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		l.Info("Kafka Connect cluster has been created",
@@ -168,7 +170,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 				"Cluster status check job is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -177,10 +179,10 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 		)
 	}
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
-func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Update Event")
 
 	iData, err := r.API.GetKafkaConnect(kc.Status.ID)
@@ -192,7 +194,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	iKC, err := kc.FromInst(iData)
@@ -204,7 +206,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if kc.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -223,7 +225,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 			r.EventRecorder.Eventf(kc, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -257,9 +259,9 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -277,7 +279,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info(
@@ -287,10 +289,10 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		"data centres", kc.Spec.DataCentres,
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
-func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
 	if !k.Spec.IsEqual(ik.Spec) {
 		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", k.Spec,
@@ -300,10 +302,10 @@ func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConne
 		if err != nil {
 			l.Error(err, "Cannot create specification difference message",
 				"instaclustr data", ik.Spec, "k8s resource spec", k.Spec)
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
-		return models.ExitReconcile
+		return models.ExitReconcile, nil
 	}
 
 	patch := k.NewPatch()
@@ -318,16 +320,16 @@ func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConne
 		r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info("External changes have been reconciled", "resource ID", k.Status.ID)
 	r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
-func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) reconcile.Result {
+func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Deletion Event")
 
 	_, err := r.API.GetKafkaConnect(kc.Status.ID)
@@ -340,7 +342,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	patch := kc.NewPatch()
@@ -360,7 +362,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 				"Cluster deletion on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Event(kc, models.Normal, models.DeletionStarted,
@@ -378,7 +380,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 					"Cluster resource patch is failed. Reason: %v",
 					err)
 
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", kc.Status.ID)
@@ -386,7 +388,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 			r.EventRecorder.Event(kc, models.Normal, models.DeletionStarted,
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 	}
 
@@ -402,7 +404,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	err = exposeservice.Delete(r.Client, kc.Name, kc.Namespace)
@@ -412,7 +414,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 			"cluster name", kc.Spec.Name,
 		)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info("Kafka Connect cluster was deleted",
@@ -424,7 +426,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 		"Cluster resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) error {
@@ -582,6 +584,8 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.KafkaConnect{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
