@@ -37,6 +37,21 @@ func Create(
 	nodes []*v1beta1.Node,
 	targetPort int32,
 ) error {
+	addresses := []v1.EndpointAddress{}
+	for _, node := range nodes {
+		if node.PublicAddress == "" {
+			continue
+		}
+
+		addresses = append(addresses, v1.EndpointAddress{
+			IP: node.PublicAddress,
+		})
+	}
+
+	if len(addresses) == 0 {
+		return nil
+	}
+
 	svcName := fmt.Sprintf(models.ExposeServiceNameTemplate, clusterName)
 	service := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,17 +71,6 @@ func Create(
 			ClusterIP: v1.ClusterIPNone,
 			Type:      v1.ServiceTypeClusterIP,
 		},
-	}
-
-	addresses := []v1.EndpointAddress{}
-	for _, node := range nodes {
-		if node.PublicAddress == "" {
-			continue
-		}
-
-		addresses = append(addresses, v1.EndpointAddress{
-			IP: node.PublicAddress,
-		})
 	}
 
 	endpoints := &v1.Endpoints{

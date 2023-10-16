@@ -108,7 +108,7 @@ var _ = Describe("Kafka Controller", func() {
 		})
 	})
 
-	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+	When("Deleting the Kafka resource by avoiding operator", func() {
 		It("should try to get the cluster details and receive StatusNotFound", func() {
 			kafkaManifest2 := kafkaManifest.DeepCopy()
 			kafkaManifest2.Name += "-test-external-delete"
