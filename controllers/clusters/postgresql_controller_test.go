@@ -107,7 +107,7 @@ var _ = Describe("PostgreSQL Controller", func() {
 		})
 	})
 
-	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+	When("Deleting the PostgreSQL resource by avoiding operator", func() {
 		It("should try to get the cluster details and receive StatusNotFound", func() {
 			postgresqlManifest2 := postgresqlManifest.DeepCopy()
 			postgresqlManifest2.Name += "-test-external-delete"

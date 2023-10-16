@@ -117,7 +117,7 @@ var _ = Describe("Zookeeper Controller", func() {
 		})
 	})
 
-	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+	When("Deleting the Zookeeper resource by avoiding operator", func() {
 		It("should try to get the cluster details and receive StatusNotFound", func() {
 			zookeeperManifest2 := zookeeperManifest.DeepCopy()
 			zookeeperManifest2.Name += "-test-external-delete"

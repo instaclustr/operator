@@ -290,7 +290,6 @@ func (r *PostgreSQLUserReconciler) createUser(
 		return fmt.Errorf("cannot list nodes, err: %w", err)
 	}
 
-	// TODO: Handle scenario if there are no nodes with external IP, check private/public cluster
 	for _, node := range nodeList.Items {
 		for _, nodeAddress := range node.Status.Addresses {
 			if nodeAddress.Type == k8sCore.NodeExternalIP {

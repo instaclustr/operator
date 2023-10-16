@@ -105,7 +105,7 @@ var _ = Describe("OpenSearch Controller", func() {
 		})
 	})
 
-	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+	When("Deleting the OpenSearch resource by avoiding operator", func() {
 		It("should try to get the cluster details and receive StatusNotFound", func() {
 			openSearchManifest2 := openSearchManifest.DeepCopy()
 			openSearchManifest2.Name += "-test-external-delete"

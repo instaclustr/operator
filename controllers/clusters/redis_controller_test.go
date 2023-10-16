@@ -106,7 +106,7 @@ var _ = Describe("Redis Controller", func() {
 		})
 	})
 
-	When("Deleting the Kafka Connect resource by avoiding operator", func() {
+	When("Deleting the Redis resource by avoiding operator", func() {
 		It("should try to get the cluster details and receive StatusNotFound", func() {
 			redisManifest2 := redisManifest.DeepCopy()
 			redisManifest2.Name += "-test-external-delete"
