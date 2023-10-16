@@ -84,7 +84,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 		l.Error(err, "Unable to fetch Cassandra cluster",
 			"request", req)
-		return models.ReconcileRequeue, err
+		return reconcile.Result{}, err
 	}
 
 	switch cassandra.Annotations[models.ResourceStateAnnotation] {

@@ -29,6 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,6 +41,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -78,30 +80,30 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		logger.Error(err, "Unable to fetch OpenSearch cluster resource",
 			"request", req)
 
-		return models.ReconcileRequeue, nil
+		return reconcile.Result{}, err
 	}
 
 	switch openSearch.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.HandleCreateCluster(ctx, openSearch, logger), nil
+		return r.HandleCreateCluster(ctx, openSearch, logger)
 	case models.UpdatingEvent:
-		return r.HandleUpdateCluster(ctx, openSearch, logger), nil
+		return r.HandleUpdateCluster(ctx, openSearch, logger)
 	case models.DeletingEvent:
-		return r.HandleDeleteCluster(ctx, openSearch, logger), nil
+		return r.HandleDeleteCluster(ctx, openSearch, logger)
 	case models.GenericEvent:
 		logger.Info("Opensearch resource generic event",
 			"cluster manifest", openSearch.Spec,
 			"request", req,
 			"event", openSearch.Annotations[models.ResourceStateAnnotation],
 		)
-		return models.ExitReconcile, err
+		return models.ExitReconcile, nil
 	default:
 		logger.Info("OpenSearch resource event isn't handled",
 			"cluster manifest", openSearch.Spec,
 			"request", req,
 			"event", openSearch.Annotations[models.ResourceStateAnnotation],
 		)
-		return models.ExitReconcile, err
+		return models.ExitReconcile, nil
 	}
 }
 
@@ -109,7 +111,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	ctx context.Context,
 	o *v1beta1.OpenSearch,
 	logger logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch creation event")
 	var id string
 	var err error
@@ -129,7 +131,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
 					err)
 
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			logger.Info("OpenSearch cluster was created from backup",
@@ -155,7 +157,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
 					"Cluster creation on the Instaclustr is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			logger.Info("OpenSearch cluster was created",
@@ -177,7 +179,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 		o.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(o, models.DeletionFinalizer)
@@ -190,7 +192,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		logger.Info(
@@ -209,7 +211,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
 				"Cluster status check job is failed. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Event(o, models.Normal, models.Created,
@@ -223,7 +225,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
 				"Cluster backups check job is failed. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Event(o, models.Normal, models.Created,
@@ -236,7 +238,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
 					"User creation job is failed. Reason: %v", err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			r.EventRecorder.Event(o, models.Normal, models.Created,
@@ -244,14 +246,14 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		}
 	}
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *OpenSearchReconciler) HandleUpdateCluster(
 	ctx context.Context,
 	o *v1beta1.OpenSearch,
 	logger logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch update event")
 
 	iData, err := r.API.GetOpenSearch(o.Status.ID)
@@ -264,7 +266,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			o, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	iOpenSearch, err := o.FromInstAPI(iData)
@@ -277,7 +279,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		r.EventRecorder.Eventf(o, models.Warning, models.ConvertionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if iOpenSearch.Status.State != models.RunningStatus {
@@ -300,9 +302,9 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if o.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -321,7 +323,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -355,9 +357,9 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		logger.Info(
@@ -381,17 +383,17 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	logger.Info("OpenSearch cluster was updated",
 		"cluster name", o.Spec.Name,
 		"cluster ID", o.Status.ID)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
-func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) reconcile.Result {
+func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) (reconcile.Result, error) {
 	if !o.Spec.IsEqual(iO.Spec) {
 		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", o.Spec,
@@ -401,11 +403,11 @@ func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, 
 		if err != nil {
 			l.Error(err, "Cannot create specification difference message",
 				"instaclustr data", iO.Spec, "k8s resource spec", o.Spec)
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 		r.EventRecorder.Eventf(o, models.Warning, models.ExternalChanges, msgDiffSpecs)
 
-		return models.ExitReconcile
+		return models.ExitReconcile, nil
 	}
 
 	patch := o.NewPatch()
@@ -420,20 +422,20 @@ func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, 
 		r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info("External changes have been reconciled", "resource ID", o.Status.ID)
 	r.EventRecorder.Event(o, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *OpenSearchReconciler) HandleDeleteCluster(
 	ctx context.Context,
 	o *v1beta1.OpenSearch,
 	logger logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch deletion event")
 
 	_, err := r.API.GetOpenSearch(o.Status.ID)
@@ -445,7 +447,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		r.EventRecorder.Eventf(o, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	patch := o.NewPatch()
@@ -464,7 +466,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.DeletionFailed,
 				"Cluster deletion is failed on the Instaclustr. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Event(o, models.Normal, models.DeletionStarted,
@@ -481,7 +483,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 				r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
 					"Cluster resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			logger.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", o.Status.ID)
@@ -489,7 +491,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			r.EventRecorder.Event(o, models.Normal, models.DeletionStarted,
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 	}
 
@@ -510,7 +512,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		r.EventRecorder.Eventf(o, models.Warning, models.DeletionFailed,
 			"Cluster backups deletion is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	logger.Info("OpenSearch cluster backup resources were deleted",
@@ -520,7 +522,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	for _, ref := range o.Spec.UserRefs {
 		err = r.detachUserResource(ctx, logger, o, ref)
 		if err != nil {
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -536,7 +538,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	err = exposeservice.Delete(r.Client, o.Name, o.Namespace)
@@ -546,7 +548,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 			"cluster name", o.Spec.Name,
 		)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	logger.Info("OpenSearch cluster was deleted",
@@ -557,7 +559,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	r.EventRecorder.Event(o, models.Normal, models.Deleted,
 		"Cluster resource is deleted")
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *OpenSearchReconciler) startClusterStatusJob(cluster *v1beta1.OpenSearch) error {
@@ -1159,6 +1161,8 @@ func (r *OpenSearchReconciler) handleUserEvent(
 // SetupWithManager sets up the controller with the Manager.
 func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.OpenSearch{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {

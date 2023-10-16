@@ -29,6 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,6 +41,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -83,11 +85,11 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	switch redis.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, redis, logger), nil
+		return r.handleCreateCluster(ctx, redis, logger)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, redis, logger), nil
+		return r.handleUpdateCluster(ctx, redis, logger)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, redis, logger), nil
+		return r.handleDeleteCluster(ctx, redis, logger)
 	case models.GenericEvent:
 		logger.Info("Redis generic event isn't handled",
 			"cluster name", redis.Spec.Name,
@@ -107,7 +109,7 @@ func (r *RedisReconciler) handleCreateCluster(
 	ctx context.Context,
 	redis *v1beta1.Redis,
 	logger logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 	var err error
 	if redis.Status.ID == "" {
 		var id string
@@ -128,7 +130,7 @@ func (r *RedisReconciler) handleCreateCluster(
 					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
 					err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			logger.Info(
@@ -160,7 +162,7 @@ func (r *RedisReconciler) handleCreateCluster(
 					"Cluster creation on the Instaclustr is failed. Reason: %v",
 					err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			logger.Info(
@@ -184,7 +186,7 @@ func (r *RedisReconciler) handleCreateCluster(
 			r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		logger.Info("Redis resource has been created",
@@ -207,7 +209,7 @@ func (r *RedisReconciler) handleCreateCluster(
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if redis.Status.State != models.DeletedStatus {
@@ -222,7 +224,7 @@ func (r *RedisReconciler) handleCreateCluster(
 				"Cluster status job creation is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -241,7 +243,7 @@ func (r *RedisReconciler) handleCreateCluster(
 				"Cluster backups job creation is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -257,7 +259,7 @@ func (r *RedisReconciler) handleCreateCluster(
 				r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
 					"User creation job is failed. Reason: %v", err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			r.EventRecorder.Event(redis, models.Normal, models.Created,
@@ -274,7 +276,7 @@ func (r *RedisReconciler) handleCreateCluster(
 		"namespace", redis.Namespace,
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *RedisReconciler) startUsersCreationJob(cluster *v1beta1.Redis) error {
@@ -292,7 +294,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 	ctx context.Context,
 	redis *v1beta1.Redis,
 	logger logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 	iData, err := r.API.GetRedis(redis.Status.ID)
 	if err != nil {
 		logger.Error(
@@ -306,7 +308,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 			"Fetch cluster from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	iRedis, err := redis.FromInstAPI(iData)
@@ -322,7 +324,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if redis.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -341,7 +343,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 			r.EventRecorder.Eventf(redis, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -379,9 +381,9 @@ func (r *RedisReconciler) handleUpdateCluster(
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -400,7 +402,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	logger.Info(
@@ -410,7 +412,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 		"data centres", redis.Spec.DataCentres,
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *RedisReconciler) handleCreateUsers(
@@ -473,7 +475,7 @@ func (r *RedisReconciler) handleCreateUsers(
 	return nil
 }
 
-func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l logr.Logger) reconcile.Result {
+func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l logr.Logger) (reconcile.Result, error) {
 	if !redis.Spec.IsEqual(iRedis.Spec) {
 		l.Info(msgSpecStillNoMatch,
 			"specification of k8s resource", redis.Spec,
@@ -483,10 +485,10 @@ func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l 
 		if err != nil {
 			l.Error(err, "Cannot create specification difference message",
 				"instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 		r.EventRecorder.Eventf(redis, models.Warning, models.ExternalChanges, msgDiffSpecs)
-		return models.ExitReconcile
+		return models.ExitReconcile, nil
 	}
 
 	patch := redis.NewPatch()
@@ -501,20 +503,20 @@ func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l 
 		r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	l.Info("External changes have been reconciled", "resource ID", redis.Status.ID)
 	r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *RedisReconciler) handleDeleteCluster(
 	ctx context.Context,
 	redis *v1beta1.Redis,
 	logger logr.Logger,
-) reconcile.Result {
+) (reconcile.Result, error) {
 
 	_, err := r.API.GetRedis(redis.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
@@ -528,7 +530,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"Fetch cluster from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	if !errors.Is(err, instaclustr.NotFound) {
@@ -548,7 +550,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 				"Cluster deletion on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 
 		r.EventRecorder.Event(redis, models.Normal, models.DeletionStarted,
@@ -568,7 +570,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 					"Cluster resource patch is failed. Reason: %v",
 					err)
 
-				return models.ReconcileRequeue
+				return reconcile.Result{}, err
 			}
 
 			logger.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", redis.Status.ID)
@@ -576,7 +578,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			r.EventRecorder.Event(redis, models.Normal, models.DeletionStarted,
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
-			return models.ExitReconcile
+			return models.ExitReconcile, nil
 		}
 	}
 
@@ -597,7 +599,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"Cluster backups deletion is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -622,7 +624,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 				"Cluster detaching on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -641,7 +643,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	err = exposeservice.Delete(r.Client, redis.Name, redis.Namespace)
@@ -651,7 +653,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 			"cluster name", redis.Spec.Name,
 		)
 
-		return models.ReconcileRequeue
+		return reconcile.Result{}, err
 	}
 
 	logger.Info("Redis cluster was deleted",
@@ -664,7 +666,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 		"Cluster resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return models.ExitReconcile, nil
 }
 
 func (r *RedisReconciler) detachUserResource(
@@ -1194,6 +1196,8 @@ func (r *RedisReconciler) deleteBackups(ctx context.Context, clusterID, namespac
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.Redis{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {
