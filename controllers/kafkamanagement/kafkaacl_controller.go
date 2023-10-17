@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // KafkaACLReconciler reconciles a KafkaACL object
@@ -64,29 +65,29 @@ func (r *KafkaACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Kafka ACL resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Unable to fetch kafka ACL", "request", req)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	switch kafkaACL.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateKafkaACL(ctx, &kafkaACL, l), nil
+		return r.handleCreateKafkaACL(ctx, &kafkaACL, l)
 
 	case models.UpdatingEvent:
-		return r.handleUpdateKafkaACL(ctx, &kafkaACL, l), nil
+		return r.handleUpdateKafkaACL(ctx, &kafkaACL, l)
 
 	case models.DeletingEvent:
-		return r.handleDeleteKafkaACL(ctx, &kafkaACL, l), nil
+		return r.handleDeleteKafkaACL(ctx, &kafkaACL, l)
 	default:
 		l.Info("Event isn't handled",
 			"cluster ID", kafkaACL.Spec.ClusterID,
 			"user query", kafkaACL.Spec.UserQuery,
 			"request", req,
 			"event", kafkaACL.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 }
 
@@ -94,7 +95,7 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 	ctx context.Context,
 	acl *v1beta1.KafkaACL,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if acl.Status.ID == "" {
 		l.Info("Creating kafka ACL",
 			"cluster ID", acl.Spec.ClusterID,
@@ -111,7 +112,7 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -133,7 +134,7 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.AddFinalizer(acl, models.DeletionFinalizer)
@@ -149,7 +150,7 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -159,14 +160,14 @@ func (r *KafkaACLReconciler) handleCreateKafkaACL(
 		)
 	}
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 	ctx context.Context,
 	acl *v1beta1.KafkaACL,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	err := r.API.UpdateKafkaACL(acl.Status.ID, instaclustr.KafkaACLEndpoint, &acl.Spec)
 	if err != nil {
 		l.Error(err, "Cannot update kafka ACL",
@@ -178,7 +179,7 @@ func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 			"Resource update on the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	patch := acl.NewPatch()
@@ -194,21 +195,21 @@ func (r *KafkaACLReconciler) handleUpdateKafkaACL(
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Kafka ACL has been updated",
 		"cluster ID", acl.Spec.ClusterID,
 		"user query", acl.Spec.UserQuery,
 	)
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 	ctx context.Context,
 	acl *v1beta1.KafkaACL,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	patch := acl.NewPatch()
 	err := r.Patch(ctx, acl, patch)
 	if err != nil {
@@ -221,7 +222,7 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	status, err := r.API.GetKafkaACLStatus(acl.Status.ID, instaclustr.KafkaACLEndpoint)
@@ -236,7 +237,7 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 			"Resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil {
@@ -251,7 +252,7 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 				"Resource deletion is failed on the Instaclustr. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			acl, models.Normal, models.DeletionStarted,
@@ -272,7 +273,7 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Kafka ACL has been deleted",
@@ -285,12 +286,17 @@ func (r *KafkaACLReconciler) handleDeleteKafkaACL(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(
+				ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay,
+			),
+		}).
 		For(&v1beta1.KafkaACL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
