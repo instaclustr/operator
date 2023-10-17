@@ -35,17 +35,18 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 const (
@@ -78,7 +79,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Info("Kafka user resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "Unable to fetch Kafka user", "request", req)
 		r.EventRecorder.Eventf(
@@ -87,7 +88,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			err,
 		)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	secret := &v1.Secret{}
@@ -101,7 +102,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.EventRecorder.Eventf(user, models.Warning, models.FetchFailed,
 			"Fetch user credentials secret is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	username, password, err := r.getKafkaUserCredsFromSecret(user.Spec)
@@ -110,7 +111,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.EventRecorder.Eventf(user, models.Warning, models.FetchFailed,
 			"Fetch user credentials from secret is failed. Reason: %v", err)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	if controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer()) {
@@ -122,7 +123,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
 				"Cannot assign Kafka user to a k8s secret. Reason: %v", err)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -135,7 +136,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				user, models.Warning, models.PatchFailed,
 				"Patching Kafka user with finalizer has been failed. Reason: %v", err)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -158,7 +159,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err,
 				)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			r.EventRecorder.Eventf(
@@ -185,7 +186,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err,
 				)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info(
@@ -210,7 +211,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err,
 				)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			r.EventRecorder.Eventf(
@@ -232,7 +233,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err,
 				)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("Kafka user has been deleted",
@@ -260,7 +261,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err,
 				)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("Kafka user has been detached",
@@ -272,7 +273,6 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			)
 
 			continue
-
 		}
 
 		iKafkaUser := user.Spec.ToInstAPI(clusterID, username, password)
@@ -288,7 +288,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				err,
 			)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		user.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
@@ -304,7 +304,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				err,
 			)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		user.Status.ClustersEvents[clusterID] = models.UpdatedEvent
@@ -320,7 +320,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				err,
 			)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		l.Info("Kafka user resource has been updated",
@@ -337,7 +337,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					"username", username, "cluster ID", clusterID)
 				r.EventRecorder.Event(user, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 		}
 
@@ -350,7 +350,7 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"Deleting finalizer from the Kafka user resource has been failed. Reason: %v", err,
 			)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.RemoveFinalizer(secret, user.GetDeletionFinalizer())
@@ -361,13 +361,13 @@ func (r *KafkaUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
 				"Resource patch is failed. Reason: %v", err)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		l.Info("Kafka user resource has been deleted", "username", username)
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -391,6 +391,11 @@ func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(
+				ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay,
+			),
+		}).
 		For(&v1beta1.KafkaUser{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.KafkaUser)
@@ -409,7 +414,7 @@ func (r *KafkaUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *KafkaUserReconciler) findSecretObjects(secret client.Object) []reconcile.Request {
+func (r *KafkaUserReconciler) findSecretObjects(secret client.Object) []ctrl.Request {
 	kafkaUserList := &v1beta1.KafkaUserList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(kafkaUserField, secret.GetName()),
@@ -417,18 +422,18 @@ func (r *KafkaUserReconciler) findSecretObjects(secret client.Object) []reconcil
 	}
 	err := r.List(context.TODO(), kafkaUserList, listOps)
 	if err != nil {
-		return []reconcile.Request{}
+		return []ctrl.Request{}
 	}
 
-	requests := make([]reconcile.Request, len(kafkaUserList.Items))
+	requests := make([]ctrl.Request, len(kafkaUserList.Items))
 	for i, item := range kafkaUserList.Items {
 		patch := item.NewPatch()
 		item.GetAnnotations()[models.ResourceStateAnnotation] = models.SecretEvent
 		err = r.Patch(context.TODO(), &item, patch)
 		if err != nil {
-			return []reconcile.Request{}
+			return []ctrl.Request{}
 		}
-		requests[i] = reconcile.Request{
+		requests[i] = ctrl.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      item.GetName(),
 				Namespace: item.GetNamespace(),

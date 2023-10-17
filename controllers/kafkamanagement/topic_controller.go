@@ -28,15 +28,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // TopicReconciler reconciles a TopicName object
@@ -60,42 +61,42 @@ type TopicReconciler struct {
 func (r *TopicReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var topic v1beta1.Topic
-	err := r.Client.Get(ctx, req.NamespacedName, &topic)
+	topic := &v1beta1.Topic{}
+	err := r.Client.Get(ctx, req.NamespacedName, topic)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Kafka topic is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Unable to fetch Kafka topic", "request", req)
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch topic.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, &topic, l), nil
+		return r.handleCreateTopic(ctx, topic, l)
 
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &topic, l), nil
+		return r.handleUpdateTopic(ctx, topic, l)
 
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, &topic, l), nil
+		return r.handleDeleteTopic(ctx, topic, l)
 
 	case models.GenericEvent:
 		l.Info("Event isn't handled", "topic name", topic.Spec.TopicName, "request", req,
 			"event", topic.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
-func (r *TopicReconciler) handleCreateCluster(
+func (r *TopicReconciler) handleCreateTopic(
 	ctx context.Context,
 	topic *v1beta1.Topic,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	l = l.WithName("Creation Event")
 
 	if topic.Status.ID == "" {
@@ -113,7 +114,7 @@ func (r *TopicReconciler) handleCreateCluster(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		l.Info("Kafka topic has been created", "cluster ID", topic.Status.ID)
 
@@ -132,7 +133,7 @@ func (r *TopicReconciler) handleCreateCluster(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		topic.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -146,18 +147,18 @@ func (r *TopicReconciler) handleCreateCluster(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 	}
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
-func (r *TopicReconciler) handleUpdateCluster(
+func (r *TopicReconciler) handleUpdateTopic(
 	ctx context.Context,
 	t *v1beta1.Topic,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	l = l.WithName("Update Event")
 
 	patch := t.NewPatch()
@@ -174,7 +175,7 @@ func (r *TopicReconciler) handleUpdateCluster(
 			"Resource update on the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Kafka topic has been updated",
@@ -190,17 +191,17 @@ func (r *TopicReconciler) handleUpdateCluster(
 			"Resource status patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
-func (r *TopicReconciler) handleDeleteCluster(
+func (r *TopicReconciler) handleDeleteTopic(
 	ctx context.Context,
 	topic *v1beta1.Topic,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	l = l.WithName("Deletion Event")
 
 	_, err := r.API.GetTopicStatus(topic.Status.ID)
@@ -213,7 +214,7 @@ func (r *TopicReconciler) handleDeleteCluster(
 			"Fetch resource from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if !errors.Is(err, instaclustr.NotFound) {
@@ -227,7 +228,7 @@ func (r *TopicReconciler) handleDeleteCluster(
 				"Resource deletion on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			topic, models.Normal, models.DeletionStarted,
@@ -247,7 +248,7 @@ func (r *TopicReconciler) handleDeleteCluster(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Kafka topic has been deleted",
@@ -258,7 +259,7 @@ func (r *TopicReconciler) handleDeleteCluster(
 		"Cluster resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 // confirmDeletion confirms if resource is deleting and set appropriate annotation.
@@ -272,6 +273,11 @@ func confirmDeletion(obj client.Object) {
 // SetupWithManager sets up the controller with the Manager.
 func (r *TopicReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(
+				ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay,
+			),
+		}).
 		For(&v1beta1.Topic{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent

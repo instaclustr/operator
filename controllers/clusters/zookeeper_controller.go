@@ -70,7 +70,7 @@ func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if k8serrors.IsNotFound(err) {
 			l.Info("Zookeeper resource is not found",
 				"request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "unable to fetch Zookeeper",
