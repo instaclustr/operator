@@ -384,6 +384,15 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 		}
 	}
 
+	err = deleteDefaultUserSecret(ctx, r.Client, client.ObjectKeyFromObject(zook))
+	if err != nil {
+		l.Error(err, "Cannot delete default user secret")
+		r.EventRecorder.Eventf(zook, models.Warning, models.DeletionFailed,
+			"Deletion of the secret with default user credentials is failed. Reason: %w", err)
+
+		return reconcile.Result{}, err
+	}
+
 	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(zook, models.DeletionFinalizer)
 	zook.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
