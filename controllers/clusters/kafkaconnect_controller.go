@@ -392,6 +392,15 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 		}
 	}
 
+	err = deleteDefaultUserSecret(ctx, r.Client, client.ObjectKeyFromObject(kc))
+	if err != nil {
+		l.Error(err, "Cannot delete default user secret")
+		r.EventRecorder.Eventf(kc, models.Warning, models.DeletionFailed,
+			"Deletion of the secret with default user credentials is failed. Reason: %w", err)
+
+		return reconcile.Result{}, err
+	}
+
 	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(kc, models.DeletionFinalizer)
 	kc.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent

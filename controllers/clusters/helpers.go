@@ -17,13 +17,18 @@ limitations under the License.
 package clusters
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
 
 	"github.com/hashicorp/go-version"
+	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
@@ -179,3 +184,35 @@ var msgExternalChanges = "The k8s specification is different from Instaclustr Co
 	"so that it would corresponds to the data from Instaclustr."
 
 var msgSpecStillNoMatch = "k8s resource specification still doesn't match with data on the Instaclustr Console. Double check the difference."
+
+// deleteDefaultUserSecret deletes the secret with default user credentials.
+// It ignores NotFound error.
+func deleteDefaultUserSecret(
+	ctx context.Context,
+	client client.Client,
+	clusterNamespacedName types.NamespacedName,
+) error {
+	l := log.FromContext(ctx)
+
+	l.Info("Deleting default user secret...",
+		"resource namespaced name", clusterNamespacedName,
+	)
+
+	secret := &v1.Secret{}
+	err := client.Get(ctx, types.NamespacedName{
+		Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, clusterNamespacedName.Name),
+		Namespace: clusterNamespacedName.Namespace,
+	}, secret)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Info("The secret for the given resource is not found, skipping...",
+				"resource namespaced name", clusterNamespacedName,
+			)
+			return nil
+		}
+
+		return err
+	}
+
+	return client.Delete(ctx, secret)
+}
