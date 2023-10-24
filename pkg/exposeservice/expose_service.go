@@ -34,18 +34,24 @@ func Create(
 	c client.Client,
 	clusterName string,
 	ns string,
+	privateNetworkCluster bool,
 	nodes []*v1beta1.Node,
 	targetPort int32,
 ) error {
 	addresses := []v1.EndpointAddress{}
 	for _, node := range nodes {
-		if node.PublicAddress == "" {
-			continue
+		address := ""
+		if !privateNetworkCluster {
+			address = node.PublicAddress
+		} else {
+			address = node.PrivateAddress
 		}
 
-		addresses = append(addresses, v1.EndpointAddress{
-			IP: node.PublicAddress,
-		})
+		if address != "" {
+			addresses = append(addresses, v1.EndpointAddress{
+				IP: address,
+			})
+		}
 	}
 
 	if len(addresses) == 0 {

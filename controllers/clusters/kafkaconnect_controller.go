@@ -535,6 +535,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 				err = exposeservice.Create(r.Client,
 					kc.Name,
 					kc.Namespace,
+					kc.Spec.PrivateNetworkCluster,
 					nodes,
 					models.KafkaConnectConnectionPort)
 				if err != nil {

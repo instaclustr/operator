@@ -665,6 +665,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 				err = exposeservice.Create(r.Client,
 					o.Name,
 					o.Namespace,
+					o.Spec.PrivateNetworkCluster,
 					nodes,
 					models.OpenSearchConnectionPort)
 				if err != nil {

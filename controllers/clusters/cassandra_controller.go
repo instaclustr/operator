@@ -921,6 +921,7 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				err = exposeservice.Create(r.Client,
 					cassandra.Name,
 					cassandra.Namespace,
+					cassandra.Spec.PrivateNetworkCluster,
 					nodes,
 					models.CassandraConnectionPort)
 				if err != nil {

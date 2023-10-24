@@ -965,6 +965,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 				err = exposeservice.Create(r.Client,
 					redis.Name,
 					redis.Namespace,
+					redis.Spec.PrivateNetworkCluster,
 					nodes,
 					models.RedisConnectionPort)
 				if err != nil {
