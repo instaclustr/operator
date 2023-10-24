@@ -842,6 +842,7 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 				err = exposeservice.Create(r.Client,
 					cadence.Name,
 					cadence.Namespace,
+					cadence.Spec.PrivateNetworkCluster,
 					nodes,
 					models.CadenceConnectionPort)
 				if err != nil {

@@ -752,6 +752,7 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 				err = exposeservice.Create(r.Client,
 					kafka.Name,
 					kafka.Namespace,
+					kafka.Spec.PrivateNetworkCluster,
 					nodes,
 					models.KafkaConnectionPort)
 				if err != nil {

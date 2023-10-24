@@ -502,6 +502,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 				err = exposeservice.Create(r.Client,
 					zook.Name,
 					zook.Namespace,
+					zook.Spec.PrivateNetworkCluster,
 					nodes,
 					models.ZookeeperConnectionPort)
 				if err != nil {

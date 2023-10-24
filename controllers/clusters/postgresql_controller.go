@@ -1157,6 +1157,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 				err = exposeservice.Create(r.Client,
 					pg.Name,
 					pg.Namespace,
+					pg.Spec.PrivateNetworkCluster,
 					nodes,
 					models.PgConnectionPort)
 				if err != nil {
