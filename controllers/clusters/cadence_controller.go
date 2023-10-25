@@ -752,6 +752,7 @@ func (r *CadenceReconciler) newCassandraSpec(cadence *v1beta1.Cadence, latestCas
 		},
 		DataCentres:         cassandraDataCentres,
 		PasswordAndUserAuth: cassPasswordAndUserAuth,
+		BundledUseOnly:      true,
 	}
 
 	return &v1beta1.Cassandra{
@@ -996,6 +997,7 @@ func (r *CadenceReconciler) newKafkaSpec(cadence *v1beta1.Cadence, latestKafkaVe
 		AllowDeleteTopics:         true,
 		AutoCreateTopics:          true,
 		ClientToClusterEncryption: clientEncryption,
+		BundledUseOnly:            true,
 	}
 
 	return &v1beta1.Kafka{
@@ -1080,6 +1082,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(cadence *v1beta1.Cadence, oldestOp
 		},
 		DataCentres:         osDataCentres,
 		ClusterManagerNodes: managerNodes,
+		BundledUseOnly:      true,
 	}
 
 	return &v1beta1.OpenSearch{
