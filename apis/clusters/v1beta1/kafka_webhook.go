@@ -173,6 +173,10 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return fmt.Errorf("cannot assert object %v to Kafka", old.GetObjectKind())
 	}
 
+	if oldKafka.Spec.BundledUseOnly && !oldKafka.Spec.IsEqual(k.Spec) {
+		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
+	}
+
 	err := k.Spec.validateUpdate(&oldKafka.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update, error: %v", err)

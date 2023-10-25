@@ -395,7 +395,8 @@ func (cs *CassandraSpec) IsEqual(spec CassandraSpec) bool {
 		cs.AreDCsEqual(spec.DataCentres) &&
 		cs.LuceneEnabled == spec.LuceneEnabled &&
 		cs.PasswordAndUserAuth == spec.PasswordAndUserAuth &&
-		cs.IsSparkEqual(spec.Spark)
+		cs.IsSparkEqual(spec.Spark) &&
+		cs.BundledUseOnly == spec.BundledUseOnly
 }
 
 func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
