@@ -711,6 +711,11 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 		iData, err := r.API.GetKafka(kafka.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if kafka.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), kafka, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), kafka)
 			}
 

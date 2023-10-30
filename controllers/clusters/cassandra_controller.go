@@ -880,6 +880,11 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 		iData, err := r.API.GetCassandra(cassandra.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if cassandra.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), l, cassandra)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), cassandra)
 			}
 

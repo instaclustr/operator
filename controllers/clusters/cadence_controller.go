@@ -794,6 +794,11 @@ func (r *CadenceReconciler) newWatchStatusJob(cadence *v1beta1.Cadence) schedule
 		iData, err := r.API.GetCadence(cadence.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if cadence.DeletionTimestamp != nil {
+					_, err = r.HandleDeleteCluster(context.Background(), cadence, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), cadence)
 			}
 

@@ -618,6 +618,11 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 		iData, err := r.API.GetOpenSearch(o.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if o.DeletionTimestamp != nil {
+					_, err = r.HandleDeleteCluster(context.Background(), o, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), o)
 			}
 

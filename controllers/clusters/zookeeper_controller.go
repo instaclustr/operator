@@ -461,6 +461,11 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 		iData, err := r.API.GetZookeeper(zook.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if zook.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), zook, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), zook)
 			}
 
