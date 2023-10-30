@@ -916,6 +916,11 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 		iData, err := r.API.GetRedis(redis.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if redis.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), redis, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), redis)
 			}
 

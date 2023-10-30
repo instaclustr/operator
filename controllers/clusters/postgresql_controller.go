@@ -1106,6 +1106,11 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 		instPGData, err := r.API.GetPostgreSQL(pg.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if pg.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), pg, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), pg)
 			}
 

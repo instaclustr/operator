@@ -503,6 +503,11 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
+				if kc.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), kc, l)
+					return err
+				}
+
 				return r.handleExternalDelete(context.Background(), kc)
 			}
 
