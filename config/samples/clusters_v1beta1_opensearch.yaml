@@ -30,6 +30,10 @@ spec:
       replicationFactor: 3
       privateLink: false
       region: US_EAST_1
+  ingestNodes:
+#    - nodeSize: SRH-DI-PRD-m6g.large-10
+    - nodeSize: SRH-DI-PRD-m6g.xlarge-10
+      nodeCount: 3
   #  dataNodes:
   #    - nodeNumber: 3
   #      nodeSize: SRH-DEV-t4g.small-5
