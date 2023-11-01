@@ -31,7 +31,7 @@ import (
 
 // +kubebuilder:object:generate:=false
 type OpenSearchNodeTypes interface {
-	OpenSearchDataNodes | OpenSearchDashboards | ClusterManagerNodes
+	OpenSearchDataNodes | OpenSearchDashboards | ClusterManagerNodes | OpenSearchIngestNodes
 }
 
 // OpenSearchSpec defines the desired state of OpenSearch
@@ -56,6 +56,8 @@ type OpenSearchSpec struct {
 	UserRefs                 []*UserReference        `json:"userRefs,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+	//+kubuilder:validation:MaxItems:=1
+	IngestNodes []*OpenSearchIngestNodes `json:"ingestNodes,omitempty"`
 }
 
 type OpenSearchDataCentre struct {
@@ -88,6 +90,11 @@ type ClusterManagerNodes struct {
 	DedicatedManager bool   `json:"dedicatedManager"`
 }
 
+type OpenSearchIngestNodes struct {
+	NodeSize  string `json:"nodeSize"`
+	NodeCount int    `json:"nodeCount"`
+}
+
 func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 	return &models.OpenSearchCluster{
 		DataNodes:                oss.dataNodesToInstAPI(),
@@ -113,6 +120,7 @@ func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 		SLATier:                  oss.SLATier,
 		AlertingPlugin:           oss.AlertingPlugin,
 		ResizeSettings:           resizeSettingsToInstAPI(oss.ResizeSettings),
+		IngestNodes:              oss.ingestNodesToInstAPI(),
 	}
 }
 
@@ -211,6 +219,17 @@ func (oss *OpenSearchSpec) dataNodesToInstAPI() (iDataNodes []*models.OpenSearch
 	return
 }
 
+func (oss *OpenSearchSpec) ingestNodesToInstAPI() (iIngestNodes []*models.OpenSearchIngestNodes) {
+	for _, ingestNode := range oss.IngestNodes {
+		iIngestNodes = append(iIngestNodes, &models.OpenSearchIngestNodes{
+			NodeSize:  ingestNode.NodeSize,
+			NodeCount: ingestNode.NodeCount,
+		})
+	}
+
+	return
+}
+
 func (oss *OpenSearch) FromInstAPI(iData []byte) (*OpenSearch, error) {
 	iOpenSearch := &models.OpenSearchCluster{}
 	err := json.Unmarshal(iData, iOpenSearch)
@@ -253,6 +272,7 @@ func (oss *OpenSearchSpec) FromInstAPI(iOpenSearch *models.OpenSearchCluster) Op
 		AlertingPlugin:           oss.AlertingPlugin,
 		BundledUseOnly:           oss.BundledUseOnly,
 		ResizeSettings:           resizeSettingsFromInstAPI(iOpenSearch.ResizeSettings),
+		IngestNodes:              oss.IngestNodesFromInstAPI(iOpenSearch.IngestNodes),
 	}
 }
 
@@ -339,6 +359,16 @@ func (oss *OpenSearchSpec) DataNodesFromInstAPI(iDataNodes []*models.OpenSearchD
 	return
 }
 
+func (oss *OpenSearchSpec) IngestNodesFromInstAPI(iIngestNodes []*models.OpenSearchIngestNodes) (ingestNodes []*OpenSearchIngestNodes) {
+	for _, iNode := range iIngestNodes {
+		ingestNodes = append(ingestNodes, &OpenSearchIngestNodes{
+			NodeSize:  iNode.NodeSize,
+			NodeCount: iNode.NodeCount,
+		})
+	}
+	return
+}
+
 func (oss *OpenSearchSpec) DashboardsFromInstAPI(iDashboards []*models.OpenSearchDashboards) (dashboards []*OpenSearchDashboards) {
 	for _, iDashboard := range iDashboards {
 		dashboards = append(dashboards, &OpenSearchDashboards{
@@ -396,7 +426,8 @@ func (a *OpenSearchSpec) IsEqual(b OpenSearchSpec) bool {
 		a.IndexManagementPlugin == b.IndexManagementPlugin &&
 		a.AlertingPlugin == b.AlertingPlugin &&
 		a.BundledUseOnly == b.BundledUseOnly &&
-		a.areDCsEqual(b.DataCentres)
+		a.areDCsEqual(b.DataCentres) &&
+		areOpenSearchSettingsEqual[OpenSearchIngestNodes](a.IngestNodes, b.IngestNodes)
 }
 
 func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
@@ -473,10 +504,11 @@ func areOpenSearchSettingsEqual[T OpenSearchNodeTypes](a, b []*T) bool {
 
 func (oss *OpenSearchSpec) ToInstAPIUpdate() models.OpenSearchInstAPIUpdateRequest {
 	return models.OpenSearchInstAPIUpdateRequest{
-		DataNodes:            oss.dataNodesToInstAPI(),
-		OpenSearchDashboards: oss.dashboardsToInstAPI(),
-		ClusterManagerNodes:  oss.clusterManagerNodesToInstAPI(),
-		ResizeSettings:       resizeSettingsToInstAPI(oss.ResizeSettings),
+		DataNodes:             oss.dataNodesToInstAPI(),
+		OpenSearchDashboards:  oss.dashboardsToInstAPI(),
+		ClusterManagerNodes:   oss.clusterManagerNodesToInstAPI(),
+		ResizeSettings:        resizeSettingsToInstAPI(oss.ResizeSettings),
+		OpenSearchIngestNodes: oss.ingestNodesToInstAPI(),
 	}
 }
 

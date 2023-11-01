@@ -18,29 +18,35 @@ package models
 
 type OpenSearchCluster struct {
 	ClusterStatus            `json:",inline"`
-	DataNodes                []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
-	PCIComplianceMode        bool                    `json:"pciComplianceMode"`
-	ICUPlugin                bool                    `json:"icuPlugin"`
-	OpenSearchVersion        string                  `json:"opensearchVersion"`
-	AsynchronousSearchPlugin bool                    `json:"asynchronousSearchPlugin"`
-	TwoFactorDelete          []*TwoFactorDelete      `json:"twoFactorDelete,omitempty"`
-	KNNPlugin                bool                    `json:"knnPlugin"`
-	OpenSearchDashboards     []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
-	ReportingPlugin          bool                    `json:"reportingPlugin"`
-	SQLPlugin                bool                    `json:"sqlPlugin"`
-	NotificationsPlugin      bool                    `json:"notificationsPlugin"`
-	DataCentres              []*OpenSearchDataCentre `json:"dataCentres"`
-	AnomalyDetectionPlugin   bool                    `json:"anomalyDetectionPlugin"`
-	LoadBalancer             bool                    `json:"loadBalancer"`
-	PrivateNetworkCluster    bool                    `json:"privateNetworkCluster"`
-	Name                     string                  `json:"name"`
-	BundledUseOnly           bool                    `json:"bundledUseOnly"`
-	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes"`
-	IndexManagementPlugin    bool                    `json:"indexManagementPlugin"`
-	SLATier                  string                  `json:"slaTier,omitempty"`
-	AlertingPlugin           bool                    `json:"alertingPlugin"`
-	ResizeSettings           []*ResizeSettings       `json:"resizeSettings,omitempty"`
-	Description              string                  `json:"description,omitempty"`
+	DataNodes                []*OpenSearchDataNodes   `json:"dataNodes,omitempty"`
+	PCIComplianceMode        bool                     `json:"pciComplianceMode"`
+	ICUPlugin                bool                     `json:"icuPlugin"`
+	OpenSearchVersion        string                   `json:"opensearchVersion"`
+	AsynchronousSearchPlugin bool                     `json:"asynchronousSearchPlugin"`
+	TwoFactorDelete          []*TwoFactorDelete       `json:"twoFactorDelete,omitempty"`
+	KNNPlugin                bool                     `json:"knnPlugin"`
+	OpenSearchDashboards     []*OpenSearchDashboards  `json:"opensearchDashboards,omitempty"`
+	ReportingPlugin          bool                     `json:"reportingPlugin"`
+	SQLPlugin                bool                     `json:"sqlPlugin"`
+	NotificationsPlugin      bool                     `json:"notificationsPlugin"`
+	DataCentres              []*OpenSearchDataCentre  `json:"dataCentres"`
+	AnomalyDetectionPlugin   bool                     `json:"anomalyDetectionPlugin"`
+	LoadBalancer             bool                     `json:"loadBalancer"`
+	PrivateNetworkCluster    bool                     `json:"privateNetworkCluster"`
+	Name                     string                   `json:"name"`
+	BundledUseOnly           bool                     `json:"bundledUseOnly"`
+	ClusterManagerNodes      []*ClusterManagerNodes   `json:"clusterManagerNodes"`
+	IndexManagementPlugin    bool                     `json:"indexManagementPlugin"`
+	SLATier                  string                   `json:"slaTier,omitempty"`
+	AlertingPlugin           bool                     `json:"alertingPlugin"`
+	ResizeSettings           []*ResizeSettings        `json:"resizeSettings,omitempty"`
+	Description              string                   `json:"description,omitempty"`
+	IngestNodes              []*OpenSearchIngestNodes `json:"ingestNodes,omitempty"`
+}
+
+type OpenSearchIngestNodes struct {
+	NodeSize  string `json:"nodeSize"`
+	NodeCount int    `json:"nodeCount"`
 }
 
 type OpenSearchDataNodes struct {
@@ -66,8 +72,9 @@ type ClusterManagerNodes struct {
 }
 
 type OpenSearchInstAPIUpdateRequest struct {
-	DataNodes            []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
-	OpenSearchDashboards []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
-	ClusterManagerNodes  []*ClusterManagerNodes  `json:"clusterManagerNodes"`
-	ResizeSettings       []*ResizeSettings       `json:"resizeSettings,omitempty"`
+	DataNodes             []*OpenSearchDataNodes   `json:"dataNodes,omitempty"`
+	OpenSearchDashboards  []*OpenSearchDashboards  `json:"opensearchDashboards,omitempty"`
+	ClusterManagerNodes   []*ClusterManagerNodes   `json:"clusterManagerNodes"`
+	ResizeSettings        []*ResizeSettings        `json:"resizeSettings,omitempty"`
+	OpenSearchIngestNodes []*OpenSearchIngestNodes `json:"ingestNodes,omitempty"`
 }

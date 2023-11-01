@@ -177,7 +177,6 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	if nodeReloadStatus.Status != nodeReloadOperationStatusCompleted {
 		l.Info("Node Reload operation is not completed yet, please wait a few minutes",
-			"nodeID", nrs.Status.NodeInProgress,
 			"status", nrs.Status,
 		)
 
@@ -185,10 +184,10 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	l.Info("The node has been successfully reloaded",
-		"Node ID", nrs.Status.NodeInProgress.ID,
+		"status", nrs.Status,
 	)
 	r.EventRecorder.Eventf(nrs, models.Normal, models.UpdatedEvent,
-		"Node %s has been successfully reloaded", nrs.Status.NodeInProgress.ID,
+		"Node %s has been successfully reloaded", nrs.Status,
 	)
 
 	patch = nrs.NewPatch()
