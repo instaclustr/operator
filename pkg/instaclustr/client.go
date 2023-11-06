@@ -598,14 +598,117 @@ func (c *Client) GetPeeringStatus(peerID,
 	return &peeringStatus, nil
 }
 
-func (c *Client) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1beta1.PeeringStatus, error) {
+func (c *Client) CreateAzureVNetPeering(peeringSpec *clusterresourcesv1beta1.AzureVNetPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error) {
+	payload := &struct {
+		PeerSubnets            []string `json:"peerSubnets"`
+		PeerResourceGroup      string   `json:"peerResourceGroup"`
+		PeerSubscriptionID     string   `json:"peerSubscriptionId"`
+		PeerADObjectID         string   `json:"peerAdObjectId,omitempty"`
+		PeerVirtualNetworkName string   `json:"peerVirtualNetworkName"`
+		CDCid                  string   `json:"cdcId"`
+	}{
+		PeerSubnets:            peeringSpec.PeerSubnets,
+		PeerResourceGroup:      peeringSpec.PeerResourceGroup,
+		PeerADObjectID:         peeringSpec.PeerADObjectID,
+		PeerSubscriptionID:     peeringSpec.PeerSubscriptionID,
+		PeerVirtualNetworkName: peeringSpec.PeerVirtualNetworkName,
+		CDCid:                  cdcId,
+	}
 
-	jsonDataCreate, err := json.Marshal(peeringSpec)
+	jsonDataCreate, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	url = c.serverHostname + url
+	url := c.serverHostname + AzurePeeringEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1beta1.PeeringStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) CreateAWSVPCPeering(peeringSpec *clusterresourcesv1beta1.AWSVPCPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error) {
+	payload := &struct {
+		PeerSubnets      []string `json:"peerSubnets"`
+		PeerAWSAccountID string   `json:"peerAwsAccountId"`
+		PeerVPCID        string   `json:"peerVpcId"`
+		PeerRegion       string   `json:"peerRegion,omitempty"`
+		CDCid            string   `json:"cdcId"`
+	}{
+		PeerSubnets:      peeringSpec.PeerSubnets,
+		PeerAWSAccountID: peeringSpec.PeerAWSAccountID,
+		PeerVPCID:        peeringSpec.PeerVPCID,
+		PeerRegion:       peeringSpec.PeerRegion,
+		CDCid:            cdcId,
+	}
+
+	jsonDataCreate, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.serverHostname + AWSPeeringEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1beta1.PeeringStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) CreateGCPVPCPeering(peeringSpec *clusterresourcesv1beta1.GCPVPCPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error) {
+	payload := &struct {
+		PeerSubnets        []string `json:"peerSubnets"`
+		PeerVPCNetworkName string   `json:"peerVpcNetworkName"`
+		PeerProjectID      string   `json:"peerProjectId"`
+		CDCid              string   `json:"cdcId"`
+	}{
+		PeerSubnets:        peeringSpec.PeerSubnets,
+		PeerVPCNetworkName: peeringSpec.PeerVPCNetworkName,
+		PeerProjectID:      peeringSpec.PeerProjectID,
+		CDCid:              cdcId,
+	}
+
+	jsonDataCreate, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.serverHostname + GCPPeeringEndpoint
 	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
 	if err != nil {
 		return nil, err
@@ -718,16 +821,70 @@ func (c *Client) GetFirewallRuleStatus(
 	return firewallRuleStatus, nil
 }
 
-func (c *Client) CreateFirewallRule(
-	url string,
-	firewallRuleSpec any,
+func (c *Client) CreateAWSSecurityGroupFirewallRule(
+	firewallRuleSpec *clusterresourcesv1beta1.AWSSecurityGroupFirewallRuleSpec,
+	clusterID string,
 ) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
-	jsonFirewallRule, err := json.Marshal(firewallRuleSpec)
+	payload := &struct {
+		SecurityGroupID string `json:"securityGroupId"`
+		ClusterID       string `json:"clusterId,omitempty"`
+		Type            string `json:"type"`
+	}{
+		SecurityGroupID: firewallRuleSpec.SecurityGroupID,
+		ClusterID:       clusterID,
+		Type:            firewallRuleSpec.Type,
+	}
+
+	jsonFirewallRule, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	url = c.serverHostname + url
+	url := c.serverHostname + AWSSecurityGroupFirewallRuleEndpoint
+	resp, err := c.DoRequest(url, http.MethodPost, jsonFirewallRule)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	var creationResponse *clusterresourcesv1beta1.FirewallRuleStatus
+	err = json.Unmarshal(body, &creationResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return creationResponse, nil
+}
+
+func (c *Client) CreateClusterNetworkFirewallRule(
+	firewallRuleSpec *clusterresourcesv1beta1.ClusterNetworkFirewallRuleSpec,
+	clusterID string,
+) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
+	payload := &struct {
+		ClusterID string `json:"clusterId"`
+		Type      string `json:"type"`
+		Network   string `json:"network"`
+	}{
+		ClusterID: clusterID,
+		Type:      firewallRuleSpec.Type,
+		Network:   firewallRuleSpec.Network,
+	}
+
+	jsonFirewallRule, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.serverHostname + ClusterNetworkFirewallRuleEndpoint
 	resp, err := c.DoRequest(url, http.MethodPost, jsonFirewallRule)
 	if err != nil {
 		return nil, err

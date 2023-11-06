@@ -711,7 +711,7 @@ func (cs *ClusterStatus) PrivateLinkStatusesEqual(iStatus *ClusterStatus) bool {
 	return true
 }
 
-type UserReference struct {
+type NamespacedName struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 }

@@ -62,7 +62,7 @@ type CassandraSpec struct {
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	Spark               []*Spark               `json:"spark,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
-	UserRefs            []*UserReference       `json:"userRefs,omitempty"`
+	UserRefs            []*NamespacedName      `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }

@@ -23,7 +23,6 @@ import (
 
 // MaintenanceEventsSpec defines the desired state of MaintenanceEvents
 type MaintenanceEventsSpec struct {
-	ClusterID                    string                        `json:"clusterId"`
 	MaintenanceEventsReschedules []*MaintenanceEventReschedule `json:"maintenanceEventsReschedule"`
 }
 

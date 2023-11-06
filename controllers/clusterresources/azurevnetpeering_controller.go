@@ -72,15 +72,13 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return models.ReconcileRequeue, err
 	}
 
-	switch azure.Annotations[models.ResourceStateAnnotation] {
+	switch azure.Status.ResourceState {
 	case models.CreatingEvent:
-		return r.handleCreatePeering(ctx, azure, l), nil
-
-	case models.UpdatingEvent:
-		return r.handleUpdatePeering(ctx, azure, &l), nil
-
+		return r.handleCreatePeering(ctx, azure, &l), nil
 	case models.DeletingEvent:
 		return r.handleDeletePeering(ctx, azure, &l), nil
+	case models.UpdatingEvent:
+		return r.handleUpdatePeering(ctx, azure, &l), nil
 	default:
 		l.Info("event isn't handled",
 			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
@@ -96,7 +94,7 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 	ctx context.Context,
 	azure *v1beta1.AzureVNetPeering,
-	l logr.Logger,
+	l *logr.Logger,
 ) reconcile.Result {
 	if azure.Status.ID == "" {
 		l.Info(
@@ -107,7 +105,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 		)
 
-		azureStatus, err := r.API.CreatePeering(instaclustr.AzurePeeringEndpoint, &azure.Spec)
+		azureStatus, err := r.API.CreateAzureVNetPeering(&azure.Spec, azure.Status.CDCID)
 		if err != nil {
 			l.Error(
 				err, "cannot create Azure VNet Peering resource",
@@ -129,9 +127,10 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 
 		patch := azure.NewPatch()
 		azure.Status.PeeringStatus = *azureStatus
+		azure.Status.ResourceState = models.CreatedEvent
 		err = r.Status().Patch(ctx, azure, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Azure VNet Peering resource status",
+			l.Error(err, "Cannot patch Azure VNet Peering resource status",
 				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
 				"AD Object ID", azure.Spec.PeerADObjectID,
 				"Resource Group", azure.Spec.PeerResourceGroup,
@@ -146,10 +145,9 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 		}
 
 		controllerutil.AddFinalizer(azure, models.DeletionFinalizer)
-		azure.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, azure, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Azure VNet Peering resource metadata",
+			l.Error(err, "Cannot patch Azure VNet Peering resource metadata",
 				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
 				"AD Object ID", azure.Spec.PeerADObjectID,
 				"Resource Group", azure.Spec.PeerResourceGroup,
@@ -252,11 +250,28 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 	}
 
 	patch := azure.NewPatch()
+
+	azure.Status.ResourceState = models.DeletedEvent
+	err = r.Status().Patch(ctx, azure, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch Azure VNet Peering resource status",
+			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+			"AD Object ID", azure.Spec.PeerADObjectID,
+			"Resource Group", azure.Spec.PeerResourceGroup,
+			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
+		)
+		r.EventRecorder.Eventf(
+			azure, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
+		return models.ReconcileRequeue
+	}
+
 	controllerutil.RemoveFinalizer(azure, models.DeletionFinalizer)
-	azure.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, azure, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Azure VNet Peering resource metadata",
+		l.Error(err, "Cannot patch Azure VNet Peering resource metadata",
 			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
 			"AD Object ID", azure.Spec.PeerADObjectID,
 			"Resource Group", azure.Spec.PeerResourceGroup,
@@ -372,21 +387,17 @@ func (r *AzureVNetPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.AzureVNetPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
-				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-				}
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.AzureVNetPeering)
-				if newObj.DeletionTimestamp != nil {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				oldObj := event.ObjectOld.(*v1beta1.AzureVNetPeering)
+
+				if oldObj.Status.ResourceState == "" && newObj.Status.ResourceState == models.CreatingEvent {
 					return true
 				}
 
-				if newObj.Status.ID == "" {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+				if newObj.Status.ResourceState == models.DeletingEvent {
 					return true
 				}
 
@@ -394,7 +405,7 @@ func (r *AzureVNetPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 
-				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+				newObj.Status.ResourceState = models.UpdatingEvent
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {

@@ -53,7 +53,7 @@ type OpenSearchSpec struct {
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
-	UserRefs                 []*UserReference        `json:"userRefs,omitempty"`
+	UserRefs                 []*NamespacedName       `json:"userRefs,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }

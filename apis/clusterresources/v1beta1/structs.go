@@ -21,7 +21,7 @@ import (
 )
 
 type VPCPeeringSpec struct {
-	DataCentreID string   `json:"cdcId"`
+	DataCentreID string   `json:"cdcId,omitempty"`
 	PeerSubnets  []string `json:"peerSubnets"`
 }
 
@@ -30,6 +30,8 @@ type PeeringStatus struct {
 	StatusCode    string `json:"statusCode,omitempty"`
 	Name          string `json:"name,omitempty"`
 	FailureReason string `json:"failureReason,omitempty"`
+	CDCID         string `json:"cdcid,omitempty"`
+	ResourceState string `json:"resourceState,omitempty"`
 }
 
 type PatchRequest struct {
@@ -39,7 +41,7 @@ type PatchRequest struct {
 }
 
 type FirewallRuleSpec struct {
-	ClusterID string `json:"clusterId"`
+	ClusterID string `json:"clusterId,omitempty"`
 	Type      string `json:"type"`
 }
 
@@ -47,10 +49,8 @@ type FirewallRuleStatus struct {
 	ID             string `json:"id,omitempty"`
 	DeferredReason string `json:"deferredReason,omitempty"`
 	Status         string `json:"status,omitempty"`
-}
-
-type immutablePeeringFields struct {
-	DataCentreID string
+	ClusterID      string `json:"clusterId,omitempty"`
+	ResourceState  string `json:"resourceState,omitempty"`
 }
 
 type SecretReference struct {

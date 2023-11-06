@@ -613,7 +613,7 @@ func (r *CassandraReconciler) handleUsersCreate(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.Cassandra,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.NamespacedName,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -672,7 +672,7 @@ func (r *CassandraReconciler) handleUsersDelete(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.Cassandra,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.NamespacedName,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -728,7 +728,7 @@ func (r *CassandraReconciler) handleUsersDetach(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.Cassandra,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.NamespacedName,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -776,7 +776,7 @@ func (r *CassandraReconciler) handleUsersDetach(
 
 func (r *CassandraReconciler) handleUserEvent(
 	newObj *v1beta1.Cassandra,
-	oldUsers []*v1beta1.UserReference,
+	oldUsers []*v1beta1.NamespacedName,
 ) {
 	ctx := context.TODO()
 	l := log.FromContext(ctx)

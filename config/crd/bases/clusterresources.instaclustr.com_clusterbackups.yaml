@@ -40,12 +40,13 @@ spec:
               clusterKind:
                 type: string
             required:
-            - clusterId
             - clusterKind
             type: object
           status:
             description: ClusterBackupStatus defines the observed state of ClusterBackup
             properties:
+              clusterId:
+                type: string
               end:
                 type: integer
               operationStatus:

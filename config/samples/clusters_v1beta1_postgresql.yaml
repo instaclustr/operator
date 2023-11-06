@@ -45,6 +45,32 @@ spec:
 #  userRefs:
 #    - namespace: default
 #      name: postgresqluser-sample
+  clusterResources:
+    clusterBackups:
+#      - namespace: default
+#        name: clusterbackup-sample
+    clusterNetworkFirewallRules:
+#      - namespace: default
+#        name: clusternetworkfirewallrule-sample
+    awsVPCPeerings:
+#      - namespace: default
+#        name: awsvpcpeering-sample
+    awsSecurityGroupFirewallRules:
+#      - namespace: default
+#        name: awssecuritygroupfirewallrule-sample
+    exclusionWindows:
+#      - namespace: default
+#        name: exclusionwindow-sample
+    gcpVPCPeerings:
+#      - namespace: default
+#        name: gcpvpcpeering-sample
+#      - namespace: default
+#        name: gcpvpcpeering-sample-two
+    azureVNetPeerings:
+#      - namespace: default
+#        name: azurevnetpeering-sample
+#      - namespace: default
+#        name: azurevnetpeering-sample-trough
   privateNetworkCluster: false
   synchronousModeStrict: false
 #  resizeSettings:

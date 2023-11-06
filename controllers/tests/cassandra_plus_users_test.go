@@ -140,9 +140,9 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 		})
 	})
 
-	When("add the user to a Cassandra UserReference", func() {
+	When("add the user to a Cassandra NamespacedName", func() {
 		It("should create the user for the cluster", func() {
-			newUsers := []*v1beta1.UserReference{{
+			newUsers := []*v1beta1.NamespacedName{{
 				Namespace: userManifest1.Namespace,
 				Name:      userManifest1.Name,
 			}}
@@ -169,13 +169,13 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 		})
 	})
 
-	When("remove the user from the Cassandra UserReference", func() {
+	When("remove the user from the Cassandra NamespacedName", func() {
 		It("should delete the user for the cluster", func() {
 			Expect(k8sClient.Get(ctx, cassandraNamespacedName1, &cassandra1)).Should(Succeed())
 
 			patch := cassandra1.NewPatch()
 			// removing user
-			cassandra1.Spec.UserRefs = []*v1beta1.UserReference{}
+			cassandra1.Spec.UserRefs = []*v1beta1.NamespacedName{}
 			Expect(k8sClient.Patch(ctx, &cassandra1, patch)).Should(Succeed())
 			By("going to Cassandra(cluster) controller predicate and put user entity to deletion state. " +
 				"Finally deletes the user for the corresponded cluster")
@@ -221,7 +221,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			Expect(k8sClient.Create(ctx, &userManifest2)).Should(Succeed())
 
 			By("adding the batch of users to the cluster, Cassandra(cluster) controller predicate set them creation state")
-			newUsers := []*v1beta1.UserReference{
+			newUsers := []*v1beta1.NamespacedName{
 				{
 					Namespace: userManifest1.Namespace,
 					Name:      userManifest1.Name,
@@ -342,7 +342,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			Expect(k8sClient.Get(ctx, userNamespacedName2, &user2)).Should(Succeed())
 			By("creating another Cassandra cluster manifest with filled user ref, " +
 				"we make sure the user creation job works properly and show us that the user is available for use")
-			newUsers := []*v1beta1.UserReference{{
+			newUsers := []*v1beta1.NamespacedName{{
 				Namespace: user2.Namespace,
 				Name:      user2.Name,
 			}}

@@ -71,10 +71,6 @@ func (r *AzureVNetPeering) ValidateCreate() error {
 		return fmt.Errorf("peer Subscription ID is empty")
 	}
 
-	if r.Spec.DataCentreID == "" {
-		return fmt.Errorf("dataCentre ID is empty")
-	}
-
 	if r.Spec.PeerSubnets == nil {
 		return fmt.Errorf("peer Subnets list is empty")
 	}

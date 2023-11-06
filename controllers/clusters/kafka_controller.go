@@ -318,7 +318,7 @@ func (r *KafkaReconciler) handleCreateUser(
 	ctx context.Context,
 	kafka *v1beta1.Kafka,
 	l logr.Logger,
-	userRef *v1beta1.UserReference,
+	userRef *v1beta1.NamespacedName,
 ) error {
 	req := types.NamespacedName{
 		Namespace: userRef.Namespace,
@@ -378,7 +378,7 @@ func (r *KafkaReconciler) handleDeleteUser(
 	ctx context.Context,
 	kafka *v1beta1.Kafka,
 	l logr.Logger,
-	userRef *v1beta1.UserReference,
+	userRef *v1beta1.NamespacedName,
 ) error {
 	req := types.NamespacedName{
 		Namespace: userRef.Namespace,
@@ -434,7 +434,7 @@ func (r *KafkaReconciler) detachUser(
 	ctx context.Context,
 	kafka *v1beta1.Kafka,
 	l logr.Logger,
-	userRef *v1beta1.UserReference) error {
+	userRef *v1beta1.NamespacedName) error {
 	req := types.NamespacedName{
 		Namespace: userRef.Namespace,
 		Name:      userRef.Name,
@@ -483,7 +483,7 @@ func (r *KafkaReconciler) detachUser(
 
 func (r *KafkaReconciler) handleUserEvent(
 	newObj *v1beta1.Kafka,
-	oldUsers []*v1beta1.UserReference,
+	oldUsers []*v1beta1.NamespacedName,
 ) {
 	ctx := context.TODO()
 	l := log.FromContext(ctx)

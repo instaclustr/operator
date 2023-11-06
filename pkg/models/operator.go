@@ -106,6 +106,14 @@ const (
 	CassandraAppType    = "APACHE_CASSANDRA"
 	SparkAppType        = "SPARK"
 
+	ClusterbackupRef                = "ClusterBackup"
+	ClusterNetworkFirewallRuleref   = "ClusterNetworkFirewallRule"
+	AWSVPCPeeringRef                = "AWSVPCPeering"
+	AWSSecurityGroupFirewallRuleRef = "AWSSecurityGroupFirewallRule"
+	ExclusionWindowRef              = "ExclusionWindow"
+	GCPVPCPeeringRef                = "GCPVPCPeering"
+	AzureVNetPeeringRef             = "AzureVNetPeering"
+
 	DefaultPgUsernameValue = "icpostgresql"
 	DefaultPgDbNameValue   = "postgres"
 	DefaultPgDbPortValue   = 5432

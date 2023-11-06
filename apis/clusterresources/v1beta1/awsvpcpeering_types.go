@@ -71,13 +71,21 @@ func (aws *AWSVPCPeering) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (aws *AWSVPCPeering) AttachToCluster(id string) {
+	aws.Status.CDCID = id
+	aws.Status.ResourceState = models.CreatingEvent
+}
+
+func (aws *AWSVPCPeering) DetachFromCluster() {
+	aws.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&AWSVPCPeering{}, &AWSVPCPeeringList{})
 }
 
 type immutableAWSVPCPeeringFields struct {
 	specificFields specificAWSVPCPeeringFields
-	peering        immutablePeeringFields
 }
 
 type specificAWSVPCPeeringFields struct {
@@ -91,9 +99,6 @@ func (aws *AWSVPCPeeringSpec) newImmutableFields() *immutableAWSVPCPeeringFields
 			peerAWSAccountID: aws.PeerAWSAccountID,
 			peerRegion:       aws.PeerRegion,
 		},
-		immutablePeeringFields{
-			DataCentreID: aws.DataCentreID,
-		},
 	}
 }
 
@@ -106,8 +111,7 @@ func (aws *AWSVPCPeeringSpec) ValidateUpdate(oldSpec AWSVPCPeeringSpec) error {
 		return err
 	}
 
-	if newImmutableFields.peering != oldImmutableFields.peering ||
-		newImmutableFields.specificFields != oldImmutableFields.specificFields {
+	if newImmutableFields.specificFields != oldImmutableFields.specificFields {
 		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldSpec, aws)
 	}
 
@@ -123,11 +127,6 @@ func (aws *AWSVPCPeeringSpec) Validate(availableRegions []string) error {
 	peerAWSVPCIDMatched, err := regexp.Match(models.PeerVPCIDRegExp, []byte(aws.PeerVPCID))
 	if !peerAWSVPCIDMatched || err != nil {
 		return fmt.Errorf("VPC ID must begin with 'vpc-' and fit pattern: %s. %v", models.PeerVPCIDRegExp, err)
-	}
-
-	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(aws.DataCentreID))
-	if !dataCentreIDMatched || err != nil {
-		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s. %v", models.UUIDStringRegExp, err)
 	}
 
 	if !validation.Contains(aws.PeerRegion, availableRegions) {

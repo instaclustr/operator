@@ -49,7 +49,6 @@ spec:
                 minimum: 0
                 type: integer
             required:
-            - clusterId
             - dayOfWeek
             - durationInHours
             - startHour
@@ -57,10 +56,12 @@ spec:
           status:
             description: ExclusionWindowStatus defines the observed state of ExclusionWindow
             properties:
+              clusterID:
+                type: string
               id:
                 type: string
-            required:
-            - id
+              resourceState:
+                type: string
             type: object
         type: object
     served: true
