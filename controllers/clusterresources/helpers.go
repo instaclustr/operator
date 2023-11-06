@@ -21,6 +21,7 @@ import (
 
 	k8sCore "k8s.io/api/core/v1"
 	"k8s.io/utils/strings/slices"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -118,4 +119,11 @@ func subnetsEqual(subnets1, subnets2 []string) bool {
 	}
 
 	return true
+}
+
+type Object interface {
+	client.Object
+	NewPatch() client.Patch
+	AttachToCluster(id string)
+	DetachFromCluster()
 }

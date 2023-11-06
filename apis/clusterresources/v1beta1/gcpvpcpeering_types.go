@@ -69,6 +69,15 @@ func (gcp *GCPVPCPeering) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (gcp *GCPVPCPeering) AttachToCluster(id string) {
+	gcp.Status.CDCID = id
+	gcp.Status.ResourceState = models.CreatingEvent
+}
+
+func (gcp *GCPVPCPeering) DetachFromCluster() {
+	gcp.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&GCPVPCPeering{}, &GCPVPCPeeringList{})
 }

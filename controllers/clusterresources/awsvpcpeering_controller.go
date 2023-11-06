@@ -73,7 +73,7 @@ func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	switch aws.Annotations[models.ResourceStateAnnotation] {
+	switch aws.Status.ResourceState {
 	case models.CreatingEvent:
 		return r.handleCreatePeering(ctx, aws, l)
 	case models.UpdatingEvent:
@@ -104,7 +104,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 			"Region", aws.Spec.PeerRegion,
 		)
 
-		awsStatus, err := r.API.CreatePeering(instaclustr.AWSPeeringEndpoint, &aws.Spec)
+		awsStatus, err := r.API.CreateAWSVPCPeering(&aws.Spec, aws.Status.CDCID)
 		if err != nil {
 			l.Error(
 				err, "cannot create AWS VPC Peering resource",
@@ -126,9 +126,10 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 
 		patch := aws.NewPatch()
 		aws.Status.PeeringStatus = *awsStatus
+		aws.Status.ResourceState = models.CreatedEvent
 		err = r.Status().Patch(ctx, aws, patch)
 		if err != nil {
-			l.Error(err, "cannot patch AWS VPC Peering resource status",
+			l.Error(err, "Cannot patch AWS VPC Peering resource status",
 				"AWS Peering ID", awsStatus.ID,
 				"AWS Account ID", aws.Spec.PeerAWSAccountID,
 				"VPC ID", aws.Spec.PeerVPCID,
@@ -144,10 +145,9 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 		}
 
 		controllerutil.AddFinalizer(aws, models.DeletionFinalizer)
-		aws.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, aws, patch)
 		if err != nil {
-			l.Error(err, "cannot patch AWS VPC Peering resource metadata",
+			l.Error(err, "Cannot patch AWS VPC Peering resource metadata",
 				"AWS Peering ID", awsStatus.ID,
 				"AWS Account ID", aws.Spec.PeerAWSAccountID,
 				"VPC ID", aws.Spec.PeerVPCID,
@@ -267,7 +267,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 	aws.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	err = r.Patch(ctx, aws, patch)
 	if err != nil {
-		l.Error(err, "cannot patch AWS VPC Peering resource metadata",
+		l.Error(err, "Cannot patch AWS VPC Peering resource metadata",
 			"AWS Peering ID", aws.Status.ID,
 			"AWS Account ID", aws.Spec.PeerAWSAccountID,
 			"VPC ID", aws.Spec.PeerVPCID,
@@ -287,7 +287,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 		"AWS Account ID", aws.Spec.PeerAWSAccountID,
 		"VPC ID", aws.Spec.PeerVPCID,
 		"Region", aws.Spec.PeerRegion,
-		"AWS VPC Peering Data Centre ID", aws.Spec.DataCentreID,
+		"AWS VPC Peering Data Centre ID", aws.Status.CDCID,
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
@@ -343,11 +343,29 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 	r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
 
 	patch := aws.NewPatch()
+
+	aws.Status.ResourceState = models.DeletedEvent
+	err = r.Status().Patch(ctx, aws, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch AWS VPC Peering resource status",
+			"AWS Peering ID", aws.Status.ID,
+			"AWS Account ID", aws.Spec.PeerAWSAccountID,
+			"VPC ID", aws.Spec.PeerVPCID,
+			"Region", aws.Spec.PeerRegion,
+			"AWS VPC Peering metadata", aws.ObjectMeta,
+		)
+		r.EventRecorder.Eventf(
+			aws, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
+		return ctrl.Result{},err
+	}
+
 	controllerutil.RemoveFinalizer(aws, models.DeletionFinalizer)
-	aws.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, aws, patch)
 	if err != nil {
-		l.Error(err, "cannot patch AWS VPC Peering resource metadata",
+		l.Error(err, "Cannot patch AWS VPC Peering resource metadata",
 			"AWS Peering ID", aws.Status.ID,
 			"AWS Account ID", aws.Spec.PeerAWSAccountID,
 			"VPC ID", aws.Spec.PeerVPCID,
@@ -366,7 +384,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 		"AWS VPC Peering ID", aws.Status.ID,
 		"VPC ID", aws.Spec.PeerVPCID,
 		"Region", aws.Spec.PeerRegion,
-		"AWS VPC Peering Data Centre ID", aws.Spec.DataCentreID,
+		"AWS VPC Peering Data Centre ID", aws.Status.CDCID,
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
@@ -476,21 +494,17 @@ func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
-				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-				}
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.AWSVPCPeering)
-				if newObj.DeletionTimestamp != nil {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				oldObj := event.ObjectOld.(*v1beta1.AWSVPCPeering)
+
+				if oldObj.Status.ResourceState == "" && newObj.Status.ResourceState == models.CreatingEvent {
 					return true
 				}
 
-				if newObj.Status.ID == "" {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+				if newObj.Status.ResourceState == models.DeletingEvent {
 					return true
 				}
 
@@ -498,15 +512,11 @@ func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 
-				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
+				newObj.Status.ResourceState = models.UpdatingEvent
 				return true
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
 				return false
-			},
-			GenericFunc: func(event event.GenericEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
-				return true
 			},
 		})).Complete(r)
 }

@@ -37,9 +37,12 @@ type API interface {
 	GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error)
 	UpdatePeering(peerID, peeringEndpoint string, peerSpec any) error
 	DeletePeering(peerID, peeringEndpoint string) error
-	CreatePeering(url string, peeringSpec any) (*clusterresourcesv1beta1.PeeringStatus, error)
+	CreateAzureVNetPeering(peeringSpec *clusterresourcesv1beta1.AzureVNetPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error)
+	CreateGCPVPCPeering(peeringSpec *clusterresourcesv1beta1.GCPVPCPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error)
+	CreateAWSVPCPeering(peeringSpec *clusterresourcesv1beta1.AWSVPCPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error)
 	GetFirewallRuleStatus(firewallRuleID string, firewallRuleEndpoint string) (*clusterresourcesv1beta1.FirewallRuleStatus, error)
-	CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1beta1.FirewallRuleStatus, error)
+	CreateAWSSecurityGroupFirewallRule(firewallRuleSpec *clusterresourcesv1beta1.AWSSecurityGroupFirewallRuleSpec, clusterID string) (*clusterresourcesv1beta1.FirewallRuleStatus, error)
+	CreateClusterNetworkFirewallRule(firewallRuleSpec *clusterresourcesv1beta1.ClusterNetworkFirewallRuleSpec, clusterID string) (*clusterresourcesv1beta1.FirewallRuleStatus, error)
 	DeleteFirewallRule(firewallRuleID string, firewallRuleEndpoint string) error
 	CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*kafkamanagementv1beta1.KafkaUserStatus, error)
 	UpdateKafkaUser(kafkaUserID string, kafkaUserSpec *models.KafkaUser) error

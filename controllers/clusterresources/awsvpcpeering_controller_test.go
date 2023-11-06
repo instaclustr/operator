@@ -56,6 +56,11 @@ var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
 		It("Should create a AWS VPC Peering resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
+			patch := resource.NewPatch()
+			resource.Status.CDCID = "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2"
+			resource.Status.ResourceState = models.CreatingEvent
+			Expect(k8sClient.Status().Patch(ctx, &resource, patch)).Should(Succeed())
+
 			By("Sending AWS VPC Peering Specification to Instaclustr API v2")
 			var awsVPCPeering v1beta1.AWSVPCPeering
 			Eventually(func() bool {

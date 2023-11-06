@@ -65,6 +65,15 @@ func (fr *ClusterNetworkFirewallRule) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (fr *ClusterNetworkFirewallRule) AttachToCluster(id string) {
+	fr.Status.ClusterID = id
+	fr.Status.ResourceState = models.CreatingEvent
+}
+
+func (fr *ClusterNetworkFirewallRule) DetachFromCluster() {
+	fr.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&ClusterNetworkFirewallRule{}, &ClusterNetworkFirewallRuleList{})
 }

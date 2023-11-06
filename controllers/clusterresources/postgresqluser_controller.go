@@ -414,18 +414,22 @@ func (r *PostgreSQLUserReconciler) createPostgreSQLFirewallRule(
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        firewallRuleName,
 			Namespace:   ns,
-			Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
+			Annotations: map[string]string{},
 			Labels:      map[string]string{models.ClusterIDLabel: clusterID},
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterNetworkFirewallRuleSpec{
 			FirewallRuleSpec: clusterresourcesv1beta1.FirewallRuleSpec{
-				ClusterID: clusterID,
-				Type:      models.PgAppType,
+				Type: models.PgAppType,
 			},
 			Network: fmt.Sprintf("%s/%s", nodeAddress, "32"),
 		},
-		Status: clusterresourcesv1beta1.ClusterNetworkFirewallRuleStatus{},
+		Status: clusterresourcesv1beta1.ClusterNetworkFirewallRuleStatus{
+			FirewallRuleStatus: clusterresourcesv1beta1.FirewallRuleStatus{
+				ClusterID:     clusterID,
+				ResourceState: models.CreatingEvent,
+			},
+		},
 	}
 
 	err = r.Create(ctx, firewallRule)

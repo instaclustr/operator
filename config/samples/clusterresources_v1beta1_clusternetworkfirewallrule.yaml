@@ -9,6 +9,6 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: clusternetworkfirewallrule-sample
 spec:
-  network: 62.212.64.19/32
-  clusterId: 944cfe6b-441f-4c5a-865b-42fd40c7d816
-  type: KAFKA
+  network: 54.198.214.167/32
+#  clusterId: c47c6a1c-9e2b-4a5c-aa5e-7013bceecd09
+  type: POSTGRESQL

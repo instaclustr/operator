@@ -175,6 +175,21 @@ func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
 	return msg + specDifference, nil
 }
 
+func isClusterResourceRefExists(ref *v1beta1.NamespacedName, compareRefs []*v1beta1.NamespacedName) bool {
+	var exist bool
+	for _, compareRef := range compareRefs {
+		if *ref == *compareRef {
+			exist = true
+			break
+		}
+	}
+
+	if exist {
+		return exist
+	}
+	return false
+}
+
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +
 	"If you have canceled a cluster deletion and want to put the cluster on deletion again, " +
 	"remove \"triggered\" from Instaclustr.com/clusterDeletion annotation."

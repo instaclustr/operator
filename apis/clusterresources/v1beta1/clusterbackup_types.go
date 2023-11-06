@@ -27,7 +27,7 @@ import (
 
 // ClusterBackupSpec defines the desired state of ClusterBackup
 type ClusterBackupSpec struct {
-	ClusterID   string `json:"clusterId"`
+	ClusterID   string `json:"clusterId,omitempty"`
 	ClusterKind string `json:"clusterKind"`
 }
 
@@ -37,6 +37,7 @@ type ClusterBackupStatus struct {
 	Progress        string `json:"progress,omitempty"`
 	Start           int    `json:"start,omitempty"`
 	End             int    `json:"end,omitempty"`
+	ClusterID       string `json:"clusterId,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -69,6 +70,14 @@ func (cbs *ClusterBackupStatus) UpdateStatus(instBackup *models.BackupEvent) {
 	cbs.OperationStatus = instBackup.State
 	cbs.End = instBackup.End
 	cbs.Progress = fmt.Sprintf("%f", instBackup.Progress)
+}
+
+func (cb *ClusterBackup) AttachToCluster(id string) {
+	cb.Status.ClusterID = id
+}
+
+func (cb *ClusterBackup) DetachFromCluster() {
+
 }
 
 func init() {
