@@ -165,8 +165,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	err = r.Status().Patch(ctx, nrs, patch)
 	if err != nil {
 		l.Error(err, "Failed to patch current operation status",
-			"node ID", nrs.Status.NodeInProgress.ID,
-			"currentOperationStatus", nodeReloadStatus,
+			"status", nodeReloadStatus,
 		)
 		r.EventRecorder.Eventf(nrs, models.Warning, models.FetchFailed,
 			"Failed to patch current operation status. Reason: %w", err,
@@ -187,7 +186,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		"status", nrs.Status,
 	)
 	r.EventRecorder.Eventf(nrs, models.Normal, models.UpdatedEvent,
-		"Node %s has been successfully reloaded", nrs.Status,
+		"Node %s has been successfully reloaded", nodeReloadStatus.NodeID,
 	)
 
 	patch = nrs.NewPatch()
