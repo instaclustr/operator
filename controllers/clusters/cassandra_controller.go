@@ -261,7 +261,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"Cluster backups check job is started",
 		)
 
-		if cassandra.Spec.UserRefs != nil {
+		if cassandra.Spec.UserRefs != nil && cassandra.Status.AvailableUsers == nil {
 			err = r.startUsersCreationJob(cassandra)
 			if err != nil {
 				l.Error(err, "Failed to start user creation job")
@@ -383,6 +383,15 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 			return reconcile.Result{}, err
 		}
+	}
+
+	err = handleUsersChanges(ctx, r.Client, r, cassandra)
+	if err != nil {
+		l.Error(err, "Failed to handle users changes")
+		r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+			"Handling users changes is failed. Reason: %w", err,
+		)
+		return reconcile.Result{}, err
 	}
 
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
@@ -557,11 +566,13 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		"Cluster backup resources are deleted",
 	)
 
-	for _, ref := range cassandra.Spec.UserRefs {
-		err = r.handleUsersDetach(ctx, l, cassandra, ref)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
+	err = detachUsers(ctx, r.Client, r, cassandra)
+	if err != nil {
+		l.Error(err, "Failed to detach users from the cluster")
+		r.EventRecorder.Eventf(cassandra, models.Warning, models.DeletionFailed,
+			"Detaching users from the cluster is failed. Reason: %w", err,
+		)
+		return reconcile.Result{}, err
 	}
 
 	controllerutil.RemoveFinalizer(cassandra, models.DeletionFinalizer)
@@ -607,227 +618,6 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	)
 
 	return models.ExitReconcile, nil
-}
-
-func (r *CassandraReconciler) handleUsersCreate(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.Cassandra,
-	uRef *v1beta1.UserReference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.CassandraUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot create a Cassandra user. The resource is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User is not found, create a new one Cassandra User or provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return err
-		}
-
-		l.Error(err, "Cannot get Cassandra user", "user", u.Spec)
-		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot get Cassandra user. user reference: %v", uRef)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; exist {
-		l.Info("User is already existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.CreationFailed,
-			"User is already existing on the cluster. User reference: %v", uRef)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	if u.Status.ClustersEvents == nil {
-		u.Status.ClustersEvents = make(map[string]string)
-	}
-
-	u.Status.ClustersEvents[c.Status.ID] = models.CreatingEvent
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the Cassandra User status with the CreatingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot add Cassandra User to the cluster. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for creation", "username", u.Name)
-
-	return nil
-}
-
-func (r *CassandraReconciler) handleUsersDelete(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.Cassandra,
-	uRef *v1beta1.UserReference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.CassandraUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot delete a Cassandra user, the user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"Cannot delete a Cassandra user, the user %v is not found", req)
-			return nil
-		}
-
-		l.Error(err, "Cannot get Cassandra user", "user", req)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get Cassandra user. user reference: %v", req)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; !exist {
-		l.Info("User is not existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
-			"User is not existing on the cluster. User reference: %v", req)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	u.Status.ClustersEvents[c.Status.ID] = models.DeletingEvent
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the Cassandra User status with the DeletingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot patch the Cassandra User status with the DeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for deletion",
-		"User resource", u.Namespace+"/"+u.Name,
-		"Cassandra resource", c.Namespace+"/"+c.Name)
-
-	return nil
-}
-
-func (r *CassandraReconciler) handleUsersDetach(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.Cassandra,
-	uRef *v1beta1.UserReference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.CassandraUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot detach a Cassandra user, the user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"Cannot detach a Cassandra user, the user %v is not found", req)
-			return nil
-		}
-
-		l.Error(err, "Cannot get Cassandra user", "user", req)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get Cassandra user. user reference: %v", req)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; !exist {
-		l.Info("User is not existing in the cluster", "user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
-			"User is not existing in the cluster. User reference: %v", uRef)
-		return nil
-	}
-
-	patch := u.NewPatch()
-	u.Status.ClustersEvents[c.Status.ID] = models.ClusterDeletingEvent
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the Cassandra user status with the ClusterDeletingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot patch the Cassandra user status with the ClusterDeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for detaching", "username", u.Name)
-
-	return nil
-}
-
-func (r *CassandraReconciler) handleUserEvent(
-	newObj *v1beta1.Cassandra,
-	oldUsers []*v1beta1.UserReference,
-) {
-	ctx := context.TODO()
-	l := log.FromContext(ctx)
-
-	for _, newUser := range newObj.Spec.UserRefs {
-		var exist bool
-
-		for _, oldUser := range oldUsers {
-
-			if *newUser == *oldUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.handleUsersCreate(ctx, l, newObj, newUser)
-		if err != nil {
-			l.Error(err, "Cannot create Cassandra user in predicate", "user", newUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
-		}
-
-		oldUsers = append(oldUsers, newUser)
-	}
-
-	for _, oldUser := range oldUsers {
-		var exist bool
-
-		for _, newUser := range newObj.Spec.UserRefs {
-
-			if *oldUser == *newUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.handleUsersDelete(ctx, l, newObj, oldUser)
-		if err != nil {
-			l.Error(err, "Cannot delete Cassandra user", "user", oldUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot delete user from cluster. Reason: %v", err)
-		}
-	}
 }
 
 func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *v1beta1.Cassandra) error {
@@ -1135,14 +925,12 @@ func (r *CassandraReconciler) newUsersCreationJob(c *v1beta1.Cassandra) schedule
 			return nil
 		}
 
-		for _, ref := range c.Spec.UserRefs {
-			err = r.handleUsersCreate(ctx, l, c, ref)
-			if err != nil {
-				l.Error(err, "Failed to create a user for the cluster", "user ref", ref)
-				r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-					"Failed to create a user for the cluster. Reason: %v", err)
-				return err
-			}
+		err = handleUsersChanges(ctx, r.Client, r, c)
+		if err != nil {
+			l.Error(err, "Failed to create users for the cluster")
+			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
+				"Failed to create users for the cluster. Reason: %v", err)
+			return err
 		}
 
 		l.Info("User creation job successfully finished", "resource name", c.Name)
@@ -1245,6 +1033,11 @@ func (r *CassandraReconciler) handleExternalDelete(ctx context.Context, c *v1bet
 	return nil
 }
 
+// NewUserResource implements userResourceFactory interface
+func (r *CassandraReconciler) NewUserResource() userObject {
+	return &clusterresourcesv1beta1.CassandraUser{}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -1277,10 +1070,6 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
-
-				oldObj := event.ObjectOld.(*v1beta1.Cassandra)
-
-				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

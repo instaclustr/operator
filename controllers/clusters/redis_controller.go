@@ -419,7 +419,7 @@ func (r *RedisReconciler) handleCreateUsers(
 	ctx context.Context,
 	redis *v1beta1.Redis,
 	l logr.Logger,
-	userRefs *v1beta1.UserReference,
+	userRefs *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: userRefs.Namespace,
@@ -673,7 +673,7 @@ func (r *RedisReconciler) detachUserResource(
 	ctx context.Context,
 	l logr.Logger,
 	redis *v1beta1.Redis,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -719,7 +719,7 @@ func (r *RedisReconciler) detachUserResource(
 
 func (r *RedisReconciler) handleUserEvent(
 	newObj *v1beta1.Redis,
-	oldUsers []*v1beta1.UserReference,
+	oldUsers []*v1beta1.Reference,
 ) {
 	ctx := context.TODO()
 	l := log.FromContext(ctx)
@@ -777,7 +777,7 @@ func (r *RedisReconciler) handleUsersDelete(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.Redis,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,

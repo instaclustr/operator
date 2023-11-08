@@ -62,14 +62,15 @@ type CassandraSpec struct {
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	Spark               []*Spark               `json:"spark,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
-	UserRefs            []*UserReference       `json:"userRefs,omitempty"`
+	UserRefs            References             `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus  `json:",inline"`
+	AvailableUsers References `json:"availableUsers,omitempty"`
 }
 
 type CassandraDataCentre struct {
@@ -492,6 +493,30 @@ func (c *CassandraSpec) validateResizeSettings(nodeNumber int) error {
 	}
 
 	return nil
+}
+
+func (c *Cassandra) GetAvailableUsers() References {
+	return c.Status.AvailableUsers
+}
+
+func (c *Cassandra) SetAvailableUsers(users References) {
+	c.Status.AvailableUsers = users
+}
+
+func (c *Cassandra) GetUserRefs() References {
+	return c.Spec.UserRefs
+}
+
+func (c *Cassandra) SetUserRefs(refs References) {
+	c.Spec.UserRefs = refs
+}
+
+func (c *Cassandra) GetClusterID() string {
+	return c.Status.ID
+}
+
+func (c *Cassandra) SetClusterID(id string) {
+	c.Status.ID = id
 }
 
 func init() {

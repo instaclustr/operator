@@ -952,7 +952,7 @@ func (r *OpenSearchReconciler) deleteUser(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.OpenSearch,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -1005,7 +1005,7 @@ func (r *OpenSearchReconciler) createUser(
 	ctx context.Context,
 	logger logr.Logger,
 	c *v1beta1.OpenSearch,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -1064,7 +1064,7 @@ func (r *OpenSearchReconciler) detachUserResource(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.OpenSearch,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -1110,7 +1110,7 @@ func (r *OpenSearchReconciler) detachUserResource(
 
 func (r *OpenSearchReconciler) handleUserEvent(
 	newObj *v1beta1.OpenSearch,
-	oldUsers []*v1beta1.UserReference,
+	oldUsers []*v1beta1.Reference,
 ) {
 	ctx := context.TODO()
 	l := log.FromContext(ctx)

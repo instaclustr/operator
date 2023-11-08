@@ -216,3 +216,9 @@ func deleteDefaultUserSecret(
 
 	return client.Delete(ctx, secret)
 }
+
+// Object is a general representation of any object the operator works with
+type Object interface {
+	client.Object
+	NewPatch() client.Patch
+}

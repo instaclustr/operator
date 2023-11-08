@@ -17,6 +17,6 @@ func NewChannelWithTimeout(timeout time.Duration) chan struct{} {
 	return done
 }
 
-func removeUserByIndex(s []*v1beta1.UserReference, index int) []*v1beta1.UserReference {
+func removeUserByIndex(s []*v1beta1.Reference, index int) []*v1beta1.Reference {
 	return append(s[:index], s[index+1:]...)
 }

@@ -15,3 +15,40 @@ spec:
   secretRef:
     name: "cassandra-user-secret"
     namespace: "default"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cassandra-user-secret2
+data:
+  password: NDgxMzU5ODM1NzlmMDU0ZTlhY2I4ZjcxMTMzMzQ1MjM3ZQ==
+  username: b2xvbG8xCg==
+---
+
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: CassandraUser
+metadata:
+  name: cassandrauser-sample2
+spec:
+  secretRef:
+    name: "cassandra-user-secret2"
+    namespace: "default"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cassandra-user-secret3
+data:
+  password: NDgxMzU5ODM1NzlmMDU0ZTlhY2I4ZjcxMTMzMzQ1MjM3ZQ==
+  username: b2xvbG8yCg==
+---
+
+apiVersion: clusterresources.instaclustr.com/v1beta1
+kind: CassandraUser
+metadata:
+  name: cassandrauser-sample3
+spec:
+  secretRef:
+    name: "cassandra-user-secret3"
+    namespace: "default"
+---
