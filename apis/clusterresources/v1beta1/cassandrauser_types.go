@@ -76,3 +76,11 @@ func (r *CassandraUser) ToInstAPI(username, password string) *models.InstaUser {
 func (r *CassandraUser) GetDeletionFinalizer() string {
 	return models.DeletionFinalizer + "_" + r.Namespace + "_" + r.Name
 }
+
+func (r *CassandraUser) GetClusterEvents() map[string]string {
+	return r.Status.ClustersEvents
+}
+
+func (r *CassandraUser) SetClusterEvents(events map[string]string) {
+	r.Status.ClustersEvents = events
+}

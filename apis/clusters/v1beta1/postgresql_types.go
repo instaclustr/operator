@@ -78,7 +78,7 @@ type PgSpec struct {
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
-	UserRefs              []*UserReference  `json:"userRefs,omitempty"`
+	UserRefs              []*Reference      `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }

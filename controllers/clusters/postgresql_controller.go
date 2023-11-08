@@ -498,7 +498,7 @@ func (r *PostgreSQLReconciler) createUser(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.PostgreSQL,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -577,7 +577,7 @@ func (r *PostgreSQLReconciler) handleUsersDelete(
 	ctx context.Context,
 	l logr.Logger,
 	pg *v1beta1.PostgreSQL,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -641,7 +641,7 @@ func (r *PostgreSQLReconciler) handleUsersDetach(
 	ctx context.Context,
 	l logr.Logger,
 	c *v1beta1.PostgreSQL,
-	uRef *v1beta1.UserReference,
+	uRef *v1beta1.Reference,
 ) error {
 	req := types.NamespacedName{
 		Namespace: uRef.Namespace,
@@ -698,7 +698,7 @@ func (r *PostgreSQLReconciler) handleUsersDetach(
 
 func (r *PostgreSQLReconciler) handleUserEvent(
 	newObj *v1beta1.PostgreSQL,
-	oldUsers []*v1beta1.UserReference,
+	oldUsers []*v1beta1.Reference,
 ) {
 	ctx := context.TODO()
 	l := log.FromContext(ctx)

@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"net"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -711,7 +713,51 @@ func (cs *ClusterStatus) PrivateLinkStatusesEqual(iStatus *ClusterStatus) bool {
 	return true
 }
 
-type UserReference struct {
-	Namespace string `json:"namespace"`
+type Reference struct {
 	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+func (r *Reference) AsNamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Name:      r.Name,
+		Namespace: r.Namespace,
+	}
+}
+
+type References []*Reference
+
+// Diff returns difference between two References.
+// Added stores elements which are presented in new References, but aren't presented in old.
+// Deleted stores elements which aren't presented in new References, but are presented in old.
+func (old References) Diff(new References) (added, deleted References) {
+	// filtering deleted references
+	for _, oldRef := range old {
+		var exists bool
+		for _, newRef := range new {
+			if *oldRef == *newRef {
+				exists = true
+			}
+		}
+
+		if !exists {
+			deleted = append(deleted, oldRef)
+		}
+	}
+
+	// filtering added references
+	for _, newRef := range new {
+		var exists bool
+		for _, oldRef := range old {
+			if *newRef == *oldRef {
+				exists = true
+			}
+		}
+
+		if !exists {
+			added = append(added, newRef)
+		}
+	}
+
+	return added, deleted
 }

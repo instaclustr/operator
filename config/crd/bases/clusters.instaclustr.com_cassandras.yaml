@@ -224,6 +224,18 @@ spec:
           status:
             description: CassandraStatus defines the observed state of Cassandra
             properties:
+              availableUsers:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - name
+                  - namespace
+                  type: object
+                type: array
               cdcid:
                 type: string
               currentClusterOperationStatus:

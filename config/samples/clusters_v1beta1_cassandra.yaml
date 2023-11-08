@@ -42,6 +42,8 @@ spec:
 #      name: cassandrauser-sample
 #    - namespace: default
 #      name: cassandrauser-sample2
+#    - namespace: default
+#      name: cassandrauser-sample3
   slaTier: "NON_PRODUCTION"
 #  resizeSettings:
 #    - notifySupportContacts: false

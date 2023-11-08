@@ -69,7 +69,7 @@ type RedisSpec struct {
 	//+kubebuilder:validation:MaxItems:=2
 	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
 
-	UserRefs []*UserReference `json:"userRefs,omitempty"`
+	UserRefs []*Reference `json:"userRefs,omitempty"`
 	//+kubebuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }

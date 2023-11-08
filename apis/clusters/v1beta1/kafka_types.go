@@ -88,7 +88,7 @@ type KafkaSpec struct {
 	KarapaceRestProxy        []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
 	KarapaceSchemaRegistry   []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 	BundledUseOnly           bool                      `json:"bundledUseOnly,omitempty"`
-	UserRefs                 []*UserReference          `json:"userRefs,omitempty"`
+	UserRefs                 []*Reference              `json:"userRefs,omitempty"`
 	Kraft                    []*Kraft                  `json:"kraft,omitempty"`
 }
 
