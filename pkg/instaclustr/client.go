@@ -2325,39 +2325,40 @@ func (c *Client) GetAWSVPCPeering(peerID string) (*models.AWSVPCPeering, error) 
 	return &vpcPeering, nil
 }
 
-func (c *Client) CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) error {
+func (c *Client) CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) (string, error) {
 	url := c.serverHostname + OpenSearchEgressRulesEndpoint
+	status := &clusterresourcesv1beta1.OpenSearchEgressRulesStatus{}
 
 	b, err := json.Marshal(rule.Spec)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := c.DoRequest(url, http.MethodPost, b)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	defer resp.Body.Close()
 	b, err = io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
+		return "", fmt.Errorf("status code: %d, message: %s", resp.StatusCode, b)
 	}
 
-	err = json.Unmarshal(b, &rule.Status)
+	err = json.Unmarshal(b, status)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return status.ID, nil
 }
 
-func (c *Client) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRules, error) {
-	rule := clusterresourcesv1beta1.OpenSearchEgressRules{}
+func (c *Client) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRulesStatus, error) {
+	rule := clusterresourcesv1beta1.OpenSearchEgressRulesStatus{}
 	url := c.serverHostname + OpenSearchEgressRulesEndpoint + "/" + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)

@@ -414,11 +414,11 @@ func (c *mockClient) GetAWSEndpointServicePrincipal(id string) (*models.AWSEndpo
 	panic("GetAWSEndpointServicePrincipal: is not implemented")
 }
 
-func (c *mockClient) CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) error {
+func (c *mockClient) CreateOpenSearchEgressRules(rule *clusterresourcesv1beta1.OpenSearchEgressRules) (string, error) {
 	panic("CreateOpenSearchEgressRules: is not implemented")
 }
 
-func (c *mockClient) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRules, error) {
+func (c *mockClient) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta1.OpenSearchEgressRulesStatus, error) {
 	panic("GetOpenSearchEgressRule: is not implemented")
 }
 

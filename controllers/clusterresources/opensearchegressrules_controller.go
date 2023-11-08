@@ -120,7 +120,7 @@ func (r *OpenSearchEgressRulesReconciler) handleCreate(ctx context.Context, l lo
 	}
 
 	if errors.Is(err, instaclustr.NotFound) {
-		err = r.API.CreateOpenSearchEgressRules(rule)
+		rule.Status.ID, err = r.API.CreateOpenSearchEgressRules(rule)
 		if err != nil {
 			l.Error(err, "failed to create OpenSearch Egress Rule resource on Instaclustr")
 			r.EventRecorder.Eventf(rule, models.Warning, models.CreationFailed,
@@ -129,6 +129,7 @@ func (r *OpenSearchEgressRulesReconciler) handleCreate(ctx context.Context, l lo
 
 			return err
 		}
+
 	}
 
 	err = r.Status().Patch(ctx, rule, patch)
@@ -161,10 +162,6 @@ func (r *OpenSearchEgressRulesReconciler) handleCreate(ctx context.Context, l lo
 }
 
 func (r *OpenSearchEgressRulesReconciler) handleDelete(ctx context.Context, logger logr.Logger, rule *clusterresourcesv1beta1.OpenSearchEgressRules) error {
-	if rule.Status.ID == "" {
-		rule.Status.ID = fmt.Sprintf("%s~%s~%s", rule.Spec.ClusterID, rule.Spec.Source, rule.Spec.OpenSearchBindingID)
-	}
-
 	_, err := r.API.GetOpenSearchEgressRule(rule.Status.ID)
 	if !errors.Is(err, instaclustr.NotFound) && err != nil {
 		logger.Error(err, "failed to get OpenSearch Egress Rule resource from Instaclustr")
