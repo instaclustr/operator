@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"net"
 	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,6 +90,17 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	}
 
 	if c.Spec.OnPremisesSpec != nil {
+		if len(c.Spec.OnPremisesSpec.StaticIPs.Nodes) != c.Spec.DataCentres[0].NodesNumber {
+			return fmt.Errorf("mismatch between the number of nodes and the number of IP addresses")
+		}
+
+		for _, ip := range c.Spec.OnPremisesSpec.StaticIPs.Nodes {
+			parsedIP := net.ParseIP(ip)
+			if parsedIP == nil {
+				return fmt.Errorf("%s is not a valid IP address. Please provide the IP without a network mask", parsedIP)
+			}
+		}
+
 		osDiskSizeMatched, err := regexp.Match(models.StorageRegExp, []byte(c.Spec.OnPremisesSpec.OSDiskSize))
 		if !osDiskSizeMatched || err != nil {
 			return fmt.Errorf("disk size field for node OS must fit pattern: %s",
@@ -116,6 +128,16 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 				return fmt.Errorf("ssh gateway memory field must fit pattern: %s",
 					models.MemoryRegExp)
 			}
+
+			if c.Spec.OnPremisesSpec.StaticIPs.SSHGateway == "" {
+				return fmt.Errorf("ssh gateway private IP is not specified")
+			}
+
+			parsedIP := net.ParseIP(c.Spec.OnPremisesSpec.StaticIPs.SSHGateway)
+			if parsedIP == nil {
+				return fmt.Errorf("%s is not a valid IP address. Please provide the IP without a network mask", parsedIP)
+			}
+
 		}
 	}
 

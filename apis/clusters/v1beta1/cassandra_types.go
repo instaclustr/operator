@@ -78,6 +78,13 @@ type CassandraOnPremisesSpec struct {
 	NodeMemory                    string          `json:"nodeMemory"`
 	OSImageURL                    string          `json:"osImageURL"`
 	CloudInitScriptNamespacedName *NamespacedName `json:"cloudInitScriptNamespacedName"`
+	StaticIPs                     *StaticIPs      `json:"staticIPs,omitempty"`
+	CNIType                       string          `json:"cniType,omitempty"`
+}
+
+type StaticIPs struct {
+	SSHGateway string   `json:"sshGateway"`
+	Nodes      []string `json:"nodes"`
 }
 
 // CassandraStatus defines the observed state of Cassandra

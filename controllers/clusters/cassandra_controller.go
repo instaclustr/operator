@@ -68,7 +68,6 @@ type CassandraReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
-//+virtualmachineinstance.kubevirt.io/node-vm-2-cassandra-cluster:rbac:groups="",resources=endpoints,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete;deletecollection
@@ -1857,6 +1856,7 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 				gateway.Rack,
 				gatewayDV.Name,
 				secretName,
+				c.Spec.OnPremisesSpec.StaticIPs.SSHGateway,
 				gatewayCPU,
 				gatewayMemory)
 			if err != nil {
@@ -1954,6 +1954,7 @@ func (r *CassandraReconciler) reconcileNodesResources(
 				node.Rack,
 				nodeOSDV.Name,
 				secretName,
+				c.Spec.OnPremisesSpec.StaticIPs.Nodes[i],
 				nodeCPU,
 				nodeMemory,
 				nodeDataDV.Name)
@@ -2255,7 +2256,8 @@ func (r *CassandraReconciler) newVM(
 	nodeID,
 	nodeRack,
 	OSDiskDVName,
-	ignitionSecretName string,
+	ignitionSecretName,
+	staticIP string,
 	cpu,
 	memory resource.Quantity,
 	storageDVNames ...string,
@@ -2297,6 +2299,9 @@ func (r *CassandraReconciler) newVM(
 						models.NodeIDLabel:         nodeID,
 						models.NodeRackLabel:       nodeRack,
 						models.KubevirtDomainLabel: vmName,
+					},
+					Annotations: map[string]string{
+						"cni.projectcalico.org/ipAddrs": fmt.Sprintf("[\"%s\"]", staticIP),
 					},
 				},
 				Spec: virtcorev1.VirtualMachineInstanceSpec{
