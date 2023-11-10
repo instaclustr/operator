@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"strconv"
 
+	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -55,8 +57,8 @@ type CassandraRestoreFrom struct {
 
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	RestoreFrom         *CassandraRestoreFrom    `json:"restoreFrom,omitempty"`
-	OnPremisesSpec      *CassandraOnPremisesSpec `json:"onPremisesSpec,omitempty"`
+	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
+	OnPremisesSpec      *OnPremisesSpec       `json:"onPremisesSpec,omitempty"`
 	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
@@ -68,16 +70,16 @@ type CassandraSpec struct {
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
-type CassandraOnPremisesSpec struct {
-	StorageClassName              string          `json:"storageClassName"`
-	OSDiskSize                    string          `json:"osDiskSize"`
-	DataDiskSize                  string          `json:"dataDiskSize"`
-	SSHGatewayCPU                 int64           `json:"sshGatewayCPU,omitempty"`
-	SSHGatewayMemory              string          `json:"sshGatewayMemory,omitempty"`
-	NodeCPU                       int64           `json:"nodeCPU"`
-	NodeMemory                    string          `json:"nodeMemory"`
-	OSImageURL                    string          `json:"osImageURL"`
-	CloudInitScriptNamespacedName *NamespacedName `json:"cloudInitScriptNamespacedName"`
+type OnPremisesSpec struct {
+	StorageClassName   string          `json:"storageClassName"`
+	OSDiskSize         string          `json:"osDiskSize"`
+	DataDiskSize       string          `json:"dataDiskSize"`
+	SSHGatewayCPU      int64           `json:"sshGatewayCPU,omitempty"`
+	SSHGatewayMemory   string          `json:"sshGatewayMemory,omitempty"`
+	NodeCPU            int64           `json:"nodeCPU"`
+	NodeMemory         string          `json:"nodeMemory"`
+	OSImageURL         string          `json:"osImageURL"`
+	CloudInitScriptRef *NamespacedName `json:"cloudInitScriptRef"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
@@ -168,6 +170,85 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.C
 			ClusterKind: models.CassandraClusterKind,
 		},
 	}
+}
+
+func (c *Cassandra) NewExposePorts() []k8scorev1.ServicePort {
+	var ports []k8scorev1.ServicePort
+	ports = []k8scorev1.ServicePort{{
+		Name: models.SSH,
+		Port: models.Port22,
+		TargetPort: intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: models.Port22,
+		},
+	},
+	}
+
+	if !c.Spec.PrivateNetworkCluster {
+		additionalPorts := []k8scorev1.ServicePort{
+			{
+				Name: models.InterNode,
+				Port: models.Port7000,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7000,
+				},
+			},
+			{
+				Name: models.CQLSH,
+				Port: models.Port9042,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port9042,
+				},
+			},
+			{
+				Name: models.JMX,
+				Port: models.Port7199,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7199,
+				},
+			},
+		}
+		if c.Spec.DataCentres[0].ClientToClusterEncryption {
+			sslPort := k8scorev1.ServicePort{
+				Name: models.SSL,
+				Port: models.Port7001,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7001,
+				},
+			}
+			additionalPorts = append(additionalPorts, sslPort)
+		}
+		ports = append(ports, additionalPorts...)
+	}
+
+	return ports
+}
+
+func (c *Cassandra) NewHeadlessPorts() []k8scorev1.ServicePort {
+	ports := []k8scorev1.ServicePort{
+		{
+			Name: models.InterNode,
+			Port: models.Port7000,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port7000,
+			},
+		},
+		{
+			Name: models.CQLSH,
+			Port: models.Port9042,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port9042,
+			},
+		},
+	}
+
+	return ports
 }
 
 func (c *Cassandra) FromInstAPI(iData []byte) (*Cassandra, error) {

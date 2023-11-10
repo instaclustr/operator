@@ -138,7 +138,7 @@ func main() {
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		API:           instaClient,
-		IcadminAPI:    icadminClient,
+		IcAdminAPI:    icadminClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
 	}).SetupWithManager(mgr); err != nil {

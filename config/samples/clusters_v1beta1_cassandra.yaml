@@ -15,7 +15,7 @@ spec:
     nodeCPU: 2
     nodeMemory: 8192Mi
     osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
-    cloudInitScriptNamespacedName:
+    cloudInitScriptRef:
       namespace: default
       name: instaclustr-cloud-init-secret
   dataCentres:
