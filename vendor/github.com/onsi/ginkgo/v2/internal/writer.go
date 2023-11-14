@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"sync"
+
+	"github.com/go-logr/logr"
+	"github.com/go-logr/logr/funcr"
 )
 
 type WriterMode uint
@@ -21,7 +24,7 @@ type WriterInterface interface {
 	Bytes() []byte
 }
 
-//Writer impplements WriterInterface and GinkgoWriterInterface
+//Writer implements WriterInterface and GinkgoWriterInterface
 type Writer struct {
 	buffer    *bytes.Buffer
 	outWriter io.Writer
@@ -100,4 +103,10 @@ func (w *Writer) Printf(format string, a ...interface{}) {
 
 func (w *Writer) Println(a ...interface{}) {
 	fmt.Fprintln(w, a...)
+}
+
+func GinkgoLogrFunc(writer *Writer) logr.Logger {
+	return funcr.New(func(prefix, args string) {
+		writer.Printf("%s", args)
+	}, funcr.Options{})
 }
