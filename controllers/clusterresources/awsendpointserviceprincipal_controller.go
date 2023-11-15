@@ -101,7 +101,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 	err = json.Unmarshal(b, &principal.Status)
 	if err != nil {
 		l.Error(err, "failed to parse an AWS endpoint service principal resource response from Instaclustr")
-		r.EventRecorder.Eventf(principal, models.Warning, models.ConvertionFailed,
+		r.EventRecorder.Eventf(principal, models.Warning, models.ConversionFailed,
 			"Failed to parse an AWS endpoint service principal resource response from Instaclustr. Reason: %v", err,
 		)
 

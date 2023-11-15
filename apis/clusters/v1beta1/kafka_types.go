@@ -19,7 +19,9 @@ package v1beta1
 import (
 	"encoding/json"
 
+	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
@@ -63,6 +65,7 @@ type KarapaceSchemaRegistry struct {
 // KafkaSpec defines the desired state of Kafka
 type KafkaSpec struct {
 	Cluster        `json:",inline"`
+	OnPremisesSpec *OnPremisesSpec   `json:"onPremisesSpec,omitempty"`
 	SchemaRegistry []*SchemaRegistry `json:"schemaRegistry,omitempty"`
 
 	// ReplicationFactor to use for new topic.
@@ -483,4 +486,73 @@ func (k *Kafka) GetClusterID() string {
 
 func (k *Kafka) SetClusterID(id string) {
 	k.Status.ID = id
+}
+
+func (k *Kafka) GetExposePorts() []k8scorev1.ServicePort {
+	var exposePorts []k8scorev1.ServicePort
+	if !k.Spec.PrivateNetworkCluster {
+		exposePorts = []k8scorev1.ServicePort{
+			{
+				Name: models.KafkaClient,
+				Port: models.Port9092,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port9092,
+				},
+			},
+			{
+				Name: models.KafkaControlPlane,
+				Port: models.Port9093,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port9093,
+				},
+			},
+		}
+		if k.Spec.ClientToClusterEncryption {
+			sslPort := k8scorev1.ServicePort{
+				Name: models.KafkaBroker,
+				Port: models.Port9094,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port9094,
+				},
+			}
+			exposePorts = append(exposePorts, sslPort)
+		}
+	}
+	return exposePorts
+}
+
+func (k *Kafka) GetHeadlessPorts() []k8scorev1.ServicePort {
+	headlessPorts := []k8scorev1.ServicePort{
+		{
+			Name: models.KafkaClient,
+			Port: models.Port9092,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port9092,
+			},
+		},
+		{
+			Name: models.KafkaControlPlane,
+			Port: models.Port9093,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port9093,
+			},
+		},
+	}
+	if k.Spec.ClientToClusterEncryption {
+		kafkaBrokerPort := k8scorev1.ServicePort{
+			Name: models.KafkaBroker,
+			Port: models.Port9094,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port9094,
+			},
+		}
+		headlessPorts = append(headlessPorts, kafkaBrokerPort)
+	}
+	return headlessPorts
 }

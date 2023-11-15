@@ -2,19 +2,20 @@
 
 ## Available spec fields
 
-| Field                 | Type                                                                                          | Description                                                                                                                                                                                                                                                                                                                                  |
-|-----------------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                  | string <br /> **required**                                                                    | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                       |
-| version               | string <br /> **required**                                                                    | PostgreSQL instance version. <br />**Available versions**: `13.11.0`, `13.12.0`, `14.9.0`, `13.10.0`, `14.7.0`, `14.8.0`, `16.0.0`, `15.4.0`, `15.2.0`, `15.3.0`                                                                                                                                                                             |
-| privateNetworkCluster | bool <br /> **required**                                                                      | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                               |
-| slaTier               | string  <br /> **required**                                                                   | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`. |
-| twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject))<br />_mutable_                   | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                |
-| dataCentres           | Array of objects ([PgDataCentre](#PgDataCentreObject)) <br />_mutable_                        | List of data centre settings.                                                                                                                                                                                                                                                                                                                |
-| clusterConfigurations | map[string]string<br />_mutable_                                                              | PostgreSQL cluster configurations. Cluster nodes will need to be manually reloaded to apply configuration changes. <br />**Format**:<br />clusterConfigurations:<br />- key: value                                                                                                                                                           |
-| description           | string<br />_mutable_                                                                         | A description of the cluster.                                                                                                                                                                                                                                                                                                                |
-| synchronousModeStrict | bool  <br /> **required**                                                                     | Create the PostgreSQL cluster with the selected replication mode, see [PostgreSQL replication mode](https://www.instaclustr.com/support/documentation/postgresql/options/replication-mode/).                                                                                                                                                 |
-| pgRestoreFrom         | Object ([PgRestoreFrom](#PgRestoreFromObject))                                                | Triggers a restore cluster operation.                                                                                                                                                                                                                                                                                                        |
-| resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_                   | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                 |
+| Field                 | Type                                                                        | Description                                                                                                                                                                                                                                                                                                                                  |
+|-----------------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                  | string <br /> **required**                                                  | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                       |
+| version               | string <br /> **required**                                                  | PostgreSQL instance version. <br />**Available versions**: `13.11.0`, `13.12.0`, `14.9.0`, `13.10.0`, `14.7.0`, `14.8.0`, `16.0.0`, `15.4.0`, `15.2.0`, `15.3.0`                                                                                                                                                                             |
+| privateNetworkCluster | bool <br /> **required**                                                    | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                               |
+| slaTier               | string  <br /> **required**                                                 | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`. |
+| twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject))<br />_mutable_ | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                |
+| dataCentres           | Array of objects ([PgDataCentre](#PgDataCentreObject)) <br />_mutable_      | List of data centre settings.                                                                                                                                                                                                                                                                                                                |
+| clusterConfigurations | map[string]string<br />_mutable_                                            | PostgreSQL cluster configurations. Cluster nodes will need to be manually reloaded to apply configuration changes. <br />**Format**:<br />clusterConfigurations:<br />- key: value                                                                                                                                                           |
+| description           | string<br />_mutable_                                                       | A description of the cluster.                                                                                                                                                                                                                                                                                                                |
+| synchronousModeStrict | bool  <br /> **required**                                                   | Create the PostgreSQL cluster with the selected replication mode, see [PostgreSQL replication mode](https://www.instaclustr.com/support/documentation/postgresql/options/replication-mode/).                                                                                                                                                 |
+| pgRestoreFrom         | Object ([PgRestoreFrom](#PgRestoreFromObject))                              | Triggers a restore cluster operation.                                                                                                                                                                                                                                                                                                        |
+| resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_ | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                 |
+| onPremisesSpec        | Object ([OnPremisesSpec](#OnPremisesSpecObject))                            | Specifies settings to provision on-premises cluster inside K8s cluster.                                                                                                                                                                                                                                                                      |
 
 ### ResizeSettingsObject
 | Field                  | Type    | Description                                                                                                           |
@@ -92,6 +93,27 @@
 | customVpcId      | string          | Custom VPC ID to which the restored cluster will be allocated. <br/>Either restoreToSameVpc or customVpcId must be provided.            |
 | customVpcNetwork | string          | CIDR block in which the cluster will be allocated for a custom VPC.                                                                     |
 
+### OnPremisesSpecObject
+
+| Field              | Type                                                       | Description                                                                                                                                                                        |
+|--------------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| storageClassName   | string <br /> **required**                                 | Name of the storage class that will be used to provision disks for on-premises nodes.                                                                                              |
+| osDiskSize         | string <br /> **required**                                 | Disk size on which OS will be installed.                                                                                                                                           |
+| dataDiskSize       | string <br /> **required**                                 | Disk size on which on-premises cluster data will be stored.                                                                                                                        |
+| sshGatewayCPU      | int64                                                      | Amount of CPU that will be dedicated to provision SSH Gateway node (only for private clusters).                                                                                    |
+| sshGatewayMemory   | string                                                     | Amount of RAM that will be dedicated to provision SSH Gateway node (only for private clusters).                                                                                    |
+| nodeCPU            | int64 <br /> **required**                                  | Amount of CPU that will be dedicated to provision on-premises worker node.                                                                                                         |
+| nodeMemory         | string <br /> **required**                                 | Amount of RAM that will be dedicated to provision on-premises worker node                                                                                                          |
+| osImageURL         | string <br /> **required**                                 | OS image URL that will be use to dynamically provision disks with preinstalled OS (more info can be found [here](https://kubevirt.io/2020/KubeVirt-VM-Image-Usage-Patterns.html)). |
+| cloudInitScriptRef | Object ([Reference](#ReferenceObject)) <br /> **required** | Reference to the secret with cloud-init script (must be located in the same namespace with the cluster). Example can be found [here](#CloudInitScript).                            |
+
+### ReferenceObject
+
+| Field     | Type   | Description                                       |
+|-----------|--------|---------------------------------------------------|
+| name      | string | Name of the cloud-init secret.                    |
+| namespace | string | Namespace in which the cloud-init secret located. |
+
 ## Cluster creation example
 
 Notice:
@@ -99,15 +121,13 @@ Notice:
 
 To create a cluster you need to prepare a cluster manifest. Here is an example:
 ```yaml
-# postgresql.yaml file
+# postgresql.yaml
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
   name: postgresql-sample
-  annotations:
-    testAnnotation: test
 spec:
-  name: "examplePostgre"
+  name: "postgresql-sample"
   version: "14.5.0"
   dataCentres:
     - region: "US_WEST_2"
@@ -126,6 +146,80 @@ spec:
   privateNetworkCluster: false
   synchronousModeStrict: false
 ```
+
+
+Or if you want to create an on-premises cluster:
+```yaml
+# postgresql.yaml
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: PostgreSQL
+metadata:
+  name: postgresql-sample
+spec:
+  name: "postgresql-sample"
+  version: "15.4.0"
+  onPremisesSpec:
+    storageClassName: managed-csi-premium
+    osDiskSize: 20Gi
+    dataDiskSize: 200Gi
+    sshGatewayCPU: 2
+    sshGatewayMemory: 4096Mi
+    nodeCPU: 2
+    nodeMemory: 8192Mi
+    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
+    cloudInitScriptRef:
+      namespace: default
+      name: cloud-init-secret
+  dataCentres:
+    - region: "CLIENT_DC" # Don't change if you want to run on-premises
+      network: "10.1.0.0/16"
+      cloudProvider: "ONPREMISES" # Don't change if you want to run on-premises
+      nodeSize: "PGS-DEV-OP.4.8-200"
+      nodesNumber: 2
+      clientEncryption: false
+      name: "onPremisesDC"
+      intraDataCentreReplication:
+        - replicationMode: "SYNCHRONOUS"
+      interDataCentreReplication:
+        - isPrimaryDataCentre: true
+  slaTier: "NON_PRODUCTION"
+  privateNetworkCluster: false
+  synchronousModeStrict: false
+```
+
+Also, don't forget to create cloud-init script firstly.
+
+### CloudInitScript
+
+cloud-init.sh:
+```shell
+#!/bin/bash
+
+export NEW_PASS="qwerty12345"
+export SSH_PUB_KEY=""
+export BOOTSTRAP_SSH_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAEAQDgeaO3zkY5v1dww3fFONPzUnEgIqJ4kUK0Usu8iFdp+TWIulw9dDeQHa+PdWXP97l5Vv1mG9ipqShEIu7/2bp13KxSblWX4iV1MYZbtimhY3UDOsPn1G3E1Ipis6y+/tosDAm8LoWaGEMcLuE5UjP6gs6K57rCEjkVGjg7vjhIypAMC0J2N2+CxK9o/Y1+LZAec+FL5cmSJoajoo9y/VYJjz/a52jJ93wRafD2uu6ObAl5gkN/+gqY4IJFSMx20sPsIRXdbiBNDqiap56ibHHPKTeZhRbdXvZfjYkHtutXnSM2xn7BjnV8CguISxS3rXlzlzRVYwSUjnKUf5SKBbeyZbCokx271vCeUd5EXfHphvW6FIOna2AI5lpCSYkw5Kho3HaPi2NjXJ9i2dCr1zpcZpCiettDuaEjxR0Cl4Jd6PrAiAEZ0Ns0u2ysVhudshVzQrq6qdd7W9/MLjbDIHdTToNjFLZA6cbE0MQf18LXwJAl+G/QrXgcVaiopUmld+68JL89Xym55LzkMhI0NiDtWufawd/NiZ6jm13Z3+atvnOimdyuqBYeFWgbtcxjs0yN9v7h7PfPh6TbiQYFx37DCfQiIucqx1GWmMijmd7HMY6Nv3UvnoTUTSn4yz1NxhEpC61N+iAInZDpeJEtULSzlEMWlbzL4t5cF+Rm1dFdq3WpZt1mi8F4DgrsgZEuLGAw22RNW3++EWYFUNnJXaYyctPrMpWQktr4DB5nQGIHF92WR8uncxTNUXfWuT29O9e+bFYh1etmq8rsCoLcxN0zFHWvcECK55aE+47lfNAR+HEjuwYW10mGU/pFmO0F9FFmcQRSw4D4tnVUgl3XjKe3bBiTa4lUrzrKkLZ6n9/buW2e7c3jbjmXdPh2R+2Msr/vfuWs9glxQf+CYEbBW6Ye4pekIyI77SaB/bVhaHtXutKxm+QWdNle8aeqiA8Ji1Ml+s75vIg+n5v6viCnl5aV33xHRFpGQJzj2ktsXl9P9d5kgal9eXJYTywC2SnVbZVLb6FGN4kPZTVwX1f+u7v7JCm4YWlbQZtwwiXKjs99AVtQnBWqQvUH5sFUkVXlHA1Y9W6wlup0r+F6URL+7Yw+d0dHByfevrJg3pvmpLb3sEpjIAZodW3dIUReE7Ku3s/q/O9foFnfRBnCcZ2QsnxI5pqNrbrundD1ApOnNXEvICvPXHBBQ44cW0hzAO+WxY5VxyG8y/kXnb48G9efkIQFkNaITJrU9SiOk6bFP4QANdS/pmaSLjJIsHixa+7vmYjRy1SVoQ/39vDUnyCbqKtO56QMH32hQLRO3Vk7NVG6o4dYjFkiaMSaqVlHKMkJQHVzlK2PW9/fjVXfkAHmmhoD debian"
+echo "debian:$NEW_PASS" | chpasswd
+echo "root:$NEW_PASS" | sudo chpasswd root
+sudo echo "$SSH_PUB_KEY" > /home/debian/.ssh/authorized_keys
+sudo echo "$BOOTSTRAP_SSH_KEY" >> /home/debian/.ssh/authorized_keys
+sudo chown -R debian: /home/debian/.ssh
+sudo cp /usr/share/doc/apt/examples/sources.list /etc/apt/sources.list
+data_device=$(lsblk -dfn -o NAME,SERIAL | awk '$2 == "DATADISK" {print $1}')
+sudo mkfs -t ext4 /dev/"${data_device}"
+```
+
+Create the base64 encoded string with the script using `cat cloud-init.sh | base64 -w0` command and create a secret using this yaml manifest:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-init-secret
+data:
+  userdata: <base64 encoded string>
+```
+
+Use `kubectl apply -f cloud-init-secret.yaml` command to create the secret.
 
 Next you need to apply this manifest. This will create PostgreSQL custom resource instance:
 ```console

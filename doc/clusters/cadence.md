@@ -2,24 +2,24 @@
 
 ## Available spec fields
 
-| Field                 | Type                                                                                    | Description                                                                                                                                                                                                                                                                                                                                   |
-|-----------------------|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                  | string <br /> **required**                                                              | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                        |
-| version               | string <br /> **required**                                                              | Cadence instance version. <br />**Available versions**: `0.22.4`, `0.24.0`.                                                                                                                                                                                                                                                                   |
-| pciCompliance         | bool <br /> **required**                                                                | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                   |
-| privateNetworkCluster | bool <br /> **required**                                                                | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                                |
-| slaTier               | string <br /> **required**                                                              | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`.  |
-| twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_           | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                 |
-| dataCentres           | Array of objects ([CadenceDataCentre](#CadenceDataCentreObject)) <br /> **required**    | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                         |
-| description           | string                                                                                  | Description of the Cadence cluster.                                                                                                                                                                                                                                                                                                           |
-| useCadenceWebAuth     | bool <br /> **required**                                                                | Enable Authentication for Cadence Web.                                                                                                                                                                                                                                                                                                        |
-| awsArchival           | Array of objects ([AWSArchival](#AWSArchivalObject))                                    | Cadence AWS Archival settings.                                                                                                                                                                                                                                                                                                                |
-| standardProvisioning  | Array of objects ([StandardProvisioning](#StandardProvisioningObject))                  | Settings for STANDARD provisioning. Must not be defined with SHARED and PACKAGED provisioning options.                                                                                                                                                                                                                                        |
-| sharedProvisioning    | Array of objects ([SharedProvisioning](#SharedProvisioningObject))                      | Settings for SHARED provisioning. Must not be defined with STANDARD and PACKAGED provisioning options.                                                                                                                                                                                                                                        |
-| packagedProvisioning  | Array of objects ([PackagedProvisioning](#PackagedProvisioningObject))                  | Settings for PACKAGED provisioning. Must not be defined with STANDARD and SHARED provisioning options.                                                                                                                                                                                                                                        |
-| targetPrimaryCadence  | Array of objects ([TargetPrimaryCadence](#TargetPrimaryCadenceObject)) <br /> _mutable_ | Supporting Primary Cadence info for Multi region Cadence.                                                                                                                                                                                                                                                                                     |
-| resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_             | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                  |
-
+| Field                 | Type                                                                                    | Description                                                                                                                                                                                                                                                                                                                                  |
+|-----------------------|-----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                  | string <br /> **required**                                                              | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                       |
+| version               | string <br /> **required**                                                              | Cadence instance version. <br />**Available versions**: `0.22.4`, `0.24.0`.                                                                                                                                                                                                                                                                  |
+| pciCompliance         | bool <br /> **required**                                                                | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                  |
+| privateNetworkCluster | bool <br /> **required**                                                                | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                               |
+| slaTier               | string <br /> **required**                                                              | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`. |
+| twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_           | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                |
+| dataCentres           | Array of objects ([CadenceDataCentre](#CadenceDataCentreObject)) <br /> **required**    | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                        |
+| description           | string                                                                                  | Description of the Cadence cluster.                                                                                                                                                                                                                                                                                                          |
+| useCadenceWebAuth     | bool <br /> **required**                                                                | Enable Authentication for Cadence Web.                                                                                                                                                                                                                                                                                                       |
+| awsArchival           | Array of objects ([AWSArchival](#AWSArchivalObject))                                    | Cadence AWS Archival settings.                                                                                                                                                                                                                                                                                                               |
+| standardProvisioning  | Array of objects ([StandardProvisioning](#StandardProvisioningObject))                  | Settings for STANDARD provisioning. Must not be defined with SHARED and PACKAGED provisioning options.                                                                                                                                                                                                                                       |
+| sharedProvisioning    | Array of objects ([SharedProvisioning](#SharedProvisioningObject))                      | Settings for SHARED provisioning. Must not be defined with STANDARD and PACKAGED provisioning options.                                                                                                                                                                                                                                       |
+| packagedProvisioning  | Array of objects ([PackagedProvisioning](#PackagedProvisioningObject))                  | Settings for PACKAGED provisioning. Must not be defined with STANDARD and SHARED provisioning options.                                                                                                                                                                                                                                       |
+| targetPrimaryCadence  | Array of objects ([TargetPrimaryCadence](#TargetPrimaryCadenceObject)) <br /> _mutable_ | Supporting Primary Cadence info for Multi region Cadence.                                                                                                                                                                                                                                                                                    |
+| resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_             | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                 |
+| onPremisesSpec        | Object ([OnPremisesSpec](#OnPremisesSpecObject))                                        | Specifies settings to provision on-premises cluster inside K8s cluster.                                                                                                                                                                                                                                                                      |
 
 ### TargetPrimaryCadenceObject
 | Field                 | Type                        | Description                                        |
@@ -145,6 +145,27 @@
 | privateIPBroadcastForDiscovery | bool <br /> **required**   | Enables broadcast of private IPs for auto-discovery.                                                                                                                                                                                                                                                  |
 | passwordAndUserAuth            | bool <br /> **required**   | Enables Password Authentication and User Authorization.                                                                                                                                                                                                                                               |
 
+### OnPremisesSpecObject
+
+| Field              | Type                                                       | Description                                                                                                                                                                        |
+|--------------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| storageClassName   | string <br /> **required**                                 | Name of the storage class that will be used to provision disks for on-premises nodes.                                                                                              |
+| osDiskSize         | string <br /> **required**                                 | Disk size on which OS will be installed.                                                                                                                                           |
+| dataDiskSize       | string <br /> **required**                                 | Disk size on which on-premises cluster data will be stored.                                                                                                                        |
+| sshGatewayCPU      | int64                                                      | Amount of CPU that will be dedicated to provision SSH Gateway node (only for private clusters).                                                                                    |
+| sshGatewayMemory   | string                                                     | Amount of RAM that will be dedicated to provision SSH Gateway node (only for private clusters).                                                                                    |
+| nodeCPU            | int64 <br /> **required**                                  | Amount of CPU that will be dedicated to provision on-premises worker node.                                                                                                         |
+| nodeMemory         | string <br /> **required**                                 | Amount of RAM that will be dedicated to provision on-premises worker node                                                                                                          |
+| osImageURL         | string <br /> **required**                                 | OS image URL that will be use to dynamically provision disks with preinstalled OS (more info can be found [here](https://kubevirt.io/2020/KubeVirt-VM-Image-Usage-Patterns.html)). |
+| cloudInitScriptRef | Object ([Reference](#ReferenceObject)) <br /> **required** | Reference to the secret with cloud-init script (must be located in the same namespace with the cluster). Example can be found [here](#CloudInitScript).                            |
+
+### ReferenceObject
+
+| Field     | Type   | Description                                       |
+|-----------|--------|---------------------------------------------------|
+| name      | string | Name of the cloud-init secret.                    |
+| namespace | string | Namespace in which the cloud-init secret located. |
+
 ## Cluster create flow
 To create a Cadence cluster instance you need to prepare the yaml manifest. Here is an example:
 
@@ -164,25 +185,6 @@ spec:
     - targetCassandra:
         dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
         dependencyVpcType: "VPC_PEERED"
-  packagedProvisioning:
-    - bundledCassandraSpec:
-        nodeSize: "CAS-DEV-t4g.small-5"
-        network: "10.2.0.0/16"
-        replicationFactor: 3
-        nodesNumber: 3
-        privateIPBroadcastForDiscovery: false
-        passwordAndUserAuth: true
-        useAdvancedVisibility: true
-        bundledKafkaSpec:
-          nodeSize: "KFK-DEV-t4g.small-5"
-          nodesNumber: 3
-          network: "10.3.0.0/16"
-          replicationFactor: 3
-          partitionsNumber: 3
-        bundledOpenSearchSpec:
-          nodeSize: "SRH-DEV-t4g.small-5"
-          replicationFactor: 3
-          network: "10.4.0.0/16"
   twoFactorDelete:
     - email: "example@netapp.com"
   privateNetworkCluster: false
@@ -207,6 +209,83 @@ spec:
     - notifySupportContacts: false
       concurrency: 1
 ```
+
+
+Or if you want to create an on-premises cluster:
+```yaml
+# cadence.yaml
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Cadence
+metadata:
+  name: cadence-sample
+spec:
+  name: "cadence-sample"
+  version: "1.0.0"
+  standardProvisioning:
+    - targetCassandra:
+        dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
+        dependencyVpcType: "VPC_PEERED"
+  privateNetworkCluster: false
+  dataCentres:
+    - region: "US_EAST_2"
+      network: "10.12.0.0/16"
+      cloudProvider: "AWS_VPC"
+      name: "testdc"
+      nodeSize: "CAD-DEV-t3.small-5"
+      nodesNumber: 2
+      clientEncryption: false
+  slaTier: "NON_PRODUCTION"
+  useCadenceWebAuth: false
+  targetPrimaryCadence:
+    - dependencyCdcId: "cce79be3-7f41-4cad-837c-86d3d8b4be77"
+      dependencyVpcType: "SEPARATE_VPC"
+  onPremisesSpec:
+    storageClassName: managed-csi-premium
+    osDiskSize: 20Gi
+    dataDiskSize: 200Gi
+    sshGatewayCPU: 2
+    sshGatewayMemory: 4096Mi
+    nodeCPU: 2
+    nodeMemory: 8192Mi
+    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
+    cloudInitScriptRef:
+      namespace: default
+      name: cloud-init-secret
+```
+
+Also, don't forget to create cloud-init script firstly.
+
+### CloudInitScript
+
+cloud-init.sh:
+```shell
+#!/bin/bash
+
+export NEW_PASS="qwerty12345"
+export SSH_PUB_KEY=""
+export BOOTSTRAP_SSH_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAEAQDgeaO3zkY5v1dww3fFONPzUnEgIqJ4kUK0Usu8iFdp+TWIulw9dDeQHa+PdWXP97l5Vv1mG9ipqShEIu7/2bp13KxSblWX4iV1MYZbtimhY3UDOsPn1G3E1Ipis6y+/tosDAm8LoWaGEMcLuE5UjP6gs6K57rCEjkVGjg7vjhIypAMC0J2N2+CxK9o/Y1+LZAec+FL5cmSJoajoo9y/VYJjz/a52jJ93wRafD2uu6ObAl5gkN/+gqY4IJFSMx20sPsIRXdbiBNDqiap56ibHHPKTeZhRbdXvZfjYkHtutXnSM2xn7BjnV8CguISxS3rXlzlzRVYwSUjnKUf5SKBbeyZbCokx271vCeUd5EXfHphvW6FIOna2AI5lpCSYkw5Kho3HaPi2NjXJ9i2dCr1zpcZpCiettDuaEjxR0Cl4Jd6PrAiAEZ0Ns0u2ysVhudshVzQrq6qdd7W9/MLjbDIHdTToNjFLZA6cbE0MQf18LXwJAl+G/QrXgcVaiopUmld+68JL89Xym55LzkMhI0NiDtWufawd/NiZ6jm13Z3+atvnOimdyuqBYeFWgbtcxjs0yN9v7h7PfPh6TbiQYFx37DCfQiIucqx1GWmMijmd7HMY6Nv3UvnoTUTSn4yz1NxhEpC61N+iAInZDpeJEtULSzlEMWlbzL4t5cF+Rm1dFdq3WpZt1mi8F4DgrsgZEuLGAw22RNW3++EWYFUNnJXaYyctPrMpWQktr4DB5nQGIHF92WR8uncxTNUXfWuT29O9e+bFYh1etmq8rsCoLcxN0zFHWvcECK55aE+47lfNAR+HEjuwYW10mGU/pFmO0F9FFmcQRSw4D4tnVUgl3XjKe3bBiTa4lUrzrKkLZ6n9/buW2e7c3jbjmXdPh2R+2Msr/vfuWs9glxQf+CYEbBW6Ye4pekIyI77SaB/bVhaHtXutKxm+QWdNle8aeqiA8Ji1Ml+s75vIg+n5v6viCnl5aV33xHRFpGQJzj2ktsXl9P9d5kgal9eXJYTywC2SnVbZVLb6FGN4kPZTVwX1f+u7v7JCm4YWlbQZtwwiXKjs99AVtQnBWqQvUH5sFUkVXlHA1Y9W6wlup0r+F6URL+7Yw+d0dHByfevrJg3pvmpLb3sEpjIAZodW3dIUReE7Ku3s/q/O9foFnfRBnCcZ2QsnxI5pqNrbrundD1ApOnNXEvICvPXHBBQ44cW0hzAO+WxY5VxyG8y/kXnb48G9efkIQFkNaITJrU9SiOk6bFP4QANdS/pmaSLjJIsHixa+7vmYjRy1SVoQ/39vDUnyCbqKtO56QMH32hQLRO3Vk7NVG6o4dYjFkiaMSaqVlHKMkJQHVzlK2PW9/fjVXfkAHmmhoD debian"
+echo "debian:$NEW_PASS" | chpasswd
+echo "root:$NEW_PASS" | sudo chpasswd root
+sudo echo "$SSH_PUB_KEY" > /home/debian/.ssh/authorized_keys
+sudo echo "$BOOTSTRAP_SSH_KEY" >> /home/debian/.ssh/authorized_keys
+sudo chown -R debian: /home/debian/.ssh
+sudo cp /usr/share/doc/apt/examples/sources.list /etc/apt/sources.list
+data_device=$(lsblk -dfn -o NAME,SERIAL | awk '$2 == "DATADISK" {print $1}')
+sudo mkfs -t ext4 /dev/"${data_device}"
+```
+
+Create the base64 encoded string with the script using `cat cloud-init.sh | base64 -w0` command and create a secret using this yaml manifest:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-init-secret
+data:
+  userdata: <base64 encoded string>
+```
+
+Use `kubectl apply -f cloud-init-secret.yaml` command to create the secret.
 
 If you want to enable AWSArchival option, please create a secret **before** cluster creation:
 ```yaml

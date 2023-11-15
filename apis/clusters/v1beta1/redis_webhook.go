@@ -96,6 +96,19 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
+	if r.Spec.OnPremisesSpec != nil {
+		err = r.Spec.OnPremisesSpec.ValidateCreation()
+		if err != nil {
+			return err
+		}
+		if r.Spec.PrivateNetworkCluster {
+			err = r.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	err = r.Spec.ValidatePrivateLink()
 	if err != nil {
 		return err
@@ -116,10 +129,21 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return fmt.Errorf("data centres field is empty")
 	}
 
+	if len(r.Spec.DataCentres) > 1 && r.Spec.OnPremisesSpec != nil {
+		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
+	}
+
 	for _, dc := range r.Spec.DataCentres {
-		err = dc.ValidateCreate()
-		if err != nil {
-			return err
+		if r.Spec.OnPremisesSpec != nil {
+			err := dc.DataCentre.ValidateOnPremisesCreation()
+			if err != nil {
+				return err
+			}
+		} else {
+			err := dc.DataCentre.ValidateCreation()
+			if err != nil {
+				return err
+			}
 		}
 
 		if !r.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {

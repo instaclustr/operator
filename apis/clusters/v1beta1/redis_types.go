@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"strconv"
 
+	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -60,8 +62,9 @@ type RedisRestoreFrom struct {
 
 // RedisSpec defines the desired state of Redis
 type RedisSpec struct {
-	RestoreFrom *RedisRestoreFrom `json:"restoreFrom,omitempty"`
-	Cluster     `json:",inline"`
+	RestoreFrom    *RedisRestoreFrom `json:"restoreFrom,omitempty"`
+	Cluster        `json:",inline"`
+	OnPremisesSpec *OnPremisesSpec `json:"onPremisesSpec,omitempty"`
 
 	// Enables client to node encryption
 	ClientEncryption    bool `json:"clientEncryption,omitempty"`
@@ -491,4 +494,51 @@ func (r *Redis) SetClusterID(id string) {
 
 func init() {
 	SchemeBuilder.Register(&Redis{}, &RedisList{})
+}
+
+func (r *Redis) GetExposePorts() []k8scorev1.ServicePort {
+	var exposePorts []k8scorev1.ServicePort
+	if !r.Spec.PrivateNetworkCluster {
+		exposePorts = []k8scorev1.ServicePort{
+			{
+				Name: models.RedisDB,
+				Port: models.Port6379,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port6379,
+				},
+			},
+			{
+				Name: models.RedisBus,
+				Port: models.Port16379,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port16379,
+				},
+			},
+		}
+	}
+	return exposePorts
+}
+
+func (r *Redis) GetHeadlessPorts() []k8scorev1.ServicePort {
+	headlessPorts := []k8scorev1.ServicePort{
+		{
+			Name: models.RedisDB,
+			Port: models.Port6379,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port6379,
+			},
+		},
+		{
+			Name: models.RedisBus,
+			Port: models.Port16379,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port16379,
+			},
+		},
+	}
+	return headlessPorts
 }

@@ -2,22 +2,23 @@
 
 ## Available spec fields
 
-| Field                     | Type                                                                                                 | Description                                                                                                                                                                                                                                                                                                                                   |
-|---------------------------|------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                      | string <br /> **required**                                                                           | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                        |
-| version                   | string <br /> **required**                                                                           | Cassandra instance version. <br />**Available versions**: `3.11.15`, `3.11.16`, `4.0.10`, `4.0.11`, `4.1.3`.                                                                                                                                                                                                                                  |
-| pciCompliance             | bool <br /> **required**                                                                             | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                   |
-| description               | string <br />                                                                                        | A description of the cluster                                                                                                                                                                                                                                                                                                                  |
-| privateNetworkCluster     | bool <br /> **required**                                                                             | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                                |
-| slaTier                   | string <br /> **required**                                                                           | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`.  |
-| twoFactorDelete           | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_                        | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                 |
-| schemaRegistry            | Array of objects ([KafkaSchemaRegistryDetails](#KafkaSchemaRegistryDetailsObject)) <br /> _mutable_  | Adds the specified version of Kafka Schema Registry to this Kafka cluster.                                                                                                                                                                                                                                                                    |
-| luceneEnabled             | bool <br /> **required**                                                                             | Adds Apache Lucene to the Cassandra cluster.                                                                                                                                                                                                                                                                                                  |
-| passwordAndUserAuth       | bool <br /> **required**                                                                             | Enables Password Authentication and User Authorization.                                                                                                                                                                                                                                                                                       |
-| bundledUseOnly            | bool <br /> **required**                                                                             | Provision this cluster for Bundled Use only.                                                                                                                                                                                                                                                                                                  |
-| restoreFrom               | Object ([CassandraRestoreFrom](#CassandraRestoreFromObject))                                         | Triggers a restore cluster operation.                                                                                                                                                                                                                                                                                                         |
-| dataCentres               | Array of objects ([CassandraDataCentre](#CassandraDataCentreObject)) <br /> **required**             | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                         |
-| resizeSettings            | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_                          | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                  |
+| Field                 | Type                                                                                                | Description                                                                                                                                                                                                                                                                                                                                   |
+|-----------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                  | string <br /> **required**                                                                          | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                        |
+| version               | string <br /> **required**                                                                          | Cassandra instance version. <br />**Available versions**: `3.11.15`, `3.11.16`, `4.0.10`, `4.0.11`, `4.1.3`.                                                                                                                                                                                                                                  |
+| pciCompliance         | bool <br /> **required**                                                                            | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                   |
+| description           | string <br />                                                                                       | A description of the cluster                                                                                                                                                                                                                                                                                                                  |
+| privateNetworkCluster | bool <br /> **required**                                                                            | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                                |
+| slaTier               | string <br /> **required**                                                                          | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`.  |
+| twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_                       | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                 |
+| schemaRegistry        | Array of objects ([KafkaSchemaRegistryDetails](#KafkaSchemaRegistryDetailsObject)) <br /> _mutable_ | Adds the specified version of Kafka Schema Registry to this Kafka cluster.                                                                                                                                                                                                                                                                    |
+| luceneEnabled         | bool <br /> **required**                                                                            | Adds Apache Lucene to the Cassandra cluster.                                                                                                                                                                                                                                                                                                  |
+| passwordAndUserAuth   | bool <br /> **required**                                                                            | Enables Password Authentication and User Authorization.                                                                                                                                                                                                                                                                                       |
+| bundledUseOnly        | bool <br /> **required**                                                                            | Provision this cluster for Bundled Use only.                                                                                                                                                                                                                                                                                                  |
+| restoreFrom           | Object ([CassandraRestoreFrom](#CassandraRestoreFromObject))                                        | Triggers a restore cluster operation.                                                                                                                                                                                                                                                                                                         |
+| dataCentres           | Array of objects ([CassandraDataCentre](#CassandraDataCentreObject)) <br /> **required**            | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                         |
+| resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_                         | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                  |
+| onPremisesSpec        | Object ([OnPremisesSpec](#OnPremisesSpecObject))                                                    | Specifies settings to provision on-premises cluster inside K8s cluster.                                                                                                                                                                                                                                                                       |
 
 ### TwoFactorDeleteObject
 | Field                   | Type                        | Description                                                                            |
@@ -91,6 +92,27 @@
 | version          | string          | Adds the specified version of Debezium Connector Cassandra to the Cassandra cluster. |
 
 
+### OnPremisesSpecObject
+
+| Field              | Type                                                       | Description                                                                                                                                                                        |
+|--------------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| storageClassName   | string <br /> **required**                                 | Name of the storage class that will be used to provision disks for on-premises nodes.                                                                                              |
+| osDiskSize         | string <br /> **required**                                 | Disk size on which OS will be installed.                                                                                                                                           |
+| dataDiskSize       | string <br /> **required**                                 | Disk size on which on-premises cluster data will be stored.                                                                                                                        |
+| sshGatewayCPU      | int64                                                      | Amount of CPU that will be dedicated to provision SSH Gateway node (only for private clusters).                                                                                    |
+| sshGatewayMemory   | string                                                     | Amount of RAM that will be dedicated to provision SSH Gateway node (only for private clusters).                                                                                    |
+| nodeCPU            | int64 <br /> **required**                                  | Amount of CPU that will be dedicated to provision on-premises worker node.                                                                                                         |
+| nodeMemory         | string <br /> **required**                                 | Amount of RAM that will be dedicated to provision on-premises worker node                                                                                                          |
+| osImageURL         | string <br /> **required**                                 | OS image URL that will be use to dynamically provision disks with preinstalled OS (more info can be found [here](https://kubevirt.io/2020/KubeVirt-VM-Image-Usage-Patterns.html)). |
+| cloudInitScriptRef | Object ([Reference](#ReferenceObject)) <br /> **required** | Reference to the secret with cloud-init script (must be located in the same namespace with the cluster). Example can be found [here](#CloudInitScript).                            |
+ 
+### ReferenceObject
+
+| Field     | Type   | Description                                       |
+|-----------|--------|---------------------------------------------------|
+| name      | string | Name of the cloud-init secret.                    |
+| namespace | string | Namespace in which the cloud-init secret located. |
+
 ## Cluster create flow
 To create a Cassandra cluster instance you need to prepare the yaml manifest. Here is an example:
 
@@ -124,6 +146,82 @@ spec:
   passwordAndUserAuth: true
   slaTier: "NON_PRODUCTION"
 ```
+
+Or if you want to create an on-premises cluster:
+```yaml
+# cassandra.yaml
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Cassandra
+metadata:
+  name: cassandra-on-prem-cluster
+spec:
+  name: "cassandra-on-prem-cluster"
+  version: "4.0.10"
+  privateNetworkCluster: true
+  onPremisesSpec:
+    storageClassName: managed-csi-premium
+    osDiskSize: 20Gi
+    dataDiskSize: 200Gi
+    sshGatewayCPU: 2
+    sshGatewayMemory: 4096Mi
+    nodeCPU: 2
+    nodeMemory: 8192Mi
+    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
+    cloudInitScriptRef:
+      namespace: default
+      name: cloud-init-secret
+  dataCentres:
+    - name: "onPremCassandra"
+      region: "CLIENT_DC" # Don't change if you want to run on-premises
+      cloudProvider: "ONPREMISES" # Don't change if you want to run on-premises
+      continuousBackup: false
+      nodesNumber: 2
+      replicationFactor: 2
+      privateIpBroadcastForDiscovery: false
+      network: "192.168.0.0/16"
+      tags:
+        "onprem": "test"
+      clientToClusterEncryption: false
+      nodeSize: "CAS-PRD-OP.4.8-200"
+  pciCompliance: false
+  luceneEnabled: false
+  passwordAndUserAuth: false
+  slaTier: "NON_PRODUCTION"
+```
+
+Also, don't forget to create cloud-init script firstly.
+
+### CloudInitScript
+
+cloud-init.sh:
+```shell
+#!/bin/bash
+
+export NEW_PASS="qwerty12345"
+export SSH_PUB_KEY=""
+export BOOTSTRAP_SSH_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAEAQDgeaO3zkY5v1dww3fFONPzUnEgIqJ4kUK0Usu8iFdp+TWIulw9dDeQHa+PdWXP97l5Vv1mG9ipqShEIu7/2bp13KxSblWX4iV1MYZbtimhY3UDOsPn1G3E1Ipis6y+/tosDAm8LoWaGEMcLuE5UjP6gs6K57rCEjkVGjg7vjhIypAMC0J2N2+CxK9o/Y1+LZAec+FL5cmSJoajoo9y/VYJjz/a52jJ93wRafD2uu6ObAl5gkN/+gqY4IJFSMx20sPsIRXdbiBNDqiap56ibHHPKTeZhRbdXvZfjYkHtutXnSM2xn7BjnV8CguISxS3rXlzlzRVYwSUjnKUf5SKBbeyZbCokx271vCeUd5EXfHphvW6FIOna2AI5lpCSYkw5Kho3HaPi2NjXJ9i2dCr1zpcZpCiettDuaEjxR0Cl4Jd6PrAiAEZ0Ns0u2ysVhudshVzQrq6qdd7W9/MLjbDIHdTToNjFLZA6cbE0MQf18LXwJAl+G/QrXgcVaiopUmld+68JL89Xym55LzkMhI0NiDtWufawd/NiZ6jm13Z3+atvnOimdyuqBYeFWgbtcxjs0yN9v7h7PfPh6TbiQYFx37DCfQiIucqx1GWmMijmd7HMY6Nv3UvnoTUTSn4yz1NxhEpC61N+iAInZDpeJEtULSzlEMWlbzL4t5cF+Rm1dFdq3WpZt1mi8F4DgrsgZEuLGAw22RNW3++EWYFUNnJXaYyctPrMpWQktr4DB5nQGIHF92WR8uncxTNUXfWuT29O9e+bFYh1etmq8rsCoLcxN0zFHWvcECK55aE+47lfNAR+HEjuwYW10mGU/pFmO0F9FFmcQRSw4D4tnVUgl3XjKe3bBiTa4lUrzrKkLZ6n9/buW2e7c3jbjmXdPh2R+2Msr/vfuWs9glxQf+CYEbBW6Ye4pekIyI77SaB/bVhaHtXutKxm+QWdNle8aeqiA8Ji1Ml+s75vIg+n5v6viCnl5aV33xHRFpGQJzj2ktsXl9P9d5kgal9eXJYTywC2SnVbZVLb6FGN4kPZTVwX1f+u7v7JCm4YWlbQZtwwiXKjs99AVtQnBWqQvUH5sFUkVXlHA1Y9W6wlup0r+F6URL+7Yw+d0dHByfevrJg3pvmpLb3sEpjIAZodW3dIUReE7Ku3s/q/O9foFnfRBnCcZ2QsnxI5pqNrbrundD1ApOnNXEvICvPXHBBQ44cW0hzAO+WxY5VxyG8y/kXnb48G9efkIQFkNaITJrU9SiOk6bFP4QANdS/pmaSLjJIsHixa+7vmYjRy1SVoQ/39vDUnyCbqKtO56QMH32hQLRO3Vk7NVG6o4dYjFkiaMSaqVlHKMkJQHVzlK2PW9/fjVXfkAHmmhoD debian"
+echo "debian:$NEW_PASS" | chpasswd
+echo "root:$NEW_PASS" | sudo chpasswd root
+sudo echo "$SSH_PUB_KEY" > /home/debian/.ssh/authorized_keys
+sudo echo "$BOOTSTRAP_SSH_KEY" >> /home/debian/.ssh/authorized_keys
+sudo chown -R debian: /home/debian/.ssh
+sudo cp /usr/share/doc/apt/examples/sources.list /etc/apt/sources.list
+data_device=$(lsblk -dfn -o NAME,SERIAL | awk '$2 == "DATADISK" {print $1}')
+sudo mkfs -t ext4 /dev/"${data_device}"
+```
+
+Create the base64 encoded string with the script using `cat cloud-init.sh | base64 -w0` command and create a secret using this yaml manifest:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-init-secret
+data:
+  userdata: <base64 encoded string>
+```
+
+Use `kubectl apply -f cloud-init-secret.yaml` command to create the secret.
 
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):
 ```console

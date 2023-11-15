@@ -55,6 +55,14 @@ type KafkaConnectReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkaconnects/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkaconnects/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete;deletecollection
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -64,8 +72,8 @@ type KafkaConnectReconciler struct {
 func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	kafkaConnect := &v1beta1.KafkaConnect{}
-	err := r.Client.Get(ctx, req.NamespacedName, kafkaConnect)
+	kc := &v1beta1.KafkaConnect{}
+	err := r.Client.Get(ctx, req.NamespacedName, kc)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "KafkaConnect resource is not found", "request", req)
@@ -76,16 +84,16 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return reconcile.Result{}, err
 	}
 
-	switch kafkaConnect.Annotations[models.ResourceStateAnnotation] {
+	switch kc.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, kafkaConnect, l)
+		return r.handleCreateCluster(ctx, kc, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, kafkaConnect, l)
+		return r.handleUpdateCluster(ctx, kc, l)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, kafkaConnect, l)
+		return r.handleDeleteCluster(ctx, kc, l)
 	default:
-		l.Info("Event isn't handled", "cluster name", kafkaConnect.Spec.Name,
-			"request", req, "event", kafkaConnect.Annotations[models.ResourceStateAnnotation])
+		l.Info("Event isn't handled", "cluster name", kc.Spec.Name,
+			"request", req, "event", kc.Annotations[models.ResourceStateAnnotation])
 		return models.ExitReconcile, nil
 	}
 }
@@ -178,6 +186,83 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 			"Cluster status check job is started",
 		)
 	}
+	if kc.Spec.OnPremisesSpec != nil {
+		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
+		if err != nil {
+			l.Error(err, "Cannot get cluster from the Instaclustr API",
+				"cluster name", kc.Spec.Name,
+				"data centres", kc.Spec.DataCentres,
+				"cluster ID", kc.Status.ID,
+			)
+			r.EventRecorder.Eventf(
+				kc, models.Warning, models.FetchFailed,
+				"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
+		iKafkaConnect, err := kc.FromInst(iData)
+		if err != nil {
+			l.Error(
+				err, "Cannot convert cluster from the Instaclustr API",
+				"cluster name", kc.Spec.Name,
+				"cluster ID", kc.Status.ID,
+			)
+			r.EventRecorder.Eventf(
+				kc, models.Warning, models.ConversionFailed,
+				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
+
+		bootstrap := newOnPremisesBootstrap(
+			r.Client,
+			kc,
+			r.EventRecorder,
+			iKafkaConnect.Status.ClusterStatus,
+			kc.Spec.OnPremisesSpec,
+			newExposePorts(kc.GetExposePorts()),
+			kc.GetHeadlessPorts(),
+			kc.Spec.PrivateNetworkCluster,
+		)
+
+		err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
+		if err != nil {
+			l.Error(
+				err, "Cannot create resources for on-premises cluster",
+				"cluster spec", kc.Spec.OnPremisesSpec,
+			)
+			r.EventRecorder.Eventf(
+				kc, models.Warning, models.CreationFailed,
+				"Resources creation for on-premises cluster is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
+
+		err = r.startClusterOnPremisesIPsJob(kc, bootstrap)
+		if err != nil {
+			l.Error(err, "Cannot start on-premises cluster IPs check job",
+				"cluster ID", kc.Status.ID,
+			)
+
+			r.EventRecorder.Eventf(
+				kc, models.Warning, models.CreationFailed,
+				"On-premises cluster IPs check job is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
+
+		l.Info(
+			"On-premises resources have been created",
+			"cluster name", kc.Spec.Name,
+			"on-premises Spec", kc.Spec.OnPremisesSpec,
+			"cluster ID", kc.Status.ID,
+		)
+		return models.ExitReconcile, nil
+	}
 
 	return models.ExitReconcile, nil
 }
@@ -202,7 +287,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		l.Error(err, "Cannot convert Kafka Connect from Instaclustr",
 			"ClusterID", kc.Status.ID)
 		r.EventRecorder.Eventf(
-			kc, models.Warning, models.ConvertionFailed,
+			kc, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
@@ -292,39 +377,39 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaConnectReconciler) handleExternalChanges(k, ik *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
-	if !k.Spec.IsEqual(ik.Spec) {
+func (r *KafkaConnectReconciler) handleExternalChanges(kc, ik *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
+	if !kc.Spec.IsEqual(ik.Spec) {
 		l.Info(msgSpecStillNoMatch,
-			"specification of k8s resource", k.Spec,
+			"specification of k8s resource", kc.Spec,
 			"data from Instaclustr ", ik.Spec)
 
-		msgDiffSpecs, err := createSpecDifferenceMessage(k.Spec, ik.Spec)
+		msgDiffSpecs, err := createSpecDifferenceMessage(kc.Spec, ik.Spec)
 		if err != nil {
 			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", ik.Spec, "k8s resource spec", k.Spec)
+				"instaclustr data", ik.Spec, "k8s resource spec", kc.Spec)
 			return models.ExitReconcile, nil
 		}
-		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
+		r.EventRecorder.Eventf(kc, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		return models.ExitReconcile, nil
 	}
 
-	patch := k.NewPatch()
+	patch := kc.NewPatch()
 
-	k.Annotations[models.ExternalChangesAnnotation] = ""
+	kc.Annotations[models.ExternalChangesAnnotation] = ""
 
-	err := r.Patch(context.Background(), k, patch)
+	err := r.Patch(context.Background(), kc, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
+			"cluster name", kc.Spec.Name, "cluster ID", kc.Status.ID)
 
-		r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
+		r.EventRecorder.Eventf(kc, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
 		return reconcile.Result{}, err
 	}
 
-	l.Info("External changes have been reconciled", "resource ID", k.Status.ID)
-	r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+	l.Info("External changes have been reconciled", "resource ID", kc.Status.ID)
+	r.EventRecorder.Event(kc, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -389,6 +474,23 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
 			return models.ExitReconcile, nil
+		}
+
+		if kc.Spec.OnPremisesSpec != nil {
+			err = deleteOnPremResources(ctx, r.Client, kc.Status.ID, kc.Namespace)
+			if err != nil {
+				l.Error(err, "Cannot delete cluster on-premises resources",
+					"cluster ID", kc.Status.ID)
+				r.EventRecorder.Eventf(kc, models.Warning, models.DeletionFailed,
+					"Cluster on-premises resources deletion is failed. Reason: %v", err)
+				return reconcile.Result{}, err
+			}
+
+			l.Info("Cluster on-premises resources are deleted",
+				"cluster ID", kc.Status.ID)
+			r.EventRecorder.Eventf(kc, models.Normal, models.Deleted,
+				"Cluster on-premises resources are deleted")
+			r.Scheduler.RemoveJob(kc.GetJobID(scheduler.OnPremisesIPsChecker))
 		}
 	}
 
@@ -468,6 +570,17 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 		"secret name", secret.Name,
 		"secret namespace", secret.Namespace,
 	)
+
+	return nil
+}
+
+func (r *KafkaConnectReconciler) startClusterOnPremisesIPsJob(k *v1beta1.KafkaConnect, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(k.Kind, b)
+
+	err := r.Scheduler.ScheduleJob(k.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

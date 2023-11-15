@@ -24,9 +24,11 @@ import (
 	"unicode"
 
 	k8sCore "k8s.io/api/core/v1"
+	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -75,6 +77,7 @@ type PgRestoreFrom struct {
 type PgSpec struct {
 	PgRestoreFrom         *PgRestoreFrom `json:"pgRestoreFrom,omitempty"`
 	Cluster               `json:",inline"`
+	OnPremisesSpec        *OnPremisesSpec   `json:"onPremisesSpec,omitempty"`
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
@@ -644,4 +647,35 @@ func GetDefaultPgUserSecret(
 	}
 
 	return userSecret, nil
+}
+
+func (pg *PostgreSQL) GetExposePorts() []k8scorev1.ServicePort {
+	var exposePorts []k8scorev1.ServicePort
+	if !pg.Spec.PrivateNetworkCluster {
+		exposePorts = []k8scorev1.ServicePort{
+			{
+				Name: models.PostgreSQLDB,
+				Port: models.Port5432,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port5432,
+				},
+			},
+		}
+	}
+	return exposePorts
+}
+
+func (pg *PostgreSQL) GetHeadlessPorts() []k8scorev1.ServicePort {
+	headlessPorts := []k8scorev1.ServicePort{
+		{
+			Name: models.PostgreSQLDB,
+			Port: models.Port5432,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port5432,
+			},
+		},
+	}
+	return headlessPorts
 }
