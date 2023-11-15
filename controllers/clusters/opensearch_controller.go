@@ -370,6 +370,15 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		)
 	}
 
+	err = handleUsersChanges(ctx, r.Client, r, o)
+	if err != nil {
+		logger.Error(err, "Failed to handle users changes")
+		r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
+			"Handling users changes is failed. Reason: %w", err,
+		)
+		return reconcile.Result{}, err
+	}
+
 	patch := o.NewPatch()
 	o.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
 	o.Annotations[models.UpdateQueuedAnnotation] = ""
@@ -519,11 +528,13 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		"cluster ID", o.Status.ID,
 	)
 
-	for _, ref := range o.Spec.UserRefs {
-		err = r.detachUserResource(ctx, logger, o, ref)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
+	err = detachUsers(ctx, r.Client, r, o)
+	if err != nil {
+		logger.Error(err, "Failed to detach users from the cluster")
+		r.EventRecorder.Eventf(o, models.Warning, models.DeletionFailed,
+			"Detaching users from the cluster is failed. Reason: %w", err,
+		)
+		return reconcile.Result{}, err
 	}
 
 	controllerutil.RemoveFinalizer(o, models.DeletionFinalizer)
@@ -878,17 +889,12 @@ func (r *OpenSearchReconciler) newUsersCreationJob(o *v1beta1.OpenSearch) schedu
 			return nil
 		}
 
-		for _, ref := range o.Spec.UserRefs {
-			err = r.createUser(ctx, logger, o, ref)
-			if err != nil {
-				logger.Error(err, "Failed to create a user for the cluster",
-					"user ref", ref,
-				)
-				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-					"Failed to create a user for the cluster. Reason: %v", err,
-				)
-				return err
-			}
+		err = handleUsersChanges(ctx, r.Client, r, o)
+		if err != nil {
+			logger.Error(err, "Failed to create users for the cluster")
+			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+				"Failed to create users for the cluster. Reason: %v", err)
+			return err
 		}
 
 		logger.Info("User creation job successfully finished")
@@ -948,220 +954,8 @@ func (r *OpenSearchReconciler) deleteBackups(ctx context.Context, clusterID, nam
 	return nil
 }
 
-func (r *OpenSearchReconciler) deleteUser(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.OpenSearch,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.OpenSearchUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "OpenSearch user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User resource is not found, please provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return nil
-		}
-
-		l.Error(err, "Cannot get OpenSearch user", "user", u.Spec)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get OpenSearch user. user reference: %v", uRef)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; !exist {
-		l.Info("User is not existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
-			"User is not existing on the cluster. User reference: %v", uRef)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-	u.Status.ClustersEvents[c.Status.ID] = models.DeletingEvent
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the OpenSearch user status with the DeletingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot patch the OpenSearch user status with the DeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for deletion", "username", u.Name)
-
-	return nil
-}
-
-func (r *OpenSearchReconciler) createUser(
-	ctx context.Context,
-	logger logr.Logger,
-	c *v1beta1.OpenSearch,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.OpenSearchUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			logger.Error(err, "OpenSearch user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User is not found, create a new one or provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return err
-		}
-
-		logger.Error(err, "Cannot get OpenSearch user", "user", u.Spec)
-		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot get OpenSearch user. user reference: %v", uRef)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; exist {
-		logger.Info("User is already existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.CreationFailed,
-			"User is already existing on the cluster. User reference: %v", uRef)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	if u.Status.ClustersEvents == nil {
-		u.Status.ClustersEvents = make(map[string]string)
-	}
-
-	u.Status.ClustersEvents[c.Status.ID] = models.CreatingEvent
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		logger.Error(err, "Cannot patch the OpenSearch User status with the CreatingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot add OpenSearch User to the cluster. Reason: %v", err)
-		return err
-	}
-
-	logger.Info("User has been added to the queue for creation", "username", u.Name)
-
-	return nil
-}
-
-func (r *OpenSearchReconciler) detachUserResource(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.OpenSearch,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.OpenSearchUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "OpenSearch user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User resource is not found, please provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return nil
-		}
-
-		l.Error(err, "Cannot get OpenSearch user", "user", u.Spec)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get OpenSearch user. user reference: %v", uRef)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; !exist {
-		return nil
-	}
-
-	patch := u.NewPatch()
-	u.Status.ClustersEvents[c.Status.ID] = models.ClusterDeletingEvent
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the OpenSearch user status with the ClusterDeletingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot patch the OpenSearch user status with the ClusterDeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("The user has been detached from the cluster")
-
-	return nil
-}
-
-func (r *OpenSearchReconciler) handleUserEvent(
-	newObj *v1beta1.OpenSearch,
-	oldUsers []*v1beta1.Reference,
-) {
-	ctx := context.TODO()
-	l := log.FromContext(ctx)
-
-	for _, newUser := range newObj.Spec.UserRefs {
-		var exist bool
-
-		for _, oldUser := range oldUsers {
-
-			if *newUser == *oldUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.createUser(ctx, l, newObj, newUser)
-		if err != nil {
-			l.Error(err, "Cannot create OpenSearch user in predicate", "user", newUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
-		}
-
-		oldUsers = append(oldUsers, newUser)
-	}
-
-	for _, oldUser := range oldUsers {
-		var exist bool
-
-		for _, newUser := range newObj.Spec.UserRefs {
-
-			if *oldUser == *newUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.deleteUser(ctx, l, newObj, oldUser)
-		if err != nil {
-			l.Error(err, "Cannot delete OpenSearch user", "user", oldUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot delete user from cluster. Reason: %v", err)
-		}
-	}
+func (r *OpenSearchReconciler) NewUserResource() userObject {
+	return &clusterresourcesv1beta1.OpenSearchUser{}
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -1196,10 +990,6 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectOld.GetGeneration() == newObj.Generation {
 					return false
 				}
-
-				oldObj := event.ObjectOld.(*v1beta1.OpenSearch)
-
-				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

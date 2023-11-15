@@ -53,7 +53,7 @@ type OpenSearchSpec struct {
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
-	UserRefs                 []*Reference            `json:"userRefs,omitempty"`
+	UserRefs                 References              `json:"userRefs,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
@@ -531,7 +531,8 @@ type OpenSearchRestoreFrom struct {
 
 // OpenSearchStatus defines the observed state of OpenSearch
 type OpenSearchStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus  `json:",inline"`
+	AvailableUsers References `json:"availableUsers,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -605,6 +606,30 @@ func (oss *OpenSearchSpec) validateResizeSettings(nodesNumber int) error {
 	}
 
 	return nil
+}
+
+func (oss *OpenSearch) GetUserRefs() References {
+	return oss.Spec.UserRefs
+}
+
+func (oss *OpenSearch) SetUserRefs(refs References) {
+	oss.Spec.UserRefs = refs
+}
+
+func (oss *OpenSearch) GetAvailableUsers() References {
+	return oss.Status.AvailableUsers
+}
+
+func (oss *OpenSearch) SetAvailableUsers(users References) {
+	oss.Status.AvailableUsers = users
+}
+
+func (oss *OpenSearch) GetClusterID() string {
+	return oss.Status.ID
+}
+
+func (oss *OpenSearch) SetClusterID(id string) {
+	oss.Status.ID = id
 }
 
 func init() {

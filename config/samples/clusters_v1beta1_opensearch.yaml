@@ -22,7 +22,7 @@ spec:
 #      namespace: "default"
   clusterManagerNodes:
     - dedicatedManager: false
-      nodeSize: SRH-DEV-t4g.small-30
+      nodeSize: SRH-DEV-t4g.small-5
   dataCentres:
     - cloudProvider: AWS_VPC
       name: AWS_VPC_US_EAST_1
@@ -30,10 +30,10 @@ spec:
       replicationFactor: 3
       privateLink: false
       region: US_EAST_1
-  ingestNodes:
-#    - nodeSize: SRH-DI-PRD-m6g.large-10
-    - nodeSize: SRH-DI-PRD-m6g.xlarge-10
-      nodeCount: 3
+#  ingestNodes:
+##   - nodeSize: SRH-DI-PRD-m6g.large-10
+#    - nodeSize: SRH-DI-PRD-m6g.xlarge-10
+#      nodeCount: 3
   #  dataNodes:
   #    - nodeNumber: 3
   #      nodeSize: SRH-DEV-t4g.small-5

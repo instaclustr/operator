@@ -152,6 +152,7 @@ var _ = Describe("Basic openSearch User controller + Basic openSearch cluster co
 			// adding user
 			openSearch1.Spec.UserRefs = newUsers
 			Expect(k8sClient.Patch(ctx, &openSearch1, patch)).Should(Succeed())
+			done := NewChannelWithTimeout(timeout)
 			By("going to openSearch(cluster) controller predicate and put user entity to creation state. " +
 				"Finally creates the user for the corresponded cluster")
 			Eventually(func() bool {
@@ -165,6 +166,7 @@ var _ = Describe("Basic openSearch User controller + Basic openSearch cluster co
 
 				return true
 			}, timeout, interval).Should(BeTrue())
+			<-done
 		})
 	})
 

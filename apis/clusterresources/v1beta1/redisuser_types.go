@@ -81,6 +81,14 @@ func (r *RedisUser) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (r *RedisUser) GetClusterEvents() map[string]string {
+	return r.Status.ClustersEvents
+}
+
+func (r *RedisUser) SetClusterEvents(events map[string]string) {
+	r.Status.ClustersEvents = events
+}
+
 func init() {
 	SchemeBuilder.Register(&RedisUser{}, &RedisUserList{})
 }

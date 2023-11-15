@@ -73,6 +73,14 @@ func (u *OpenSearchUser) GetDeletionFinalizer() string {
 	return models.DeletionFinalizer + "_" + u.Namespace + "_" + u.Name
 }
 
+func (u *OpenSearchUser) GetClusterEvents() map[string]string {
+	return u.Status.ClustersEvents
+}
+
+func (u *OpenSearchUser) SetClusterEvents(events map[string]string) {
+	u.Status.ClustersEvents = events
+}
+
 func init() {
 	SchemeBuilder.Register(&OpenSearchUser{}, &OpenSearchUserList{})
 }
