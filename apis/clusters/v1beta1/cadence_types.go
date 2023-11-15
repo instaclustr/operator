@@ -22,9 +22,11 @@ import (
 	"fmt"
 	"regexp"
 
+	k8scorev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
@@ -62,7 +64,8 @@ type BundledOpenSearchSpec struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster `json:",inline"`
+	Cluster        `json:",inline"`
+	OnPremisesSpec *OnPremisesSpec `json:"onPremisesSpec,omitempty"`
 	//+kubebuilder:validation:MinItems:=1
 	//+kubebuilder:validation:MaxItems:=1
 	DataCentres          []*CadenceDataCentre    `json:"dataCentres"`
@@ -792,4 +795,65 @@ func (o *BundledOpenSearchSpec) validate() error {
 	}
 
 	return nil
+}
+
+func (c *Cadence) GetExposePorts() []k8scorev1.ServicePort {
+	var exposePorts []k8scorev1.ServicePort
+	if !c.Spec.PrivateNetworkCluster {
+		exposePorts = []k8scorev1.ServicePort{
+			{
+				Name: models.CadenceTChannel,
+				Port: models.Port7933,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7933,
+				},
+			},
+			{
+				Name: models.CadenceWeb,
+				Port: models.Port8088,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port8088,
+				},
+			},
+		}
+		if c.Spec.DataCentres[0].ClientEncryption {
+			sslPort := k8scorev1.ServicePort{
+				Name: models.CadenceGRPC,
+				Port: models.Port7833,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7833,
+				},
+			}
+			exposePorts = append(exposePorts, sslPort)
+		}
+	}
+	return exposePorts
+}
+
+func (c *Cadence) GetHeadlessPorts() []k8scorev1.ServicePort {
+	headlessPorts := []k8scorev1.ServicePort{
+		{
+			Name: models.CadenceTChannel,
+			Port: models.Port7933,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port7933,
+			},
+		},
+	}
+	if c.Spec.DataCentres[0].ClientEncryption {
+		sslPort := k8scorev1.ServicePort{
+			Name: models.CadenceGRPC,
+			Port: models.Port7833,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port7833,
+			},
+		}
+		headlessPorts = append(headlessPorts, sslPort)
+	}
+	return headlessPorts
 }

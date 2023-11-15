@@ -45,10 +45,6 @@ import (
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
-const (
-	StatusRUNNING = "RUNNING"
-)
-
 // CassandraReconciler reconciles a Cassandra object
 type CassandraReconciler struct {
 	client.Client
@@ -62,8 +58,15 @@ type CassandraReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
-//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete;deletecollection
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -73,8 +76,8 @@ type CassandraReconciler struct {
 func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	cassandra := &v1beta1.Cassandra{}
-	err := r.Client.Get(ctx, req.NamespacedName, cassandra)
+	c := &v1beta1.Cassandra{}
+	err := r.Client.Get(ctx, req.NamespacedName, c)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Info("Cassandra resource is not found",
@@ -87,23 +90,23 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return reconcile.Result{}, err
 	}
 
-	switch cassandra.Annotations[models.ResourceStateAnnotation] {
+	switch c.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, l, cassandra)
+		return r.handleCreateCluster(ctx, l, c)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, l, cassandra)
+		return r.handleUpdateCluster(ctx, l, c)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, l, cassandra)
+		return r.handleDeleteCluster(ctx, l, c)
 	case models.GenericEvent:
 		l.Info("Event isn't handled",
-			"cluster name", cassandra.Spec.Name,
+			"cluster name", c.Spec.Name,
 			"request", req,
-			"event", cassandra.Annotations[models.ResourceStateAnnotation])
+			"event", c.Annotations[models.ResourceStateAnnotation])
 		return models.ExitReconcile, nil
 	default:
 		l.Info("Event isn't handled",
 			"request", req,
-			"event", cassandra.Annotations[models.ResourceStateAnnotation])
+			"event", c.Annotations[models.ResourceStateAnnotation])
 
 		return models.ExitReconcile, nil
 	}
@@ -112,27 +115,27 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *CassandraReconciler) handleCreateCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cassandra *v1beta1.Cassandra,
+	c *v1beta1.Cassandra,
 ) (reconcile.Result, error) {
 	l = l.WithName("Cassandra creation event")
 	var err error
-	patch := cassandra.NewPatch()
-	if cassandra.Status.ID == "" {
+	patch := c.NewPatch()
+	if c.Status.ID == "" {
 		var id string
-		if cassandra.Spec.HasRestore() {
+		if c.Spec.HasRestore() {
 			l.Info(
 				"Creating cluster from backup",
-				"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
+				"original cluster ID", c.Spec.RestoreFrom.ClusterID,
 			)
 
-			id, err = r.API.RestoreCluster(cassandra.RestoreInfoToInstAPI(cassandra.Spec.RestoreFrom), models.CassandraAppKind)
+			id, err = r.API.RestoreCluster(c.RestoreInfoToInstAPI(c.Spec.RestoreFrom), models.CassandraAppKind)
 			if err != nil {
 				l.Error(err, "Cannot restore cluster from backup",
-					"original cluster ID", cassandra.Spec.RestoreFrom.ClusterID,
+					"original cluster ID", c.Spec.RestoreFrom.ClusterID,
 				)
 
 				r.EventRecorder.Eventf(
-					cassandra, models.Warning, models.CreationFailed,
+					c, models.Warning, models.CreationFailed,
 					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -141,26 +144,26 @@ func (r *CassandraReconciler) handleCreateCluster(
 			}
 
 			r.EventRecorder.Eventf(
-				cassandra, models.Normal, models.Created,
+				c, models.Normal, models.Created,
 				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
-				cassandra.Spec.RestoreFrom.ClusterID,
+				c.Spec.RestoreFrom.ClusterID,
 				id,
 			)
 		} else {
 			l.Info(
 				"Creating cluster",
-				"cluster name", cassandra.Spec.Name,
-				"data centres", cassandra.Spec.DataCentres,
+				"cluster name", c.Spec.Name,
+				"data centres", c.Spec.DataCentres,
 			)
 
-			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, cassandra.Spec.ToInstAPI())
+			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, c.Spec.ToInstAPI())
 			if err != nil {
 				l.Error(
 					err, "Cannot create cluster",
-					"cluster spec", cassandra.Spec,
+					"cluster spec", c.Spec,
 				)
 				r.EventRecorder.Eventf(
-					cassandra, models.Warning, models.CreationFailed,
+					c, models.Warning, models.CreationFailed,
 					"Cluster creation on the Instaclustr is failed. Reason: %v",
 					err,
 				)
@@ -168,45 +171,45 @@ func (r *CassandraReconciler) handleCreateCluster(
 			}
 
 			r.EventRecorder.Eventf(
-				cassandra, models.Normal, models.Created,
+				c, models.Normal, models.Created,
 				"Cluster creation request is sent. Cluster ID: %s",
 				id,
 			)
 		}
 
-		cassandra.Status.ID = id
-		err = r.Status().Patch(ctx, cassandra, patch)
+		c.Status.ID = id
+		err = r.Status().Patch(ctx, c, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster status",
-				"cluster name", cassandra.Spec.Name,
-				"cluster ID", cassandra.Status.ID,
-				"kind", cassandra.Kind,
-				"api Version", cassandra.APIVersion,
-				"namespace", cassandra.Namespace,
-				"cluster metadata", cassandra.ObjectMeta,
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
+				"kind", c.Kind,
+				"api Version", c.APIVersion,
+				"namespace", c.Namespace,
+				"cluster metadata", c.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.PatchFailed,
+				c, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
 			return reconcile.Result{}, err
 		}
 
-		controllerutil.AddFinalizer(cassandra, models.DeletionFinalizer)
-		cassandra.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		err = r.Patch(ctx, cassandra, patch)
+		controllerutil.AddFinalizer(c, models.DeletionFinalizer)
+		c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		err = r.Patch(ctx, c, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster",
-				"cluster name", cassandra.Spec.Name,
-				"cluster ID", cassandra.Status.ID,
-				"kind", cassandra.Kind,
-				"api Version", cassandra.APIVersion,
-				"namespace", cassandra.Namespace,
-				"cluster metadata", cassandra.ObjectMeta,
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
+				"kind", c.Kind,
+				"api Version", c.APIVersion,
+				"namespace", c.Namespace,
+				"cluster metadata", c.ObjectMeta,
 			)
 			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.PatchFailed,
+				c, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
@@ -215,22 +218,22 @@ func (r *CassandraReconciler) handleCreateCluster(
 
 		l.Info(
 			"Cluster has been created",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID,
+			"kind", c.Kind,
+			"api Version", c.APIVersion,
+			"namespace", c.Namespace,
 		)
 	}
 
-	if cassandra.Status.State != models.DeletedStatus {
-		err = r.startClusterStatusJob(cassandra)
+	if c.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(c)
 		if err != nil {
 			l.Error(err, "Cannot start cluster status job",
-				"cassandra cluster ID", cassandra.Status.ID)
+				"c cluster ID", c.Status.ID)
 
 			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.CreationFailed,
+				c, models.Warning, models.CreationFailed,
 				"Cluster status check job is failed. Reason: %v",
 				err,
 			)
@@ -238,41 +241,118 @@ func (r *CassandraReconciler) handleCreateCluster(
 		}
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Normal, models.Created,
+			c, models.Normal, models.Created,
 			"Cluster status check job is started",
 		)
-
-		err = r.startClusterBackupsJob(cassandra)
+	}
+	if c.Spec.OnPremisesSpec != nil {
+		iData, err := r.API.GetCassandra(c.Status.ID)
 		if err != nil {
-			l.Error(err, "Cannot start cluster backups check job",
-				"cluster ID", cassandra.Status.ID,
+			l.Error(err, "Cannot get cluster from the Instaclustr API",
+				"cluster name", c.Spec.Name,
+				"data centres", c.Spec.DataCentres,
+				"cluster ID", c.Status.ID,
 			)
-
 			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.CreationFailed,
-				"Cluster backups check job is failed. Reason: %v",
+				c, models.Warning, models.FetchFailed,
+				"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
+		iCassandra, err := c.FromInstAPI(iData)
+		if err != nil {
+			l.Error(
+				err, "Cannot convert cluster from the Instaclustr API",
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
+			)
+			r.EventRecorder.Eventf(
+				c, models.Warning, models.ConversionFailed,
+				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 				err,
 			)
 			return reconcile.Result{}, err
 		}
 
-		r.EventRecorder.Eventf(
-			cassandra, models.Normal, models.Created,
-			"Cluster backups check job is started",
+		bootstrap := newOnPremisesBootstrap(
+			r.Client,
+			c,
+			r.EventRecorder,
+			iCassandra.Status.ClusterStatus,
+			c.Spec.OnPremisesSpec,
+			newExposePorts(c.GetExposePorts()),
+			c.GetHeadlessPorts(),
+			c.Spec.PrivateNetworkCluster,
 		)
 
-		if cassandra.Spec.UserRefs != nil && cassandra.Status.AvailableUsers == nil {
-			err = r.startUsersCreationJob(cassandra)
-			if err != nil {
-				l.Error(err, "Failed to start user creation job")
-				r.EventRecorder.Eventf(cassandra, models.Warning, models.CreationFailed,
-					"User creation job is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			r.EventRecorder.Event(cassandra, models.Normal, models.Created,
-				"Cluster user creation job is started")
+		err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
+		if err != nil {
+			l.Error(
+				err, "Cannot create resources for on-premises cluster",
+				"cluster spec", c.Spec.OnPremisesSpec,
+			)
+			r.EventRecorder.Eventf(
+				c, models.Warning, models.CreationFailed,
+				"Resources creation for on-premises cluster is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
 		}
+
+		err = r.startClusterOnPremisesIPsJob(c, bootstrap)
+		if err != nil {
+			l.Error(err, "Cannot start on-premises cluster IPs check job",
+				"cluster ID", c.Status.ID,
+			)
+
+			r.EventRecorder.Eventf(
+				c, models.Warning, models.CreationFailed,
+				"On-premises cluster IPs check job is failed. Reason: %v",
+				err,
+			)
+			return reconcile.Result{}, err
+		}
+
+		l.Info(
+			"On-premises resources have been created",
+			"cluster name", c.Spec.Name,
+			"on-premises Spec", c.Spec.OnPremisesSpec,
+			"cluster ID", c.Status.ID,
+		)
+		return models.ExitReconcile, nil
+	}
+
+	err = r.startClusterBackupsJob(c)
+	if err != nil {
+		l.Error(err, "Cannot start cluster backups check job",
+			"cluster ID", c.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"Cluster backups check job is failed. Reason: %v",
+			err,
+		)
+		return reconcile.Result{}, err
+	}
+
+	r.EventRecorder.Eventf(
+		c, models.Normal, models.Created,
+		"Cluster backups check job is started",
+	)
+
+	if c.Spec.UserRefs != nil && c.Status.AvailableUsers == nil {
+		err = r.startUsersCreationJob(c)
+		if err != nil {
+			l.Error(err, "Failed to start user creation job")
+			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
+				"User creation job is failed. Reason: %v", err)
+			return reconcile.Result{}, err
+		}
+
+		r.EventRecorder.Event(c, models.Normal, models.Created,
+			"Cluster user creation job is started")
 	}
 
 	return models.ExitReconcile, nil
@@ -281,99 +361,99 @@ func (r *CassandraReconciler) handleCreateCluster(
 func (r *CassandraReconciler) handleUpdateCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cassandra *v1beta1.Cassandra,
+	c *v1beta1.Cassandra,
 ) (reconcile.Result, error) {
 	l = l.WithName("Cassandra update event")
 
-	iData, err := r.API.GetCassandra(cassandra.Status.ID)
+	iData, err := r.API.GetCassandra(c.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get cluster from the Instaclustr API",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.FetchFailed,
+			c, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	iCassandra, err := cassandra.FromInstAPI(iData)
+	iCassandra, err := c.FromInstAPI(iData)
 	if err != nil {
 		l.Error(
 			err, "Cannot convert cluster from the Instaclustr API",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID,
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.ConvertionFailed,
+			c, models.Warning, models.ConversionFailed,
 			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
 			err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	if cassandra.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(cassandra, iCassandra, l)
+	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return r.handleExternalChanges(c, iCassandra, l)
 	}
 
-	patch := cassandra.NewPatch()
+	patch := c.NewPatch()
 
-	if cassandra.Spec.ClusterSettingsNeedUpdate(iCassandra.Spec.Cluster) {
+	if c.Spec.ClusterSettingsNeedUpdate(iCassandra.Spec.Cluster) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iCassandra.Spec.Description,
 			"instaclustr two factor delete", iCassandra.Spec.TwoFactorDelete)
 
-		err = r.API.UpdateClusterSettings(cassandra.Status.ID, cassandra.Spec.ClusterSettingsUpdateToInstAPI())
+		err = r.API.UpdateClusterSettings(c.Status.ID, c.Spec.ClusterSettingsUpdateToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot update cluster settings",
-				"cluster ID", cassandra.Status.ID, "cluster spec", cassandra.Spec)
-			r.EventRecorder.Eventf(cassandra, models.Warning, models.UpdateFailed,
+				"cluster ID", c.Status.ID, "cluster spec", c.Spec)
+			r.EventRecorder.Eventf(c, models.Warning, models.UpdateFailed,
 				"Cannot update cluster settings. Reason: %v", err)
 
 			return reconcile.Result{}, err
 		}
 	}
 
-	if !cassandra.Spec.AreDCsEqual(iCassandra.Spec.DataCentres) {
+	if !c.Spec.AreDCsEqual(iCassandra.Spec.DataCentres) {
 		l.Info("Update request to Instaclustr API has been sent",
-			"spec data centres", cassandra.Spec.DataCentres,
-			"resize settings", cassandra.Spec.ResizeSettings,
+			"spec data centres", c.Spec.DataCentres,
+			"resize settings", c.Spec.ResizeSettings,
 		)
 
-		err = r.API.UpdateCassandra(cassandra.Status.ID, cassandra.Spec.DCsUpdateToInstAPI())
+		err = r.API.UpdateCassandra(c.Status.ID, c.Spec.DCsUpdateToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot update cluster",
-				"cluster ID", cassandra.Status.ID,
-				"cluster name", cassandra.Spec.Name,
-				"cluster spec", cassandra.Spec,
-				"cluster state", cassandra.Status.State,
+				"cluster ID", c.Status.ID,
+				"cluster name", c.Spec.Name,
+				"cluster spec", c.Spec,
+				"cluster state", c.Status.State,
 			)
 
 			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.UpdateFailed,
+				c, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
 
 			if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
-				patch := cassandra.NewPatch()
-				cassandra.Annotations[models.UpdateQueuedAnnotation] = models.True
-				err = r.Patch(ctx, cassandra, patch)
+				patch := c.NewPatch()
+				c.Annotations[models.UpdateQueuedAnnotation] = models.True
+				err = r.Patch(ctx, c, patch)
 				if err != nil {
 					l.Error(err, "Cannot patch cluster resource",
-						"cluster name", cassandra.Spec.Name,
-						"cluster ID", cassandra.Status.ID,
-						"kind", cassandra.Kind,
-						"api Version", cassandra.APIVersion,
-						"namespace", cassandra.Namespace,
-						"cluster metadata", cassandra.ObjectMeta,
+						"cluster name", c.Spec.Name,
+						"cluster ID", c.Status.ID,
+						"kind", c.Kind,
+						"api Version", c.APIVersion,
+						"namespace", c.Namespace,
+						"cluster metadata", c.ObjectMeta,
 					)
 					r.EventRecorder.Eventf(
-						cassandra, models.Warning, models.PatchFailed,
+						c, models.Warning, models.PatchFailed,
 						"Cluster resource patch is failed. Reason: %v",
 						err,
 					)
@@ -385,29 +465,29 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		}
 	}
 
-	err = handleUsersChanges(ctx, r.Client, r, cassandra)
+	err = handleUsersChanges(ctx, r.Client, r, c)
 	if err != nil {
 		l.Error(err, "Failed to handle users changes")
-		r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+		r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
 			"Handling users changes is failed. Reason: %w", err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	cassandra.Annotations[models.UpdateQueuedAnnotation] = ""
-	err = r.Patch(ctx, cassandra, patch)
+	c.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+	c.Annotations[models.UpdateQueuedAnnotation] = ""
+	err = r.Patch(ctx, c, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
-			"cluster metadata", cassandra.ObjectMeta,
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID,
+			"kind", c.Kind,
+			"api Version", c.APIVersion,
+			"namespace", c.Namespace,
+			"cluster metadata", c.ObjectMeta,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.PatchFailed,
+			c, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
@@ -416,49 +496,49 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 	l.Info(
 		"Cluster has been updated",
-		"cluster name", cassandra.Spec.Name,
-		"cluster ID", cassandra.Status.ID,
-		"data centres", cassandra.Spec.DataCentres,
+		"cluster name", c.Spec.Name,
+		"cluster ID", c.Status.ID,
+		"data centres", c.Spec.DataCentres,
 	)
 
 	return models.ExitReconcile, nil
 }
 
-func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *v1beta1.Cassandra, l logr.Logger) (reconcile.Result, error) {
-	if !cassandra.Spec.IsEqual(iCassandra.Spec) {
+func (r *CassandraReconciler) handleExternalChanges(c, iCassandra *v1beta1.Cassandra, l logr.Logger) (reconcile.Result, error) {
+	if !c.Spec.IsEqual(iCassandra.Spec) {
 		l.Info(msgSpecStillNoMatch,
-			"specification of k8s resource", cassandra.Spec,
+			"specification of k8s resource", c.Spec,
 			"data from Instaclustr ", iCassandra.Spec)
 
-		msgDiffSpecs, err := createSpecDifferenceMessage(cassandra.Spec, iCassandra.Spec)
+		msgDiffSpecs, err := createSpecDifferenceMessage(c.Spec, iCassandra.Spec)
 		if err != nil {
 			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
+				"instaclustr data", iCassandra.Spec, "k8s resource spec", c.Spec)
 			return models.ExitReconcile, nil
 		}
 
-		r.EventRecorder.Eventf(cassandra, models.Warning, models.ExternalChanges, msgDiffSpecs)
+		r.EventRecorder.Eventf(c, models.Warning, models.ExternalChanges, msgDiffSpecs)
 
 		return models.ExitReconcile, nil
 	}
 
-	patch := cassandra.NewPatch()
+	patch := c.NewPatch()
 
-	cassandra.Annotations[models.ExternalChangesAnnotation] = ""
+	c.Annotations[models.ExternalChangesAnnotation] = ""
 
-	err := r.Patch(context.Background(), cassandra, patch)
+	err := r.Patch(context.Background(), c, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", cassandra.Spec.Name, "cluster ID", cassandra.Status.ID)
+			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
 
-		r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+		r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v", err)
 
 		return reconcile.Result{}, err
 	}
 
-	l.Info("External changes have been reconciled", "resource ID", cassandra.Status.ID)
-	r.EventRecorder.Event(cassandra, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+	l.Info("External changes have been reconciled", "resource ID", c.Status.ID)
+	r.EventRecorder.Event(c, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -466,91 +546,108 @@ func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *v1bet
 func (r *CassandraReconciler) handleDeleteCluster(
 	ctx context.Context,
 	l logr.Logger,
-	cassandra *v1beta1.Cassandra,
+	c *v1beta1.Cassandra,
 ) (reconcile.Result, error) {
 	l = l.WithName("Cassandra deletion event")
 
-	_, err := r.API.GetCassandra(cassandra.Status.ID)
+	_, err := r.API.GetCassandra(c.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get cluster from the Instaclustr API",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID,
+			"kind", c.Kind,
+			"api Version", c.APIVersion,
+			"namespace", c.Namespace,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.FetchFailed,
+			c, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	patch := cassandra.NewPatch()
+	patch := c.NewPatch()
 
 	if !errors.Is(err, instaclustr.NotFound) {
 		l.Info("Sending cluster deletion to the Instaclustr API",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID)
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID)
 
-		err = r.API.DeleteCluster(cassandra.Status.ID, instaclustr.CassandraEndpoint)
+		err = r.API.DeleteCluster(c.Status.ID, instaclustr.CassandraEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot delete cluster",
-				"cluster name", cassandra.Spec.Name,
-				"state", cassandra.Status.State,
-				"kind", cassandra.Kind,
-				"api Version", cassandra.APIVersion,
-				"namespace", cassandra.Namespace,
+				"cluster name", c.Spec.Name,
+				"state", c.Status.State,
+				"kind", c.Kind,
+				"api Version", c.APIVersion,
+				"namespace", c.Namespace,
 			)
 			r.EventRecorder.Eventf(
-				cassandra, models.Warning, models.DeletionFailed,
+				c, models.Warning, models.DeletionFailed,
 				"Cluster deletion on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
 			return reconcile.Result{}, err
 		}
 
-		r.EventRecorder.Event(cassandra, models.Normal, models.DeletionStarted,
+		r.EventRecorder.Event(c, models.Normal, models.DeletionStarted,
 			"Cluster deletion request is sent to the Instaclustr API.")
 
-		if cassandra.Spec.TwoFactorDelete != nil {
-			cassandra.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-			cassandra.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
-			err = r.Patch(ctx, cassandra, patch)
+		if c.Spec.TwoFactorDelete != nil {
+			c.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			c.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, c, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch cluster resource",
-					"cluster name", cassandra.Spec.Name,
-					"cluster state", cassandra.Status.State)
-				r.EventRecorder.Eventf(cassandra, models.Warning, models.PatchFailed,
+					"cluster name", c.Spec.Name,
+					"cluster state", c.Status.State)
+				r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
 					"Cluster resource patch is failed. Reason: %v", err)
 
 				return reconcile.Result{}, err
 			}
 
-			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", cassandra.Status.ID)
+			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", c.Status.ID)
 
-			r.EventRecorder.Event(cassandra, models.Normal, models.DeletionStarted,
+			r.EventRecorder.Event(c, models.Normal, models.DeletionStarted,
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
 			return models.ExitReconcile, nil
 		}
 	}
 
-	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
 
-	l.Info("Deleting cluster backup resources", "cluster ID", cassandra.Status.ID)
+	if c.Spec.OnPremisesSpec != nil {
+		err = deleteOnPremResources(ctx, r.Client, c.Status.ID, c.Namespace)
+		if err != nil {
+			l.Error(err, "Cannot delete cluster on-premises resources",
+				"cluster ID", c.Status.ID)
+			r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
+				"Cluster on-premises resources deletion is failed. Reason: %v", err)
+			return reconcile.Result{}, err
+		}
 
-	err = r.deleteBackups(ctx, cassandra.Status.ID, cassandra.Namespace)
+		l.Info("Cluster on-premises resources are deleted",
+			"cluster ID", c.Status.ID)
+		r.EventRecorder.Eventf(c, models.Normal, models.Deleted,
+			"Cluster on-premises resources are deleted")
+		r.Scheduler.RemoveJob(c.GetJobID(scheduler.OnPremisesIPsChecker))
+	}
+
+	l.Info("Deleting cluster backup resources", "cluster ID", c.Status.ID)
+
+	err = r.deleteBackups(ctx, c.Status.ID, c.Namespace)
 	if err != nil {
 		l.Error(err, "Cannot delete cluster backup resources",
-			"cluster ID", cassandra.Status.ID,
+			"cluster ID", c.Status.ID,
 		)
 		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.DeletionFailed,
+			c, models.Warning, models.DeletionFailed,
 			"Cluster backups deletion is failed. Reason: %v",
 			err,
 		)
@@ -558,72 +655,72 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	}
 
 	l.Info("Cluster backup resources were deleted",
-		"cluster ID", cassandra.Status.ID,
+		"cluster ID", c.Status.ID,
 	)
 
 	r.EventRecorder.Eventf(
-		cassandra, models.Normal, models.Deleted,
+		c, models.Normal, models.Deleted,
 		"Cluster backup resources are deleted",
 	)
 
-	err = detachUsers(ctx, r.Client, r, cassandra)
+	err = detachUsers(ctx, r.Client, r, c)
 	if err != nil {
 		l.Error(err, "Failed to detach users from the cluster")
-		r.EventRecorder.Eventf(cassandra, models.Warning, models.DeletionFailed,
+		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
 			"Detaching users from the cluster is failed. Reason: %w", err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	controllerutil.RemoveFinalizer(cassandra, models.DeletionFinalizer)
-	cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.Patch(ctx, cassandra, patch)
+	controllerutil.RemoveFinalizer(c, models.DeletionFinalizer)
+	c.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	err = r.Patch(ctx, c, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", cassandra.Spec.Name,
-			"cluster ID", cassandra.Status.ID,
-			"kind", cassandra.Kind,
-			"api Version", cassandra.APIVersion,
-			"namespace", cassandra.Namespace,
-			"cluster metadata", cassandra.ObjectMeta,
+			"cluster name", c.Spec.Name,
+			"cluster ID", c.Status.ID,
+			"kind", c.Kind,
+			"api Version", c.APIVersion,
+			"namespace", c.Namespace,
+			"cluster metadata", c.ObjectMeta,
 		)
 
 		r.EventRecorder.Eventf(
-			cassandra, models.Warning, models.PatchFailed,
+			c, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	err = exposeservice.Delete(r.Client, cassandra.Name, cassandra.Namespace)
+	err = exposeservice.Delete(r.Client, c.Name, c.Namespace)
 	if err != nil {
 		l.Error(err, "Cannot delete Cassandra cluster expose service",
-			"cluster ID", cassandra.Status.ID,
-			"cluster name", cassandra.Spec.Name,
+			"cluster ID", c.Status.ID,
+			"cluster name", c.Spec.Name,
 		)
 
 		return reconcile.Result{}, err
 	}
 
 	l.Info("Cluster has been deleted",
-		"cluster name", cassandra.Spec.Name,
-		"cluster ID", cassandra.Status.ID,
-		"kind", cassandra.Kind,
-		"api Version", cassandra.APIVersion)
+		"cluster name", c.Spec.Name,
+		"cluster ID", c.Status.ID,
+		"kind", c.Kind,
+		"api Version", c.APIVersion)
 
 	r.EventRecorder.Eventf(
-		cassandra, models.Normal, models.Deleted,
+		c, models.Normal, models.Deleted,
 		"Cluster resource is deleted",
 	)
 
 	return models.ExitReconcile, nil
 }
 
-func (r *CassandraReconciler) startClusterStatusJob(cassandraCluster *v1beta1.Cassandra) error {
-	job := r.newWatchStatusJob(cassandraCluster)
+func (r *CassandraReconciler) startClusterStatusJob(c *v1beta1.Cassandra) error {
+	job := r.newWatchStatusJob(c)
 
-	err := r.Scheduler.ScheduleJob(cassandraCluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -653,55 +750,66 @@ func (r *CassandraReconciler) startUsersCreationJob(cluster *v1beta1.Cassandra) 
 	return nil
 }
 
-func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) scheduler.Job {
+func (r *CassandraReconciler) startClusterOnPremisesIPsJob(c *v1beta1.Cassandra, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(c.Kind, b)
+
+	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "CassandraStatusClusterJob")
 	return func() error {
-		namespacedName := client.ObjectKeyFromObject(cassandra)
-		err := r.Get(context.Background(), namespacedName, cassandra)
+		namespacedName := client.ObjectKeyFromObject(c)
+		err := r.Get(context.Background(), namespacedName, c)
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.BackupsChecker))
-			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.UserCreator))
-			r.Scheduler.RemoveJob(cassandra.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
+			r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
+			r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
 			return nil
 		}
 
-		iData, err := r.API.GetCassandra(cassandra.Status.ID)
+		iData, err := r.API.GetCassandra(c.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				if cassandra.DeletionTimestamp != nil {
-					_, err = r.handleDeleteCluster(context.Background(), l, cassandra)
+				if c.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), l, c)
 					return err
 				}
 
-				return r.handleExternalDelete(context.Background(), cassandra)
+				return r.handleExternalDelete(context.Background(), c)
 			}
 
 			l.Error(err, "Cannot get cluster from the Instaclustr API",
-				"clusterID", cassandra.Status.ID)
+				"clusterID", c.Status.ID)
 			return err
 		}
 
-		iCassandra, err := cassandra.FromInstAPI(iData)
+		iCassandra, err := c.FromInstAPI(iData)
 		if err != nil {
 			l.Error(err, "Cannot convert cluster from the Instaclustr API",
-				"cluster name", cassandra.Spec.Name,
-				"cluster ID", cassandra.Status.ID,
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
 			)
 			return err
 		}
 
-		if !areStatusesEqual(&iCassandra.Status.ClusterStatus, &cassandra.Status.ClusterStatus) {
+		if !areStatusesEqual(&iCassandra.Status.ClusterStatus, &c.Status.ClusterStatus) {
 			l.Info("Updating cluster status",
 				"status from Instaclustr", iCassandra.Status.ClusterStatus,
-				"status from k8s", cassandra.Status.ClusterStatus)
+				"status from k8s", c.Status.ClusterStatus)
 
-			areDCsEqual := areDataCentresEqual(iCassandra.Status.ClusterStatus.DataCentres, cassandra.Status.ClusterStatus.DataCentres)
+			areDCsEqual := areDataCentresEqual(iCassandra.Status.ClusterStatus.DataCentres, c.Status.ClusterStatus.DataCentres)
 
-			patch := cassandra.NewPatch()
-			cassandra.Status.ClusterStatus = iCassandra.Status.ClusterStatus
-			err = r.Status().Patch(context.Background(), cassandra, patch)
+			patch := c.NewPatch()
+			c.Status.ClusterStatus = iCassandra.Status.ClusterStatus
+			err = r.Status().Patch(context.Background(), c, patch)
 			if err != nil {
 				return err
 			}
@@ -714,9 +822,9 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				}
 
 				err = exposeservice.Create(r.Client,
-					cassandra.Name,
-					cassandra.Namespace,
-					cassandra.Spec.PrivateNetworkCluster,
+					c.Name,
+					c.Namespace,
+					c.Spec.PrivateNetworkCluster,
 					nodes,
 					models.CassandraConnectionPort)
 				if err != nil {
@@ -726,49 +834,49 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 		}
 
 		if iCassandra.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			cassandra.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
-			cassandra.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!cassandra.Spec.IsEqual(iCassandra.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
+			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
+			c.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			!c.Spec.IsEqual(iCassandra.Spec) {
+			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", c.Spec)
 
-			patch := cassandra.NewPatch()
-			cassandra.Annotations[models.ExternalChangesAnnotation] = models.True
+			patch := c.NewPatch()
+			c.Annotations[models.ExternalChangesAnnotation] = models.True
 
-			err = r.Patch(context.Background(), cassandra, patch)
+			err = r.Patch(context.Background(), c, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch cluster cluster",
-					"cluster name", cassandra.Spec.Name, "cluster state", cassandra.Status.State)
+					"cluster name", c.Spec.Name, "cluster state", c.Status.State)
 				return err
 			}
 
-			msgDiffSpecs, err := createSpecDifferenceMessage(cassandra.Spec, iCassandra.Spec)
+			msgDiffSpecs, err := createSpecDifferenceMessage(c.Spec, iCassandra.Spec)
 			if err != nil {
 				l.Error(err, "Cannot create specification difference message",
-					"instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
+					"instaclustr data", iCassandra.Spec, "k8s resource spec", c.Spec)
 				return err
 			}
 
-			r.EventRecorder.Eventf(cassandra, models.Warning, models.ExternalChanges, msgDiffSpecs)
+			r.EventRecorder.Eventf(c, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
-		err = r.reconcileMaintenanceEvents(context.Background(), cassandra)
+		err = r.reconcileMaintenanceEvents(context.Background(), c)
 		if err != nil {
 			l.Error(err, "Cannot reconcile cluster maintenance events",
-				"cluster name", cassandra.Spec.Name,
-				"cluster ID", cassandra.Status.ID,
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
 			)
 			return err
 		}
 
-		if cassandra.Status.State == models.RunningStatus && cassandra.Status.CurrentClusterOperationStatus == models.OperationInProgress {
-			patch := cassandra.NewPatch()
-			for _, dc := range cassandra.Status.DataCentres {
+		if c.Status.State == models.RunningStatus && c.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := c.NewPatch()
+			for _, dc := range c.Status.DataCentres {
 				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
 				if err != nil {
 					l.Error(err, "Cannot get data centre resize operations",
-						"cluster name", cassandra.Spec.Name,
-						"cluster ID", cassandra.Status.ID,
+						"cluster name", c.Spec.Name,
+						"cluster ID", c.Status.ID,
 						"data centre ID", dc.ID,
 					)
 
@@ -776,11 +884,11 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 				}
 
 				dc.ResizeOperations = resizeOperations
-				err = r.Status().Patch(context.Background(), cassandra, patch)
+				err = r.Status().Patch(context.Background(), c, patch)
 				if err != nil {
 					l.Error(err, "Cannot patch data centre resize operations",
-						"cluster name", cassandra.Spec.Name,
-						"cluster ID", cassandra.Status.ID,
+						"cluster name", c.Spec.Name,
+						"cluster ID", c.Status.ID,
 						"data centre ID", dc.ID,
 					)
 
@@ -793,12 +901,12 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 	}
 }
 
-func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) scheduler.Job {
+func (r *CassandraReconciler) newWatchBackupsJob(c *v1beta1.Cassandra) scheduler.Job {
 	l := log.Log.WithValues("component", "cassandraBackupsClusterJob")
 
 	return func() error {
 		ctx := context.Background()
-		err := r.Get(ctx, types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, cluster)
+		err := r.Get(ctx, types.NamespacedName{Namespace: c.Namespace, Name: c.Name}, c)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				return nil
@@ -807,11 +915,11 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) sch
 			return err
 		}
 
-		iBackups, err := r.API.GetClusterBackups(cluster.Status.ID, models.ClusterKindsMap[cluster.Kind])
+		iBackups, err := r.API.GetClusterBackups(c.Status.ID, models.ClusterKindsMap[c.Kind])
 		if err != nil {
 			l.Error(err, "Cannot get cluster backups",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
 			)
 
 			return err
@@ -819,11 +927,11 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) sch
 
 		iBackupEvents := iBackups.GetBackupEvents(models.CassandraKind)
 
-		k8sBackupList, err := r.listClusterBackups(ctx, cluster.Status.ID, cluster.Namespace)
+		k8sBackupList, err := r.listClusterBackups(ctx, c.Status.ID, c.Namespace)
 		if err != nil {
 			l.Error(err, "Cannot list cluster backups",
-				"cluster name", cluster.Spec.Name,
-				"cluster ID", cluster.Status.ID,
+				"cluster name", c.Spec.Name,
+				"cluster ID", c.Status.ID,
 			)
 
 			return err
@@ -887,7 +995,7 @@ func (r *CassandraReconciler) newWatchBackupsJob(cluster *v1beta1.Cassandra) sch
 				continue
 			}
 
-			backupSpec := cluster.NewBackupSpec(start)
+			backupSpec := c.NewBackupSpec(start)
 			err = r.Create(ctx, backupSpec)
 			if err != nil {
 				return err

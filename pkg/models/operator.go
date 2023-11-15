@@ -132,7 +132,7 @@ const (
 	CreationFailed   = "CreationFailed"
 	FetchFailed      = "FetchFailed"
 	GenerateFailed   = "GenerateFailed"
-	ConvertionFailed = "ConvertionFailed"
+	ConversionFailed = "ConversionFailed"
 	ValidationFailed = "ValidationFailed"
 	UpdateFailed     = "UpdateFailed"
 	ExternalChanges  = "ExternalChanges"

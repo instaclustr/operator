@@ -1,0 +1,63 @@
+#apiVersion: v1
+#kind: Secret
+#metadata:
+#  name: inst-test-aws-cred-secret
+#data:
+#  awsAccessKeyId: access_key
+#  awsSecretAccessKey: secret_key
+#---
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Cadence
+metadata:
+  name: cadence-sample
+spec:
+  name: "username-test"
+  version: "1.0.0"
+  standardProvisioning:
+    - targetCassandra:
+        dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
+        dependencyVpcType: "VPC_PEERED"
+#  packagedProvisioning:
+#    - bundledCassandraSpec:
+#        nodeSize: "CAS-DEV-t4g.small-5"
+#        network: "10.2.0.0/16"
+#        replicationFactor: 3
+#        nodesNumber: 3
+#        privateIPBroadcastForDiscovery: false
+#        passwordAndUserAuth: true
+#      useAdvancedVisibility: true
+#      bundledKafkaSpec:
+#        nodeSize: "KFK-DEV-t4g.small-5"
+#        nodesNumber: 3
+#        network: "10.3.0.0/16"
+#        replicationFactor: 3
+#        partitionsNumber: 3
+#      bundledOpenSearchSpec:
+#        nodeSize: "SRH-DEV-t4g.small-5"
+#        replicationFactor: 3
+#        network: "10.4.0.0/16"
+  #  twoFactorDelete:
+  #  - email: "rostyslp@netapp.com"
+  privateNetworkCluster: false
+  dataCentres:
+    - region: "US_EAST_2"
+      network: "10.12.0.0/16"
+      # if you use multi-region mode please provide
+      # non-overlapping CIDR block for the secondary mode cluster
+#      network: "10.16.0.0/16"
+      cloudProvider: "AWS_VPC"
+      name: "testdc"
+#      nodeSize: "CAD-PRD-m5ad.large-75"
+      nodeSize: "CAD-DEV-t3.small-5"
+      nodesNumber: 2
+      clientEncryption: false
+#      privateLink:
+#        - advertisedHostname: "cadence-sample-test.com"
+  slaTier: "NON_PRODUCTION"
+  useCadenceWebAuth: false
+#  targetPrimaryCadence:
+#    - dependencyCdcId: "cce79be3-7f41-4cad-837c-86d3d8b4be77"
+#      dependencyVpcType: "SEPARATE_VPC"
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1

@@ -94,6 +94,40 @@ func (dc *DataCentre) ValidateCreation() error {
 	return nil
 }
 
+func (ops *OnPremisesSpec) ValidateCreation() error {
+	osDiskSizeMatched, err := regexp.Match(models.StorageRegExp, []byte(ops.OSDiskSize))
+	if !osDiskSizeMatched || err != nil {
+		return fmt.Errorf("disk size field for node OS must fit pattern: %s",
+			models.StorageRegExp)
+	}
+
+	dataDiskSizeMatched, err := regexp.Match(models.StorageRegExp, []byte(ops.DataDiskSize))
+	if !dataDiskSizeMatched || err != nil {
+		return fmt.Errorf("disk size field for storring cluster data must fit pattern: %s",
+			models.StorageRegExp)
+	}
+
+	nodeMemoryMatched, err := regexp.Match(models.MemoryRegExp, []byte(ops.DataDiskSize))
+	if !nodeMemoryMatched || err != nil {
+		return fmt.Errorf("node memory field must fit pattern: %s",
+			models.MemoryRegExp)
+	}
+
+	return nil
+}
+
+func (ops *OnPremisesSpec) ValidateSSHGatewayCreation() error {
+	if ops.SSHGatewayCPU == 0 || ops.SSHGatewayMemory == "" {
+		return fmt.Errorf("fields SSHGatewayCPU and SSHGatewayMemory must not be empty")
+	}
+	sshGatewayMemoryMatched, err := regexp.Match(models.MemoryRegExp, []byte(ops.DataDiskSize))
+	if !sshGatewayMemoryMatched || err != nil {
+		return fmt.Errorf("ssh gateway memory field must fit pattern: %s",
+			models.MemoryRegExp)
+	}
+	return nil
+}
+
 func (dc *DataCentre) validateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
 	if len(oldSettings) != len(dc.CloudProviderSettings) {
 		return models.ErrImmutableCloudProviderSettings
@@ -213,6 +247,20 @@ func validatePrivateLinkUpdate(new, old []*PrivateLink) error {
 func validateSingleConcurrentResize(concurrentResizes int) error {
 	if concurrentResizes > 1 {
 		return models.ErrOnlySingleConcurrentResizeAvailable
+	}
+
+	return nil
+}
+
+func (dc *DataCentre) ValidateOnPremisesCreation() error {
+	if dc.CloudProvider != models.ONPREMISES {
+		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available value: %s",
+			dc.CloudProvider, dc.Name, models.ONPREMISES)
+	}
+
+	if dc.Region != models.CLIENTDC {
+		return fmt.Errorf("region %s is unavailable for data centre: %s, available value: %s",
+			dc.Region, dc.Name, models.CLIENTDC)
 	}
 
 	return nil

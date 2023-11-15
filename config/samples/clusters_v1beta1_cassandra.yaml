@@ -37,20 +37,19 @@ spec:
   pciCompliance: false
   luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
   passwordAndUserAuth: true
-#  userRefs:
-#    - namespace: default
-#      name: cassandrauser-sample
-#    - namespace: default
-#      name: cassandrauser-sample2
-#    - namespace: default
-#      name: cassandrauser-sample3
+  #  userRefs:
+  #    - namespace: default
+  #      name: cassandrauser-sample
+  #    - namespace: default
+  #      name: cassandrauser-sample2
+  #    - namespace: default
+  #      name: cassandrauser-sample3
   slaTier: "NON_PRODUCTION"
-#  resizeSettings:
-#    - notifySupportContacts: false
-#      concurrency: 2
-#  description: "this is a sample of description"
-#  twoFactorDelete:
-#    - email: "rostyslp@netapp.com"
-    #spark:
+    #  resizeSettings:
+    #    - notifySupportContacts: false
+    #      concurrency: 2
+    #  description: "this is a sample of description"
+    #  twoFactorDelete:
+    #    - email: "rostyslp@netapp.com"
+  #spark:
   # - version: "2.3.2"         # 3.0.1 for 4.0.4 version of Cassandra | 2.3.2 for 3.11.13 version of Cassandra
-

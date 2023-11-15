@@ -121,6 +121,18 @@ type ClusteredMaintenanceEvent struct {
 	Upcoming   []*clusterresource.MaintenanceEventStatus `json:"upcoming"`
 }
 
+type OnPremisesSpec struct {
+	StorageClassName   string     `json:"storageClassName"`
+	OSDiskSize         string     `json:"osDiskSize"`
+	DataDiskSize       string     `json:"dataDiskSize"`
+	SSHGatewayCPU      int64      `json:"sshGatewayCPU,omitempty"`
+	SSHGatewayMemory   string     `json:"sshGatewayMemory,omitempty"`
+	NodeCPU            int64      `json:"nodeCPU"`
+	NodeMemory         string     `json:"nodeMemory"`
+	OSImageURL         string     `json:"osImageURL"`
+	CloudInitScriptRef *Reference `json:"cloudInitScriptRef"`
+}
+
 type TwoFactorDelete struct {
 	// Email address which will be contacted when the cluster is requested to be deleted.
 	Email string `json:"email"`

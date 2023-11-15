@@ -91,6 +91,19 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return fmt.Errorf("spark should not have more than 1 item")
 	}
 
+	if c.Spec.OnPremisesSpec != nil {
+		err = c.Spec.OnPremisesSpec.ValidateCreation()
+		if err != nil {
+			return err
+		}
+		if c.Spec.PrivateNetworkCluster {
+			err = c.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	appVersions, err := cv.API.ListAppVersions(models.CassandraAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -113,10 +126,22 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return fmt.Errorf("data centres field is empty")
 	}
 
+	//TODO: add support of multiple DCs for OnPrem clusters
+	if len(c.Spec.DataCentres) > 1 && c.Spec.OnPremisesSpec != nil {
+		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
+	}
+
 	for _, dc := range c.Spec.DataCentres {
-		err := dc.DataCentre.ValidateCreation()
-		if err != nil {
-			return err
+		if c.Spec.OnPremisesSpec != nil {
+			err := dc.DataCentre.ValidateOnPremisesCreation()
+			if err != nil {
+				return err
+			}
+		} else {
+			err := dc.DataCentre.ValidateCreation()
+			if err != nil {
+				return err
+			}
 		}
 
 		if !c.Spec.PrivateNetworkCluster && dc.PrivateIPBroadcastForDiscovery {

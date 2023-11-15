@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"strconv"
 
+	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -56,6 +58,7 @@ type CassandraRestoreFrom struct {
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
 	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
+	OnPremisesSpec      *OnPremisesSpec       `json:"onPremisesSpec,omitempty"`
 	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
@@ -521,4 +524,81 @@ func (c *Cassandra) SetClusterID(id string) {
 
 func init() {
 	SchemeBuilder.Register(&Cassandra{}, &CassandraList{})
+}
+
+func (c *Cassandra) GetExposePorts() []k8scorev1.ServicePort {
+	var exposePorts []k8scorev1.ServicePort
+	if !c.Spec.PrivateNetworkCluster {
+		exposePorts = []k8scorev1.ServicePort{
+			{
+				Name: models.CassandraInterNode,
+				Port: models.Port7000,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7000,
+				},
+			},
+			{
+				Name: models.CassandraCQL,
+				Port: models.Port9042,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port9042,
+				},
+			},
+			{
+				Name: models.CassandraJMX,
+				Port: models.Port7199,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7199,
+				},
+			},
+		}
+		if c.Spec.DataCentres[0].ClientToClusterEncryption {
+			sslPort := k8scorev1.ServicePort{
+				Name: models.CassandraSSL,
+				Port: models.Port7001,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port7001,
+				},
+			}
+			exposePorts = append(exposePorts, sslPort)
+		}
+	}
+	return exposePorts
+}
+
+func (c *Cassandra) GetHeadlessPorts() []k8scorev1.ServicePort {
+	headlessPorts := []k8scorev1.ServicePort{
+		{
+			Name: models.CassandraInterNode,
+			Port: models.Port7000,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port7000,
+			},
+		},
+		{
+			Name: models.CassandraCQL,
+			Port: models.Port9042,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port9042,
+			},
+		},
+	}
+	if c.Spec.DataCentres[0].ClientToClusterEncryption {
+		sslPort := k8scorev1.ServicePort{
+			Name: models.CassandraSSL,
+			Port: models.Port7001,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port7001,
+			},
+		}
+		headlessPorts = append(headlessPorts, sslPort)
+	}
+	return headlessPorts
 }

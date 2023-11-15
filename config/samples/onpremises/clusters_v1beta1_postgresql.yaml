@@ -1,0 +1,52 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: PostgreSQL
+metadata:
+  name: postgresql-sample
+# TODO https://github.com/instaclustr/operator/issues/472
+#  annotations:
+#    testAnnotation: test
+spec:
+  name: "username-test"
+  version: "15.4.0"
+  dataCentres:
+    - region: "US_WEST_2"
+      network: "10.1.0.0/16"
+      cloudProvider: "AWS_VPC"
+#      nodeSize: "PGS-DEV-t4g.medium-30"
+      nodeSize: "PGS-DEV-t4g.small-5"
+      nodesNumber: 2
+      clientEncryption: false
+      name: "testDC1"
+      intraDataCentreReplication:
+        - replicationMode: "SYNCHRONOUS"
+      interDataCentreReplication:
+        - isPrimaryDataCentre: true
+  #    - region: "US_WEST_2"
+  #      network: "10.2.0.0/16"
+  #      cloudProvider: "AWS_VPC"
+  ##     nodeSize: "PGS-DEV-t4g.medium-30"
+  #      nodeSize: "PGS-DEV-t4g.small-5"
+  #      racksNumber: 2
+  #      nodesNumber: 1
+  #      postgresqlNodeCount: 2
+  #      clientEncryption: false
+  #      name: "testDC2"
+  #      intraDataCentreReplication:
+  #        - replicationMode: "ASYNCHRONOUS"
+  #      interDataCentreReplication:
+  #        - isPrimaryDataCentre: false
+  #  clusterConfigurations:
+  #    idle_in_transaction_session_timeout: "2"
+  #    statement_timeout: "1"
+  #  twoFactorDelete:
+  #  - email: "rostyslp@netapp.com"
+  #  description: "test 222"
+  slaTier: "NON_PRODUCTION"
+#  userRefs:
+#    - namespace: default
+#      name: postgresqluser-sample
+  privateNetworkCluster: false
+  synchronousModeStrict: false
+#  resizeSettings:
+#    - notifySupportContacts: false
+#      concurrency: 1

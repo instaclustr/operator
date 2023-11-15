@@ -1,0 +1,32 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Redis
+metadata:
+  name: danylo-redis
+spec:
+  name: "danylo-redis"
+  version: "7.0.12"
+  onPremisesSpec:
+    storageClassName: managed-csi-premium
+    osDiskSize: 20Gi
+    dataDiskSize: 200Gi
+    sshGatewayCPU: 2
+    sshGatewayMemory: 4096Mi
+    nodeCPU: 2
+    nodeMemory: 8192Mi
+    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
+    cloudInitScriptRef:
+      namespace: default
+      name: instaclustr-cloud-init-secret
+  slaTier: "NON_PRODUCTION"
+  clientEncryption: false
+  passwordAndUserAuth: true
+  privateNetworkCluster: false
+  dataCentres:
+    - region: "CLIENT_DC"
+      name: "onPremRedis"
+      cloudProvider: "ONPREMISES"
+      network: "10.1.0.0/16"
+      nodeSize: "RDS-PRD-OP.8.64-400"
+      masterNodes: 3
+      nodesNumber: 0
+      replicationFactor: 0

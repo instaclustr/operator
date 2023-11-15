@@ -1,0 +1,25 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: KafkaConnect
+metadata:
+  name: kafkaconnect-sample
+spec:
+  dataCentres:
+    - name: "US_EAST_1_DC_KAFKA"
+      nodesNumber: 3
+#      nodesNumber: 6
+      cloudProvider: "AWS_VPC"
+      replicationFactor: 3
+      tags:
+        tag: "oneTag"
+        tag2: "twoTags"
+      nodeSize: "KCN-DEV-t4g.medium-30"
+      network: "10.15.0.0/16"
+      region: "US_EAST_1"
+  name: "Username-KC"
+  version: "3.1.2"
+  privateNetworkCluster: false
+  slaTier: "NON_PRODUCTION"
+  targetCluster:
+    - managedCluster:
+        - targetKafkaClusterId: "34dfc53c-c8c1-4be8-bd2f-cfdb77ec7349"
+          kafkaConnectVpcType: "KAFKA_VPC"

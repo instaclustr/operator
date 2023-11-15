@@ -115,6 +115,45 @@ spec:
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
+              onPremisesSpec:
+                properties:
+                  cloudInitScriptRef:
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  dataDiskSize:
+                    type: string
+                  nodeCPU:
+                    format: int64
+                    type: integer
+                  nodeMemory:
+                    type: string
+                  osDiskSize:
+                    type: string
+                  osImageURL:
+                    type: string
+                  sshGatewayCPU:
+                    format: int64
+                    type: integer
+                  sshGatewayMemory:
+                    type: string
+                  storageClassName:
+                    type: string
+                required:
+                - cloudInitScriptRef
+                - dataDiskSize
+                - nodeCPU
+                - nodeMemory
+                - osDiskSize
+                - osImageURL
+                - storageClassName
+                type: object
               passwordAndUserAuth:
                 type: boolean
               pciCompliance:
