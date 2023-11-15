@@ -28,9 +28,12 @@ var ClusterStatusInterval time.Duration
 var ClusterBackupsInterval time.Duration
 var UserCreationInterval time.Duration
 
-const StatusChecker = "statusChecker"
-const BackupsChecker = "backupsChecker"
-const UserCreator = "userCreator"
+const (
+	StatusChecker        = "statusChecker"
+	BackupsChecker       = "backupsChecker"
+	UserCreator          = "userCreator"
+	OnPremisesIPsChecker = "onPremisesIPsChecker"
+)
 
 type Job func() error
 

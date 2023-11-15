@@ -59,6 +59,8 @@ var (
 	DependencyVPCs             = []string{"TARGET_VPC", "VPC_PEERED", "SEPARATE_VPC"}
 	EncryptionKeyAliasRegExp   = "^[a-zA-Z0-9_-]{1}[a-zA-Z0-9 _-]*$"
 	OpenSearchBindingIDPattern = "[\\w-]+"
+	MemoryRegExp               = "^\\d+(Ei|Pi|Ti|Gi|Mi|Ki)?$"
+	StorageRegExp              = "^\\d+(Gi|Ti|Pi|Ei)?$"
 
 	CassandraReplicationFactors    = []int{2, 3, 5}
 	KafkaReplicationFactors        = []int{3, 5}

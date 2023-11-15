@@ -20,8 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	k8scorev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
@@ -105,9 +107,10 @@ type KafkaConnectDataCentre struct {
 
 // KafkaConnectSpec defines the desired state of KafkaConnect
 type KafkaConnectSpec struct {
-	Cluster       `json:",inline"`
-	DataCentres   []*KafkaConnectDataCentre `json:"dataCentres"`
-	TargetCluster []*TargetCluster          `json:"targetCluster"`
+	Cluster        `json:",inline"`
+	OnPremisesSpec *OnPremisesSpec           `json:"onPremisesSpec,omitempty"`
+	DataCentres    []*KafkaConnectDataCentre `json:"dataCentres"`
+	TargetCluster  []*TargetCluster          `json:"targetCluster"`
 
 	// CustomConnectors defines the location for custom connector storage and access info.
 	CustomConnectors []*CustomConnectors `json:"customConnectors,omitempty"`
@@ -719,4 +722,35 @@ func (k *KafkaConnect) NewDefaultUserSecret(username, password string) *v1.Secre
 			models.Password: password,
 		},
 	}
+}
+
+func (k *KafkaConnect) GetExposePorts() []k8scorev1.ServicePort {
+	var exposePorts []k8scorev1.ServicePort
+	if !k.Spec.PrivateNetworkCluster {
+		exposePorts = []k8scorev1.ServicePort{
+			{
+				Name: models.KafkaConnectAPI,
+				Port: models.Port8083,
+				TargetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: models.Port8083,
+				},
+			},
+		}
+	}
+	return exposePorts
+}
+
+func (k *KafkaConnect) GetHeadlessPorts() []k8scorev1.ServicePort {
+	headlessPorts := []k8scorev1.ServicePort{
+		{
+			Name: models.KafkaConnectAPI,
+			Port: models.Port8083,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: models.Port8083,
+			},
+		},
+	}
+	return headlessPorts
 }

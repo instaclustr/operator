@@ -57,6 +57,14 @@ type KafkaReconciler struct {
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete;deletecollection
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -66,8 +74,8 @@ type KafkaReconciler struct {
 func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	var kafka v1beta1.Kafka
-	err := r.Client.Get(ctx, req.NamespacedName, &kafka)
+	var k v1beta1.Kafka
+	err := r.Client.Get(ctx, req.NamespacedName, &k)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Info("Kafka custom resource is not found", "namespaced name ", req.NamespacedName)
@@ -78,39 +86,39 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return reconcile.Result{}, err
 	}
 
-	switch kafka.Annotations[models.ResourceStateAnnotation] {
+	switch k.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, &kafka, l)
+		return r.handleCreateCluster(ctx, &k, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &kafka, l)
+		return r.handleUpdateCluster(ctx, &k, l)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, &kafka, l)
+		return r.handleDeleteCluster(ctx, &k, l)
 	case models.GenericEvent:
-		l.Info("Event isn't handled", "cluster name", kafka.Spec.Name, "request", req,
-			"event", kafka.Annotations[models.ResourceStateAnnotation])
+		l.Info("Event isn't handled", "cluster name", k.Spec.Name, "request", req,
+			"event", k.Annotations[models.ResourceStateAnnotation])
 		return models.ExitReconcile, nil
 	}
 
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
+func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Kafka creation Event")
 
 	var err error
-	if kafka.Status.ID == "" {
+	if k.Status.ID == "" {
 		l.Info("Creating cluster",
-			"cluster name", kafka.Spec.Name,
-			"data centres", kafka.Spec.DataCentres)
+			"cluster name", k.Spec.Name,
+			"data centres", k.Spec.DataCentres)
 
-		patch := kafka.NewPatch()
-		kafka.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, kafka.Spec.ToInstAPI())
+		patch := k.NewPatch()
+		k.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaEndpoint, k.Spec.ToInstAPI())
 		if err != nil {
 			l.Error(err, "Cannot create cluster",
-				"spec", kafka.Spec,
+				"spec", k.Spec,
 			)
 			r.EventRecorder.Eventf(
-				kafka, models.Warning, models.CreationFailed,
+				k, models.Warning, models.CreationFailed,
 				"Cluster creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
@@ -118,33 +126,33 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 		}
 
 		r.EventRecorder.Eventf(
-			kafka, models.Normal, models.Created,
+			k, models.Normal, models.Created,
 			"Cluster creation request is sent. Cluster ID: %s",
-			kafka.Status.ID,
+			k.Status.ID,
 		)
 
-		err = r.Status().Patch(ctx, kafka, patch)
+		err = r.Status().Patch(ctx, k, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster status",
-				"spec", kafka.Spec,
+				"spec", k.Spec,
 			)
 			r.EventRecorder.Eventf(
-				kafka, models.Warning, models.PatchFailed,
+				k, models.Warning, models.PatchFailed,
 				"Cluster resource status patch is failed. Reason: %v",
 				err,
 			)
 			return reconcile.Result{}, err
 		}
 
-		kafka.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		controllerutil.AddFinalizer(kafka, models.DeletionFinalizer)
-		err = r.Patch(ctx, kafka, patch)
+		k.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		controllerutil.AddFinalizer(k, models.DeletionFinalizer)
+		err = r.Patch(ctx, k, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster resource",
-				"name", kafka.Spec.Name,
+				"name", k.Spec.Name,
 			)
 			r.EventRecorder.Eventf(
-				kafka, models.Warning, models.PatchFailed,
+				k, models.Warning, models.PatchFailed,
 				"Cluster resource patch is failed. Reason: %v",
 				err,
 			)
@@ -152,17 +160,17 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 		}
 
 		l.Info("Cluster has been created",
-			"cluster ID", kafka.Status.ID,
+			"cluster ID", k.Status.ID,
 		)
 	}
 
-	if kafka.Status.State != models.DeletedStatus {
-		err = r.startClusterStatusJob(kafka)
+	if k.Status.State != models.DeletedStatus {
+		err = r.startClusterStatusJob(k)
 		if err != nil {
 			l.Error(err, "Cannot start cluster status job",
-				"cluster ID", kafka.Status.ID)
+				"cluster ID", k.Status.ID)
 			r.EventRecorder.Eventf(
-				kafka, models.Warning, models.CreationFailed,
+				k, models.Warning, models.CreationFailed,
 				"Cluster status check job creation is failed. Reason: %v",
 				err,
 			)
@@ -170,23 +178,101 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, kafka *v1beta
 		}
 
 		r.EventRecorder.Eventf(
-			kafka, models.Normal, models.Created,
+			k, models.Normal, models.Created,
 			"Cluster status check job is started",
 		)
 
-		if kafka.Spec.UserRefs != nil {
-			err = r.startUsersCreationJob(kafka)
+		if k.Spec.UserRefs != nil {
+			err = r.startUsersCreationJob(k)
 			if err != nil {
 				l.Error(err, "Failed to start user creation job")
-				r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
+				r.EventRecorder.Eventf(k, models.Warning, models.CreationFailed,
 					"User creation job is failed. Reason: %v", err,
 				)
 				return reconcile.Result{}, err
 			}
 
-			r.EventRecorder.Event(kafka, models.Normal, models.Created,
+			r.EventRecorder.Event(k, models.Normal, models.Created,
 				"Cluster user creation job is started",
 			)
+		}
+
+		if k.Spec.OnPremisesSpec != nil {
+			iData, err := r.API.GetKafka(k.Status.ID)
+			if err != nil {
+				l.Error(err, "Cannot get cluster from the Instaclustr API",
+					"cluster name", k.Spec.Name,
+					"data centres", k.Spec.DataCentres,
+					"cluster ID", k.Status.ID,
+				)
+				r.EventRecorder.Eventf(
+					k, models.Warning, models.FetchFailed,
+					"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+					err,
+				)
+				return reconcile.Result{}, err
+			}
+			iKafka, err := k.FromInstAPI(iData)
+			if err != nil {
+				l.Error(
+					err, "Cannot convert cluster from the Instaclustr API",
+					"cluster name", k.Spec.Name,
+					"cluster ID", k.Status.ID,
+				)
+				r.EventRecorder.Eventf(
+					k, models.Warning, models.ConversionFailed,
+					"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
+					err,
+				)
+				return reconcile.Result{}, err
+			}
+
+			bootstrap := newOnPremisesBootstrap(
+				r.Client,
+				k,
+				r.EventRecorder,
+				iKafka.Status.ClusterStatus,
+				k.Spec.OnPremisesSpec,
+				newExposePorts(k.GetExposePorts()),
+				k.GetHeadlessPorts(),
+				k.Spec.PrivateNetworkCluster,
+			)
+
+			err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
+			if err != nil {
+				l.Error(
+					err, "Cannot create resources for on-premises cluster",
+					"cluster spec", k.Spec.OnPremisesSpec,
+				)
+				r.EventRecorder.Eventf(
+					k, models.Warning, models.CreationFailed,
+					"Resources creation for on-premises cluster is failed. Reason: %v",
+					err,
+				)
+				return reconcile.Result{}, err
+			}
+
+			err = r.startClusterOnPremisesIPsJob(k, bootstrap)
+			if err != nil {
+				l.Error(err, "Cannot start on-premises cluster IPs check job",
+					"cluster ID", k.Status.ID,
+				)
+
+				r.EventRecorder.Eventf(
+					k, models.Warning, models.CreationFailed,
+					"On-premises cluster IPs check job is failed. Reason: %v",
+					err,
+				)
+				return reconcile.Result{}, err
+			}
+
+			l.Info(
+				"On-premises resources have been created",
+				"cluster name", k.Spec.Name,
+				"on-premises Spec", k.Spec.OnPremisesSpec,
+				"cluster ID", k.Status.ID,
+			)
+			return models.ExitReconcile, nil
 		}
 	}
 
@@ -212,7 +298,7 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	if iKafka.Status.ClusterStatus.State != StatusRUNNING {
+	if iKafka.Status.ClusterStatus.State != models.RunningStatus {
 		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
 			"cluster name", k.Spec.Name,
 			"cluster state", iKafka.Status.ClusterStatus.State)
@@ -359,35 +445,35 @@ func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Log
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
+func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Kafka deletion Event")
 
-	_, err := r.API.GetKafka(kafka.Status.ID)
+	_, err := r.API.GetKafka(k.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get cluster from the Instaclustr API",
-			"cluster name", kafka.Spec.Name,
-			"cluster state", kafka.Status.ClusterStatus.State)
+			"cluster name", k.Spec.Name,
+			"cluster state", k.Status.ClusterStatus.State)
 		r.EventRecorder.Eventf(
-			kafka, models.Warning, models.FetchFailed,
+			k, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	patch := kafka.NewPatch()
+	patch := k.NewPatch()
 	if !errors.Is(err, instaclustr.NotFound) {
 		l.Info("Sending cluster deletion to the Instaclustr API",
-			"cluster name", kafka.Spec.Name,
-			"cluster ID", kafka.Status.ID)
+			"cluster name", k.Spec.Name,
+			"cluster ID", k.Status.ID)
 
-		err = r.API.DeleteCluster(kafka.Status.ID, instaclustr.KafkaEndpoint)
+		err = r.API.DeleteCluster(k.Status.ID, instaclustr.KafkaEndpoint)
 		if err != nil {
 			l.Error(err, "Cannot delete cluster",
-				"cluster name", kafka.Spec.Name,
-				"cluster state", kafka.Status.ClusterStatus.State)
+				"cluster name", k.Spec.Name,
+				"cluster state", k.Status.ClusterStatus.State)
 			r.EventRecorder.Eventf(
-				kafka, models.Warning, models.DeletionFailed,
+				k, models.Warning, models.DeletionFailed,
 				"Cluster deletion is failed on the Instaclustr. Reason: %v",
 				err,
 			)
@@ -395,80 +481,108 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 		}
 
 		r.EventRecorder.Eventf(
-			kafka, models.Normal, models.DeletionStarted,
+			k, models.Normal, models.DeletionStarted,
 			"Cluster deletion request is sent to the Instaclustr API.",
 		)
 
-		if kafka.Spec.TwoFactorDelete != nil {
-			kafka.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-			kafka.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
-			err = r.Patch(ctx, kafka, patch)
+		if k.Spec.TwoFactorDelete != nil {
+			k.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
+			k.Annotations[models.ClusterDeletionAnnotation] = models.Triggered
+			err = r.Patch(ctx, k, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch cluster resource",
-					"cluster name", kafka.Spec.Name,
-					"cluster state", kafka.Status.State)
+					"cluster name", k.Spec.Name,
+					"cluster state", k.Status.State)
 				r.EventRecorder.Eventf(
-					kafka, models.Warning, models.PatchFailed,
+					k, models.Warning, models.PatchFailed,
 					"Cluster resource patch is failed. Reason: %v",
 					err,
 				)
 				return reconcile.Result{}, err
 			}
 
-			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", kafka.Status.ID)
+			l.Info(msgDeleteClusterWithTwoFactorDelete, "cluster ID", k.Status.ID)
 
-			r.EventRecorder.Event(kafka, models.Normal, models.DeletionStarted,
+			r.EventRecorder.Event(k, models.Normal, models.DeletionStarted,
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 
 			return models.ExitReconcile, nil
 		}
 	}
 
-	err = detachUsers(ctx, r.Client, r, kafka)
+	err = detachUsers(ctx, r.Client, r, k)
 	if err != nil {
 		l.Error(err, "Failed to detach users from the cluster")
-		r.EventRecorder.Eventf(kafka, models.Warning, models.DeletionFailed,
+		r.EventRecorder.Eventf(k, models.Warning, models.DeletionFailed,
 			"Detaching users from the cluster is failed. Reason: %w", err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
-	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
-	controllerutil.RemoveFinalizer(kafka, models.DeletionFinalizer)
-	kafka.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.Patch(ctx, kafka, patch)
+	if k.Spec.OnPremisesSpec != nil {
+		err = deleteOnPremResources(ctx, r.Client, k.Status.ID, k.Namespace)
+		if err != nil {
+			l.Error(err, "Cannot delete cluster on-premises resources",
+				"cluster ID", k.Status.ID)
+			r.EventRecorder.Eventf(k, models.Warning, models.DeletionFailed,
+				"Cluster on-premises resources deletion is failed. Reason: %v", err)
+			return reconcile.Result{}, err
+		}
+
+		l.Info("Cluster on-premises resources are deleted",
+			"cluster ID", k.Status.ID)
+		r.EventRecorder.Eventf(k, models.Normal, models.Deleted,
+			"Cluster on-premises resources are deleted")
+		r.Scheduler.RemoveJob(k.GetJobID(scheduler.OnPremisesIPsChecker))
+	}
+
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
+	controllerutil.RemoveFinalizer(k, models.DeletionFinalizer)
+	k.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
+	err = r.Patch(ctx, k, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", kafka.Spec.Name)
+			"cluster name", k.Spec.Name)
 		r.EventRecorder.Eventf(
-			kafka, models.Warning, models.PatchFailed,
+			k, models.Warning, models.PatchFailed,
 			"Cluster resource patch is failed. Reason: %v",
 			err,
 		)
 		return reconcile.Result{}, err
 	}
 
-	err = exposeservice.Delete(r.Client, kafka.Name, kafka.Namespace)
+	err = exposeservice.Delete(r.Client, k.Name, k.Namespace)
 	if err != nil {
 		l.Error(err, "Cannot delete Kafka cluster expose service",
-			"cluster ID", kafka.Status.ID,
-			"cluster name", kafka.Spec.Name,
+			"cluster ID", k.Status.ID,
+			"cluster name", k.Spec.Name,
 		)
 
 		return reconcile.Result{}, err
 	}
 
 	l.Info("Cluster was deleted",
-		"cluster name", kafka.Spec.Name,
-		"cluster ID", kafka.Status.ID)
+		"cluster name", k.Spec.Name,
+		"cluster ID", k.Status.ID)
 
 	r.EventRecorder.Eventf(
-		kafka, models.Normal, models.Deleted,
+		k, models.Normal, models.Deleted,
 		"Cluster resource is deleted",
 	)
 
 	return models.ExitReconcile, nil
+}
+
+func (r *KafkaReconciler) startClusterOnPremisesIPsJob(k *v1beta1.Kafka, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(k.Kind, b)
+
+	err := r.Scheduler.ScheduleJob(k.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *KafkaReconciler) startClusterStatusJob(kafka *v1beta1.Kafka) error {
@@ -482,61 +596,61 @@ func (r *KafkaReconciler) startClusterStatusJob(kafka *v1beta1.Kafka) error {
 	return nil
 }
 
-func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job {
+func (r *KafkaReconciler) newWatchStatusJob(k *v1beta1.Kafka) scheduler.Job {
 	l := log.Log.WithValues("component", "kafkaStatusClusterJob")
 	return func() error {
-		namespacedName := client.ObjectKeyFromObject(kafka)
-		err := r.Get(context.Background(), namespacedName, kafka)
+		namespacedName := client.ObjectKeyFromObject(k)
+		err := r.Get(context.Background(), namespacedName, k)
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
-			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
-			r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.BackupsChecker))
+			r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
+			r.Scheduler.RemoveJob(k.GetJobID(scheduler.BackupsChecker))
 			return nil
 		}
 		if err != nil {
 			l.Error(err, "Cannot get cluster resource",
-				"resource name", kafka.Name)
+				"resource name", k.Name)
 			return err
 		}
 
-		iData, err := r.API.GetKafka(kafka.Status.ID)
+		iData, err := r.API.GetKafka(k.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
-				if kafka.DeletionTimestamp != nil {
-					_, err = r.handleDeleteCluster(context.Background(), kafka, l)
+				if k.DeletionTimestamp != nil {
+					_, err = r.handleDeleteCluster(context.Background(), k, l)
 					return err
 				}
 
-				return r.handleExternalDelete(context.Background(), kafka)
+				return r.handleExternalDelete(context.Background(), k)
 			}
 
-			l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", kafka.Status.ID)
+			l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", k.Status.ID)
 			return err
 		}
 
-		iKafka, err := kafka.FromInstAPI(iData)
+		iKafka, err := k.FromInstAPI(iData)
 		if err != nil {
 			l.Error(err, "Cannot convert cluster from the Instaclustr API",
-				"cluster ID", kafka.Status.ID,
+				"cluster ID", k.Status.ID,
 			)
 			return err
 		}
 
-		if !areStatusesEqual(&kafka.Status.ClusterStatus, &iKafka.Status.ClusterStatus) {
+		if !areStatusesEqual(&k.Status.ClusterStatus, &iKafka.Status.ClusterStatus) {
 			l.Info("Kafka status of k8s is different from Instaclustr. Reconcile k8s resource status..",
 				"instacluster status", iKafka.Status,
-				"k8s status", kafka.Status.ClusterStatus)
+				"k8s status", k.Status.ClusterStatus)
 
-			areDCsEqual := areDataCentresEqual(iKafka.Status.ClusterStatus.DataCentres, kafka.Status.ClusterStatus.DataCentres)
+			areDCsEqual := areDataCentresEqual(iKafka.Status.ClusterStatus.DataCentres, k.Status.ClusterStatus.DataCentres)
 
-			patch := kafka.NewPatch()
-			kafka.Status.ClusterStatus = iKafka.Status.ClusterStatus
-			err = r.Status().Patch(context.Background(), kafka, patch)
+			patch := k.NewPatch()
+			k.Status.ClusterStatus = iKafka.Status.ClusterStatus
+			err = r.Status().Patch(context.Background(), k, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch cluster cluster",
-					"cluster name", kafka.Spec.Name, "cluster state", kafka.Status.State)
+					"cluster name", k.Spec.Name, "cluster state", k.Status.State)
 				return err
 			}
 
@@ -548,9 +662,9 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 				}
 
 				err = exposeservice.Create(r.Client,
-					kafka.Name,
-					kafka.Namespace,
-					kafka.Spec.PrivateNetworkCluster,
+					k.Name,
+					k.Namespace,
+					k.Spec.PrivateNetworkCluster,
 					nodes,
 					models.KafkaConnectionPort)
 				if err != nil {
@@ -560,49 +674,49 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 		}
 
 		if iKafka.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			kafka.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!kafka.Spec.IsEqual(iKafka.Spec) {
+			k.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			!k.Spec.IsEqual(iKafka.Spec) {
 
-			patch := kafka.NewPatch()
-			kafka.Annotations[models.ExternalChangesAnnotation] = models.True
+			patch := k.NewPatch()
+			k.Annotations[models.ExternalChangesAnnotation] = models.True
 
-			err = r.Patch(context.Background(), kafka, patch)
+			err = r.Patch(context.Background(), k, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch cluster cluster",
-					"cluster name", kafka.Spec.Name, "cluster state", kafka.Status.State)
+					"cluster name", k.Spec.Name, "cluster state", k.Status.State)
 				return err
 			}
 
 			l.Info("The k8s specification is different from Instaclustr Console. Update operations are blocked.",
-				"instaclustr data", iKafka.Spec, "k8s resource spec", kafka.Spec)
+				"instaclustr data", iKafka.Spec, "k8s resource spec", k.Spec)
 
-			msgDiffSpecs, err := createSpecDifferenceMessage(kafka.Spec, iKafka.Spec)
+			msgDiffSpecs, err := createSpecDifferenceMessage(k.Spec, iKafka.Spec)
 			if err != nil {
 				l.Error(err, "Cannot create specification difference message",
-					"instaclustr data", iKafka.Spec, "k8s resource spec", kafka.Spec)
+					"instaclustr data", iKafka.Spec, "k8s resource spec", k.Spec)
 				return err
 			}
-			r.EventRecorder.Eventf(kafka, models.Warning, models.ExternalChanges, msgDiffSpecs)
+			r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
 		}
 
 		//TODO: change all context.Background() and context.TODO() to ctx from Reconcile
-		err = r.reconcileMaintenanceEvents(context.Background(), kafka)
+		err = r.reconcileMaintenanceEvents(context.Background(), k)
 		if err != nil {
 			l.Error(err, "Cannot reconcile cluster maintenance events",
-				"cluster name", kafka.Spec.Name,
-				"cluster ID", kafka.Status.ID,
+				"cluster name", k.Spec.Name,
+				"cluster ID", k.Status.ID,
 			)
 			return err
 		}
 
-		if kafka.Status.State == models.RunningStatus && kafka.Status.CurrentClusterOperationStatus == models.OperationInProgress {
-			patch := kafka.NewPatch()
-			for _, dc := range kafka.Status.DataCentres {
+		if k.Status.State == models.RunningStatus && k.Status.CurrentClusterOperationStatus == models.OperationInProgress {
+			patch := k.NewPatch()
+			for _, dc := range k.Status.DataCentres {
 				resizeOperations, err := r.API.GetResizeOperationsByClusterDataCentreID(dc.ID)
 				if err != nil {
 					l.Error(err, "Cannot get data centre resize operations",
-						"cluster name", kafka.Spec.Name,
-						"cluster ID", kafka.Status.ID,
+						"cluster name", k.Spec.Name,
+						"cluster ID", k.Status.ID,
 						"data centre ID", dc.ID,
 					)
 
@@ -610,11 +724,11 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 				}
 
 				dc.ResizeOperations = resizeOperations
-				err = r.Status().Patch(context.Background(), kafka, patch)
+				err = r.Status().Patch(context.Background(), k, patch)
 				if err != nil {
 					l.Error(err, "Cannot patch data centre resize operations",
-						"cluster name", kafka.Spec.Name,
-						"cluster ID", kafka.Status.ID,
+						"cluster name", k.Spec.Name,
+						"cluster ID", k.Status.ID,
 						"data centre ID", dc.ID,
 					)
 
@@ -627,25 +741,25 @@ func (r *KafkaReconciler) newWatchStatusJob(kafka *v1beta1.Kafka) scheduler.Job 
 	}
 }
 
-func (r *KafkaReconciler) startUsersCreationJob(kafka *v1beta1.Kafka) error {
-	job := r.newUsersCreationJob(kafka)
+func (r *KafkaReconciler) startUsersCreationJob(k *v1beta1.Kafka) error {
+	job := r.newUsersCreationJob(k)
 
-	err := r.Scheduler.ScheduleJob(kafka.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
+	err := r.Scheduler.ScheduleJob(k.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *KafkaReconciler) newUsersCreationJob(kafka *v1beta1.Kafka) scheduler.Job {
+func (r *KafkaReconciler) newUsersCreationJob(k *v1beta1.Kafka) scheduler.Job {
 	l := log.Log.WithValues("component", "kafkaUsersCreationJob")
 	return func() error {
 		ctx := context.Background()
 
 		err := r.Get(ctx, types.NamespacedName{
-			Namespace: kafka.Namespace,
-			Name:      kafka.Name,
-		}, kafka)
+			Namespace: k.Namespace,
+			Name:      k.Name,
+		}, k)
 
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -655,50 +769,50 @@ func (r *KafkaReconciler) newUsersCreationJob(kafka *v1beta1.Kafka) scheduler.Jo
 			return err
 		}
 
-		if kafka.Status.State != models.RunningStatus {
+		if k.Status.State != models.RunningStatus {
 			l.Info("User creation job is scheduled")
-			r.EventRecorder.Eventf(kafka, models.Normal, models.CreationFailed,
+			r.EventRecorder.Eventf(k, models.Normal, models.CreationFailed,
 				"User creation job is scheduled, cluster is not in the running state",
 			)
 
 			return nil
 		}
 
-		err = handleUsersChanges(ctx, r.Client, r, kafka)
+		err = handleUsersChanges(ctx, r.Client, r, k)
 		if err != nil {
 			l.Error(err, "Failed to create users for the cluster")
-			r.EventRecorder.Eventf(kafka, models.Warning, models.CreationFailed,
+			r.EventRecorder.Eventf(k, models.Warning, models.CreationFailed,
 				"Failed to create users for the cluster. Reason: %v", err)
 			return err
 		}
 
 		l.Info("User creation job successfully finished")
-		r.EventRecorder.Eventf(kafka, models.Normal, models.Created,
+		r.EventRecorder.Eventf(k, models.Normal, models.Created,
 			"User creation job successfully finished",
 		)
 
-		r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
+		r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}
 }
 
-func (r *KafkaReconciler) handleExternalDelete(ctx context.Context, kafka *v1beta1.Kafka) error {
+func (r *KafkaReconciler) handleExternalDelete(ctx context.Context, k *v1beta1.Kafka) error {
 	l := log.FromContext(ctx)
 
-	patch := kafka.NewPatch()
-	kafka.Status.State = models.DeletedStatus
-	err := r.Status().Patch(ctx, kafka, patch)
+	patch := k.NewPatch()
+	k.Status.State = models.DeletedStatus
+	err := r.Status().Patch(ctx, k, patch)
 	if err != nil {
 		return err
 	}
 
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
-	r.EventRecorder.Eventf(kafka, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
+	r.EventRecorder.Eventf(k, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.BackupsChecker))
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
 
 	return nil
 }

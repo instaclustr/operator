@@ -172,7 +172,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			)
 
 			r.EventRecorder.Eventf(
-				backup, models.Warning, models.ConvertionFailed,
+				backup, models.Warning, models.ConversionFailed,
 				"Start timestamp annotation convertion to int is failed. Reason: %v",
 				err,
 			)

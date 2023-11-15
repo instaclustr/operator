@@ -22,13 +22,12 @@ import (
 	"time"
 
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	virtcorev1 "kubevirt.io/api/core/v1"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -56,6 +55,8 @@ func init() {
 	utilruntime.Must(clustersv1beta1.AddToScheme(scheme))
 	utilruntime.Must(clusterresourcesv1beta1.AddToScheme(scheme))
 	utilruntime.Must(kafkamanagementv1beta1.AddToScheme(scheme))
+	utilruntime.Must(cdiv1beta1.AddToScheme(scheme))
+	utilruntime.Must(virtcorev1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

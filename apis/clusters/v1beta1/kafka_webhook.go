@@ -85,6 +85,19 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
+	if k.Spec.OnPremisesSpec != nil {
+		err = k.Spec.OnPremisesSpec.ValidateCreation()
+		if err != nil {
+			return err
+		}
+		if k.Spec.PrivateNetworkCluster {
+			err = k.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	appVersions, err := kv.API.ListAppVersions(models.KafkaAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -100,10 +113,22 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return models.ErrZeroDataCentres
 	}
 
+	//TODO: add support of multiple DCs for OnPrem clusters
+	if len(k.Spec.DataCentres) > 1 && k.Spec.OnPremisesSpec != nil {
+		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
+	}
+
 	for _, dc := range k.Spec.DataCentres {
-		err := dc.DataCentre.ValidateCreation()
-		if err != nil {
-			return err
+		if k.Spec.OnPremisesSpec != nil {
+			err := dc.DataCentre.ValidateOnPremisesCreation()
+			if err != nil {
+				return err
+			}
+		} else {
+			err := dc.DataCentre.ValidateCreation()
+			if err != nil {
+				return err
+			}
 		}
 
 		if len(dc.PrivateLink) > 1 {

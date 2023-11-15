@@ -5,6 +5,9 @@ IMG_TAG ?= latest
 OPERATOR_NAMESPACE ?= instaclustr-operator
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.2
+KUBEVIRT_TAG?=v1.57.0
+KUBEVIRT_VERSION?=v1.0.0
+ARCH?=linux-amd64
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -196,3 +199,28 @@ dev-build: docker-build kind-load deploy ## builds docker-image, loads it to kin
 kind-load: ## loads given image to kind cluster
 	kind load docker-image ${IMG}
 
+.PHONY: deploy-kubevirt
+deploy-kubevirt: ## Deploy kubevirt operator and custom resources
+	kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml
+	kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml
+	kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/${KUBEVIRT_TAG}/cdi-operator.yaml
+	kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/${KUBEVIRT_TAG}/cdi-cr.yaml
+
+.PHONY: undeploy-kubevirt
+undeploy-kubevirt: ## Delete kubevirt operator and custom resources
+	kubectl delete apiservices v1.subresources.kubevirt.io --ignore-not-found
+	kubectl delete mutatingwebhookconfigurations virt-api-mutator --ignore-not-found
+	kubectl delete validatingwebhookconfigurations virt-operator-validator --ignore-not-found
+	kubectl delete validatingwebhookconfigurations virt-api-validator --ignore-not-found
+	kubectl delete -n kubevirt kubevirt kubevirt --ignore-not-found
+	kubectl delete -f https://github.com/kubevirt/containerized-data-importer/releases/download/${KUBEVIRT_TAG}/cdi-cr.yaml --ignore-not-found
+	kubectl delete -f https://github.com/kubevirt/containerized-data-importer/releases/download/${KUBEVIRT_TAG}/cdi-operator.yaml --ignore-not-found
+	kubectl delete -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml --ignore-not-found
+	kubectl delete -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml --ignore-not-found
+
+.PHONY: install-virtctl
+install-virtctl: ## Install virtctl tool
+	curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/virtctl-${KUBEVIRT_VERSION}-${ARCH}
+	chmod +x virtctl
+	sudo install virtctl /usr/local/bin
+	rm virtctl
