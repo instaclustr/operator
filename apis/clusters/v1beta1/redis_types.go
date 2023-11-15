@@ -69,14 +69,15 @@ type RedisSpec struct {
 	//+kubebuilder:validation:MaxItems:=2
 	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
 
-	UserRefs []*Reference `json:"userRefs,omitempty"`
+	UserRefs References `json:"userRefs,omitempty"`
 	//+kubebuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus  `json:",inline"`
+	AvailableUsers References `json:"availableUsers,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -297,7 +298,7 @@ func (rs *RedisSpec) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*Redi
 
 func (rs *RedisStatus) FromInstAPI(iRedis *models.RedisCluster) RedisStatus {
 	return RedisStatus{
-		ClusterStatus{
+		ClusterStatus: ClusterStatus{
 			ID:                            iRedis.ID,
 			State:                         iRedis.Status,
 			DataCentres:                   rs.DCsFromInstAPI(iRedis.DataCentres),
@@ -462,6 +463,30 @@ func (rs *RedisSpec) ValidatePrivateLink() error {
 	}
 
 	return nil
+}
+
+func (r *Redis) GetUserRefs() References {
+	return r.Spec.UserRefs
+}
+
+func (r *Redis) SetUserRefs(refs References) {
+	r.Spec.UserRefs = refs
+}
+
+func (r *Redis) GetAvailableUsers() References {
+	return r.Status.AvailableUsers
+}
+
+func (r *Redis) SetAvailableUsers(users References) {
+	r.Status.AvailableUsers = users
+}
+
+func (r *Redis) GetClusterID() string {
+	return r.Status.ID
+}
+
+func (r *Redis) SetClusterID(id string) {
+	r.Status.ID = id
 }
 
 func init() {

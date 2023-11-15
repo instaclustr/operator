@@ -369,8 +369,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 
 			patch := redis.NewPatch()
 			redis.Annotations[models.UpdateQueuedAnnotation] = models.True
-			err = r.Patch(ctx, redis, patch)
-			if err != nil {
+			if err := r.Patch(ctx, redis, patch); err != nil {
 				logger.Error(err, "Cannot patch metadata",
 					"cluster name", redis.Spec.Name,
 					"cluster metadata", redis.ObjectMeta,
@@ -385,6 +384,15 @@ func (r *RedisReconciler) handleUpdateCluster(
 			}
 			return reconcile.Result{}, err
 		}
+	}
+
+	err = handleUsersChanges(ctx, r.Client, r, redis)
+	if err != nil {
+		logger.Error(err, "Failed to handle users changes")
+		r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
+			"Handling users changes is failed. Reason: %w", err,
+		)
+		return reconcile.Result{}, err
 	}
 
 	patch := redis.NewPatch()
@@ -413,66 +421,6 @@ func (r *RedisReconciler) handleUpdateCluster(
 	)
 
 	return models.ExitReconcile, nil
-}
-
-func (r *RedisReconciler) handleCreateUsers(
-	ctx context.Context,
-	redis *v1beta1.Redis,
-	l logr.Logger,
-	userRefs *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: userRefs.Namespace,
-		Name:      userRefs.Name,
-	}
-
-	u := &clusterresourcesv1beta1.RedisUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Info("Redis user is not found", "request", req)
-			r.EventRecorder.Event(u, models.Warning, "Not Found",
-				"User is not found, create a new one Redis User or provide right userRef.")
-
-			return err
-		}
-
-		l.Error(err, "Cannot get Redis user secret", "request", req)
-		r.EventRecorder.Eventf(u, models.Warning, "Cannot Get",
-			"Cannot get Redis user secret. Reason: %v", err)
-
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[redis.Status.ID]; exist {
-		l.Info("User is already existing on the cluster",
-			"user reference", userRefs)
-		r.EventRecorder.Eventf(redis, models.Normal, models.CreationFailed,
-			"User is already existing on the cluster. User reference: %v", userRefs)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	if u.Status.ClustersEvents == nil {
-		u.Status.ClustersEvents = make(map[string]string)
-	}
-
-	u.Status.ClustersEvents[redis.Status.ID] = models.CreatingEvent
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the Redis User status with the CreatingEvent",
-			"cluster name", redis.Spec.Name, "cluster ID", redis.Status.ID)
-		r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
-			"Cannot add Redis User to the cluster. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for creation", "username", u.Name)
-
-	return nil
 }
 
 func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l logr.Logger) (reconcile.Result, error) {
@@ -611,21 +559,13 @@ func (r *RedisReconciler) handleDeleteCluster(
 		"cluster ID", redis.Status.ID,
 	)
 
-	for _, ref := range redis.Spec.UserRefs {
-		err = r.detachUserResource(ctx, logger, redis, ref)
-		if err != nil {
-			logger.Error(err, "Cannot detach Redis user",
-				"cluster name", redis.Spec.Name,
-				"cluster status", redis.Status.State,
-			)
-
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.DeletionFailed,
-				"Cluster detaching on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
+	err = detachUsers(ctx, r.Client, r, redis)
+	if err != nil {
+		logger.Error(err, "Failed to detach users from the cluster")
+		r.EventRecorder.Eventf(redis, models.Warning, models.DeletionFailed,
+			"Detaching users from the cluster is failed. Reason: %w", err,
+		)
+		return reconcile.Result{}, err
 	}
 
 	patch := redis.NewPatch()
@@ -667,165 +607,6 @@ func (r *RedisReconciler) handleDeleteCluster(
 	)
 
 	return models.ExitReconcile, nil
-}
-
-func (r *RedisReconciler) detachUserResource(
-	ctx context.Context,
-	l logr.Logger,
-	redis *v1beta1.Redis,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.RedisUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Redis user is not found", "request", req)
-			r.EventRecorder.Eventf(redis, models.Warning, models.NotFound,
-				"User resource is not found, please provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return nil
-		}
-
-		l.Error(err, "Cannot get Redis user", "user", u.Spec)
-		r.EventRecorder.Eventf(redis, models.Warning, models.DeletionFailed,
-			"Cannot get Redis user. User reference: %v", uRef)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[redis.Status.ID]; !exist {
-		return nil
-	}
-
-	patch := u.NewPatch()
-	u.Status.ClustersEvents[redis.Status.ID] = models.ClusterDeletingEvent
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the Redis user status with the ClusterDeletingEvent",
-			"cluster name", redis.Spec.Name, "cluster ID", redis.Status.ID)
-		r.EventRecorder.Eventf(redis, models.Warning, models.DeletionFailed,
-			"Cannot patch the Redis user status with the ClusterDeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("The user has been detached from the cluster")
-
-	return nil
-}
-
-func (r *RedisReconciler) handleUserEvent(
-	newObj *v1beta1.Redis,
-	oldUsers []*v1beta1.Reference,
-) {
-	ctx := context.TODO()
-	l := log.FromContext(ctx)
-
-	for _, newUser := range newObj.Spec.UserRefs {
-		var exist bool
-
-		for _, oldUser := range oldUsers {
-
-			if *newUser == *oldUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.handleCreateUsers(ctx, newObj, l, newUser)
-		if err != nil {
-			l.Error(err, "Cannot create Redis user in predicate", "user", newUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
-		}
-
-		oldUsers = append(oldUsers, newUser)
-	}
-
-	for _, oldUser := range oldUsers {
-		var exist bool
-
-		for _, newUser := range newObj.Spec.UserRefs {
-
-			if *oldUser == *newUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.handleUsersDelete(ctx, l, newObj, oldUser)
-		if err != nil {
-			l.Error(err, "Cannot delete Redis user", "user", oldUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot delete user from cluster. Reason: %v", err)
-		}
-	}
-}
-
-func (r *RedisReconciler) handleUsersDelete(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.Redis,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.RedisUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Redis user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User is not found, create a new one Redis User or provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return nil
-		}
-
-		l.Error(err, "Cannot get Redis user", "user", u.Spec)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get Redis user. User reference: %v", uRef)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersEvents[c.Status.ID]; !exist {
-		l.Info("User is not existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
-			"User is not existing on the cluster. User reference: %v", uRef)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	u.Status.ClustersEvents[c.Status.ID] = models.DeletingEvent
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the Redis User status with the DeletingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot patch the Redis User status with the DeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for deletion", "username", u.Name)
-
-	return nil
 }
 
 func (r *RedisReconciler) startClusterStatusJob(cluster *v1beta1.Redis) error {
@@ -875,17 +656,13 @@ func (r *RedisReconciler) newUsersCreationJob(redis *v1beta1.Redis) scheduler.Jo
 			return nil
 		}
 
-		for _, ref := range redis.Spec.UserRefs {
-			err = r.handleCreateUsers(ctx, redis, logger, ref)
-			if err != nil {
-				logger.Error(err, "Failed to create a user for the cluster",
-					"user ref", ref,
-				)
-				r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
-					"Failed to create a user for the cluster. Reason: %v", err,
-				)
-				return err
-			}
+		err = handleUsersChanges(ctx, r.Client, r, redis)
+		if err != nil {
+			logger.Error(err, "Failed to create users")
+			r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
+				"Creating users is failed. Reason: %w", err,
+			)
+			return err
 		}
 
 		logger.Info("User creation job successfully finished")
@@ -1199,6 +976,10 @@ func (r *RedisReconciler) deleteBackups(ctx context.Context, clusterID, namespac
 	return nil
 }
 
+func (r *RedisReconciler) NewUserResource() userObject {
+	return &clusterresourcesv1beta1.RedisUser{}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -1231,10 +1012,6 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if newObj.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
-
-				oldObj := event.ObjectOld.(*v1beta1.Redis)
-
-				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
