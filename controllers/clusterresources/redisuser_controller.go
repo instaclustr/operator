@@ -29,12 +29,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // RedisUserReconciler reconciles a RedisUser object
@@ -68,13 +70,13 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				"request", req,
 			)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Cannot fetch Redis user resource",
 			"request", req,
 		)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	secret := &k8sCore.Secret{}
@@ -96,7 +98,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			err,
 		)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	username, password, err := getUserCreds(secret)
@@ -105,7 +107,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
 			"Cannot get user. Reason: %v", err)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	if controllerutil.AddFinalizer(secret, user.GetDeletionFinalizer()) {
@@ -117,7 +119,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			r.EventRecorder.Eventf(user, models.Warning, models.UpdatedEvent,
 				"Cannot assign k8s secret to a Redis user. Reason: %v", err)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -128,7 +130,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			l.Error(err, "Patch is failed. Cannot set finalizer to the user")
 			r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
 				"Patch is failed. Cannot set finalizer to the user. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -144,7 +146,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
 					"Cannot create user. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			if errors.Is(err, instaclustr.NotFound) {
@@ -156,7 +158,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
 						"Cannot create user. Reason: %v", err)
 
-					return models.ReconcileRequeue, nil
+					return ctrl.Result{}, err
 				}
 			}
 
@@ -167,7 +169,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("User has been created for a Redis cluster", "username", username)
@@ -187,7 +189,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				r.EventRecorder.Eventf(user, models.Warning, models.DeletingEvent,
 					"Cannot delete Redis user from the cluster. Cluster ID: %s. Reason: %v", clusterID, err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("User has been deleted for cluster", "username", username,
@@ -204,7 +206,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				r.EventRecorder.Eventf(user, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			continue
@@ -219,7 +221,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				r.EventRecorder.Eventf(user, models.Warning, models.DeletionFailed,
 					"Resource detach is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 			continue
 		}
@@ -240,7 +242,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				err,
 			)
 
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 		if errors.Is(err, instaclustr.NotFound) {
 			l.Info("Cannot update redis user password, the user doesn't exist on the given cluster",
@@ -267,11 +269,11 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if user.DeletionTimestamp != nil {
 		err = r.handleDeleteUser(ctx, l, secret, user)
 		if err != nil {
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *RedisUserReconciler) detachUserFromDeletedCluster(
@@ -375,6 +377,8 @@ func (r *RedisUserReconciler) handleDeleteUser(
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.RedisUser{}).
 		Complete(r)
 }

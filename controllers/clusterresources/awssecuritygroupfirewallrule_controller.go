@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -67,37 +68,35 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 			l.Info("AWS security group firewall rule resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Unable to fetch AWS security group firewall rule")
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.handleCreateFirewallRule(ctx, firewallRule, &l)
-		return reconcileResult, nil
+		return r.handleCreateFirewallRule(ctx, firewallRule, &l)
 	case models.DeletingEvent:
-		reconcileResult := r.handleDeleteFirewallRule(ctx, firewallRule, &l)
-		return reconcileResult, nil
+		return r.handleDeleteFirewallRule(ctx, firewallRule, &l)
 	case models.GenericEvent:
 		l.Info("AWS security group firewall rule event isn't handled",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 	ctx context.Context,
 	firewallRule *v1beta1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if firewallRule.Status.ID == "" {
 		l.Info(
 			"Creating AWS security group firewall rule",
@@ -118,7 +117,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -135,7 +134,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		firewallRule.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -151,7 +150,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -170,7 +169,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 			"Resource status job creation is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -178,14 +177,14 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 		"Resource status check job is started",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	ctx context.Context,
 	firewallRule *v1beta1.AWSSecurityGroupFirewallRule,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	patch := firewallRule.NewPatch()
 	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
@@ -199,7 +198,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	status, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
@@ -215,7 +214,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 			"Fetch resource from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil && status.Status != statusDELETED {
@@ -232,7 +231,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 				"Resource deletion on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			firewallRule, models.Normal, models.DeletionStarted,
@@ -256,7 +255,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("AWS security group firewall rule has been deleted",
@@ -270,7 +269,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *v1beta1.AWSSecurityGroupFirewallRule) error {
@@ -352,6 +351,8 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleExternalDelete(ctx contex
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSSecurityGroupFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.AWSSecurityGroupFirewallRule{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {

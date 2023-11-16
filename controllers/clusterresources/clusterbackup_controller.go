@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,6 +35,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // ClusterBackupReconciler reconciles a ClusterBackup object
@@ -65,14 +67,14 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"resource name", req.NamespacedName,
 			)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		logger.Error(err, "Cannot get cluster backup",
 			"backup name", req.NamespacedName,
 		)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	patch := backup.NewPatch()
@@ -94,7 +96,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -110,7 +112,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"Fetch resource from the k8s cluster is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	clusterKind := models.ClusterKindsMap[backup.Spec.ClusterKind]
@@ -130,7 +132,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"Fetch resource from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	iBackupEvents := iBackup.GetBackupEvents(backup.Spec.ClusterKind)
@@ -148,7 +150,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -174,7 +176,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"Start timestamp annotation convertion to int is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		err = r.Status().Patch(ctx, backup, patch)
@@ -188,7 +190,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -209,7 +211,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	logger.Info("Cluster backup resource was reconciled",
@@ -217,7 +219,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		"cluster ID", backup.Spec.ClusterID,
 	)
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *ClusterBackupReconciler) listClusterBackups(ctx context.Context, clusterID, namespace string) (*v1beta1.ClusterBackupList, error) {
@@ -237,6 +239,8 @@ func (r *ClusterBackupReconciler) listClusterBackups(ctx context.Context, cluste
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.ClusterBackup{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return false

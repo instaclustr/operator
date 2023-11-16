@@ -28,12 +28,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -65,38 +67,26 @@ func (r *AWSEndpointServicePrincipalReconciler) Reconcile(ctx context.Context, r
 	}, principal)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Unable to fetch an AWS endpoint service principal resource")
 
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
-	// Handle resource deletion
 	if principal.DeletionTimestamp != nil {
-		err = r.handleDelete(ctx, l, principal)
-		if err != nil {
-			return models.ReconcileRequeue, err
-		}
-
-		return models.ExitReconcile, nil
+		return r.handleDelete(ctx, l, principal)
 	}
 
-	// Handle resource creation
 	if principal.Status.ID == "" {
-		err = r.handleCreate(ctx, l, principal)
-		if err != nil {
-			return models.ReconcileRequeue, nil
-		}
-
-		return models.ExitReconcile, nil
+		return r.handleCreate(ctx, l, principal)
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
-func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context, l logr.Logger, principal *clusterresourcesv1beta1.AWSEndpointServicePrincipal) error {
+func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context, l logr.Logger, principal *clusterresourcesv1beta1.AWSEndpointServicePrincipal) (ctrl.Result, error) {
 	b, err := r.API.CreateAWSEndpointServicePrincipal(principal.Spec)
 	if err != nil {
 		l.Error(err, "failed to create an AWS endpoint service principal resource on Instaclustr")
@@ -104,7 +94,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 			"Failed to create an AWS endpoint service principal on Instaclustr. Reason: %v", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 
 	patch := principal.NewPatch()
@@ -115,7 +105,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 			"Failed to parse an AWS endpoint service principal resource response from Instaclustr. Reason: %v", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 
 	err = r.Status().Patch(ctx, principal, patch)
@@ -125,7 +115,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 			"Failed to patch an AWS endpoint service principal resource with its ID. Reason: %v", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 
 	controllerutil.AddFinalizer(principal, models.DeletionFinalizer)
@@ -136,7 +126,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 			"Failed to patch an AWS endpoint service principal resource with finalizer. Reason: %v", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 
 	l.Info("AWS endpoint service principal resource has been created")
@@ -151,16 +141,16 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 			"Failed to start status checker job. Reason: %w", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 	r.EventRecorder.Eventf(principal, models.Normal, models.Created,
 		"Status check job %s has been started", principal.GetJobID(scheduler.StatusChecker),
 	)
 
-	return nil
+	return ctrl.Result{}, nil
 }
 
-func (r *AWSEndpointServicePrincipalReconciler) handleDelete(ctx context.Context, logger logr.Logger, resource *clusterresourcesv1beta1.AWSEndpointServicePrincipal) error {
+func (r *AWSEndpointServicePrincipalReconciler) handleDelete(ctx context.Context, logger logr.Logger, resource *clusterresourcesv1beta1.AWSEndpointServicePrincipal) (ctrl.Result, error) {
 	err := r.API.DeleteAWSEndpointServicePrincipal(resource.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		logger.Error(err, "failed to delete an AWS endpoint service principal resource on Instaclustr")
@@ -168,7 +158,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleDelete(ctx context.Context
 			"Failed to delete an AWS endpoint service principal on Instaclustr. Reason: %v", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 
 	patch := resource.NewPatch()
@@ -180,12 +170,12 @@ func (r *AWSEndpointServicePrincipalReconciler) handleDelete(ctx context.Context
 			"Failed to delete finalizer from an AWS endpoint service principal resource. Reason: %v", err,
 		)
 
-		return err
+		return ctrl.Result{}, err
 	}
 
 	logger.Info("AWS endpoint service principal resource has been deleted")
 
-	return nil
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSEndpointServicePrincipalReconciler) startWatchStatusJob(ctx context.Context, resource *clusterresourcesv1beta1.AWSEndpointServicePrincipal) error {
@@ -247,6 +237,8 @@ func (r *AWSEndpointServicePrincipalReconciler) handleExternalDelete(ctx context
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSEndpointServicePrincipalReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&clusterresourcesv1beta1.AWSEndpointServicePrincipal{}).
 		Complete(r)
 }

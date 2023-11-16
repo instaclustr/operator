@@ -26,12 +26,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // CassandraUserReconciler reconciles a CassandraUser object
@@ -61,11 +63,11 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if k8sErrors.IsNotFound(err) {
 			l.Info("Cassandra user resource is not found", "request", req)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "Cannot fetch Cassandra user resource", "request", req)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	s := &k8sCore.Secret{}
@@ -78,14 +80,14 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			l.Info("Cassandra user secret is not found", "request", req)
 			r.EventRecorder.Event(u, models.Warning, models.NotFound,
 				"Secret is not found, please create a new secret or set an actual reference")
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		l.Error(err, "Cannot get Cassandra user secret", "request", req)
 		r.EventRecorder.Eventf(u, models.Warning, models.NotFound,
 			"Cannot get user secret. Reason: %v", err)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	username, password, err := getUserCreds(s)
@@ -96,7 +98,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
 			"Cannot get the Cassandra user credentials from the secret. Reason: %v", err)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	if controllerutil.AddFinalizer(s, u.GetDeletionFinalizer()) {
@@ -106,7 +108,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				"secret name", s.Name, "secret namespace", s.Namespace)
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Update secret with deletion finalizer has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -117,7 +119,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			l.Error(err, "Cannot patch Cassandra user with deletion finalizer")
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Patching Cassandra user with deletion finalizer has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -132,7 +134,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					u, models.Warning, models.CreationFailed,
 					"Cannot check if user exists. Reason: %v", err,
 				)
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			if !exists {
@@ -144,7 +146,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
 						"Cannot create user. Reason: %v", err)
 
-					return models.ReconcileRequeue, nil
+					return ctrl.Result{}, err
 				}
 			}
 
@@ -157,7 +159,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("User has been created", "username", username, "cluster ID", clusterID)
@@ -178,7 +180,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					u, models.Warning, models.CreationFailed,
 					"Cannot check if user exists. Reason: %v", err,
 				)
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			if exists {
@@ -188,7 +190,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
 						"Cannot delete user. Reason: %v", err)
 
-					return models.ReconcileRequeue, nil
+					return ctrl.Result{}, err
 				}
 			}
 
@@ -206,7 +208,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			continue
@@ -220,7 +222,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					"cluster ID", clusterID)
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Detaching clusterID from the Cassandra user resource has been failed. Reason: %v", err)
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("Cassandra user has been detached from the cluster", "cluster ID", clusterID)
@@ -234,7 +236,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			l.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser)
 			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		controllerutil.RemoveFinalizer(s, u.GetDeletionFinalizer())
@@ -243,7 +245,7 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			l.Error(err, "Cannot delete finalizer from the user's secret")
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Deleting finalizer from the user's secret has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.RemoveFinalizer(u, u.GetDeletionFinalizer())
@@ -252,19 +254,21 @@ func (r *CassandraUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			l.Error(err, "Cannot delete finalizer from the Cassandra user resource")
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Deleting finalizer  from the OpenSearch user resource has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		l.Info("The user resource has been deleted")
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.CassandraUser{}).
 		Complete(r)
 }

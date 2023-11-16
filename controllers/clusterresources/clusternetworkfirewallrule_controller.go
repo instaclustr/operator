@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -71,40 +72,37 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 			l.Info("Cluster network firewall rule resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Unable to fetch cluster network firewall rule")
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		reconcileResult := r.HandleCreateFirewallRule(ctx, firewallRule, &l)
-		return reconcileResult, nil
+		return r.HandleCreateFirewallRule(ctx, firewallRule, &l)
 	case models.UpdatingEvent:
-		reconcileResult := r.HandleUpdateFirewallRule(ctx, firewallRule, &l)
-		return reconcileResult, nil
+		return r.HandleUpdateFirewallRule(ctx, firewallRule, &l)
 	case models.DeletingEvent:
-		reconcileResult := r.HandleDeleteFirewallRule(ctx, firewallRule, &l)
-		return reconcileResult, nil
+		return r.HandleDeleteFirewallRule(ctx, firewallRule, &l)
 	case models.GenericEvent:
 		l.Info("Cluster network firewall rule event isn't handled",
 			"cluster ID", firewallRule.Spec.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 	ctx context.Context,
 	firewallRule *v1beta1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if firewallRule.Status.ID == "" {
 		l.Info(
 			"Creating cluster network firewall rule",
@@ -125,7 +123,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -143,7 +141,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		firewallRule.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -160,7 +158,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -179,7 +177,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 			"Resource status job creation is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -187,27 +185,27 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		"Resource status check job is started",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 	ctx context.Context,
 	firewallRule *v1beta1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	l.Info("Cluster network firewall rule update is not implemented",
 		"firewall rule ID", firewallRule.Spec.ClusterID,
 		"type", firewallRule.Spec.Type,
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	ctx context.Context,
 	firewallRule *v1beta1.ClusterNetworkFirewallRule,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	patch := firewallRule.NewPatch()
 	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
@@ -220,7 +218,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	status, err := r.API.GetFirewallRuleStatus(firewallRule.Status.ID, instaclustr.ClusterNetworkFirewallRuleEndpoint)
@@ -235,7 +233,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"Fetch resource from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil && status.Status != statusDELETED {
@@ -251,7 +249,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 				"Resource deletion on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -275,7 +273,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Cluster network firewall rule has been deleted",
@@ -289,7 +287,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *v1beta1.ClusterNetworkFirewallRule) error {
@@ -330,6 +328,8 @@ func (r *ClusterNetworkFirewallRuleReconciler) newWatchStatusJob(firewallRule *v
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterNetworkFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.ClusterNetworkFirewallRule{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {
