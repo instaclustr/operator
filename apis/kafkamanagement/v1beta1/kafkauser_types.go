@@ -112,6 +112,14 @@ func (ku *KafkaUser) NewCertificateSecret(name, namespace string) *k8sCore.Secre
 	}
 }
 
+func (ku *KafkaUser) GetClusterEvents() map[string]string {
+	return ku.Status.ClustersEvents
+}
+
+func (ku *KafkaUser) SetClusterEvents(events map[string]string) {
+	ku.Status.ClustersEvents = events
+}
+
 func init() {
 	SchemeBuilder.Register(&KafkaUser{}, &KafkaUserList{})
 }

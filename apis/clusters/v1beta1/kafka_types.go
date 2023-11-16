@@ -88,7 +88,7 @@ type KafkaSpec struct {
 	KarapaceRestProxy        []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
 	KarapaceSchemaRegistry   []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 	BundledUseOnly           bool                      `json:"bundledUseOnly,omitempty"`
-	UserRefs                 []*Reference              `json:"userRefs,omitempty"`
+	UserRefs                 References                `json:"userRefs,omitempty"`
 	Kraft                    []*Kraft                  `json:"kraft,omitempty"`
 }
 
@@ -103,7 +103,8 @@ type KafkaDataCentre struct {
 
 // KafkaStatus defines the observed state of Kafka
 type KafkaStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus  `json:",inline"`
+	AvailableUsers References `json:"availableUsers,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -458,4 +459,28 @@ func (rs *KafkaSpec) areDCsEqual(b []*KafkaDataCentre) bool {
 	}
 
 	return true
+}
+
+func (k *Kafka) GetUserRefs() References {
+	return k.Spec.UserRefs
+}
+
+func (k *Kafka) SetUserRefs(refs References) {
+	k.Spec.UserRefs = refs
+}
+
+func (k *Kafka) GetAvailableUsers() References {
+	return k.Status.AvailableUsers
+}
+
+func (k *Kafka) SetAvailableUsers(users References) {
+	k.Status.AvailableUsers = users
+}
+
+func (k *Kafka) GetClusterID() string {
+	return k.Status.ID
+}
+
+func (k *Kafka) SetClusterID(id string) {
+	k.Status.ID = id
 }
