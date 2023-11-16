@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -66,19 +67,19 @@ func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "AWS VPC Peering resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "unable to fetch AWS VPC Peering", "request", req)
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch aws.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreatePeering(ctx, aws, l), nil
+		return r.handleCreatePeering(ctx, aws, l)
 	case models.UpdatingEvent:
-		return r.handleUpdatePeering(ctx, aws, l), nil
+		return r.handleUpdatePeering(ctx, aws, l)
 	case models.DeletingEvent:
-		return r.handleDeletePeering(ctx, aws, l), nil
+		return r.handleDeletePeering(ctx, aws, l)
 	default:
 		l.Info("event isn't handled",
 			"AWS Account ID", aws.Spec.PeerAWSAccountID,
@@ -86,7 +87,7 @@ func (r *AWSVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"Region", aws.Spec.PeerRegion,
 			"Request", req,
 			"event", aws.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 }
 
@@ -94,7 +95,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 	ctx context.Context,
 	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if aws.Status.ID == "" {
 		l.Info(
 			"Creating AWS VPC Peering resource",
@@ -114,7 +115,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -139,7 +140,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.AddFinalizer(aws, models.DeletionFinalizer)
@@ -158,7 +159,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -178,7 +179,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 			"Resource status check job is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -186,14 +187,14 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 		"Resource status check job is started",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 	ctx context.Context,
 	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	instaAWSPeering, err := r.API.GetAWSVPCPeering(aws.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get AWS VPC Peering from Instaclutr",
@@ -203,7 +204,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 			"Cannot get AWS VPC Peering from Instaclutr. Reason: %v",
 		)
 
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if aws.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -217,7 +218,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 				"The resource specification still differs from the Instaclustr resource specification, please reconcile it manually.",
 			)
 
-			return models.ExitReconcile
+			return ctrl.Result{}, nil
 		}
 
 		patch := aws.NewPatch()
@@ -233,7 +234,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 				err,
 			)
 
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info("External changes of the k8s resource specification was fixed",
@@ -243,7 +244,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 			"External changes of the k8s resource specification was fixed",
 		)
 
-		return models.ExitReconcile
+		return ctrl.Result{}, nil
 	}
 
 	err = r.API.UpdatePeering(aws.Status.ID, instaclustr.AWSPeeringEndpoint, &aws.Spec)
@@ -259,7 +260,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 			"Resource update on the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	patch := aws.NewPatch()
@@ -278,7 +279,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("AWS VPC Peering resource has been updated",
@@ -290,14 +291,14 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 	ctx context.Context,
 	aws *v1beta1.AWSVPCPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	status, err := r.API.GetPeeringStatus(aws.Status.ID, instaclustr.AWSPeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -312,7 +313,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 			"Resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil {
@@ -330,13 +331,13 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 				"Resource deletion on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			aws, models.Normal, models.DeletionStarted,
 			"Resource deletion request is sent",
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
@@ -358,7 +359,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("AWS VPC Peering has been deleted",
@@ -369,7 +370,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *v1beta1.AWSVPCPeering) error {
@@ -471,6 +472,8 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.AWSVPCPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})

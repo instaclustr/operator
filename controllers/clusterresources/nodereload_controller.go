@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
@@ -68,10 +67,10 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Node Reload resource is not found", "request", req)
-			return reconcile.Result{}, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "Unable to fetch Node Reload", "request", req)
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	patch := nrs.NewPatch()
@@ -85,7 +84,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				"Failed to patch pending nodes to the resource. Reason: %w", err,
 			)
 
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -100,7 +99,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"failed nodes", nrs.Status.FailedNodes,
 		)
 
-		return reconcile.Result{}, nil
+		return ctrl.Result{}, nil
 	}
 
 	if nrs.Status.NodeInProgress == nil {
@@ -117,7 +116,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				"Failed to trigger node reload. Reason: %w", err,
 			)
 
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 
 		nrs.Status.NodeInProgress = nodeInProgress
@@ -134,7 +133,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				"Failed to patch node in progress. Reason: %w", err,
 			)
 
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -151,7 +150,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Failed to fetch node reload status from Instaclustr. Reason: %w", err,
 		)
 
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	nrs.Status.CurrentOperationStatus = &v1beta1.Operation{
@@ -171,7 +170,7 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Failed to patch current operation status. Reason: %w", err,
 		)
 
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	if nodeReloadStatus.Status != nodeReloadOperationStatusCompleted {
@@ -201,13 +200,13 @@ func (r *NodeReloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			"Failed to patch completed nodes. Reason: %w", err,
 		)
 
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	return models.ImmediatelyRequeue, nil
 }
 
-func (r *NodeReloadReconciler) handleNodeNotFound(ctx context.Context, node *v1beta1.Node, nrs *v1beta1.NodeReload) (reconcile.Result, error) {
+func (r *NodeReloadReconciler) handleNodeNotFound(ctx context.Context, node *v1beta1.Node, nrs *v1beta1.NodeReload) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
 	patch := nrs.NewPatch()
@@ -226,7 +225,7 @@ func (r *NodeReloadReconciler) handleNodeNotFound(ctx context.Context, node *v1b
 			"Cannot patch failed node",
 		)
 
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	l.Error(err, "Node is not found on the Instaclustr side",

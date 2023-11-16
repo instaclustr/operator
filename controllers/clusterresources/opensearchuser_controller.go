@@ -28,12 +28,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // OpenSearchUserReconciler reconciles a OpenSearchUser object
@@ -66,12 +68,12 @@ func (r *OpenSearchUserReconciler) Reconcile(
 			logger.Info("OpenSearch user resource is not found",
 				"request", req,
 			)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Cannot fetch OpenSearch user resource",
 			"request", req,
 		)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	secret := &k8sCore.Secret{}
@@ -88,7 +90,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 				user, models.Warning, models.NotFound,
 				"Secret is not found, please create a new secret or set an actual reference",
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		logger.Error(err, "Cannot get OpenSearch user's secret")
@@ -97,7 +99,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 			"User's secret fetching has been failed. Reason: %v", err,
 		)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	patch := client.MergeFrom(secret.DeepCopy())
@@ -109,7 +111,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 				user, models.Warning, models.PatchFailed,
 				"Patching secret with deletion finalizer has been failed. Reason: %v", err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -122,7 +124,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 				user, models.Warning, models.PatchFailed,
 				"Patching OpenSearch user with deletion finalizer has been failed. Reason: %v", err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -147,7 +149,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 	}
 
 	if errorOccurred {
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	if user.DeletionTimestamp != nil {
@@ -155,7 +157,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 			logger.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser)
 			r.EventRecorder.Event(user, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, err
 		}
 
 		patch = client.MergeFrom(secret.DeepCopy())
@@ -167,7 +169,7 @@ func (r *OpenSearchUserReconciler) Reconcile(
 				user, models.Warning, models.PatchFailed,
 				"Deleting finalizer from the user's secret has been failed. Reason: %v", err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		patch = user.NewPatch()
@@ -179,13 +181,13 @@ func (r *OpenSearchUserReconciler) Reconcile(
 				user, models.Warning, models.PatchFailed,
 				"Deleting finalizer  from the OpenSearch user resource has been failed. Reason: %v", err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		logger.Info("The user resource has been deleted")
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *OpenSearchUserReconciler) createUser(
@@ -366,6 +368,8 @@ func (r *OpenSearchUserReconciler) detachUserFromDeletedCluster(
 // SetupWithManager sets up the controller with the Manager.
 func (r *OpenSearchUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&clusterresourcesv1beta1.OpenSearchUser{}).
 		Complete(r)
 }

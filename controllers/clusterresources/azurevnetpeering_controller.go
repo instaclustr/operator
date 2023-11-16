@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -66,21 +67,19 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "Azure VNet Peering resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "unable to fetch Azure VNet Peering", "request", req)
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch azure.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreatePeering(ctx, azure, l), nil
-
+		return r.handleCreatePeering(ctx, azure, l)
 	case models.UpdatingEvent:
-		return r.handleUpdatePeering(ctx, azure, &l), nil
-
+		return r.handleUpdatePeering(ctx, azure, &l)
 	case models.DeletingEvent:
-		return r.handleDeletePeering(ctx, azure, &l), nil
+		return r.handleDeletePeering(ctx, azure, &l)
 	default:
 		l.Info("event isn't handled",
 			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
@@ -89,7 +88,7 @@ func (r *AzureVNetPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
 			"Request", req,
 			"event", azure.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 }
 
@@ -97,7 +96,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 	ctx context.Context,
 	azure *v1beta1.AzureVNetPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if azure.Status.ID == "" {
 		l.Info(
 			"Creating Azure VNet Peering resource",
@@ -118,7 +117,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -142,7 +141,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.AddFinalizer(azure, models.DeletionFinalizer)
@@ -161,7 +160,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -182,7 +181,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 			"Resource status check job is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -190,24 +189,24 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 		"Resource status check job is started",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AzureVNetPeeringReconciler) handleUpdatePeering(
 	ctx context.Context,
 	azure *v1beta1.AzureVNetPeering,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	l.Info("Update is not implemented")
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 	ctx context.Context,
 	azure *v1beta1.AzureVNetPeering,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	status, err := r.API.GetPeeringStatus(azure.Status.ID, instaclustr.AzurePeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -222,7 +221,7 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 			"Resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil {
@@ -241,14 +240,14 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 				"Resource deletion on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
 			azure, models.Normal, models.DeletionStarted,
 			"Resource deletion request is sent",
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	patch := azure.NewPatch()
@@ -268,7 +267,7 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Azure VNet Peering has been deleted",
@@ -285,7 +284,7 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AzureVNetPeeringReconciler) startAzureVNetPeeringStatusJob(azurePeering *v1beta1.AzureVNetPeering,
@@ -370,6 +369,8 @@ func (r *AzureVNetPeeringReconciler) handleExternalDelete(ctx context.Context, k
 // SetupWithManager sets up the controller with the Manager.
 func (r *AzureVNetPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.AzureVNetPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})

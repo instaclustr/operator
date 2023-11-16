@@ -25,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -32,6 +33,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -67,12 +69,12 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			l.Info("Maintenance Event resource is not found",
 				"request", req,
 			)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "Cannot get Maintenance Event resource",
 			"request", req,
 		)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	if len(me.Spec.MaintenanceEventsReschedules) == 0 {
@@ -87,7 +89,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				"Resource deletion is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			me, models.Normal, models.DeletionStarted,
@@ -97,7 +99,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"Maintenance Events were rescheduled, resource was deleted",
 			"Maintenance Events status", me.Status,
 		)
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
 	if me.Status.CurrentRescheduledEvent.MaintenanceEventID == "" {
@@ -117,7 +119,7 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -138,16 +140,18 @@ func (r *MaintenanceEventsReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 	}
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MaintenanceEventsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.MaintenanceEvents{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				return !(event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration())

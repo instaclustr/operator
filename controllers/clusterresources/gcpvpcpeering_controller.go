@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -66,28 +67,26 @@ func (r *GCPVPCPeeringReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Error(err, "GCP VPC Peering resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "Unable to fetch GCP VPC Peering", "request", req)
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch gcp.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateCluster(ctx, gcp, l), nil
-
+		return r.handleCreateCluster(ctx, gcp, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, gcp, l), nil
-
+		return r.handleUpdateCluster(ctx, gcp, l)
 	case models.DeletingEvent:
-		return r.handleDeleteCluster(ctx, gcp, l), nil
+		return r.handleDeleteCluster(ctx, gcp, l)
 	default:
 		l.Info("Event isn't handled",
 			"project ID", gcp.Spec.PeerProjectID,
 			"network name", gcp.Spec.PeerVPCNetworkName,
 			"request", req,
 			"event", gcp.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 }
 
@@ -95,7 +94,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 	ctx context.Context,
 	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if gcp.Status.ID == "" {
 		l.Info(
 			"Creating GCP VPC Peering resource",
@@ -114,7 +113,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -137,7 +136,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.AddFinalizer(gcp, models.DeletionFinalizer)
@@ -154,7 +153,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -173,7 +172,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 			"Resource status check job is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -181,24 +180,24 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 		"Resource status check job is started",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *GCPVPCPeeringReconciler) handleUpdateCluster(
 	ctx context.Context,
 	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	l.Info("Update is not implemented")
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	ctx context.Context,
 	gcp *v1beta1.GCPVPCPeering,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	status, err := r.API.GetPeeringStatus(gcp.Status.ID, instaclustr.GCPPeeringEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -212,7 +211,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 			"Resource fetch from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil {
@@ -229,7 +228,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 				"Resource deletion on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			gcp, models.Normal, models.DeletionStarted,
@@ -254,7 +253,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("GCP VPC Peering has been deleted",
@@ -270,7 +269,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *GCPVPCPeeringReconciler) startGCPVPCPeeringStatusJob(gcpPeering *v1beta1.GCPVPCPeering) error {
@@ -353,6 +352,8 @@ func (r *GCPVPCPeeringReconciler) handleExternalDelete(ctx context.Context, key 
 // SetupWithManager sets up the controller with the Manager.
 func (r *GCPVPCPeeringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.GCPVPCPeering{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})

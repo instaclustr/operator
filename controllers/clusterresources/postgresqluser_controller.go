@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -36,6 +37,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // PostgreSQLUserReconciler reconciles a PostgreSQLUser object
@@ -63,11 +65,11 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if k8sErrors.IsNotFound(err) {
 			l.Info("PostgreSQL user resource is not found", "request", req)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 		l.Error(err, "Cannot fetch PostgreSQL user resource", "request", req)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	s := &k8sCore.Secret{}
@@ -85,7 +87,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		l.Error(err, "Cannot get PostgreSQL user secret", "user", u.Name)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	newUsername, newPassword, err := getUserCreds(s)
@@ -96,7 +98,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
 			"Cannot get the PostgreSQL user credentials from the secret. Reason: %v", err)
 
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	if controllerutil.AddFinalizer(s, u.GetDeletionFinalizer()) {
@@ -106,7 +108,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				"secret name", s.Name, "secret namespace", s.Namespace)
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Update secret with deletion finalizer has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -117,7 +119,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			l.Error(err, "Cannot patch PostgreSQL user with deletion finalizer")
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Patching PostgreSQL user with deletion finalizer has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -132,7 +134,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					l.Info("Expose service or expose service endpoints are not created yet",
 						"username", newUsername)
 
-					return models.ReconcileRequeue, nil
+					return ctrl.Result{}, err
 				}
 
 				l.Error(err, "Cannot create a user for the PostgreSQL cluster",
@@ -141,7 +143,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
 					"Cannot create user. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			u.Status.ClustersInfo[clusterID] = clusterresourcesv1beta1.ClusterInfo{
@@ -157,7 +159,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("User has been created", "username", newUsername)
@@ -178,7 +180,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				r.EventRecorder.Eventf(u, models.Warning, models.DeletingEvent,
 					"Cannot delete user. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("User has been deleted for cluster", "username", newUsername,
@@ -195,7 +197,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Resource patch is failed. Reason: %v", err)
 
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			continue
@@ -210,7 +212,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					"cluster ID", clusterID)
 				r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 					"Detaching clusterID from the PostgreSQL user resource has been failed. Reason: %v", err)
-				return models.ReconcileRequeue, nil
+				return ctrl.Result{}, err
 			}
 
 			l.Info("PostgreSQL user has been detached from the cluster", "cluster ID", clusterID)
@@ -224,7 +226,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			l.Error(models.ErrUserStillExist, instaclustr.MsgDeleteUser)
 			r.EventRecorder.Event(u, models.Warning, models.DeletingEvent, instaclustr.MsgDeleteUser)
 
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		controllerutil.RemoveFinalizer(s, u.GetDeletionFinalizer())
@@ -233,7 +235,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			l.Error(err, "Cannot delete finalizer from the user's secret")
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Deleting finalizer from the user's secret has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.RemoveFinalizer(u, u.GetDeletionFinalizer())
@@ -242,15 +244,15 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			l.Error(err, "Cannot delete finalizer from the PostgreSQL user resource")
 			r.EventRecorder.Eventf(u, models.Warning, models.PatchFailed,
 				"Deleting finalizer from the PostgreSQL user resource has been failed. Reason: %v", err)
-			return models.ReconcileRequeue, nil
+			return ctrl.Result{}, err
 		}
 
 		l.Info("PostgreSQL user resource has been deleted")
 
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *PostgreSQLUserReconciler) createUser(
@@ -454,6 +456,8 @@ func (r *PostgreSQLUserReconciler) firewallRuleExists(ctx context.Context, firew
 // SetupWithManager sets up the controller with the Manager.
 func (r *PostgreSQLUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&clusterresourcesv1beta1.PostgreSQLUser{}).
 		Complete(r)
 }

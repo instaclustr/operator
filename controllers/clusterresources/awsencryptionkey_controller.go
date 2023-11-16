@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -70,18 +71,18 @@ func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			l.Info("AWS encryption key resource is not found",
 				"resource name", req.NamespacedName,
 			)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Unable to fetch AWS encryption key")
-		return models.ReconcileRequeue, err
+		return ctrl.Result{}, err
 	}
 
 	switch encryptionKey.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreate(ctx, encryptionKey, &l), nil
+		return r.handleCreate(ctx, encryptionKey, &l)
 	case models.DeletingEvent:
-		return r.handleDelete(ctx, encryptionKey, &l), nil
+		return r.handleDelete(ctx, encryptionKey, &l)
 	case models.GenericEvent:
 		l.Info("AWS encryption key event isn't handled",
 			"alias", encryptionKey.Spec.Alias,
@@ -89,17 +90,17 @@ func (r *AWSEncryptionKeyReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			"provider account name", encryptionKey.Spec.ProviderAccountName,
 			"request", req,
 			"event", encryptionKey.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 
-	return models.ExitReconcile, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSEncryptionKeyReconciler) handleCreate(
 	ctx context.Context,
 	encryptionKey *v1beta1.AWSEncryptionKey,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if encryptionKey.Status.ID == "" {
 		l.Info(
 			"Creating AWS encryption key",
@@ -120,7 +121,7 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		r.EventRecorder.Eventf(
@@ -138,7 +139,7 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 				"Resource status patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		encryptionKey.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -154,7 +155,7 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 				"Resource patch is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -173,7 +174,7 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 			"Resource status job creation is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	r.EventRecorder.Eventf(
@@ -181,14 +182,14 @@ func (r *AWSEncryptionKeyReconciler) handleCreate(
 		"Resource status check job is started",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSEncryptionKeyReconciler) handleDelete(
 	ctx context.Context,
 	encryptionKey *v1beta1.AWSEncryptionKey,
 	l *logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	status, err := r.API.GetEncryptionKeyStatus(encryptionKey.Status.ID, instaclustr.AWSEncryptionKeyEndpoint)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -202,7 +203,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 			"Fetch resource from the Instaclustr API is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != nil {
@@ -219,7 +220,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 				"Resource deletion on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			encryptionKey, models.Normal, models.DeletionStarted,
@@ -244,7 +245,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 			"Resource patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("AWS encryption key has been deleted",
@@ -258,7 +259,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSEncryptionKeyReconciler) startEncryptionKeyStatusJob(encryptionKey *v1beta1.AWSEncryptionKey) error {
@@ -340,6 +341,8 @@ func (r *AWSEncryptionKeyReconciler) handleExternalDelete(ctx context.Context, k
 // SetupWithManager sets up the controller with the Manager.
 func (r *AWSEncryptionKeyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.AWSEncryptionKey{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if event.Object.GetDeletionTimestamp() != nil {

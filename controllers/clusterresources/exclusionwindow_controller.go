@@ -27,15 +27,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 )
 
 // ExclusionWindowReconciler reconciles a ExclusionWindow object
@@ -67,25 +68,25 @@ func (r *ExclusionWindowReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			l.Info("Exclusion Window resource is not found", "request", req)
-			return models.ExitReconcile, nil
+			return ctrl.Result{}, nil
 		}
 
 		l.Error(err, "Cannot get Exclusion Window resource", "request", req)
-		return models.ReconcileRequeue, nil
+		return ctrl.Result{}, err
 	}
 
 	switch ew.Annotations[models.ResourceStateAnnotation] {
 	case models.CreatingEvent:
-		return r.handleCreateWindow(ctx, ew, l), nil
+		return r.handleCreateWindow(ctx, ew, l)
 	case models.DeletingEvent:
-		return r.handleDeleteWindow(ctx, ew, l), nil
+		return r.handleDeleteWindow(ctx, ew, l)
 	default:
 		l.Info("event isn't handled",
 			"Cluster ID", ew.Spec.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 			"Request", req,
 			"event", ew.Annotations[models.ResourceStateAnnotation])
-		return models.ExitReconcile, nil
+		return ctrl.Result{}, nil
 	}
 }
 
@@ -93,7 +94,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 	ctx context.Context,
 	ew *v1beta1.ExclusionWindow,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	if ew.Status.ID == "" {
 		l.Info(
 			"Creating Exclusion Window resource",
@@ -112,7 +113,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 				"Resource creation on the Instaclustr is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			ew, models.Normal, models.Created,
@@ -134,7 +135,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 				"Status patch is failed after resource creation. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		controllerutil.AddFinalizer(ew, models.DeletionFinalizer)
@@ -151,7 +152,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 				"Resource patch is failed after resource creation. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 
 		l.Info(
@@ -160,14 +161,15 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 			"Exclusion Window Spec", ew.Spec,
 		)
 	}
-	return models.ExitReconcile
+
+	return ctrl.Result{}, nil
 }
 
 func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	ctx context.Context,
 	ew *v1beta1.ExclusionWindow,
 	l logr.Logger,
-) reconcile.Result {
+) (ctrl.Result, error) {
 	status, err := r.API.GetExclusionWindowsStatus(ew.Status.ID)
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
@@ -180,7 +182,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 			"Resource fetch from the Instaclustr API is failed while deletion. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	if status != "" {
@@ -196,7 +198,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 				"Resource deletion on the Instaclustr API is failed. Reason: %v",
 				err,
 			)
-			return models.ReconcileRequeue
+			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Eventf(
 			ew, models.Normal, models.DeletionStarted,
@@ -219,7 +221,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 			"Resource patch is failed while deletion. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 
 	l.Info("Exclusion Window has been deleted",
@@ -233,12 +235,14 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 		"Resource is deleted",
 	)
 
-	return models.ExitReconcile
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ExclusionWindowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.ExclusionWindow{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
