@@ -1,8 +1,9 @@
 package models
 
 const (
-	ONPREMISES = "ONPREMISES"
-	CLIENTDC   = "CLIENT_DC"
+	ONPREMISES      = "ONPREMISES"
+	CLIENTDC        = "CLIENT_DC"
+	KEEPSTORAGEMODE = "KEEP_STORAGE"
 
 	VirtualMachineKind           = "VirtualMachine"
 	DVKind                       = "DataVolume"
@@ -12,7 +13,11 @@ const (
 
 	KubevirtSubdomain          = "kubevirt"
 	KubevirtDomainLabel        = "kubevirt.io/domain"
+	OperatorLabel              = "instaclustr-operator"
 	NodeIDLabel                = "nodeID"
+	DVRoleLabel                = "DVRole"
+	OSDVRole                   = "OS"
+	StorageDVRole              = "Storage"
 	NodeRackLabel              = "nodeRack"
 	NodeOSDVPrefix             = "node-os-data-volume-pvc"
 	NodeDVPrefix               = "node-data-volume-pvc"

@@ -65,4 +65,5 @@ var (
 	ErrExposeServiceNotCreatedYet               = errors.New("expose service is not created yet")
 	ErrExposeServiceEndpointsNotCreatedYet      = errors.New("expose service endpoints is not created yet")
 	ErrOnlySingleConcurrentResizeAvailable      = errors.New("only single concurrent resize is allowed")
+	ErrNoAvailableIPsInReservation              = errors.New("no available IPs in reservation")
 )

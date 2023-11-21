@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/pkg/models"
 	"io"
 	"net/http"
 	"time"
@@ -208,6 +209,49 @@ func (c *IcadminClient) SetNodeIPs(nodeID string, request *v1beta1.OnPremiseNode
 	}
 
 	resp, err := c.DoRequest(url, http.MethodPut, data)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return nil
+}
+
+func (c *IcadminClient) RequestNodeReplace(nodeID string) error {
+	url := fmt.Sprintf(NodeReplaceEndpoint, c.serverHostname)
+
+	type params struct {
+		Mode               string `json:"mode"`
+		GracefulShutdown   bool   `json:"gracefulShutdown"`
+		BundleStartEnabled bool   `json:"bundleStartEnabled"`
+	}
+	reqBody := struct {
+		NodeID                     string `json:"nodeId"`
+		ReplaceNodeOperationParams params `json:"replaceNodeOperationParams"`
+	}{
+		NodeID: nodeID,
+		ReplaceNodeOperationParams: params{
+			Mode:               models.KEEPSTORAGEMODE,
+			GracefulShutdown:   true,
+			BundleStartEnabled: true,
+		},
+	}
+
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.DoRequest(url, http.MethodPost, data)
 	if err != nil {
 		return err
 	}

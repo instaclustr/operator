@@ -24,6 +24,15 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - aks-nodepool1-41680127-vmss000003
       securityContext:
         runAsNonRoot: true
         # TODO(user): For common cases that do not require escalating privileges

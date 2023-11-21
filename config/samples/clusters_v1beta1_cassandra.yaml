@@ -3,7 +3,7 @@ kind: Cassandra
 metadata:
   name: cassandra-on-prem-cluster
 spec:
-  name: "danylo-on-prem-cassandra"
+  name: "rostyslp-on-prem-cassandra"
   version: "4.0.10"
   privateNetworkCluster: true
   onPremisesSpec:
@@ -23,8 +23,8 @@ spec:
       region: "CLIENT_DC"
       cloudProvider: "ONPREMISES"
       continuousBackup: false
-      nodesNumber: 3
-      replicationFactor: 3
+      nodesNumber: 2
+      replicationFactor: 2
       privateIpBroadcastForDiscovery: true
       network: "192.168.0.0/16"
       tags:

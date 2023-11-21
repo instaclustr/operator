@@ -17,9 +17,14 @@ limitations under the License.
 package clusters
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	k8scorev1 "k8s.io/api/core/v1"
+	virtcorev1 "kubevirt.io/api/core/v1"
+	"net"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/go-version"
 	"k8s.io/utils/strings/slices"
@@ -176,6 +181,64 @@ func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
 	specDifference := fmt.Sprintf("k8s spec: %s; data from instaclustr: %s", k8sData, iData)
 
 	return msg + specDifference, nil
+}
+
+func getAvailableIP(ctx context.Context, CIDRs []string, lister models.Lister) (string, error) {
+	for _, cidr := range CIDRs {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return "", err
+		}
+
+		ipStrings := strings.Split(ip.String(), ".")
+		fourthOctet := 0
+		for fourthOctet < 255 {
+			fourthOctet++
+			checkIP := fmt.Sprintf("%s.%s.%s.%d",
+				ipStrings[0],
+				ipStrings[1],
+				ipStrings[2],
+				fourthOctet)
+
+			podList := &k8scorev1.PodList{}
+			err = lister.List(ctx, podList)
+			if err != nil {
+				return "", err
+			}
+
+			ipAvail := true
+			ipAnnot := fmt.Sprintf("[\"%s\"]", checkIP)
+			for _, pod := range podList.Items {
+				fmt.Println("podAnnotation: ", pod.Annotations["cni.projectcalico.org/ipAddrs"], " ip annotation: ", ipAnnot)
+				if pod.Annotations["cni.projectcalico.org/ipAddrs"] == ipAnnot {
+					ipAvail = false
+				}
+			}
+
+			if !ipAvail {
+				continue
+			}
+
+			vmList := &virtcorev1.VirtualMachineList{}
+			err = lister.List(ctx, vmList)
+			if err != nil {
+				return "", err
+			}
+
+			for _, vm := range vmList.Items {
+				fmt.Println("vmAnnotation: ", vm.Annotations["cni.projectcalico.org/ipAddrs"], " ip annotation: ", ipAnnot)
+				if vm.Annotations["cni.projectcalico.org/ipAddrs"] == ipAnnot {
+					ipAvail = false
+				}
+			}
+
+			if ipAvail {
+				return checkIP, nil
+			}
+		}
+	}
+
+	return "", models.ErrNoAvailableIPsInReservation
 }
 
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +

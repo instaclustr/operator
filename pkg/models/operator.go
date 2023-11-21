@@ -17,6 +17,8 @@ limitations under the License.
 package models
 
 import (
+	"context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -170,3 +172,7 @@ type Credentials struct {
 }
 
 var ClusterKindsMap = map[string]string{"PostgreSQL": "postgres", "Redis": "redis", "OpenSearch": "opensearch", "Cassandra": "cassandra"}
+
+type Lister interface {
+	List(context.Context, client.ObjectList, ...client.ListOption) error
+}

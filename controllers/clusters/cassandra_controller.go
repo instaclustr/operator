@@ -20,10 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
+	calicoclient "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	k8scorev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -76,6 +79,8 @@ type CassandraReconciler struct {
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=projectcalico.org,resources=ipreservations,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=projectcalico.org,resources=ippools,verbs=get;list;watch;create;update;patch;delete;deletecollection
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -1206,7 +1211,6 @@ func (r *CassandraReconciler) newWatchOnPremisesIPsJob(c *v1beta1.Cassandra) sch
 	l := log.Log.WithValues("component", "cassandraOnPremStatusClusterJob")
 
 	return func() error {
-
 		if c.Spec.OnPremisesSpec != nil && c.Spec.PrivateNetworkCluster {
 			gateways, err := r.IcadminAPI.GetGateways(c.Status.DataCentres[0].ID)
 			if err != nil {
@@ -1378,10 +1382,17 @@ func (r *CassandraReconciler) newWatchOnPremisesIPsJob(c *v1beta1.Cassandra) sch
 			}
 
 			for _, pod := range nodePods.Items {
-				if (pod.Status.PodIP != "" && node.PrivateAddress == "") ||
-					(pod.Status.PodIP != "" && pod.Status.PodIP != node.PrivateAddress) {
+				if pod.Status.PodIP != "" && node.PrivateAddress == "" {
 					request.PrivateAddress = pod.Status.PodIP
 				}
+				//} else if pod.Status.PodIP != "" &&
+				//	pod.Status.PodIP != node.PrivateAddress {
+				//	err = r.handleNodeReplace(context.TODO(), c, node)
+				//	if err != nil {
+				//		//TODO Log and event an error
+				//		return err
+				//	}
+				//}
 			}
 
 			for _, svc := range nodeSVCs.Items {
@@ -1789,14 +1800,22 @@ func (r *CassandraReconciler) reconcileOnPremResources(
 	ctx context.Context,
 	c *v1beta1.Cassandra,
 ) error {
+	reservedIPs, err := r.reconcileIPReservations(ctx, c)
+	if err != nil {
+		return err
+	}
+
 	if c.Spec.PrivateNetworkCluster {
-		err := r.reconcileSSHGatewayResources(ctx, c)
+		err := r.reconcileSSHGatewayResources(ctx, c, reservedIPs)
 		if err != nil {
 			return err
 		}
+		fmt.Println("CREATED SSH GATEWAY")
 	}
 
-	err := r.reconcileNodesResources(ctx, c)
+	time.Sleep(3 * time.Second)
+
+	err = r.reconcileNodesResources(ctx, c, reservedIPs)
 	if err != nil {
 		return err
 	}
@@ -1807,6 +1826,7 @@ func (r *CassandraReconciler) reconcileOnPremResources(
 func (r *CassandraReconciler) reconcileSSHGatewayResources(
 	ctx context.Context,
 	c *v1beta1.Cassandra,
+	CIDRs []string,
 ) error {
 	gateways, err := r.IcadminAPI.GetGateways(c.Status.DataCentres[0].ID)
 	if err != nil {
@@ -1840,6 +1860,11 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 			return err
 		}
 
+		gwIP, err := getAvailableIP(ctx, CIDRs, r)
+		if err != nil {
+			return err
+		}
+
 		gatewayVM := &virtcorev1.VirtualMachine{}
 		err = r.Get(ctx, types.NamespacedName{
 			Namespace: c.Namespace,
@@ -1857,6 +1882,7 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 				gateway.Rack,
 				gatewayDV.Name,
 				secretName,
+				gwIP,
 				gatewayCPU,
 				gatewayMemory)
 			if err != nil {
@@ -1893,6 +1919,7 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 func (r *CassandraReconciler) reconcileNodesResources(
 	ctx context.Context,
 	c *v1beta1.Cassandra,
+	CIDRs []string,
 ) error {
 	nodes, err := r.IcadminAPI.GetOnPremisesNodes(c.Status.ID)
 	if err != nil {
@@ -1937,6 +1964,10 @@ func (r *CassandraReconciler) reconcileNodesResources(
 			return err
 		}
 
+		nodeIP, err := getAvailableIP(ctx, CIDRs, r)
+		if err != nil {
+			return err
+		}
 		nodeVM := &virtcorev1.VirtualMachine{}
 		err = r.Get(ctx, types.NamespacedName{
 			Namespace: c.Namespace,
@@ -1954,6 +1985,7 @@ func (r *CassandraReconciler) reconcileNodesResources(
 				node.Rack,
 				nodeOSDV.Name,
 				secretName,
+				nodeIP,
 				nodeCPU,
 				nodeMemory,
 				nodeDataDV.Name)
@@ -1991,7 +2023,6 @@ func (r *CassandraReconciler) reconcileNodesResources(
 			Namespace: c.Namespace,
 			Name:      headlessServiceName,
 		}, headlessSVC)
-
 		if client.IgnoreNotFound(err) != nil {
 			return err
 		}
@@ -2041,8 +2072,88 @@ func (r *CassandraReconciler) reconcileNodesResources(
 			}
 		}
 
+		fmt.Println("CREATED NODE: ", nodeIP)
+		time.Sleep(3 * time.Second)
 	}
 	return nil
+}
+
+func (r *CassandraReconciler) reconcileIPReservations(
+	ctx context.Context,
+	c *v1beta1.Cassandra,
+) ([]string, error) {
+	ipReservationsList := &calicoclient.IPReservationList{}
+	err := r.List(ctx, ipReservationsList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.ControlledByLabel: models.OperatorLabel,
+		}),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, reservation := range ipReservationsList.Items {
+		return reservation.Spec.ReservedCIDRs, nil
+	}
+
+	ipPoolList := &calicoclient.IPPoolList{}
+	err = r.List(ctx, ipPoolList)
+	if err != nil {
+		return nil, err
+	}
+
+	usedCIDRs := []string{}
+	for _, pool := range ipPoolList.Items {
+		usedCIDRs = append(usedCIDRs, pool.Spec.CIDR)
+		fmt.Println("IP POOL CIDRs: ", pool.Spec.CIDR)
+	}
+	fmt.Println("USED CIDRs AFTER IP POOL: ", usedCIDRs[0])
+
+	ipReservationsList = &calicoclient.IPReservationList{}
+	err = r.List(ctx, ipReservationsList)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, reservation := range ipReservationsList.Items {
+		usedCIDRs = append(usedCIDRs, reservation.Spec.ReservedCIDRs...)
+		fmt.Println("RESERVED CIDRs: ", reservation.Spec.ReservedCIDRs)
+	}
+	fmt.Println("USED CIDRs AFTER RESERVATIONS: ", usedCIDRs[0])
+
+	// TODO check if other reservations use the same CIDR as reserveCIDR
+	_, ipnet, err := net.ParseCIDR(usedCIDRs[0])
+	if err != nil {
+		return nil, err
+	}
+	mask, _ := ipnet.Mask.Size()
+	ips := strings.Split(ipnet.IP.String(), ".")
+	reserveCIDR := fmt.Sprintf("%s.%s.255.0/%d", ips[0], ips[1], mask+8)
+	fmt.Println("CIDRs: ", reserveCIDR)
+	reserveCIDRs := []string{reserveCIDR}
+	cassIPsReservations := &calicoclient.IPReservation{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       calicoclient.KindIPReservation,
+			APIVersion: calicoclient.VersionCurrent,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-reservation",
+			Namespace: c.Namespace,
+			Labels: map[string]string{
+				models.ControlledByLabel: models.OperatorLabel,
+			},
+		},
+		Spec: calicoclient.IPReservationSpec{
+			ReservedCIDRs: reserveCIDRs,
+		},
+	}
+
+	err = r.Create(ctx, cassIPsReservations)
+	if err != nil {
+		return nil, err
+	}
+
+	return reserveCIDRs, nil
 }
 
 func (r *CassandraReconciler) createDV(
@@ -2054,32 +2165,22 @@ func (r *CassandraReconciler) createDV(
 	isOSDisk bool,
 ) (*cdiv1beta1.DataVolume, error) {
 	dv := &cdiv1beta1.DataVolume{}
-	pvc := &k8scorev1.PersistentVolumeClaim{}
 	err := r.Get(ctx, types.NamespacedName{
 		Namespace: c.Namespace,
 		Name:      name,
-	}, pvc)
+	}, dv)
 	if client.IgnoreNotFound(err) != nil {
 		return nil, err
 	}
 	if k8serrors.IsNotFound(err) {
-		err = r.Get(ctx, types.NamespacedName{
-			Namespace: c.Namespace,
-			Name:      name,
-		}, dv)
-		if client.IgnoreNotFound(err) != nil {
-			return nil, err
+		if isOSDisk {
+			dv = r.newOSDiskDV(c, name, nodeID, size)
+		} else {
+			dv = r.newDataDiskDV(c, name, nodeID, size)
 		}
-		if k8serrors.IsNotFound(err) {
-			if isOSDisk {
-				dv = r.newOSDiskDV(c, name, nodeID, size)
-			} else {
-				dv = r.newDataDiskDV(c, name, nodeID, size)
-			}
-			err = r.Client.Create(ctx, dv)
-			if err != nil {
-				return nil, err
-			}
+		err = r.Client.Create(ctx, dv)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return dv, nil
@@ -2102,6 +2203,7 @@ func (r *CassandraReconciler) newOSDiskDV(
 			Labels: map[string]string{
 				models.ClusterIDLabel: c.Status.ID,
 				models.NodeIDLabel:    nodeID,
+				models.DVRoleLabel:    models.OSDVRole,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -2143,6 +2245,7 @@ func (r *CassandraReconciler) newDataDiskDV(
 			Labels: map[string]string{
 				models.ClusterIDLabel: c.Status.ID,
 				models.NodeIDLabel:    nodeID,
+				models.DVRoleLabel:    models.StorageDVRole,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -2255,7 +2358,8 @@ func (r *CassandraReconciler) newVM(
 	nodeID,
 	nodeRack,
 	OSDiskDVName,
-	ignitionSecretName string,
+	ignitionSecretName,
+	ip string,
 	cpu,
 	memory resource.Quantity,
 	storageDVNames ...string,
@@ -2272,6 +2376,7 @@ func (r *CassandraReconciler) newVM(
 		return nil, err
 	}
 
+	ipAnnot := fmt.Sprintf("[\"%s\"]", ip)
 	vm := &virtcorev1.VirtualMachine{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       models.VirtualMachineKind,
@@ -2286,6 +2391,9 @@ func (r *CassandraReconciler) newVM(
 				models.NodeRackLabel:       nodeRack,
 				models.KubevirtDomainLabel: vmName,
 			},
+			Annotations: map[string]string{
+				"cni.projectcalico.org/ipAddrs": ipAnnot,
+			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
 		Spec: virtcorev1.VirtualMachineSpec{
@@ -2297,6 +2405,9 @@ func (r *CassandraReconciler) newVM(
 						models.NodeIDLabel:         nodeID,
 						models.NodeRackLabel:       nodeRack,
 						models.KubevirtDomainLabel: vmName,
+					},
+					Annotations: map[string]string{
+						"cni.projectcalico.org/ipAddrs": ipAnnot,
 					},
 				},
 				Spec: virtcorev1.VirtualMachineInstanceSpec{
@@ -2348,10 +2459,9 @@ func (r *CassandraReconciler) newVM(
 						{
 							Name: models.Boot,
 							VolumeSource: virtcorev1.VolumeSource{
-								PersistentVolumeClaim: &virtcorev1.PersistentVolumeClaimVolumeSource{
-									PersistentVolumeClaimVolumeSource: k8scorev1.PersistentVolumeClaimVolumeSource{
-										ClaimName: OSDiskDVName,
-									},
+								DataVolume: &virtcorev1.DataVolumeSource{
+									Name:         OSDiskDVName,
+									Hotpluggable: false,
 								},
 							},
 						},
@@ -2403,10 +2513,9 @@ func (r *CassandraReconciler) newVM(
 		vm.Spec.Template.Spec.Volumes = append(vm.Spec.Template.Spec.Volumes, virtcorev1.Volume{
 			Name: diskName,
 			VolumeSource: virtcorev1.VolumeSource{
-				PersistentVolumeClaim: &virtcorev1.PersistentVolumeClaimVolumeSource{
-					PersistentVolumeClaimVolumeSource: k8scorev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: dvName,
-					},
+				DataVolume: &virtcorev1.DataVolumeSource{
+					Name:         dvName,
+					Hotpluggable: false,
 				},
 			},
 		})
@@ -2615,6 +2724,140 @@ func (r *CassandraReconciler) handleExternalDelete(ctx context.Context, c *v1bet
 
 	return nil
 }
+
+//func (r *CassandraReconciler) handleNodeReplace(ctx context.Context, c *v1beta1.Cassandra, node *v1beta1.OnPremiseNode) error {
+//	l := log.FromContext(ctx)
+//
+//	err := r.IcadminAPI.RequestNodeReplace(node.ID)
+//	if err != nil {
+//		return err
+//	}
+//
+//	nodeVMList := &virtcorev1.VirtualMachineList{}
+//	err = r.List(context.Background(), nodeVMList, &client.ListOptions{
+//		LabelSelector: labels.SelectorFromSet(map[string]string{
+//			models.ClusterIDLabel: c.Status.ID,
+//			models.NodeIDLabel:    node.ID,
+//		}),
+//		Namespace: c.Namespace,
+//	})
+//	if err != nil {
+//		l.Error(err, "Cannot get on-premises cluster Virtual Machines",
+//			"cluster name", c.Spec.Name,
+//			"clusterID", c.Status.ID,
+//		)
+//
+//		r.EventRecorder.Eventf(
+//			c, models.Warning, models.CreationFailed,
+//			"Fetching on-premises cluster Virtual Machines is failed. Reason: %v",
+//			err,
+//		)
+//		return err
+//	}
+//
+//	nodeVM := &virtcorev1.VirtualMachine{}
+//	for _, vm := range nodeVMList.Items {
+//		nodeVM = &vm
+//	}
+//
+//	newNodes, err := r.IcadminAPI.GetOnPremisesNodes(c.Status.ID)
+//	if err != nil {
+//		return err
+//	}
+//
+//	newIgnition := ""
+//	newNode := &v1beta1.OnPremiseNode{}
+//	for _, newNode = range newNodes {
+//		if newNode.PrivateAddress == "" &&
+//			newNode.PublicAddress == "" {
+//			newIgnition, err = r.IcadminAPI.GetIgnitionScript(newNode.ID)
+//			if err != nil {
+//				return err
+//			}
+//
+//			break
+//		}
+//	}
+//	ignitionSecret := &k8scorev1.Secret{}
+//	secretName, err := r.reconcileIgnitionScriptSecret(ctx, c, nodeVM.Name, node.ID, node.Rack)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = r.Get(ctx, types.NamespacedName{
+//		Namespace: c.Namespace,
+//		Name:      secretName,
+//	}, ignitionSecret)
+//	if err != nil {
+//		return err
+//	}
+//
+//	ignitionSecret.StringData = map[string]string{
+//		models.Script: newIgnition,
+//	}
+//	err = r.Update(ctx, ignitionSecret)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = r.Delete(ctx, nodeVM)
+//	if err != nil {
+//		return err
+//	}
+//
+//	dvList := &cdiv1beta1.DataVolumeList{}
+//	err = r.List(context.Background(), dvList, &client.ListOptions{
+//		LabelSelector: labels.SelectorFromSet(map[string]string{
+//			models.ClusterIDLabel: c.Status.ID,
+//			models.NodeIDLabel:    node.ID,
+//		}),
+//		Namespace: c.Namespace,
+//	})
+//	if err != nil {
+//		l.Error(err, "Cannot get on-premises cluster Virtual Machines",
+//			"cluster name", c.Spec.Name,
+//			"clusterID", c.Status.ID,
+//		)
+//
+//		r.EventRecorder.Eventf(
+//			c, models.Warning, models.CreationFailed,
+//			"Fetching on-premises cluster Virtual Machines is failed. Reason: %v",
+//			err,
+//		)
+//		return err
+//	}
+//
+//	osDVName := ""
+//	storageDVsNames := []string{}
+//	for _, dv := range dvList.Items {
+//		if dv.Labels[models.DVRoleLabel] == models.OSDVRole {
+//			osDVName = dv.Name
+//		} else if dv.Labels[models.DVRoleLabel] == models.StorageDVRole {
+//			storageDVsNames = append(storageDVsNames, dv.Name)
+//		}
+//	}
+//	newVM, err := r.newVM(
+//		ctx,
+//		c,
+//		nodeVM.Name,
+//		newNode.ID,
+//		node.Rack,
+//		osDVName,
+//		ignitionSecret.Name,
+//		*nodeVM.Spec.Template.Spec.Domain.Resources.Requests.Cpu(),
+//		*nodeVM.Spec.Template.Spec.Domain.Resources.Requests.Memory(),
+//		storageDVsNames...)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = r.Create(ctx, newVM)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {

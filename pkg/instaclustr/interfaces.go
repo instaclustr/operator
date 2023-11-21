@@ -112,4 +112,5 @@ type IcadminAPI interface {
 	SetPublicGatewayIP(gatewayID, ip string) error
 	SetNodeIPs(nodeID string, request *v1beta1.OnPremiseNode) error
 	GetIgnitionScript(nodeID string) (string, error)
+	RequestNodeReplace(nodeID string) error
 }

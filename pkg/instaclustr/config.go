@@ -86,5 +86,5 @@ const (
 	NodeIPsEndpoint          = "%s/admin/v1/nodes/%s"
 	NodesEndpoint            = "%s/admin/v1/nodes?term=%s"
 	IgnitionScriptEndpoint   = "%s/admin/v1/nodes/%s/debian-ignition-script"
-	NodeReplaceEndpoint      = "%s/admin/v1/replaceOperations?"
+	NodeReplaceEndpoint      = "%s/admin/v1/replaceOperations?override_onpremises_check=true"
 )
