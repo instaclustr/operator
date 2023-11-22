@@ -2,22 +2,36 @@
 
 ## Available spec fields
 
-| Field                  | Type                                                                                 | Description                                                                                                                                                                                                                                                                                                                                  |
-|------------------------|--------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                   | string <br /> **required**                                                           | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                       |
-| version                | string <br /> **required**                                                           | Cadence instance version. <br />**Available versions**: `0.22.4`, `0.24.0`.                                                                                                                                                                                                                                                                  |
-| pciCompliance          | bool <br /> **required**                                                             | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                  |
-| privateNetworkCluster  | bool <br /> **required**                                                             | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                               |
-| slaTier                | string <br /> **required**                                                           | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`. |
-| twoFactorDelete        | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_        | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                |
-| dataCentres            | Array of objects ([CadenceDataCentre](#CadenceDataCentreObject)) <br /> **required** | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                        |
-| description            | string                                                                               | Description of the Cadence cluster.                                                                                                                                                                                                                                                                                                          |
-| useCadenceWebAuth      | bool <br /> **required**                                                             | Enable Authentication for Cadence Web.                                                                                                                                                                                                                                                                                                       |
-| awsArchival            | Array of objects ([AWSArchival](#AWSArchivalObject))                                 | Cadence AWS Archival settings.                                                                                                                                                                                                                                                                                                               |
-| standardProvisioning   | Array of objects ([StandardProvisioning](#StandardProvisioningObject))               | Settings for STANDARD provisioning. Must not be defined with SHARED and PACKAGED provisioning options.                                                                                                                                                                                                                                       |
-| sharedProvisioning     | Array of objects ([SharedProvisioning](#SharedProvisioningObject))                   | Settings for SHARED provisioning. Must not be defined with STANDARD and PACKAGED provisioning options.                                                                                                                                                                                                                                       |
-| packagedProvisioning   | Array of objects ([PackagedProvisioning](#PackagedProvisioningObject))               | Settings for PACKAGED provisioning. Must not be defined with STANDARD and SHARED provisioning options.                                                                                                                                                                                                                                       |
+| Field                 | Type                                                                                    | Description                                                                                                                                                                                                                                                                                                                                   |
+|-----------------------|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                  | string <br /> **required**                                                              | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                        |
+| version               | string <br /> **required**                                                              | Cadence instance version. <br />**Available versions**: `0.22.4`, `0.24.0`.                                                                                                                                                                                                                                                                   |
+| pciCompliance         | bool <br /> **required**                                                                | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                   |
+| privateNetworkCluster | bool <br /> **required**                                                                | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                                |
+| slaTier               | string <br /> **required**                                                              | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`.  |
+| twoFactorDelete       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_           | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                 |
+| dataCentres           | Array of objects ([CadenceDataCentre](#CadenceDataCentreObject)) <br /> **required**    | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                         |
+| description           | string                                                                                  | Description of the Cadence cluster.                                                                                                                                                                                                                                                                                                           |
+| useCadenceWebAuth     | bool <br /> **required**                                                                | Enable Authentication for Cadence Web.                                                                                                                                                                                                                                                                                                        |
+| awsArchival           | Array of objects ([AWSArchival](#AWSArchivalObject))                                    | Cadence AWS Archival settings.                                                                                                                                                                                                                                                                                                                |
+| standardProvisioning  | Array of objects ([StandardProvisioning](#StandardProvisioningObject))                  | Settings for STANDARD provisioning. Must not be defined with SHARED and PACKAGED provisioning options.                                                                                                                                                                                                                                        |
+| sharedProvisioning    | Array of objects ([SharedProvisioning](#SharedProvisioningObject))                      | Settings for SHARED provisioning. Must not be defined with STANDARD and PACKAGED provisioning options.                                                                                                                                                                                                                                        |
+| packagedProvisioning  | Array of objects ([PackagedProvisioning](#PackagedProvisioningObject))                  | Settings for PACKAGED provisioning. Must not be defined with STANDARD and SHARED provisioning options.                                                                                                                                                                                                                                        |
+| targetPrimaryCadence  | Array of objects ([TargetPrimaryCadence](#TargetPrimaryCadenceObject)) <br /> _mutable_ | Supporting Primary Cadence info for Multi region Cadence.                                                                                                                                                                                                                                                                                     |
+| resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_             | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                  |
 
+
+### TargetPrimaryCadenceObject
+| Field                 | Type                        | Description                                        |
+|-----------------------|-----------------------------|----------------------------------------------------|
+| dependencyCdcId       | string <br /> **required**  | ID of the supporting Cluster's Cluster Data Centre |
+| dependencyVpcType     | string <br /> **required**  | Enum: "TARGET_VPC" "VPC_PEERED" "SEPARATE_VPC"     |
+
+### ResizeSettingsObject
+| Field                  | Type    | Description                                                                                                           |
+|------------------------|---------|-----------------------------------------------------------------------------------------------------------------------|
+| notifySupportContacts  | boolean | Setting this property to true will notify the Instaclustr Account's designated support contacts on resize completion. |
+| concurrency            | integer | Number of concurrent nodes to resize during a resize operation.                                                       |
 
 ### TwoFactorDeleteObject
 | Field                   | Type                       | Description                                                                            |
@@ -142,25 +156,53 @@ metadata:
   name: cadence-sample
 spec:
   name: "CadenceCluster"
-  version: "0.24.0"
+  version: "1.0.0"
   standardProvisioning:
     - targetCassandra:
-        dependencyCdcId: "66abf438-0020-4e2d-a39b-78706b7de064"
+        dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
         dependencyVpcType: "VPC_PEERED"
+  packagedProvisioning:
+    - bundledCassandraSpec:
+        nodeSize: "CAS-DEV-t4g.small-5"
+        network: "10.2.0.0/16"
+        replicationFactor: 3
+        nodesNumber: 3
+        privateIPBroadcastForDiscovery: false
+        passwordAndUserAuth: true
+        useAdvancedVisibility: true
+        bundledKafkaSpec:
+          nodeSize: "KFK-DEV-t4g.small-5"
+          nodesNumber: 3
+          network: "10.3.0.0/16"
+          replicationFactor: 3
+          partitionsNumber: 3
+        bundledOpenSearchSpec:
+          nodeSize: "SRH-DEV-t4g.small-5"
+          replicationFactor: 3
+          network: "10.4.0.0/16"
+  twoFactorDelete:
+    - email: "example@netapp.com"
   privateNetworkCluster: false
   dataCentres:
-    - region: "US_EAST_1"
-      network: "10.3.0.0/16"
+    - region: "US_EAST_2"
+      network: "10.12.0.0/16"
+      # In a multi-region mode setup, ensure the CIDR block for the secondary cluster does not overlap with the primary one
+      #      network: "10.16.0.0/16"
       cloudProvider: "AWS_VPC"
-      name: "testDC"
+      name: "testdc"
       nodeSize: "CAD-DEV-t3.small-5"
-      nodesNumber: 1
-      privateLink:
-        - advertisedHostname: "cadence.test.com"
+      nodesNumber: 2
       clientEncryption: false
-  description: "testCluster"
+      privateLink:
+         - advertisedHostname: "cadence-sample-test.com"
   slaTier: "NON_PRODUCTION"
-  useCadenceWebAuth: true
+  useCadenceWebAuth: false
+  targetPrimaryCadence:
+    - dependencyCdcId: "cce79be3-7f41-4cad-837c-86d3d8b4be77"
+      dependencyVpcType: "SEPARATE_VPC"
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1
 ```
 
 If you want to enable AWSArchival option, please create a secret **before** cluster creation:
