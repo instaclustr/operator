@@ -68,4 +68,6 @@ var (
 	ErrExposeServiceEndpointsNotCreatedYet        = errors.New("expose service endpoints is not created yet")
 	ErrOnlySingleConcurrentResizeAvailable        = errors.New("only single concurrent resize is allowed")
 	ErrBundledUseOnlyResourceUpdateIsNotSupported = errors.New("updating of bundled use resource is not supported")
+	ErrNoAvailableCIDRsForIPPool                  = errors.New("no available CIDRs for IPPool")
+	ErrNoAvailableIPsInReservation                = errors.New("no available IPs in IPreservation")
 )

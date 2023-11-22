@@ -3,7 +3,7 @@ kind: Cassandra
 metadata:
   name: cassandra-on-prem-cluster
 spec:
-  name: "danylo-on-prem-cassandra"
+  name: "rostyslp-on-prem-cassandra"
   version: "4.0.10"
   privateNetworkCluster: false
   onPremisesSpec:

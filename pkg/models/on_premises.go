@@ -15,6 +15,7 @@ const (
 	NodeIDLabel                = "nodeID"
 	NodeRackLabel              = "nodeRack"
 	NodeLabel                  = "node"
+	IPAddrsAnnotation          = "cni.projectcalico.org/ipAddrs"
 	NodeOSDVPrefix             = "node-os-data-volume-pvc"
 	NodeDVPrefix               = "node-data-volume-pvc"
 	NodeVMPrefix               = "node-vm"
@@ -26,6 +27,8 @@ const (
 	GatewayRack                = "ssh-gateway-rack"
 	IgnitionScriptSecretPrefix = "ignition-script-secret"
 	DataDisk                   = "data-disk"
+	IPReservationName          = "instaclustr-operator-ip-reservation"
+	IPPoolName                 = "instaclustr-operator-ip-pool"
 
 	Boot           = "boot"
 	Storage        = "storage"

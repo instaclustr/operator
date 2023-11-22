@@ -862,3 +862,29 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - projectcalico.org
+  resources:
+  - ippools
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - projectcalico.org
+  resources:
+  - ipreservations
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
