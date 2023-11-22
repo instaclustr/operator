@@ -46,7 +46,7 @@ spec:
     - region: "US_WEST_2"
       network: "10.12.0.0/16"
       # if you use multi-region mode please provide
-      # non-overlapping CIDR block for the secondary mode cluster
+      # In a multi-region mode setup, ensure the CIDR block for the secondary cluster does not overlap with the primary one
       #      network: "10.16.0.0/16"
       cloudProvider: "AWS_VPC"
       name: "testdc"

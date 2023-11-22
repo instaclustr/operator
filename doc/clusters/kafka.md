@@ -2,29 +2,32 @@
 
 ## Available spec fields
 
-| Field                             | Type                                                                             | Description                                                                                                                                                                                                                                                                                                                                  |
-|-----------------------------------|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                              | string <br /> **required**                                                       | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                       |
-| version                           | string <br /> **required**                                                       | Kafka instance version. <br />**Available versions**: `3.0.2`, `3.1.2`, `2.8.2`.                                                                                                                                                                                                                                                             |
-| pciCompliance                     | bool <br /> **required**                                                         | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                  |
-| privateNetworkCluster             | bool <br /> **required**                                                         | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                               |
-| slaTier                           | string <br /> **required**                                                       | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`. |
-| twoFactorDelete                   | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_    | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                |
-| schemaRegistry                    | Array of objects ([SchemaRegistry](#SchemaRegistryObject))                       | Adds the specified version of Kafka Schema Registry to this Kafka cluster.                                                                                                                                                                                                                                                                   |
-| replicationFactor           | int32 <br /> **required**                                                        | Default Replication factor to use for new topic. Also represents the number of racks to use when allocating nodes.                                                                                                                                                                                                                           |
-| partitionsNumber                  | int32 <br /> **required**                                                        | Default number of partitions to use when created new topics.                                                                                                                                                                                                                                                                                 |
-| restProxy                         | Array of objects ([RestProxy](#RestProxyObject))                                 | Adds the specified version of Kafka REST Proxy to this Kafka cluster.                                                                                                                                                                                                                                                                        |
-| allowDeleteTopics                 | bool <br /> **required**                                                         | Allows topics to be deleted via the kafka-topics tool.                                                                                                                                                                                                                                                                                       |
-| autoCreateTopics                  | bool <br /> **required**                                                         | Allows topics to be auto created by brokers when messages are published to a non-existent topic.                                                                                                                                                                                                                                             |
-| clientToClusterEncryption         | bool <br /> **required**                                                         | Enables Client ⇄ Cluster Encryption.                                                                                                                                                                                                                                                                                                         |
-| dataCentres                       | Array of objects ([KafkaDataCentre](#KafkaDataCentreObject)) <br /> **required** | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                        |
-| dedicatedZookeeper                | Array of objects ([DedicatedZookeeper](#DedicatedZookeeperObject))               | Provision additional dedicated nodes for Apache Zookeeper to run on. Zookeeper nodes will be co-located with Kafka if this is not provided.                                                                                                                                                                                                  |
-| clientBrokerAuthWithMtls          | bool                                                                             | Enables Client ⇄ Broker Authentication with mTLS.                                                                                                                                                                                                                                                                                            |
-| clientAuthBrokerWithoutEncryption | bool                                                                             | Enables Client ⇄ Broker Authentication without Encryption.                                                                                                                                                                                                                                                                                   |
-| clientAuthBrokerWithEncryption    | bool                                                                             | Enables Client ⇄ Broker Authentication with Encryption.                                                                                                                                                                                                                                                                                      |
-| karapaceRestProxy                 | Array of objects ([KarapaceRestProxy](#KarapaceRestProxyObject))                 | Adds the specified version of Kafka Karapace REST Proxy to this Kafka cluster.                                                                                                                                                                                                                                                               |
-| karapaceSchemaRegistry            | Array of objects ([KarapaceSchemaRegistry](#KarapaceSchemaRegistryObject))       | Adds the specified version of Kafka Karapace Schema Registry to this Kafka cluster.                                                                                                                                                                                                                                                          |
-| bundledUseOnly                    | bool                                                                             | Provision this cluster for [Bundled Use only](https://www.instaclustr.com/support/documentation/cadence/getting-started-with-cadence/bundled-use-only-cluster-deployments/).                                                                                                                                                                 |
+| Field                                 | Type                                                                             | Description                                                                                                                                                                                                                                                                                                                                    |
+|---------------------------------------|----------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                                  | string <br /> **required**                                                       | Cluster name. Should have length from 3 to 32 symbols.                                                                                                                                                                                                                                                                                         |
+| version                               | string <br /> **required**                                                       | Kafka instance version. <br />**Available versions**: `3.1.2`, `3.3.1`, `3.4.1`, `3.5.1`.                                                                                                                                                                                                                                                      |
+| pciCompliance                         | bool <br /> **required**                                                         | Creates a PCI compliant cluster, see [PCI Compliance](https://www.instaclustr.com/support/documentation/useful-information/pci-compliance/)                                                                                                                                                                                                    |
+| privateNetworkCluster                 | bool <br /> **required**                                                         | Allows topics to be deleted via the kafka-topics tool                                                                                                                                                                                                                                                                                          |
+| allowDeleteTopics                     | bool <br /> **required**                                                         | Creates the cluster with private network only, see [Private Network Clusters](https://www.instaclustr.com/support/documentation/useful-information/private-network-clusters/).                                                                                                                                                                 |
+| slaTier                               | string <br /> **required**                                                       | SLA Tier of the cluster. Non-production clusters may receive lower priority support and reduced SLAs. Production tier is not available when using Developer class nodes. See [SLA Tier](https://www.instaclustr.com/support/documentation/useful-information/sla-tier/) for more information. <br/>**Enum**: `PRODUCTION`, `NON_PRODUCTION`.   |
+| twoFactorDelete                       | Array of objects ([TwoFactorDelete](#TwoFactorDeleteObject)) <br /> _mutable_    | Contacts that will be contacted when cluster request is sent.                                                                                                                                                                                                                                                                                  |
+| schemaRegistry                        | Array of objects ([SchemaRegistry](#SchemaRegistryObject))                       | Adds the specified version of Kafka Schema Registry to this Kafka cluster.                                                                                                                                                                                                                                                                     |
+| replicationFactor                     | int32 <br /> **required**                                                        | Default Replication factor to use for new topic. Also represents the number of racks to use when allocating nodes.                                                                                                                                                                                                                             |
+| partitionsNumber                      | int32 <br /> **required**                                                        | Default number of partitions to use when created new topics.                                                                                                                                                                                                                                                                                   |
+| restProxy                             | Array of objects ([RestProxy](#RestProxyObject))                                 | Adds the specified version of Kafka REST Proxy to this Kafka cluster.                                                                                                                                                                                                                                                                          |
+| kraft                                 | Array of objects ([KafkaKraftSettings](#KafkaKraftSettingsObject))               | Create a KRaft Cluster                                                                                                                                                                                                                                                                                                                         |
+| allowDeleteTopics                     | bool <br /> **required**                                                         | Allows topics to be deleted via the kafka-topics tool.                                                                                                                                                                                                                                                                                         |
+| autoCreateTopics                      | bool <br /> **required**                                                         | Allows topics to be auto created by brokers when messages are published to a non-existent topic.                                                                                                                                                                                                                                               |
+| clientToClusterEncryption             | bool <br /> **required**                                                         | Enables Client ⇄ Cluster Encryption.                                                                                                                                                                                                                                                                                                           |
+| dataCentres                           | Array of objects ([KafkaDataCentre](#KafkaDataCentreObject)) <br /> **required** | Object fields are described below as a bulleted list.                                                                                                                                                                                                                                                                                          |
+| dedicatedZookeeper                    | Array of objects ([DedicatedZookeeper](#DedicatedZookeeperObject))               | Provision additional dedicated nodes for Apache Zookeeper to run on. Zookeeper nodes will be co-located with Kafka if this is not provided.                                                                                                                                                                                                    |
+| clientBrokerAuthWithMtls              | bool                                                                             | Enables Client ⇄ Broker Authentication with mTLS.                                                                                                                                                                                                                                                                                              |
+| clientAuthBrokerWithoutEncryption     | bool                                                                             | Enables Client ⇄ Broker Authentication without Encryption.                                                                                                                                                                                                                                                                                     |
+| clientAuthBrokerWithEncryption        | bool                                                                             | Enables Client ⇄ Broker Authentication with Encryption.                                                                                                                                                                                                                                                                                        |
+| karapaceRestProxy                     | Array of objects ([KarapaceRestProxy](#KarapaceRestProxyObject))                 | Adds the specified version of Kafka Karapace REST Proxy to this Kafka cluster.                                                                                                                                                                                                                                                                 |
+| karapaceSchemaRegistry                | Array of objects ([KarapaceSchemaRegistry](#KarapaceSchemaRegistryObject))       | Adds the specified version of Kafka Karapace Schema Registry to this Kafka cluster.                                                                                                                                                                                                                                                            |
+| bundledUseOnly                        | bool                                                                             | Provision this cluster for [Bundled Use only](https://www.instaclustr.com/support/documentation/cadence/getting-started-with-cadence/bundled-use-only-cluster-deployments/).                                                                                                                                                                   |
+| description                           | string <br />                                                                    | A description of the cluster                                                                                                                                                                                                                                                                                                                   |
 
 ### TwoFactorDeleteObject
 | Field                   | Type                              | Description                                                                            |
@@ -36,6 +39,11 @@
 | Field     | Type                        | Description                                                                                                |
 |-----------|-----------------------------|------------------------------------------------------------------------------------------------------------|
 | version   | string <br /> **required**  | Adds the specified version of Kafka Schema Registry to the Kafka cluster. **Available versions:** `5.0.0`. |
+
+### KafkaKraftSettingsObject
+| Field               | Type                       | Description                                                         |
+|---------------------|----------------------------|---------------------------------------------------------------------|
+| controllerNodeCount | int32 <br /> **required**  | Number of KRaft controller nodes (only 3 is currently supported).   |
 
 ### RestProxyObject
 | Field                                | Type                       | Description                                                                                                                                                          |
@@ -87,35 +95,53 @@
 | version                              | string <br /> **required** | Adds the specified version of Kafka REST Proxy to the Kafka cluster. **Available versions:** `3.4.3`. |
 
 ### KarapaceSchemaRegistryObject
-| Field    | Type                       | Description                                                                                                |
-|----------|----------------------------|------------------------------------------------------------------------------------------------------------|
-| version  | string <br /> **required** | Adds the specified version of Kafka Schema Registry to the Kafka cluster. **Available versions:** `3.4.3`. |
+| Field    | Type                       | Description                                                                                                         |
+|----------|----------------------------|---------------------------------------------------------------------------------------------------------------------|
+| version  | string <br /> **required** | Adds the specified version of Kafka Schema Registry to the Kafka cluster. **Available versions:** `3.4.3`, `3.6.2`. |
 
 ## Cluster create flow
 To create a Kafka cluster instance you need to prepare the yaml manifest. Here is an example:
 
 ```yaml
-# kafka.yaml
+ kafka.yaml
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Kafka
 metadata:
-  name: kafka-sample
+  name: kafka
 spec:
-  name: "kafka"
-  version: "2.8.2"
+  name: "Kafka-example"
+  version: "3.3.1"
   pciCompliance: false
   replicationFactor: 3
   partitionsNumber: 3
   allowDeleteTopics: true
   autoCreateTopics: true
-  clientToClusterEncryption: true
-  privateNetworkCluster: true
+  clientToClusterEncryption: false
+  privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
+  bundledUseOnly: true
+  clientBrokerAuthWithMtls: true
+  dedicatedZookeeper:
+    - nodeSize: "KDZ-DEV-t4g.small-30"
+      nodesNumber: 3
+  twoFactorDelete:
+    - email: "example@gmail.com"
+      phone: "example"
   karapaceSchemaRegistry:
     - version: "3.2.0"
+  schemaRegistry:
+    - version: "5.0.0"
   karapaceRestProxy:
     - integrateRestProxyWithSchemaRegistry: true
       version: "3.2.0"
+  kraft:
+    - controllerNodeCount: 3
+  restProxy:
+    - integrateRestProxyWithSchemaRegistry: false
+      schemaRegistryPassword: "asdfasdf"
+      schemaRegistryServerUrl: "schemaRegistryServerUrl"
+      "useLocalSchemaRegistry": true
+      version: "5.0.0"
   dataCentres:
     - name: "AWS_VPC_US_EAST_1"
       nodesNumber: 3
@@ -126,9 +152,19 @@ spec:
       nodeSize: "KFK-DEV-t4g.small-5"
       network: "10.0.0.0/16"
       region: "US_EAST_1"
-  dedicatedZookeeper:
-    - nodeSize: "KDZ-DEV-t4g.small-30"
-      nodesNumber: 3
+      accountName: "Custrom"
+      cloudProviderSettings:
+        - customVirtualNetworkId: "vpc-12345678"
+          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
+          resourceGroup: "asdfadfsdfas"
+      privateLink:
+        - advertisedHostname: "kafka-example-test.com"
+  userRefs:
+    - name: kafkauser-sample
+      namespace: default
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1
 ```
 
 Next, you need to apply this manifest in your K8s cluster. This will create a custom resource instance inside (more info about an apply command you can find [here](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply)):

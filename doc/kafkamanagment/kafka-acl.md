@@ -2,14 +2,13 @@
 
 ## Available spec fields
 
-| Field                                | Type                                                   | Description                                     |
-|--------------------------------------|--------------------------------------------------------|-------------------------------------------------|
-| userQuery                            | string <br /> **required** <br /> _mutable_            | This is the principal without the User: prefix. |
-| clusterId                            | string <br /> **required** <br /> _mutable_            | UUID of the Kafka cluster.                      |
-| acls                                 | Array of strings <br /> **required**  <br /> _mutable_ | List of ACLs for the given principal.           |
+| Field                                | Type                                                                          | Description                                     |
+|--------------------------------------|-------------------------------------------------------------------------------|-------------------------------------------------|
+| userQuery                            | string <br /> **required** <br /> _mutable_                                   | This is the principal without the User: prefix. |
+| clusterId                            | string <br /> **required** <br /> _mutable_                                   | UUID of the Kafka cluster.                      |
+| acls                                 | Array of objects ([KafkaAcl](#KafkaAclObject)) **required**  <br /> _mutable_ | List of ACLs for the given principal.           |
 
-### ACLsObject
-
+### KafkaAclObject
 | Field                                          | Type                                           | Description                                                                                                                                                                                                   |
 |------------------------------------------------|------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | principal                                      | string <br /> **required** <br /> _mutable_    | Specifies the users(s) for which this ACL applies and can include the wildcard *. Valid values must start with "User:" including the wildcard.                                                                |
@@ -28,6 +27,11 @@ To create a Kafka ACL resource you need to prepare the yaml manifest. Here is an
 apiVersion: kafkamanagement.instaclustr.com/v1beta1
 kind: KafkaACL
 metadata:
+  labels:
+    app.kubernetes.io/name: kafkaacl
+    app.kubernetes.io/instance: kafkaacl-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/created-by: operator
   name: kafkaacl-sample
 spec:
   acls:
@@ -38,8 +42,7 @@ spec:
       principal: User:test
       resourceName: kafka-cluster
       resourceType: CLUSTER
-  clusterId: c1af59c6-ba0e-4cc2-a0f3-65cee17a5f37
-  id: c1af59c6-ba0e-4cc2-a0f3-65cee17a5f37_test
+  clusterId: dcb8e03f-8bac-4f4b-83bc-34b6e7f3cb29
   userQuery: test
 ```
 
