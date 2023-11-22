@@ -25,7 +25,6 @@ import (
 
 // ExclusionWindowSpec defines the desired state of ExclusionWindow
 type ExclusionWindowSpec struct {
-	ClusterID string `json:"clusterId,omitempty"`
 	DayOfWeek string `json:"dayOfWeek"`
 	//+kubebuilder:validation:Minimum:=0
 	//+kubebuilder:validation:Maximum:=23

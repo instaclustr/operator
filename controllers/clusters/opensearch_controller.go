@@ -402,6 +402,67 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 	return models.ExitReconcile, nil
 }
 
+func (r *OpenSearchReconciler) handleClusterResourcesEvents(
+	newObj *v1beta1.OpenSearch,
+	oldObjSpec *v1beta1.OpenSearchSpec,
+) {
+	err := HandleResourceEvent(r.Client, models.ClusterbackupRef, oldObjSpec.ClusterResources.ClusterBackups, newObj.Spec.ClusterResources.ClusterBackups, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ClusterNetworkFirewallRuleRef, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+}
+
+func (r *OpenSearchReconciler) DetachClusterresourcesFromCluster(ctx context.Context, l logr.Logger, openSearch *v1beta1.OpenSearch) {
+	r.DetachClusterresources(ctx, l, openSearch, openSearch.Spec.ClusterResources.ClusterNetworkFirewallRules, models.ClusterNetworkFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, openSearch, openSearch.Spec.ClusterResources.AWSVPCPeerings, models.AWSVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, openSearch, openSearch.Spec.ClusterResources.AWSSecurityGroupFirewallRules, models.AWSSecurityGroupFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, openSearch, openSearch.Spec.ClusterResources.ExclusionWindows, models.ExclusionWindowRef)
+	r.DetachClusterresources(ctx, l, openSearch, openSearch.Spec.ClusterResources.GCPVPCPeerings, models.GCPVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, openSearch, openSearch.Spec.ClusterResources.AzureVNetPeerings, models.AzureVNetPeeringRef)
+}
+
+func (r *OpenSearchReconciler) DetachClusterresources(ctx context.Context, l logr.Logger, openSearch *v1beta1.OpenSearch, refs []*v1beta1.ClusterResourceRef, kind string) {
+	for _, ref := range refs {
+		err := HandleDeleteResource(r.Client, ctx, l, kind, ref)
+		if err != nil {
+			l.Error(err, "Cannot detach clusterresource", "resource kind", kind, "namespace and name", ref)
+			r.EventRecorder.Eventf(openSearch, models.Warning, models.DeletingEvent,
+				"Cannot detach resource. Reason: %v", err)
+		}
+	}
+}
+
 func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) (reconcile.Result, error) {
 	if !o.Spec.IsEqual(iO.Spec) {
 		l.Info(msgSpecStillNoMatch,
@@ -536,6 +597,8 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 		)
 		return reconcile.Result{}, err
 	}
+
+	r.DetachClusterresourcesFromCluster(ctx, logger, o)
 
 	controllerutil.RemoveFinalizer(o, models.DeletionFinalizer)
 	err = r.Patch(ctx, o, patch)
@@ -990,6 +1053,10 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectOld.GetGeneration() == newObj.Generation {
 					return false
 				}
+
+				oldObj := event.ObjectOld.(*v1beta1.OpenSearch)
+
+				r.handleClusterResourcesEvents(newObj, &oldObj.Spec)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

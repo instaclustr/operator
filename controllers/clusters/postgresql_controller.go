@@ -42,7 +42,6 @@ import (
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
-	"github.com/instaclustr/operator/controllers/clusterresources"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -499,179 +498,61 @@ func (r *PostgreSQLReconciler) handleClusterResourcesEvents(
 	newObj *v1beta1.PostgreSQL,
 	oldObjSpec *v1beta1.PgSpec,
 ) {
-	r.HandleResourceEvent(newObj, models.ClusterbackupRef, oldObjSpec.ClusterResources.ClusterBackups, newObj.Spec.ClusterResources.ClusterBackups)
-	r.HandleResourceEvent(newObj, models.ClusterNetworkFirewallRuleref, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules)
-	r.HandleResourceEvent(newObj, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings)
-	r.HandleResourceEvent(newObj, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules)
-	r.HandleResourceEvent(newObj, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows)
-	r.HandleResourceEvent(newObj, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings)
-	r.HandleResourceEvent(newObj, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings)
+	err := HandleResourceEvent(r.Client, models.ClusterbackupRef, oldObjSpec.ClusterResources.ClusterBackups, newObj.Spec.ClusterResources.ClusterBackups, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ClusterNetworkFirewallRuleRef, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
 }
 
-func (r *PostgreSQLReconciler) HandleResourceEvent(
-	pg *v1beta1.PostgreSQL,
-	resourceKind string,
-	oldRefs, newRefs []*v1beta1.NamespacedName,
-) {
-	ctx := context.TODO()
-	l := log.FromContext(ctx)
+func (r *PostgreSQLReconciler) DetachClusterresourcesFromCluster(ctx context.Context, l logr.Logger, pg *v1beta1.PostgreSQL) {
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.ClusterNetworkFirewallRules, models.ClusterNetworkFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.AWSVPCPeerings, models.AWSVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.AWSSecurityGroupFirewallRules, models.AWSSecurityGroupFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.ExclusionWindows, models.ExclusionWindowRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.GCPVPCPeerings, models.GCPVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.AzureVNetPeerings, models.AzureVNetPeeringRef)
+}
 
-	for _, ref := range newRefs {
-		exist := isClusterResourceRefExists(ref, oldRefs)
-		if exist {
-			continue
-		}
-
-		err := r.handleCreateResource(ctx, l, resourceKind, ref, pg)
+func (r *PostgreSQLReconciler) DetachClusterresources(ctx context.Context, l logr.Logger, pg *v1beta1.PostgreSQL, refs []*v1beta1.ClusterResourceRef, kind string) {
+	for _, ref := range refs {
+		err := HandleDeleteResource(r.Client, ctx, l, kind, ref)
 		if err != nil {
-			l.Error(err, "Cannot create clusterresource", "resource kind", resourceKind, "namespace and name", ref)
-			r.EventRecorder.Eventf(pg, models.Warning, models.CreatingEvent,
-				"Cannot create resource. Reason: %v", err)
-		}
-		oldRefs = append(oldRefs, ref)
-	}
-	for _, oldRef := range oldRefs {
-		exist := isClusterResourceRefExists(oldRef, newRefs)
-		if exist {
-			continue
-		}
-
-		err := r.handleDeleteResource(ctx, l, resourceKind, oldRef)
-		if err != nil {
-			l.Error(err, "Cannot delete clusterresource", "resource kind", resourceKind, "namespace and name", oldRef)
+			l.Error(err, "Cannot detach clusterresource", "resource kind", kind, "namespace and name", ref)
 			r.EventRecorder.Eventf(pg, models.Warning, models.DeletingEvent,
-				"Cannot delete resource. Reason: %v", err)
+				"Cannot detach resource. Reason: %v", err)
 		}
 	}
-}
-
-func (r *PostgreSQLReconciler) handleCreateResource(
-	ctx context.Context,
-	l logr.Logger,
-	kind string,
-	ref *v1beta1.NamespacedName,
-	pg *v1beta1.PostgreSQL,
-) error {
-	req := types.NamespacedName{
-		Namespace: ref.Namespace,
-		Name:      ref.Name,
-	}
-
-	var resource clusterresources.Object
-	var isCDC bool
-
-	switch kind {
-	case models.ClusterbackupRef:
-		resource = &clusterresourcesv1beta1.ClusterBackup{}
-	case models.ClusterNetworkFirewallRuleref:
-		resource = &clusterresourcesv1beta1.ClusterNetworkFirewallRule{}
-	case models.AWSVPCPeeringRef:
-		resource = &clusterresourcesv1beta1.AWSVPCPeering{}
-		isCDC = true
-	case models.AWSSecurityGroupFirewallRuleRef:
-		resource = &clusterresourcesv1beta1.AWSSecurityGroupFirewallRule{}
-	case models.ExclusionWindowRef:
-		resource = &clusterresourcesv1beta1.ExclusionWindow{}
-	case models.GCPVPCPeeringRef:
-		resource = &clusterresourcesv1beta1.GCPVPCPeering{}
-		isCDC = true
-	case models.AzureVNetPeeringRef:
-		resource = &clusterresourcesv1beta1.AzureVNetPeering{}
-		isCDC = true
-	default:
-		l.Info("Provided reference to resource that is not supported", "kind", kind)
-		return nil
-	}
-
-	err := r.Get(ctx, req, resource)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Provided resource is not found", "request", req)
-			return err
-		}
-		l.Error(err, "Cannot get cluster resource", "request", req)
-		return err
-	}
-
-	patch := resource.NewPatch()
-
-	if isCDC {
-		resource.AttachToCluster(pg.Status.DataCentres[0].ID)
-	} else {
-		resource.AttachToCluster(pg.Status.ID)
-	}
-
-	err = r.Status().Patch(ctx, resource, patch)
-	if err != nil {
-		return err
-	}
-
-	l.Info("PostgreSQL clusterresource was patched",
-		"Reference", ref,
-		"Resource Kind", kind,
-		"Event", models.CreatingEvent,
-	)
-
-	return nil
-}
-
-func (r *PostgreSQLReconciler) handleDeleteResource(
-	ctx context.Context,
-	l logr.Logger,
-	kind string,
-	ref *v1beta1.NamespacedName,
-) error {
-	req := types.NamespacedName{
-		Namespace: ref.Namespace,
-		Name:      ref.Name,
-	}
-
-	var resource clusterresources.Object
-
-	switch kind {
-	case models.ClusterNetworkFirewallRuleref:
-		resource = &clusterresourcesv1beta1.ClusterNetworkFirewallRule{}
-	case models.AWSVPCPeeringRef:
-		resource = &clusterresourcesv1beta1.AWSVPCPeering{}
-	case models.AWSSecurityGroupFirewallRuleRef:
-		resource = &clusterresourcesv1beta1.AWSSecurityGroupFirewallRule{}
-	case models.ExclusionWindowRef:
-		resource = &clusterresourcesv1beta1.ExclusionWindow{}
-	case models.GCPVPCPeeringRef:
-		resource = &clusterresourcesv1beta1.GCPVPCPeering{}
-	case models.AzureVNetPeeringRef:
-		resource = &clusterresourcesv1beta1.AzureVNetPeering{}
-	default:
-		l.Info("Provided reference to resource that is not support deletion", "kind", kind)
-		return nil
-	}
-
-	err := r.Get(ctx, req, resource)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot get a cluster resource. The resource is not found", "request", req)
-			return err
-		}
-		l.Error(err, "Cannot get cluster resource", "request", req)
-		return err
-	}
-
-	patch := resource.NewPatch()
-
-	resource.DetachFromCluster()
-
-	err = r.Status().Patch(ctx, resource, patch)
-	if err != nil {
-		return err
-	}
-
-	l.Info("PostgreSQL clusterresource was updated",
-		"Reference", ref,
-		"Resource Kind", kind,
-		"Event", models.DeletingEvent,
-	)
-
-	return nil
 }
 
 func (r *PostgreSQLReconciler) createUser(
@@ -1078,6 +959,8 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 			return reconcile.Result{}, err
 		}
 	}
+
+	r.DetachClusterresourcesFromCluster(ctx, logger, pg)
 
 	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
 	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent

@@ -33,8 +33,7 @@ var _ = Describe("Successful creation of a GCP VPC Peering resource", func() {
 	Context("When setting up a GCP VPC Peering CRD", func() {
 		gcpVPCPeeringSpec := v1beta1.GCPVPCPeeringSpec{
 			VPCPeeringSpec: v1beta1.VPCPeeringSpec{
-				DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
-				PeerSubnets:  []string{"172.31.0.0/16", "192.168.0.0/16"},
+				PeerSubnets: []string{"172.31.0.0/16", "192.168.0.0/16"},
 			},
 			PeerProjectID:      "pid-132313",
 			PeerVPCNetworkName: "vpc-123123123",

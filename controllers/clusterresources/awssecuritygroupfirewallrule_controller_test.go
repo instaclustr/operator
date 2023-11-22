@@ -33,8 +33,7 @@ var _ = Describe("Successful creation of a AWS Security Group Firewall Rule reso
 	Context("When setting up a AWS Security Group Firewall Rule CRD", func() {
 		awsSGFirewallRuleSpec := v1beta1.AWSSecurityGroupFirewallRuleSpec{
 			FirewallRuleSpec: v1beta1.FirewallRuleSpec{
-				ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
-				Type:      "SECURITY",
+				Type: "SECURITY",
 			},
 			SecurityGroupID: "sg-1434412",
 		}

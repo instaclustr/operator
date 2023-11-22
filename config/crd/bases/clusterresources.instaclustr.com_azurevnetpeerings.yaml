@@ -35,8 +35,6 @@ spec:
           spec:
             description: AzureVNetPeeringSpec defines the desired state of AzureVNetPeering
             properties:
-              cdcId:
-                type: string
               peerAdObjectId:
                 type: string
               peerResourceGroup:

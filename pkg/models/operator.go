@@ -107,7 +107,7 @@ const (
 	SparkAppType        = "SPARK"
 
 	ClusterbackupRef                = "ClusterBackup"
-	ClusterNetworkFirewallRuleref   = "ClusterNetworkFirewallRule"
+	ClusterNetworkFirewallRuleRef   = "ClusterNetworkFirewallRule"
 	AWSVPCPeeringRef                = "AWSVPCPeering"
 	AWSSecurityGroupFirewallRuleRef = "AWSSecurityGroupFirewallRule"
 	ExclusionWindowRef              = "ExclusionWindow"

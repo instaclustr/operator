@@ -73,6 +73,7 @@ type CadenceSpec struct {
 	PackagedProvisioning []*PackagedProvisioning `json:"packagedProvisioning,omitempty"`
 	TargetPrimaryCadence []*TargetCadence        `json:"targetPrimaryCadence,omitempty"`
 	ResizeSettings       []*ResizeSettings       `json:"resizeSettings,omitempty"`
+	ClusterResources     ClusterResourceRefs     `json:"clusterResources,omitempty"`
 }
 
 type AWSArchival struct {

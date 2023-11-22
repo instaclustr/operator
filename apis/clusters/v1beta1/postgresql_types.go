@@ -75,23 +75,13 @@ type PgRestoreFrom struct {
 type PgSpec struct {
 	PgRestoreFrom         *PgRestoreFrom `json:"pgRestoreFrom,omitempty"`
 	Cluster               `json:",inline"`
-	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
-	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
-	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
-	UserRefs              []*Reference      `json:"userRefs,omitempty"`
+	DataCentres           []*PgDataCentre     `json:"dataCentres,omitempty"`
+	ClusterConfigurations map[string]string   `json:"clusterConfigurations,omitempty"`
+	SynchronousModeStrict bool                `json:"synchronousModeStrict,omitempty"`
+	UserRefs              []*Reference        `json:"userRefs,omitempty"`
 	ClusterResources      ClusterResourceRefs `json:"clusterResources,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
-}
-
-type ClusterResourceRefs struct {
-	ClusterBackups                []*NamespacedName `json:"clusterBackups,omitempty"`
-	ClusterNetworkFirewallRules   []*NamespacedName `json:"clusterNetworkFirewallRules,omitempty"`
-	AWSVPCPeerings                []*NamespacedName `json:"awsVPCPeerings,omitempty"`
-	AWSSecurityGroupFirewallRules []*NamespacedName `json:"awsSecurityGroupFirewallRules,omitempty"`
-	ExclusionWindows              []*NamespacedName `json:"exclusionWindows,omitempty"`
-	GCPVPCPeerings                []*NamespacedName `json:"gcpVPCPeerings,omitempty"`
-	AzureVNetPeerings             []*NamespacedName `json:"azureVNetPeerings,omitempty"`
 }
 
 // PgStatus defines the observed state of PostgreSQL

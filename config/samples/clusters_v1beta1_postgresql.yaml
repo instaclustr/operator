@@ -53,8 +53,12 @@ spec:
 #      - namespace: default
 #        name: clusternetworkfirewallrule-sample
     awsVPCPeerings:
-#      - namespace: default
-#        name: awsvpcpeering-sample
+#          - namespace: default
+#            name: awsvpcpeering-sample
+#            dataCentreName: testDC1
+#          - namespace: default
+#            name: awsvpcpeering-sample-two
+#            dataCentreName: testDC2
     awsSecurityGroupFirewallRules:
 #      - namespace: default
 #        name: awssecuritygroupfirewallrule-sample

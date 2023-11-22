@@ -66,6 +66,107 @@ spec:
                   - awsAccessKeySecretNamespace
                   type: object
                 type: array
+              clusterResources:
+                properties:
+                  awsSecurityGroupFirewallRules:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                  awsVPCPeerings:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                  azureVNetPeerings:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                  clusterBackups:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                  clusterNetworkFirewallRules:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                  exclusionWindows:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                  gcpVPCPeerings:
+                    items:
+                      properties:
+                        dataCentreName:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    type: array
+                type: object
               dataCentres:
                 items:
                   properties:
@@ -312,6 +413,8 @@ spec:
                     encryptionKeyId:
                       type: string
                     id:
+                      type: string
+                    name:
                       type: string
                     nodeNumber:
                       type: integer

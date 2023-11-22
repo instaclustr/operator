@@ -35,8 +35,6 @@ spec:
           spec:
             description: ClusterBackupSpec defines the desired state of ClusterBackup
             properties:
-              clusterId:
-                type: string
               clusterKind:
                 type: string
             required:

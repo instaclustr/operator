@@ -33,8 +33,7 @@ var _ = Describe("Successful creation of a Azure VNet Peering resource", func() 
 	Context("When setting up a Azure VNet Peering CRD", func() {
 		azureVNetPeeringSpec := v1beta1.AzureVNetPeeringSpec{
 			VPCPeeringSpec: v1beta1.VPCPeeringSpec{
-				DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
-				PeerSubnets:  []string{"172.31.0.0/16", "192.168.0.0/16"},
+				PeerSubnets: []string{"172.31.0.0/16", "192.168.0.0/16"},
 			},
 			PeerResourceGroup:      "rg-1231212",
 			PeerSubscriptionID:     "sg-123321",

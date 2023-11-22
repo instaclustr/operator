@@ -274,7 +274,7 @@ func (r *GCPVPCPeeringReconciler) handleDeletePeering(
 		"id", gcp.Status.ID,
 		"project ID", gcp.Spec.PeerProjectID,
 		"network name", gcp.Spec.PeerVPCNetworkName,
-		"data centre ID", gcp.Spec.DataCentreID,
+		"data centre ID", gcp.Status.CDCID,
 		"status", gcp.Status.PeeringStatus,
 	)
 

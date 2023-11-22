@@ -54,6 +54,7 @@ type OpenSearchSpec struct {
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
 	UserRefs                 References              `json:"userRefs,omitempty"`
+	ClusterResources         ClusterResourceRefs     `json:"clusterResources,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
@@ -584,7 +585,6 @@ func (os *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   os.Status.ID,
 			ClusterKind: models.OsClusterKind,
 		},
 	}

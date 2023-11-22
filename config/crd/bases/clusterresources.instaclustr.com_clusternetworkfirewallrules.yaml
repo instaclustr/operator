@@ -37,8 +37,6 @@ spec:
             description: ClusterNetworkFirewallRuleSpec defines the desired state
               of ClusterNetworkFirewallRule
             properties:
-              clusterId:
-                type: string
               network:
                 type: string
               type:

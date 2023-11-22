@@ -33,8 +33,7 @@ var _ = Describe("Successful creation of a Cluster Network Firewall Rule resourc
 	Context("When setting up a Cluster Network Firewall Rule CRD", func() {
 		clusterNetworkFirewallRuleSpec := v1beta1.ClusterNetworkFirewallRuleSpec{
 			FirewallRuleSpec: v1beta1.FirewallRuleSpec{
-				ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
-				Type:      "SECURITY",
+				Type: "SECURITY",
 			},
 			Network: "191.54.123.1/24",
 		}

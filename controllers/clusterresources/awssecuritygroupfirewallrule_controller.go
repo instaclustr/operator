@@ -89,8 +89,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, nil
 	}
 
-		return ctrl.Result{}, nil
-	}
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
@@ -221,7 +220,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 
 	if status != nil && status.Status != statusDELETED {
 		err = r.API.DeleteFirewallRule(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
-		if err != nil {
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
 			l.Error(err, "Cannot delete AWS security group firewall rule",
 				"rule ID", firewallRule.Status.ID,
 				"cluster ID", firewallRule.Status.ClusterID,

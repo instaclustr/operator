@@ -35,8 +35,6 @@ spec:
           spec:
             description: ExclusionWindowSpec defines the desired state of ExclusionWindow
             properties:
-              clusterId:
-                type: string
               dayOfWeek:
                 type: string
               durationInHours:
@@ -56,7 +54,7 @@ spec:
           status:
             description: ExclusionWindowStatus defines the observed state of ExclusionWindow
             properties:
-              clusterID:
+              clusterId:
                 type: string
               id:
                 type: string

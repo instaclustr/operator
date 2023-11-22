@@ -45,6 +45,7 @@ type DataCentre struct {
 }
 
 type DataCentreStatus struct {
+	Name             string              `json:"name,omitempty"`
 	ID               string              `json:"id,omitempty"`
 	Status           string              `json:"status,omitempty"`
 	Nodes            []*Node             `json:"nodes,omitempty"`
@@ -558,6 +559,7 @@ func areClusteredMaintenanceEventStatusEqual(a, b *clusterresource.MaintenanceEv
 
 func (cs *ClusterStatus) DCFromInstAPI(iDC models.DataCentre) *DataCentreStatus {
 	return &DataCentreStatus{
+		Name:       iDC.Name,
 		ID:         iDC.ID,
 		Status:     iDC.Status,
 		Nodes:      cs.NodesFromInstAPI(iDC.Nodes),
@@ -711,6 +713,20 @@ func (cs *ClusterStatus) PrivateLinkStatusesEqual(iStatus *ClusterStatus) bool {
 	}
 
 	return true
+}
+
+type ClusterResourceRefs struct {
+	ClusterBackups                []*ClusterResourceRef `json:"clusterBackups,omitempty"`
+	ClusterNetworkFirewallRules   []*ClusterResourceRef `json:"clusterNetworkFirewallRules,omitempty"`
+	AWSVPCPeerings                []*ClusterResourceRef `json:"awsVPCPeerings,omitempty"`
+	AWSSecurityGroupFirewallRules []*ClusterResourceRef `json:"awsSecurityGroupFirewallRules,omitempty"`
+	ExclusionWindows              []*ClusterResourceRef `json:"exclusionWindows,omitempty"`
+	GCPVPCPeerings                []*ClusterResourceRef `json:"gcpVPCPeerings,omitempty"`
+	AzureVNetPeerings             []*ClusterResourceRef `json:"azureVNetPeerings,omitempty"`
+}
+type ClusterResourceRef struct {
+	Reference      `json:",inline"`
+	DataCentreName string `json:"dataCentreName,omitempty"`
 }
 
 type Reference struct {

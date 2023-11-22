@@ -266,6 +266,62 @@ func (r *ZookeeperReconciler) handleUpdateCluster(
 	return models.ExitReconcile, nil
 }
 
+func (r *ZookeeperReconciler) handleClusterResourcesEvents(
+	newObj *v1beta1.Zookeeper,
+	oldObjSpec *v1beta1.ZookeeperSpec,
+) {
+	err := HandleResourceEvent(r.Client, models.ClusterNetworkFirewallRuleRef, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+}
+
+func (r *ZookeeperReconciler) DetachClusterresourcesFromCluster(ctx context.Context, l logr.Logger, zookeeper *v1beta1.Zookeeper) {
+	r.DetachClusterresources(ctx, l, zookeeper, zookeeper.Spec.ClusterResources.ClusterNetworkFirewallRules, models.ClusterNetworkFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, zookeeper, zookeeper.Spec.ClusterResources.AWSVPCPeerings, models.AWSVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, zookeeper, zookeeper.Spec.ClusterResources.AWSSecurityGroupFirewallRules, models.AWSSecurityGroupFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, zookeeper, zookeeper.Spec.ClusterResources.ExclusionWindows, models.ExclusionWindowRef)
+	r.DetachClusterresources(ctx, l, zookeeper, zookeeper.Spec.ClusterResources.GCPVPCPeerings, models.GCPVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, zookeeper, zookeeper.Spec.ClusterResources.AzureVNetPeerings, models.AzureVNetPeeringRef)
+}
+
+func (r *ZookeeperReconciler) DetachClusterresources(ctx context.Context, l logr.Logger, zookeeper *v1beta1.Zookeeper, refs []*v1beta1.ClusterResourceRef, kind string) {
+	for _, ref := range refs {
+		err := HandleDeleteResource(r.Client, ctx, l, kind, ref)
+		if err != nil {
+			l.Error(err, "Cannot detach clusterresource", "resource kind", kind, "namespace and name", ref)
+			r.EventRecorder.Eventf(zookeeper, models.Warning, models.DeletingEvent,
+				"Cannot detach resource. Reason: %v", err)
+		}
+	}
+}
+
 func (r *ZookeeperReconciler) handleExternalChanges(zook *v1beta1.Zookeeper, l logr.Logger) (reconcile.Result, error) {
 	iData, err := r.API.GetZookeeper(zook.Status.ID)
 	if err != nil {
@@ -337,6 +393,8 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 	}
 
 	patch := zook.NewPatch()
+
+	r.DetachClusterresourcesFromCluster(ctx, l, zook)
 
 	if !errors.Is(err, instaclustr.NotFound) {
 		l.Info("Sending cluster deletion to the Instaclustr API",
@@ -584,6 +642,7 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.Zookeeper)
+				oldObj := event.ObjectOld.(*v1beta1.Zookeeper)
 
 				if event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] == models.DeletedEvent {
 					return false
@@ -596,6 +655,8 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
 					return true
 				}
+
+				r.handleClusterResourcesEvents(newObj, &oldObj.Spec)
 
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false

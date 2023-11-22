@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,9 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/controllers/clusterresources"
 	"github.com/instaclustr/operator/pkg/models"
 )
+
+const CannotHandleUserEvent = "Cannot handle resource event. Reason: %v"
 
 // confirmDeletion confirms if resource is deleting and set appropriate annotation.
 func confirmDeletion(obj client.Object) bool {
@@ -175,7 +180,7 @@ func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
 	return msg + specDifference, nil
 }
 
-func isClusterResourceRefExists(ref *v1beta1.NamespacedName, compareRefs []*v1beta1.NamespacedName) bool {
+func isClusterResourceRefExists(ref *v1beta1.ClusterResourceRef, compareRefs []*v1beta1.ClusterResourceRef) bool {
 	var exist bool
 	for _, compareRef := range compareRefs {
 		if *ref == *compareRef {
@@ -236,4 +241,183 @@ func deleteDefaultUserSecret(
 type Object interface {
 	client.Object
 	NewPatch() client.Patch
+}
+
+func HandleCreateResource(
+	r client.Client,
+	ctx context.Context,
+	l logr.Logger,
+	kind string,
+	ref *v1beta1.ClusterResourceRef,
+	clusterID string,
+	CDCs []*v1beta1.DataCentreStatus,
+) error {
+	req := types.NamespacedName{
+		Namespace: ref.Namespace,
+		Name:      ref.Name,
+	}
+
+	var resource clusterresources.Object
+	var isCDC bool
+	cdcID := CDCs[0].ID
+
+	switch kind {
+	case models.ClusterbackupRef:
+		resource = &clusterresourcesv1beta1.ClusterBackup{}
+	case models.ClusterNetworkFirewallRuleRef:
+		resource = &clusterresourcesv1beta1.ClusterNetworkFirewallRule{}
+	case models.AWSVPCPeeringRef:
+		resource = &clusterresourcesv1beta1.AWSVPCPeering{}
+		isCDC = true
+	case models.AWSSecurityGroupFirewallRuleRef:
+		resource = &clusterresourcesv1beta1.AWSSecurityGroupFirewallRule{}
+	case models.ExclusionWindowRef:
+		resource = &clusterresourcesv1beta1.ExclusionWindow{}
+	case models.GCPVPCPeeringRef:
+		resource = &clusterresourcesv1beta1.GCPVPCPeering{}
+		isCDC = true
+	case models.AzureVNetPeeringRef:
+		resource = &clusterresourcesv1beta1.AzureVNetPeering{}
+		isCDC = true
+	default:
+		l.Info("Provided reference to resource that is not supported", "kind", kind)
+		return nil
+	}
+
+	if isCDC && ref.DataCentreName != "" {
+		for _, cdc := range CDCs {
+			if cdc.Name == ref.DataCentreName {
+				cdcID = cdc.ID
+				break
+			}
+		}
+	}
+	err := r.Get(ctx, req, resource)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Error(err, "Provided resource is not found", "request", req)
+			return err
+		}
+		l.Error(err, "Cannot get cluster resource", "request", req)
+		return err
+	}
+
+	patch := resource.NewPatch()
+
+	if isCDC {
+		resource.AttachToCluster(cdcID)
+	} else {
+		resource.AttachToCluster(clusterID)
+	}
+
+	err = r.Status().Patch(ctx, resource, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info("PostgreSQL clusterresource was patched",
+		"Reference", ref,
+		"Resource Kind", kind,
+		"Event", models.CreatingEvent,
+	)
+
+	return nil
+}
+
+func HandleDeleteResource(
+	r client.Client,
+	ctx context.Context,
+	l logr.Logger,
+	kind string,
+	ref *v1beta1.ClusterResourceRef,
+) error {
+	req := types.NamespacedName{
+		Namespace: ref.Namespace,
+		Name:      ref.Name,
+	}
+
+	var resource clusterresources.Object
+
+	switch kind {
+	case models.ClusterNetworkFirewallRuleRef:
+		resource = &clusterresourcesv1beta1.ClusterNetworkFirewallRule{}
+	case models.AWSVPCPeeringRef:
+		resource = &clusterresourcesv1beta1.AWSVPCPeering{}
+	case models.AWSSecurityGroupFirewallRuleRef:
+		resource = &clusterresourcesv1beta1.AWSSecurityGroupFirewallRule{}
+	case models.ExclusionWindowRef:
+		resource = &clusterresourcesv1beta1.ExclusionWindow{}
+	case models.GCPVPCPeeringRef:
+		resource = &clusterresourcesv1beta1.GCPVPCPeering{}
+	case models.AzureVNetPeeringRef:
+		resource = &clusterresourcesv1beta1.AzureVNetPeering{}
+	default:
+		l.Info("Provided reference to resource that is not support deletion", "kind", kind)
+		return nil
+	}
+
+	err := r.Get(ctx, req, resource)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			l.Error(err, "Cannot get a cluster resource. The resource is not found", "request", req)
+			return err
+		}
+		l.Error(err, "Cannot get cluster resource", "request", req)
+		return err
+	}
+
+	patch := resource.NewPatch()
+
+	resource.DetachFromCluster()
+
+	err = r.Status().Patch(ctx, resource, patch)
+	if err != nil {
+		return err
+	}
+
+	l.Info("PostgreSQL clusterresource was updated",
+		"Reference", ref,
+		"Resource Kind", kind,
+		"Event", models.DeletingEvent,
+	)
+
+	return nil
+}
+
+func HandleResourceEvent(
+	r client.Client,
+	resourceKind string,
+	oldRefs, newRefs []*v1beta1.ClusterResourceRef,
+	clusterID string,
+	CDCs []*v1beta1.DataCentreStatus,
+) error {
+	ctx := context.TODO()
+	l := log.FromContext(ctx)
+
+	for _, ref := range newRefs {
+		exist := isClusterResourceRefExists(ref, oldRefs)
+		if exist {
+			continue
+		}
+		err := HandleCreateResource(r, ctx, l, resourceKind, ref, clusterID, CDCs)
+		if err != nil {
+			l.Error(err, "Cannot create clusterresource", "resource kind", resourceKind, "namespace and name", ref)
+
+			return err
+		}
+		oldRefs = append(oldRefs, ref)
+	}
+	for _, oldRef := range oldRefs {
+		exist := isClusterResourceRefExists(oldRef, newRefs)
+		if exist {
+			continue
+		}
+		err := HandleDeleteResource(r, ctx, l, resourceKind, oldRef)
+		if err != nil {
+			l.Error(err, "Cannot delete clusterresource", "resource kind", resourceKind, "namespace and name", oldRef)
+
+			return err
+		}
+	}
+	return nil
 }

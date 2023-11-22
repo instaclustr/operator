@@ -359,7 +359,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 			"Resource status patch is failed. Reason: %v",
 			err,
 		)
-		return ctrl.Result{},err
+		return ctrl.Result{}, err
 	}
 
 	controllerutil.RemoveFinalizer(aws, models.DeletionFinalizer)

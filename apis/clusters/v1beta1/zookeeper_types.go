@@ -36,8 +36,9 @@ type ZookeeperDataCentre struct {
 
 // ZookeeperSpec defines the desired state of Zookeeper
 type ZookeeperSpec struct {
-	Cluster     `json:",inline"`
-	DataCentres []*ZookeeperDataCentre `json:"dataCentres"`
+	Cluster          `json:",inline"`
+	DataCentres      []*ZookeeperDataCentre `json:"dataCentres"`
+	ClusterResources ClusterResourceRefs    `json:"clusterResources,omitempty"`
 }
 
 // ZookeeperStatus defines the observed state of Zookeeper

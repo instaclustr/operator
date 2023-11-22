@@ -35,8 +35,6 @@ spec:
           spec:
             description: GCPVPCPeeringSpec defines the desired state of GCPVPCPeering
             properties:
-              cdcId:
-                type: string
               peerProjectId:
                 type: string
               peerSubnets:

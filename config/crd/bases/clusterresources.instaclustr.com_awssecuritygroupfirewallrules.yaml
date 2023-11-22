@@ -37,8 +37,6 @@ spec:
             description: AWSSecurityGroupFirewallRuleSpec defines the desired state
               of AWSSecurityGroupFirewallRule
             properties:
-              clusterId:
-                type: string
               securityGroupId:
                 type: string
               type:

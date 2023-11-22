@@ -35,8 +35,6 @@ spec:
           spec:
             description: AWSVPCPeeringSpec defines the desired state of AWSVPCPeering
             properties:
-              cdcId:
-                type: string
               peerAwsAccountId:
                 type: string
               peerRegion:

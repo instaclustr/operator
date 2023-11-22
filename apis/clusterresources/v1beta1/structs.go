@@ -21,8 +21,7 @@ import (
 )
 
 type VPCPeeringSpec struct {
-	DataCentreID string   `json:"cdcId,omitempty"`
-	PeerSubnets  []string `json:"peerSubnets"`
+	PeerSubnets []string `json:"peerSubnets"`
 }
 
 type PeeringStatus struct {
@@ -41,8 +40,7 @@ type PatchRequest struct {
 }
 
 type FirewallRuleSpec struct {
-	ClusterID string `json:"clusterId,omitempty"`
-	Type      string `json:"type"`
+	Type string `json:"type"`
 }
 
 type FirewallRuleStatus struct {

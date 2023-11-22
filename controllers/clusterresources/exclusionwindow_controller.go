@@ -187,7 +187,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 
 	if status != "" {
 		err = r.API.DeleteExclusionWindow(ew.Status.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
 			l.Error(err, "cannot delete Exclusion Window resource",
 				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
@@ -220,7 +220,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 			"Status patch is failed. Reason: %v",
 			err,
 		)
-		return models.ReconcileRequeue
+		return ctrl.Result{}, err
 	}
 	controllerutil.RemoveFinalizer(ew, models.DeletionFinalizer)
 	err = r.Patch(ctx, ew, patch)
