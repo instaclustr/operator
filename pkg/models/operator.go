@@ -39,6 +39,7 @@ const (
 	RedisUserNamespaceLabel           = "instaclustr.com/redisUserNamespace"
 	PostgreSQLUserNamespaceLabel      = "instaclustr.com/postgresqlUserNamespace"
 	OpenSearchUserNamespaceLabel      = "instaclustr.com/openSearchUserNamespace"
+	OperatorLabel                     = "instaclustr-operator"
 
 	CassandraKind        = "Cassandra"
 	CassandraChildPrefix = "cassandra-"

@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	apicalico "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"os"
 	"time"
 
@@ -57,6 +58,7 @@ func init() {
 	utilruntime.Must(kafkamanagementv1beta1.AddToScheme(scheme))
 	utilruntime.Must(cdiv1beta1.AddToScheme(scheme))
 	utilruntime.Must(virtcorev1.AddToScheme(scheme))
+	utilruntime.Must(apicalico.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

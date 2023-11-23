@@ -19,8 +19,10 @@ package clusters
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 
+	apicalico "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	k8scorev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -74,18 +76,23 @@ func newOnPremisesBootstrap(
 }
 
 func handleCreateOnPremisesClusterResources(ctx context.Context, b *onPremisesBootstrap) error {
-	if len(b.ClusterStatus.DataCentres) < 1 {
-		return fmt.Errorf("datacenter ID is empty")
+	if len(b.ClusterStatus.DataCentres) == 0 {
+		return fmt.Errorf("datacenter ID in status is empty")
+	}
+
+	reservedCIDR, err := reconcileIPReservations(ctx, b.K8sClient)
+	if err != nil {
+		return err
 	}
 
 	if b.PrivateNetworkCluster {
-		err := reconcileSSHGatewayResources(ctx, b)
+		err := reconcileSSHGatewayResources(ctx, b, reservedCIDR)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := reconcileNodesResources(ctx, b)
+	err = reconcileNodesResources(ctx, b, reservedCIDR)
 	if err != nil {
 		return err
 	}
@@ -93,7 +100,7 @@ func handleCreateOnPremisesClusterResources(ctx context.Context, b *onPremisesBo
 	return nil
 }
 
-func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) error {
+func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap, reservedCIDR string) error {
 	gatewayDVSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
 	if err != nil {
 		return err
@@ -122,6 +129,11 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 
 	gatewayName := fmt.Sprintf("%s-%s", models.GatewayVMPrefix, strings.ToLower(b.K8sObject.GetName()))
 
+	ip, err := getAvailableIP(ctx, reservedCIDR, b.K8sClient)
+	if err != nil {
+		return err
+	}
+
 	gatewayVM := &virtcorev1.VirtualMachine{}
 	err = b.K8sClient.Get(ctx, types.NamespacedName{
 		Namespace: b.K8sObject.GetNamespace(),
@@ -138,6 +150,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 			b.ClusterStatus.DataCentres[0].ID,
 			models.GatewayRack,
 			gatewayDV.Name,
+			ip,
 			gatewayCPU,
 			gatewayMemory)
 		if err != nil {
@@ -175,7 +188,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 	return nil
 }
 
-func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error {
+func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap, reservedCIDR string) error {
 	for i, node := range b.ClusterStatus.DataCentres[0].Nodes {
 		nodeOSDiskSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
 		if err != nil {
@@ -223,6 +236,11 @@ func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error 
 
 		nodeName := fmt.Sprintf("%s-%d-%s", models.NodeVMPrefix, i, strings.ToLower(b.K8sObject.GetName()))
 
+		ip, err := getAvailableIP(ctx, reservedCIDR, b.K8sClient)
+		if err != nil {
+			return err
+		}
+
 		nodeVM := &virtcorev1.VirtualMachine{}
 		err = b.K8sClient.Get(ctx, types.NamespacedName{
 			Namespace: b.K8sObject.GetNamespace(),
@@ -239,6 +257,7 @@ func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error 
 				node.ID,
 				node.Rack,
 				nodeOSDV.Name,
+				ip,
 				nodeCPU,
 				nodeMemory,
 				nodeDataDV.Name,
@@ -299,6 +318,170 @@ func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error 
 
 	}
 	return nil
+}
+
+func reconcileIPReservations(ctx context.Context, k8sclient client.Client) (string, error) {
+	ipReservationsList := &apicalico.IPReservationList{}
+	err := k8sclient.List(ctx, ipReservationsList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.ControlledByLabel: models.OperatorLabel,
+		}),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	for _, reservation := range ipReservationsList.Items {
+		return reservation.Spec.ReservedCIDRs[0], nil
+	}
+
+	ipPoolList := &apicalico.IPPoolList{}
+	err = k8sclient.List(ctx, ipPoolList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.ControlledByLabel: models.OperatorLabel,
+		}),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	if len(ipPoolList.Items) == 0 {
+		clusterIPPoolList := &apicalico.IPPoolList{}
+		err = k8sclient.List(ctx, clusterIPPoolList)
+		if err != nil {
+			return "", err
+		}
+
+		var usedCIDRs []string
+		for _, pool := range clusterIPPoolList.Items {
+			usedCIDRs = append(usedCIDRs, pool.Spec.CIDR)
+		}
+
+		newIPPool := apicalico.NewIPPool()
+		newIPPool.ObjectMeta.Name = models.IPPoolName
+		newIPPool.ObjectMeta.Labels = map[string]string{
+			models.ControlledByLabel: models.OperatorLabel,
+		}
+		availCIDR, err := getAvailablePrivateCIDR(usedCIDRs)
+		if err != nil {
+			return "", err
+		}
+
+		newIPPool.Spec.CIDR = availCIDR
+
+		err = k8sclient.Create(ctx, newIPPool)
+		if err != nil {
+			return "", err
+		}
+
+		ipPoolList.Items = append(ipPoolList.Items, *newIPPool)
+	}
+
+	newReservation := &apicalico.IPReservation{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       apicalico.KindIPReservation,
+			APIVersion: apicalico.VersionCurrent,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: models.IPReservationName,
+			Labels: map[string]string{
+				models.ControlledByLabel: models.OperatorLabel,
+			},
+		},
+		Spec: apicalico.IPReservationSpec{
+			ReservedCIDRs: []string{ipPoolList.Items[0].Spec.CIDR},
+		},
+	}
+
+	err = k8sclient.Create(ctx, newReservation)
+	if err != nil {
+		return "", err
+	}
+
+	return newReservation.Spec.ReservedCIDRs[0], nil
+}
+
+// Calculates available CIDR from 10.*.*.* range with mask /24
+func getAvailablePrivateCIDR(unavailCIDRs []string) (string, error) {
+	for second := 0; second < 255; second++ {
+		for third := 0; third < 255; third++ {
+			checkNet := net.IPNet{
+				IP:   net.ParseIP(fmt.Sprintf("10.%d.%d.0", second, third)),
+				Mask: net.CIDRMask(24, 32),
+			}
+			cidrAvail := true
+			for _, unavailCIDR := range unavailCIDRs {
+				ip, _, err := net.ParseCIDR(unavailCIDR)
+				if err != nil {
+					return "", err
+				}
+
+				if checkNet.Contains(ip) {
+					cidrAvail = false
+					break
+				}
+			}
+
+			if cidrAvail {
+				return checkNet.String(), nil
+			}
+		}
+	}
+
+	return "", models.ErrNoAvailableCIDRsForIPPool
+}
+
+// Checks available IPs, fetching pods, VMs and checking their IPs. Assumes /24 ipmask
+func getAvailableIP(ctx context.Context, cidr string, k8sclient client.Client) (string, error) {
+	ip, _, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", err
+	}
+
+	podList := &k8scorev1.PodList{}
+	err = k8sclient.List(ctx, podList)
+	if err != nil {
+		return "", err
+	}
+
+	vmList := &virtcorev1.VirtualMachineList{}
+	err = k8sclient.List(ctx, vmList)
+	if err != nil {
+		return "", err
+	}
+
+	ipStrings := strings.Split(ip.String(), ".")
+	for i := 1; i < 255; i++ {
+		checkIP := fmt.Sprintf("%s.%s.%s.%d",
+			ipStrings[0],
+			ipStrings[1],
+			ipStrings[2],
+			i)
+
+		ipAvail := true
+		ipAnnot := fmt.Sprintf("[\"%s\"]", checkIP)
+		for _, pod := range podList.Items {
+			if pod.Annotations[models.IPAddrsAnnotation] == ipAnnot {
+				ipAvail = false
+			}
+		}
+
+		if !ipAvail {
+			continue
+		}
+
+		for _, vm := range vmList.Items {
+			if vm.Annotations[models.IPAddrsAnnotation] == ipAnnot {
+				ipAvail = false
+			}
+		}
+
+		if ipAvail {
+			return checkIP, nil
+		}
+	}
+
+	return "", models.ErrNoAvailableIPsInReservation
 }
 
 func createDV(
@@ -385,7 +568,8 @@ func newVM(
 	vmName,
 	nodeID,
 	nodeRack,
-	OSDiskDVName string,
+	OSDiskDVName,
+	ip string,
 	cpu,
 	memory resource.Quantity,
 	storageDVNames ...string,
@@ -413,15 +597,19 @@ func newVM(
 		labelSet[models.NodeLabel] = models.WorkerNode
 	}
 
+	ipAnnot := fmt.Sprintf("[\"%s\"]", ip)
 	vm := &virtcorev1.VirtualMachine{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       models.VirtualMachineKind,
 			APIVersion: models.KubevirtV1APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       vmName,
-			Namespace:  b.K8sObject.GetNamespace(),
-			Labels:     labelSet,
+			Name:      vmName,
+			Namespace: b.K8sObject.GetNamespace(),
+			Labels:    labelSet,
+			Annotations: map[string]string{
+				models.IPAddrsAnnotation: ipAnnot,
+			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
 		Spec: virtcorev1.VirtualMachineSpec{
@@ -429,6 +617,9 @@ func newVM(
 			Template: &virtcorev1.VirtualMachineInstanceTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labelSet,
+					Annotations: map[string]string{
+						models.IPAddrsAnnotation: ipAnnot,
+					},
 				},
 				Spec: virtcorev1.VirtualMachineInstanceSpec{
 					Hostname:  vmName,
