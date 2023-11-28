@@ -174,8 +174,8 @@ kubectl delete kafkaconnects.clusters.instaclustr.com kafkaconnect-sample
 
 ### Cluster deletion with twoFactorDelete option enabled
 To delete a cluster with the `twoFactorDelete` option enabled you need to do the simple [cluster deletion flow ](#cluster-deletion). 
-After that, a deletion confirmation email will be sent to the email defined in the `confirmationEmail` field of `twoFactorDelete`. 
-When deletion is confirmed via email, Instaclustr support will delete the cluster and the related cluster resources inside K8s will be also removed. 
+After that, a deletion email will be sent to the email defined in the `confirmationEmail` field of `twoFactorDelete`. 
+When deletion is confirmed via email, Instaclustr support will delete the cluster. 
 It can take some time to delete the resource.
 
 If you cancel cluster deletion and want to put cluster on delete again, remove `triggered` from `clusterDeletionAnnotation` annotation like this:

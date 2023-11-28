@@ -88,25 +88,24 @@ To do this, the public IP address of your machine must be added to the Firewall 
 ![Firewall Rules icon](../images/firewall_rules_screen.png "Firewall Rules icon")
 Then, you can use the service name instead of public addresses and port.
 
+## Cluster delete flow
+
 ### Cluster deletion
 To delete cluster run:
 ```console
 kubectl delete zookeepers.clusters.instaclustr.com zookeeper-sample
 ```
 
+### Cluster deletion with twoFactorDelete option enabled
+To delete a cluster with the `twoFactorDelete` option enabled you need to do the simple [cluster deletion flow ](#cluster-deletion).
+After that, a deletion email will be sent to the email defined in the `confirmationEmail` field of `twoFactorDelete`.
+When deletion is confirmed via email, Instaclustr support will delete the cluster.
 It can take some time to delete the resource.
 
-### Cluster deletion with twoFactorDelete option enabled
-To delete cluster with twoFactorDelete option enabled you need to set the confirmation annotation to true:
+If you cancel cluster deletion and want to put cluster on delete again, remove `triggered` from `clusterDeletionAnnotation` annotation like this:
+
 ```yaml
-Annotations:  
-  "instaclustr.com/deletionConfirmed": true
+Annotations:
+  "instaclustr.com/clusterDeletion": ""
 ```
-
-And then simply run:
-```console
-kubectl delete zookeepers.clusters.instaclustr.com zookeeper-sample
-```
-
-After that, deletion confirmation email will be sent to the email defined in the `confirmationEmail` field of `TwoFactorDelete`. When deletion is confirmed via email, Instaclustr support will delete the cluster and the related cluster resources inside K8s will be also removed.
 
