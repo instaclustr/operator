@@ -191,31 +191,26 @@ To update a cluster you can apply an updated cluster manifest or edit the custom
     ```
 You can only update fields that are **mutable**
 
-## Cluster deletion example
+## Cluster delete flow
 
 ### Cluster deletion
-
 To delete cluster run:
 ```console
 kubectl delete opensearches.clusters.instaclustr.com opensearch-sample
 ```
 
-It can take some time to delete all related resources and cluster itself.
-
 ### Cluster deletion with twoFactorDelete option enabled
+To delete a cluster with the `twoFactorDelete` option enabled you need to do the simple [cluster deletion flow ](#cluster-deletion).
+After that, a deletion email will be sent to the email defined in the `confirmationEmail` field of `twoFactorDelete`.
+When deletion is confirmed via email, Instaclustr support will delete the cluster.
+It can take some time to delete the resource.
 
-To delete cluster with twoFactorDelete option enabled you need to set the confirmation annotation to true:
+If you cancel cluster deletion and want to put cluster on delete again, remove `triggered` from `clusterDeletionAnnotation` annotation like this:
+
 ```yaml
-Annotations:  
-  "instaclustr.com/deletionConfirmed": true
+Annotations:
+  "instaclustr.com/clusterDeletion": ""
 ```
-
-And then run:
-```console
-kubectl delete opensearches.clusters.instaclustr.com opensearch-sample
-```
-
-After that deletion confirmation email will be sent to the email defined in the `confirmationEmail` field of `TwoFactorDelete`. When deletion is confirmed via email, Instaclustr support will delete the cluster and the related cluster resource in kubernetes will be removed soon.
 
 ## Cluster restore example
 
