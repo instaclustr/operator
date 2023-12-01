@@ -518,7 +518,13 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 
 		if iZook.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			!zook.Spec.IsEqual(iZook.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iZook.Spec, "k8s resource spec", zook.Spec)
+			k8sData, err := removeRedundantFieldsFromSpec(zook.Spec, "userRefs")
+			if err != nil {
+				l.Error(err, "Cannot remove redundant fields from k8s Spec")
+				return err
+			}
+
+			l.Info(msgExternalChanges, "instaclustr data", iZook.Spec, "k8s resource spec", string(k8sData))
 
 			patch := zook.NewPatch()
 			zook.Annotations[models.ExternalChangesAnnotation] = models.True

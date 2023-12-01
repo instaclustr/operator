@@ -759,7 +759,14 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			redis.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!redis.Spec.IsEqual(iRedis.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
+
+			k8sData, err := removeRedundantFieldsFromSpec(redis.Spec, "userRefs")
+			if err != nil {
+				l.Error(err, "Cannot remove redundant fields from k8s Spec")
+				return err
+			}
+
+			l.Info(msgExternalChanges, "instaclustr data", iRedis.Spec, "k8s resource spec", string(k8sData))
 
 			patch := redis.NewPatch()
 			redis.Annotations[models.ExternalChangesAnnotation] = models.True

@@ -158,8 +158,36 @@ func getSortedAppVersions(versions []*models.AppVersions, appType string) []*ver
 	return nil
 }
 
+func removeRedundantFieldsFromSpec(k8sSpec any, ignoreFields ...string) ([]byte, error) {
+	k8sSpecJson, err := json.Marshal(k8sSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ignoreFields) == 0 {
+		return k8sSpecJson, nil
+	}
+
+	k8sSpecMap := map[string]any{}
+	err = json.Unmarshal(k8sSpecJson, &k8sSpecMap)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, field := range ignoreFields {
+		delete(k8sSpecMap, field)
+	}
+
+	k8sSpecJson, err = json.Marshal(k8sSpecMap)
+	if err != nil {
+		return nil, err
+	}
+	return k8sSpecJson, nil
+}
+
 func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
-	k8sData, err := json.Marshal(k8sSpec)
+	k8sData, err := removeRedundantFieldsFromSpec(k8sSpec, "userRefs")
 	if err != nil {
 		return "", err
 	}
