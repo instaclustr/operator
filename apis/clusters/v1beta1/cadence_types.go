@@ -73,6 +73,7 @@ type CadenceSpec struct {
 	PackagedProvisioning []*PackagedProvisioning `json:"packagedProvisioning,omitempty"`
 	TargetPrimaryCadence []*TargetCadence        `json:"targetPrimaryCadence,omitempty"`
 	ResizeSettings       []*ResizeSettings       `json:"resizeSettings,omitempty"`
+	UseHTTPAPI           bool                    `json:"useHttpApi,omitempty"`
 }
 
 type AWSArchival struct {
@@ -196,6 +197,7 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 		StandardProvisioning:  standardProvisioning,
 		TargetPrimaryCadence:  cs.TargetCadenceToInstAPI(),
 		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
+		UseHTTPAPI:            cs.UseHTTPAPI,
 	}, nil
 }
 
@@ -456,6 +458,7 @@ func (cs *CadenceSpec) NewDCsUpdate() models.CadenceClusterAPIUpdate {
 type immutableCadenceFields struct {
 	immutableCluster
 	UseCadenceWebAuth bool
+	UseHTTPAPI        bool
 }
 
 type immutableCadenceDCFields struct {
@@ -467,6 +470,7 @@ func (cs *CadenceSpec) newImmutableFields() *immutableCadenceFields {
 	return &immutableCadenceFields{
 		immutableCluster:  cs.Cluster.newImmutableFields(),
 		UseCadenceWebAuth: cs.UseCadenceWebAuth,
+		UseHTTPAPI:        cs.UseHTTPAPI,
 	}
 }
 

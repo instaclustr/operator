@@ -293,6 +293,8 @@ spec:
                 type: array
               useCadenceWebAuth:
                 type: boolean
+              useHttpApi:
+                type: boolean
               version:
                 type: string
             required:

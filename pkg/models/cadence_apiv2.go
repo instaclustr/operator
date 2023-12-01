@@ -42,6 +42,7 @@ type CadenceCluster struct {
 	TargetSecondaryCadence []*TargetCadence               `json:"targetSecondaryCadence,omitempty"`
 	ResizeSettings         []*ResizeSettings              `json:"resizeSettings,omitempty"`
 	Description            string                         `json:"description,omitempty"`
+	UseHTTPAPI             bool                           `json:"useHttpApi,omitempty"`
 }
 
 type CadenceDataCentre struct {
