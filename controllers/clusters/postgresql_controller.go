@@ -1174,7 +1174,13 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 		if iPg.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			pg.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!pg.Spec.IsEqual(iPg.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iPg.Spec, "k8s resource spec", pg.Spec)
+			k8sData, err := removeRedundantFieldsFromSpec(pg.Spec, "userRefs")
+			if err != nil {
+				l.Error(err, "Cannot remove redundant fields from k8s Spec")
+				return err
+			}
+
+			l.Info(msgExternalChanges, "instaclustr data", iPg.Spec, "k8s resource spec", string(k8sData))
 
 			patch := pg.NewPatch()
 			pg.Annotations[models.ExternalChangesAnnotation] = models.True

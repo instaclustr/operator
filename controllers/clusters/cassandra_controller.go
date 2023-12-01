@@ -729,7 +729,13 @@ func (r *CassandraReconciler) newWatchStatusJob(cassandra *v1beta1.Cassandra) sc
 			cassandra.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			cassandra.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!cassandra.Spec.IsEqual(iCassandra.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", cassandra.Spec)
+			k8sData, err := removeRedundantFieldsFromSpec(cassandra.Spec, "userRefs")
+			if err != nil {
+				l.Error(err, "Cannot remove redundant fields from k8s Spec")
+				return err
+			}
+
+			l.Info(msgExternalChanges, "instaclustr data", iCassandra.Spec, "k8s resource spec", string(k8sData))
 
 			patch := cassandra.NewPatch()
 			cassandra.Annotations[models.ExternalChangesAnnotation] = models.True

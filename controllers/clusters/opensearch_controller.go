@@ -693,7 +693,13 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 		if iO.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			o.Annotations[models.UpdateQueuedAnnotation] != models.True &&
 			!o.Spec.IsEqual(iO.Spec) {
-			l.Info(msgExternalChanges, "instaclustr data", iO.Spec, "k8s resource spec", o.Spec)
+			k8sData, err := removeRedundantFieldsFromSpec(o.Spec, "userRefs")
+			if err != nil {
+				l.Error(err, "Cannot remove redundant fields from k8s Spec")
+				return err
+			}
+
+			l.Info(msgExternalChanges, "instaclustr data", iO.Spec, "k8s resource spec", string(k8sData))
 
 			patch := o.NewPatch()
 			o.Annotations[models.ExternalChangesAnnotation] = models.True
