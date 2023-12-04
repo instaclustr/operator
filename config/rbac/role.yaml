@@ -862,3 +862,29 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - usercertificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - usercertificates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kafkamanagement.instaclustr.com
+  resources:
+  - usercertificates/status
+  verbs:
+  - get
+  - patch
+  - update

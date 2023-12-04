@@ -2,8 +2,10 @@ apiVersion: clusters.instaclustr.com/v1beta1
 kind: Kafka
 metadata:
   name: kafka
+#  name: kafka-2
 spec:
-  name: "Kafka-example"
+  name: "bohdan-kafka-test"
+#  name: "bohdan-kafka-test-2"
   version: "3.3.1"
   pciCompliance: false
   replicationFactor: 3
@@ -14,7 +16,7 @@ spec:
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
   #  bundledUseOnly: true
-#  clientBrokerAuthWithMtls: true
+  clientBrokerAuthWithMtls: true
   #  dedicatedZookeeper:
   #    - nodeSize: "KDZ-DEV-t4g.small-30"
   #      nodesNumber: 3
@@ -58,9 +60,78 @@ spec:
 #  dedicatedZookeeper:
 #    - nodeSize: "KDZ-DEV-t4g.small-30"
 #      nodesNumber: 3
-#  userRefs:
-#    - name: kafkauser-sample
-#      namespace: default
+  userRefs:
+    - name: kafkauser-sample
+      namespace: default
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1
+---
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Kafka
+metadata:
+#  name: kafka
+  name: kafka-2
+spec:
+#  name: "bohdan-kafka-test"
+  name: "bohdan-kafka-test-2"
+  version: "3.3.1"
+  pciCompliance: false
+  replicationFactor: 3
+  partitionsNumber: 3
+  allowDeleteTopics: true
+  autoCreateTopics: true
+  clientToClusterEncryption: false
+  privateNetworkCluster: false
+  slaTier: "NON_PRODUCTION"
+  #  bundledUseOnly: true
+  clientBrokerAuthWithMtls: true
+  #  dedicatedZookeeper:
+  #    - nodeSize: "KDZ-DEV-t4g.small-30"
+  #      nodesNumber: 3
+  #  twoFactorDelete:
+  #    - email: "asdfadfsdsf"
+  #      phone: "ddsafasdf"
+  #  karapaceSchemaRegistry:
+  #    - version: "3.2.0"
+  #  schemaRegistry:
+  #    - version: "5.0.0"
+  #  karapaceRestProxy:
+  #    - integrateRestProxyWithSchemaRegistry: true
+  #      version: "3.2.0"
+  #  kraft:
+  #    - controllerNodeCount: 3
+  #  restProxy:
+  #    - integrateRestProxyWithSchemaRegistry: false
+  #      schemaRegistryPassword: "asdfasdf"
+  #      schemaRegistryServerUrl: "schemaRegistryServerUrl"
+  #      "useLocalSchemaRegistry": true
+  #      version: "5.0.0"
+  dataCentres:
+    - name: "AWS_VPC_US_EAST_1"
+      nodesNumber: 3
+      cloudProvider: "AWS_VPC"
+      tags:
+        tag: "oneTag"
+        tag2: "twoTags"
+      nodeSize: "KFK-DEV-t4g.small-5"
+      #      nodeSize: "KFK-PRD-r6g.large-250"
+      #      nodeSize: "KFK-DEV-t4g.medium-80"
+      network: "10.0.0.0/16"
+      region: "US_EAST_1"
+  #      accountName: "Custrom"
+  #      cloudProviderSettings:
+  #        - customVirtualNetworkId: "vpc-12345678"
+  #          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
+  #          resourceGroup: "asdfadfsdfas"
+  #      privateLink:
+  #        - advertisedHostname: "kafka-example-test.com"
+  #  dedicatedZookeeper:
+  #    - nodeSize: "KDZ-DEV-t4g.small-30"
+  #      nodesNumber: 3
+  userRefs:
+    - name: kafkauser-sample
+      namespace: default
   resizeSettings:
     - notifySupportContacts: false
       concurrency: 1

@@ -975,7 +975,7 @@ func (c *Client) DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error {
 	return nil
 }
 
-func (c *Client) CreateKafkaUserCertificate(certRequest *models.CertificateRequest) (*kafkamanagementv1beta1.Certificate, error) {
+func (c *Client) CreateKafkaUserCertificate(certRequest *models.CertificateRequest) (*models.Certificate, error) {
 	data, err := json.Marshal(certRequest)
 	if err != nil {
 		return nil, err
@@ -997,7 +997,7 @@ func (c *Client) CreateKafkaUserCertificate(certRequest *models.CertificateReque
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	cert := &kafkamanagementv1beta1.Certificate{}
+	cert := &models.Certificate{}
 	err = json.Unmarshal(body, cert)
 	if err != nil {
 		return nil, err
@@ -1019,6 +1019,10 @@ func (c *Client) DeleteKafkaUserCertificate(certificateID string) error {
 		return err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return NotFound
+	}
+
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
@@ -1026,7 +1030,7 @@ func (c *Client) DeleteKafkaUserCertificate(certificateID string) error {
 	return nil
 }
 
-func (c *Client) RenewKafkaUserCertificate(certificateID string) (*kafkamanagementv1beta1.Certificate, error) {
+func (c *Client) RenewKafkaUserCertificate(certificateID string) (*models.Certificate, error) {
 	payload := &struct {
 		CertificateID string `json:"certificateId"`
 	}{
@@ -1050,7 +1054,7 @@ func (c *Client) RenewKafkaUserCertificate(certificateID string) (*kafkamanageme
 		return nil, err
 	}
 
-	cert := &kafkamanagementv1beta1.Certificate{}
+	cert := &models.Certificate{}
 	err = json.Unmarshal(body, cert)
 	if err != nil {
 		return nil, err

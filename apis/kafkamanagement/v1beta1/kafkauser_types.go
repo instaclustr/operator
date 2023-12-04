@@ -28,7 +28,6 @@ import (
 // KafkaUserSpec defines the desired state of KafkaUser
 type KafkaUserSpec struct {
 	SecretRef            *v1beta1.SecretReference `json:"secretRef"`
-	CertificateRequests  []*CertificateRequest    `json:"certificateRequests,omitempty"`
 	InitialPermissions   string                   `json:"initialPermissions"`
 	OverrideExistingUser bool                     `json:"overrideExistingUser,omitempty"`
 	SASLSCRAMMechanism   string                   `json:"saslScramMechanism"`
@@ -38,25 +37,6 @@ type KafkaUserSpec struct {
 // KafkaUserStatus defines the observed state of KafkaUser
 type KafkaUserStatus struct {
 	ClustersEvents map[string]string `json:"clustersEvents,omitempty"`
-}
-
-type Certificate struct {
-	ID                string `json:"id,omitempty"`
-	ExpiryDate        string `json:"expiryDate,omitempty"`
-	SignedCertificate string `json:"signedCertificate,omitempty"`
-}
-
-type CertificateRequest struct {
-	SecretName         string `json:"secretName"`
-	SecretNamespace    string `json:"secretNamespace"`
-	ClusterID          string `json:"clusterId"`
-	CSR                string `json:"csr,omitempty"`
-	ValidPeriod        int    `json:"validPeriod"`
-	CommonName         string `json:"commonName,omitempty"`
-	Country            string `json:"country,omitempty"`
-	Organization       string `json:"organization,omitempty"`
-	OrganizationalUnit string `json:"organizationalUnit,omitempty"`
-	AutoRenew          bool   `json:"autoRenew"`
 }
 
 //+kubebuilder:object:root=true
@@ -133,14 +113,5 @@ func (ks *KafkaUserSpec) ToInstAPI(clusterID string, username string, password s
 		ClusterID:            clusterID,
 		InitialPermissions:   ks.InitialPermissions,
 		Username:             username,
-	}
-}
-
-func (cr *CertificateRequest) ToInstAPI(username string) *models.CertificateRequest {
-	return &models.CertificateRequest{
-		ClusterID:     cr.ClusterID,
-		CSR:           cr.CSR,
-		KafkaUsername: username,
-		ValidPeriod:   cr.ValidPeriod,
 	}
 }

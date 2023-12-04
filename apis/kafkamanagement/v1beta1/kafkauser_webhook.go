@@ -55,35 +55,27 @@ func (r *KafkaUser) Default() {
 var _ webhook.Validator = &KafkaUser{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *KafkaUser) ValidateCreate() error {
-	kafkauserlog.Info("validate create", "name", r.Name)
-
-	if len(r.Spec.CertificateRequests) != 0 {
-		return models.ErrNotEmptyCSRs
-	}
+func (ku *KafkaUser) ValidateCreate() error {
+	kafkauserlog.Info("validate create", "name", ku.Name)
 
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *KafkaUser) ValidateUpdate(old runtime.Object) error {
-	kafkauserlog.Info("validate update", "name", r.Name)
+func (ku *KafkaUser) ValidateUpdate(old runtime.Object) error {
+	kafkauserlog.Info("validate update", "name", ku.Name)
 
-	for _, request := range r.Spec.CertificateRequests {
-		if request.CSR == "" {
-			if request.Organization == "" || request.OrganizationalUnit == "" || request.Country == "" || request.CommonName == "" {
-				return models.ErrEmptyCertGeneratingFields
-			}
-		}
+	oldUser := old.(*KafkaUser)
+	if *ku.Spec.SecretRef != *oldUser.Spec.SecretRef {
+		return models.ErrImmutableSecretRef
 	}
 
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *KafkaUser) ValidateDelete() error {
-	kafkauserlog.Info("validate delete", "name", r.Name)
+func (ku *KafkaUser) ValidateDelete() error {
+	kafkauserlog.Info("validate delete", "name", ku.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

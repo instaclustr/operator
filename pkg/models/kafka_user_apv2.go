@@ -32,3 +32,10 @@ type CertificateRequest struct {
 	KafkaUsername string `json:"kafkaUsername"`
 	ValidPeriod   int    `json:"validPeriod"`
 }
+
+type Certificate struct {
+	ID                string `json:"id"`
+	ClusterID         string `json:"clusterId"`
+	ExpiryDate        string `json:"expiryDate"`
+	SignedCertificate string `json:"signedCertificate"`
+}

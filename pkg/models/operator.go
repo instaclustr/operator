@@ -130,7 +130,6 @@ const (
 	NotFound         = "NotFound"
 	CreationFailed   = "CreationFailed"
 	FetchFailed      = "FetchFailed"
-	GenerateFailed   = "GenerateFailed"
 	ConversionFailed = "ConversionFailed"
 	ValidationFailed = "ValidationFailed"
 	UpdateFailed     = "UpdateFailed"
@@ -174,3 +173,11 @@ type Credentials struct {
 }
 
 var ClusterKindsMap = map[string]string{"PostgreSQL": "postgres", "Redis": "redis", "OpenSearch": "opensearch", "Cassandra": "cassandra"}
+
+const (
+	CertificateRequestType     = "CERTIFICATE REQUEST"
+	RSAPrivateKeyType          = "RSA PRIVATE KEY"
+	SignedCertificateSecretKey = "signedCertificate"
+	CSRSecretKey               = "csr"
+	PrivateKeySecretKey        = "privateKey"
+)

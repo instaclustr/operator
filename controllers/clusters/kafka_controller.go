@@ -182,7 +182,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Ka
 			"Cluster status check job is started",
 		)
 
-		if k.Spec.UserRefs != nil {
+		if k.Spec.UserRefs != nil && k.Status.AvailableUsers == nil {
 			err = r.startUsersCreationJob(k)
 			if err != nil {
 				l.Error(err, "Failed to start user creation job")

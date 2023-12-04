@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
@@ -101,7 +102,7 @@ func (r *RedisUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	username, password, err := getUserCreds(secret)
+	username, password, err := utils.GetUserCreds(secret)
 	if err != nil {
 		l.Error(err, "Cannot get user credentials", "user", username)
 		r.EventRecorder.Eventf(user, models.Warning, models.CreatingEvent,
@@ -329,7 +330,7 @@ func (r *RedisUserReconciler) handleDeleteUser(
 	s *k8sCore.Secret,
 	u *v1beta1.RedisUser,
 ) error {
-	username, _, err := getUserCreds(s)
+	username, _, err := utils.GetUserCreds(s)
 	if err != nil {
 		l.Error(err, "Cannot get user credentials", "user", u.Name)
 		r.EventRecorder.Eventf(u, models.Warning, models.CreatingEvent,
