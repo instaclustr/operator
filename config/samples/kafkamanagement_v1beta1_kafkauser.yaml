@@ -14,25 +14,6 @@ spec:
   secretRef:
     name: "secret-test"
     namespace: "default"
-#  certificateRequests:
-#    - secretName: "cert-secret-test"
-#      secretNamespace: "default"
-#      clusterId: "ef324cb6-01a5-4d77-8867-9cf794312d43"
-#      commonName: "Sanch-two"
-#      country: "VN"
-#      organization: "Instaclustr"
-#      organizationalUnit: "IT"
-#      validPeriod: 6
-#      autoRenew: true
-#    - secretName: "cert-secret-test-three"
-#      secretNamespace: "default"
-#      clusterId: "ef324cb6-01a5-4d77-8867-9cf794312d43"
-#      commonName: "Sanch-two"
-#      country: "VN"
-#      organization: "Instaclustr"
-#      organizationalUnit: "IT"
-#      validPeriod: 6
-#      autoRenew: false
   initialPermissions: "standard"
   overrideExistingUser: true
   saslScramMechanism: "SCRAM-SHA-256"

@@ -1,0 +1,35 @@
+# sample with providing own generated csr
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: UserCertificate
+metadata:
+  name: user-cert-from-secret-sample
+spec:
+  clusterRef:
+    name: kafka
+    namespace: default
+  userRef:
+    name: kafkauser-sample
+    namespace: default
+  secretRef:
+    name: csr-2
+    namespace: default
+    key: ssl-CSR-2.csr
+  validPeriod: 3
+---
+# sample with generating csr in place
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: UserCertificate
+metadata:
+  name: user-cert-from-template-sample
+spec:
+  clusterRef:
+    name: kafka
+    namespace: default
+  userRef:
+    name: kafkauser-sample
+    namespace: default
+  certificateRequestTemplate:
+    country: Ukraine
+    organization: Instaclustr
+    organizationalUnit: IC
+  validPeriod: 3

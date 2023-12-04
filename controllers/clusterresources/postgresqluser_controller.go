@@ -35,6 +35,7 @@ import (
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
+	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
@@ -90,7 +91,7 @@ func (r *PostgreSQLUserReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	newUsername, newPassword, err := getUserCreds(s)
+	newUsername, newPassword, err := utils.GetUserCreds(s)
 	if err != nil {
 		l.Error(err, "Cannot get the PostgreSQL user credentials from the secret",
 			"secret name", s.Name,
@@ -373,7 +374,7 @@ func (r *PostgreSQLUserReconciler) getDefaultPostgreSQLUserCreds(
 		return nil, "", fmt.Errorf("cannot get default PostgreSQL user secret, user reference: %v, err: %w", defaultUserSecretNamespacedName, err)
 	}
 
-	defaultUsername, defaultPassword, err := getUserCreds(defaultUserSecret)
+	defaultUsername, defaultPassword, err := utils.GetUserCreds(defaultUserSecret)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot get default PostgreSQL user credentials, user reference: %v, err: %w", defaultUserSecretNamespacedName, err)
 	}

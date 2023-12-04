@@ -360,4 +360,16 @@ resources:
     defaulting: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: instaclustr.com
+  group: kafkamanagement
+  kind: UserCertificate
+  path: github.com/instaclustr/operator/apis/kafkamanagement/v1beta1
+  version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

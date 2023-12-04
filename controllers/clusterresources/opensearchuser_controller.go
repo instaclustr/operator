@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
@@ -197,7 +198,7 @@ func (r *OpenSearchUserReconciler) createUser(
 	secret *k8sCore.Secret,
 	logger logr.Logger,
 ) error {
-	username, password, err := getUserCreds(secret)
+	username, password, err := utils.GetUserCreds(secret)
 	if err != nil {
 		logger.Error(err, "Cannot get user's credentials during creating user on the cluster")
 		r.EventRecorder.Eventf(
@@ -267,7 +268,7 @@ func (r *OpenSearchUserReconciler) deleteUser(
 	secret *k8sCore.Secret,
 	logger logr.Logger,
 ) error {
-	username, _, err := getUserCreds(secret)
+	username, _, err := utils.GetUserCreds(secret)
 	if err != nil {
 		logger.Error(err, "Cannot get user's credentials during deleting")
 		r.EventRecorder.Eventf(

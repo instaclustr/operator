@@ -44,9 +44,9 @@ type API interface {
 	CreateKafkaUser(url string, kafkaUser *models.KafkaUser) (*kafkamanagementv1beta1.KafkaUserStatus, error)
 	UpdateKafkaUser(kafkaUserID string, kafkaUserSpec *models.KafkaUser) error
 	DeleteKafkaUser(kafkaUserID, kafkaUserEndpoint string) error
-	CreateKafkaUserCertificate(certRequest *models.CertificateRequest) (*kafkamanagementv1beta1.Certificate, error)
+	CreateKafkaUserCertificate(certRequest *models.CertificateRequest) (*models.Certificate, error)
 	DeleteKafkaUserCertificate(certificateID string) error
-	RenewKafkaUserCertificate(certificateID string) (*kafkamanagementv1beta1.Certificate, error)
+	RenewKafkaUserCertificate(certificateID string) (*models.Certificate, error)
 	GetTopicStatus(id string) ([]byte, error)
 	CreateKafkaTopic(url string, topic *kafkamanagementv1beta1.Topic) error
 	DeleteKafkaTopic(url, id string) error
