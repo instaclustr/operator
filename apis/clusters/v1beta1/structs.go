@@ -89,7 +89,6 @@ type Cluster struct {
 
 	// The PCI compliance standards relate to the security of user data and transactional information.
 	// Can only be applied clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch and Redis.
-	// PCI compliance cannot be enabled if the cluster has Spark.
 	PCICompliance bool `json:"pciCompliance,omitempty"`
 
 	PrivateNetworkCluster bool `json:"privateNetworkCluster,omitempty"`

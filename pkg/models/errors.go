@@ -32,7 +32,6 @@ var (
 	ErrImmutableIntraDataCentreReplication        = errors.New("intraDataCentreReplication fields are immutable")
 	ErrImmutableInterDataCentreReplication        = errors.New("interDataCentreReplication fields are immutable")
 	ErrImmutableDataCentresNumber                 = errors.New("data centres number is immutable")
-	ErrImmutableSpark                             = errors.New("spark field is immutable")
 	ErrImmutableAWSSecurityGroupFirewallRule      = errors.New("awsSecurityGroupFirewallRule is immutable")
 	ErrImmutableTags                              = errors.New("tags field is immutable")
 	ErrTypeAssertion                              = errors.New("unable to assert type")
@@ -68,4 +67,5 @@ var (
 	ErrExposeServiceEndpointsNotCreatedYet        = errors.New("expose service endpoints is not created yet")
 	ErrOnlySingleConcurrentResizeAvailable        = errors.New("only single concurrent resize is allowed")
 	ErrBundledUseOnlyResourceUpdateIsNotSupported = errors.New("updating of bundled use resource is not supported")
+	ErrDebeziumImmutable                          = errors.New("debezium array is immutable")
 )

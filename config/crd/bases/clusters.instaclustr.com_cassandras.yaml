@@ -72,6 +72,28 @@ spec:
                       type: array
                     continuousBackup:
                       type: boolean
+                    debezium:
+                      description: Adds the specified version of Debezium Connector
+                        Cassandra to the Cassandra cluster
+                      items:
+                        properties:
+                          kafkaCdcId:
+                            type: string
+                          kafkaTopicPrefix:
+                            type: string
+                          kafkaVpcType:
+                            description: KafkaVPCType with only VPC_PEERED supported
+                            type: string
+                          version:
+                            type: string
+                        required:
+                        - kafkaCdcId
+                        - kafkaTopicPrefix
+                        - kafkaVpcType
+                        - version
+                        type: object
+                      maxItems: 1
+                      type: array
                     name:
                       type: string
                     network:
@@ -115,7 +137,7 @@ spec:
                 description: The PCI compliance standards relate to the security of
                   user data and transactional information. Can only be applied clusters
                   provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
-                  and Redis. PCI compliance cannot be enabled if the cluster has Spark.
+                  and Redis.
                 type: boolean
               privateNetworkCluster:
                 type: boolean
@@ -184,15 +206,6 @@ spec:
                   class nodes. See SLA Tier for more information. Enum: "PRODUCTION"
                   "NON_PRODUCTION".'
                 type: string
-              spark:
-                items:
-                  properties:
-                    version:
-                      type: string
-                  required:
-                  - version
-                  type: object
-                type: array
               twoFactorDelete:
                 items:
                   properties:

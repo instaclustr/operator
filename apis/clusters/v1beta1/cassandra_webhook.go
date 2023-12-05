@@ -87,10 +87,6 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return err
 	}
 
-	if len(c.Spec.Spark) > 1 {
-		return fmt.Errorf("spark should not have more than 1 item")
-	}
-
 	appVersions, err := cv.API.ListAppVersions(models.CassandraAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -100,13 +96,6 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	err = validateAppVersion(appVersions, models.CassandraAppType, c.Spec.Version)
 	if err != nil {
 		return err
-	}
-
-	for _, spark := range c.Spec.Spark {
-		err = validateAppVersion(appVersions, models.SparkAppType, spark.Version)
-		if err != nil {
-			return err
-		}
 	}
 
 	if len(c.Spec.DataCentres) == 0 {

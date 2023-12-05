@@ -21,7 +21,6 @@ type CassandraCluster struct {
 	CassandraVersion      string                 `json:"cassandraVersion"`
 	LuceneEnabled         bool                   `json:"luceneEnabled"`
 	PasswordAndUserAuth   bool                   `json:"passwordAndUserAuth"`
-	Spark                 []*Spark               `json:"spark,omitempty"`
 	DataCentres           []*CassandraDataCentre `json:"dataCentres"`
 	Name                  string                 `json:"name"`
 	SLATier               string                 `json:"slaTier"`
@@ -35,14 +34,18 @@ type CassandraCluster struct {
 
 type CassandraDataCentre struct {
 	DataCentre                     `json:",inline"`
-	ReplicationFactor              int  `json:"replicationFactor"`
-	ContinuousBackup               bool `json:"continuousBackup"`
-	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
+	ReplicationFactor              int         `json:"replicationFactor"`
+	ContinuousBackup               bool        `json:"continuousBackup"`
+	PrivateIPBroadcastForDiscovery bool        `json:"privateIpBroadcastForDiscovery"`
+	ClientToClusterEncryption      bool        `json:"clientToClusterEncryption"`
+	Debezium                       []*Debezium `json:"debezium,omitempty"`
 }
 
-type Spark struct {
-	Version string `json:"version"`
+type Debezium struct {
+	KafkaVPCType      string `json:"kafkaVpcType"`
+	KafkaTopicPrefix  string `json:"kafkaTopicPrefix"`
+	KafkaDataCentreID string `json:"kafkaCdcId"`
+	Version           string `json:"version"`
 }
 
 type CassandraClusterAPIUpdate struct {
