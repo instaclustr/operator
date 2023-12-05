@@ -8,7 +8,12 @@ spec:
   privateNetworkCluster: false
   dataCentres:
     - name: "AWS_cassandra"
-      region: "US_WEST_2"
+      region: "US_EAST_1"
+      debezium:
+        - kafkaVpcType: "VPC_PEERED"
+          kafkaTopicPrefix: "test"
+          kafkaCdcId: "5134aed3-7b98-4ebd-95d0-2e181bdb073b"
+          version: "2.0.1"
       cloudProvider: "AWS_VPC"
       continuousBackup: false
       nodesNumber: 2

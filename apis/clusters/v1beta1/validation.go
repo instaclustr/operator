@@ -170,18 +170,6 @@ func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
 	return nil
 }
 
-func validateSpark(new, old []*Spark) error {
-	if len(old) != len(new) {
-		return models.ErrImmutableSpark
-	}
-	if len(old) != 0 &&
-		*old[0] != *new[0] {
-		return models.ErrImmutableSpark
-	}
-
-	return nil
-}
-
 func validateTagsUpdate(new, old map[string]string) error {
 	if len(old) != len(new) {
 		return models.ErrImmutableTags

@@ -29,10 +29,6 @@ import (
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-type Spark struct {
-	Version string `json:"version"`
-}
-
 type CassandraRestoreFrom struct {
 	// Original cluster ID. Backup from that cluster will be used for restore
 	ClusterID string `json:"clusterID"`
@@ -60,7 +56,6 @@ type CassandraSpec struct {
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
-	Spark               []*Spark               `json:"spark,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 	UserRefs            References             `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
@@ -79,6 +74,47 @@ type CassandraDataCentre struct {
 	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
 	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
 	ReplicationFactor              int  `json:"replicationFactor"`
+
+	// Adds the specified version of Debezium Connector Cassandra to the Cassandra cluster
+	// +kubebuilder:validation:MaxItems=1
+	Debezium []DebeziumCassandraSpec `json:"debezium,omitempty"`
+}
+
+type DebeziumCassandraSpec struct {
+	// KafkaVPCType with only VPC_PEERED supported
+	KafkaVPCType      string `json:"kafkaVpcType"`
+	KafkaTopicPrefix  string `json:"kafkaTopicPrefix"`
+	KafkaDataCentreID string `json:"kafkaCdcId"`
+	Version           string `json:"version"`
+}
+
+func (d *CassandraDataCentre) DebeziumToInstAPI() []*models.Debezium {
+	var instDebezium []*models.Debezium
+	for _, k8sDebezium := range d.Debezium {
+		instDebezium = append(instDebezium, &models.Debezium{
+			KafkaVPCType:      k8sDebezium.KafkaVPCType,
+			KafkaTopicPrefix:  k8sDebezium.KafkaTopicPrefix,
+			KafkaDataCentreID: k8sDebezium.KafkaDataCentreID,
+			Version:           k8sDebezium.Version,
+		})
+	}
+	return instDebezium
+}
+
+func (d *CassandraDataCentre) DebeziumEquals(other *CassandraDataCentre) bool {
+	if len(d.Debezium) != len(other.Debezium) {
+		return false
+	}
+
+	for _, old := range d.Debezium {
+		for _, new := range other.Debezium {
+			if old != new {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 //+kubebuilder:object:root=true
@@ -214,10 +250,6 @@ func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
 	if err != nil {
 		return err
 	}
-	err = validateSpark(cs.Spark, oldSpec.Spark)
-	if err != nil {
-		return err
-	}
 
 	for _, dc := range cs.DataCentres {
 		err = cs.validateResizeSettings(dc.NodesNumber)
@@ -261,6 +293,10 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
 				if err != nil {
 					return err
+				}
+
+				if !oldDC.DebeziumEquals(newDC) {
+					return models.ErrDebeziumImmutable
 				}
 
 				exists = true
@@ -309,10 +345,22 @@ func (cs *CassandraSpec) FromInstAPI(iCass *models.CassandraCluster) CassandraSp
 		DataCentres:         cs.DCsFromInstAPI(iCass.DataCentres),
 		LuceneEnabled:       iCass.LuceneEnabled,
 		PasswordAndUserAuth: iCass.PasswordAndUserAuth,
-		Spark:               cs.SparkFromInstAPI(iCass.Spark),
 		BundledUseOnly:      iCass.BundledUseOnly,
 		ResizeSettings:      resizeSettingsFromInstAPI(iCass.ResizeSettings),
 	}
+}
+
+func (cs *CassandraSpec) DebeziumFromInstAPI(iDebeziums []*models.Debezium) (dcs []DebeziumCassandraSpec) {
+	var debeziums []DebeziumCassandraSpec
+	for _, iDebezium := range iDebeziums {
+		debeziums = append(debeziums, DebeziumCassandraSpec{
+			KafkaVPCType:      iDebezium.KafkaVPCType,
+			KafkaTopicPrefix:  iDebezium.KafkaTopicPrefix,
+			KafkaDataCentreID: iDebezium.KafkaDataCentreID,
+			Version:           iDebezium.Version,
+		})
+	}
+	return debeziums
 }
 
 func (cs *CassandraSpec) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs []*CassandraDataCentre) {
@@ -323,15 +371,7 @@ func (cs *CassandraSpec) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs
 			PrivateIPBroadcastForDiscovery: iDC.PrivateIPBroadcastForDiscovery,
 			ClientToClusterEncryption:      iDC.ClientToClusterEncryption,
 			ReplicationFactor:              iDC.ReplicationFactor,
-		})
-	}
-	return
-}
-
-func (cs *CassandraSpec) SparkFromInstAPI(iSparks []*models.Spark) (sparks []*Spark) {
-	for _, iSpark := range iSparks {
-		sparks = append(sparks, &Spark{
-			Version: iSpark.Version,
+			Debezium:                       cs.DebeziumFromInstAPI(iDC.Debezium),
 		})
 	}
 	return
@@ -350,7 +390,6 @@ func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 		CassandraVersion:      cs.Version,
 		LuceneEnabled:         cs.LuceneEnabled,
 		PasswordAndUserAuth:   cs.PasswordAndUserAuth,
-		Spark:                 cs.SparkToInstAPI(),
 		DataCentres:           cs.DCsToInstAPI(),
 		SLATier:               cs.SLATier,
 		PrivateNetworkCluster: cs.PrivateNetworkCluster,
@@ -382,21 +421,11 @@ func (c *Cassandra) RestoreInfoToInstAPI(restoreData *CassandraRestoreFrom) any 
 	return iRestore
 }
 
-func (cs *CassandraSpec) SparkToInstAPI() (iSparks []*models.Spark) {
-	for _, spark := range cs.Spark {
-		iSparks = append(iSparks, &models.Spark{
-			Version: spark.Version,
-		})
-	}
-	return
-}
-
 func (cs *CassandraSpec) IsEqual(spec CassandraSpec) bool {
 	return cs.Cluster.IsEqual(spec.Cluster) &&
 		cs.AreDCsEqual(spec.DataCentres) &&
 		cs.LuceneEnabled == spec.LuceneEnabled &&
 		cs.PasswordAndUserAuth == spec.PasswordAndUserAuth &&
-		cs.IsSparkEqual(spec.Spark) &&
 		cs.BundledUseOnly == spec.BundledUseOnly
 }
 
@@ -416,21 +445,8 @@ func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 			iDC.ClientToClusterEncryption != dataCentre.ClientToClusterEncryption ||
 			iDC.PrivateIPBroadcastForDiscovery != dataCentre.PrivateIPBroadcastForDiscovery ||
 			iDC.ContinuousBackup != dataCentre.ContinuousBackup ||
-			iDC.ReplicationFactor != dataCentre.ReplicationFactor {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (cs *CassandraSpec) IsSparkEqual(sparks []*Spark) bool {
-	if len(cs.Spark) != len(sparks) {
-		return false
-	}
-
-	for i, spark := range sparks {
-		if cs.Spark[i].Version != spark.Version {
+			iDC.ReplicationFactor != dataCentre.ReplicationFactor ||
+			!dataCentre.DebeziumEquals(iDC) {
 			return false
 		}
 	}
@@ -464,6 +480,7 @@ func (cdc *CassandraDataCentre) ToInstAPI() *models.CassandraDataCentre {
 		ContinuousBackup:               cdc.ContinuousBackup,
 		PrivateIPBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
 		ReplicationFactor:              cdc.ReplicationFactor,
+		Debezium:                       cdc.DebeziumToInstAPI(),
 	}
 }
 

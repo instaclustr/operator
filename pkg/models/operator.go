@@ -104,7 +104,6 @@ const (
 	PgAppType           = "POSTGRESQL"
 	KafkaConnectAppType = "KAFKA_CONNECT"
 	CassandraAppType    = "APACHE_CASSANDRA"
-	SparkAppType        = "SPARK"
 
 	DefaultPgUsernameValue = "icpostgresql"
 	DefaultPgDbNameValue   = "postgres"
