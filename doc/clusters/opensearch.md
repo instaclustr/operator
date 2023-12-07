@@ -106,6 +106,10 @@
 ## Cluster creation example
 
 To create a cluster you need to prepare a cluster manifest. Here is an example:
+
+Notice:
+- If you choose to omit the cluster name in the specification, the operator will use it from the metadata name instead. In this case make sure that metadata name matches the name pattern, you can check the pattern on instaclustr API specification
+
 ```yaml
 # opensearch.yaml file
 apiVersion: clusters.instaclustr.com/v1beta1

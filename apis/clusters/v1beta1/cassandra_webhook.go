@@ -54,6 +54,10 @@ var _ webhook.Defaulter = &Cassandra{}
 func (c *Cassandra) Default() {
 	cassandralog.Info("default", "name", c.Name)
 
+	if c.Spec.Name == "" {
+		c.Spec.Name = c.Name
+	}
+
 	if c.GetAnnotations() == nil {
 		c.SetAnnotations(map[string]string{
 			models.ResourceStateAnnotation: "",

@@ -94,6 +94,9 @@
 
 ## Cluster creation example
 
+Notice:
+- If you choose to omit the cluster name in the specification, the operator will use it from the metadata name instead. In this case make sure that metadata name matches the name pattern, you can check the pattern on instaclustr API specification
+
 To create a cluster you need to prepare a cluster manifest. Here is an example:
 ```yaml
 # postgresql.yaml file

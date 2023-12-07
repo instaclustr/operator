@@ -67,6 +67,10 @@ func (os *OpenSearch) Default() {
 	}
 
 	opensearchlog.Info("default values are set", "name", os.Name)
+
+	if os.Spec.Name == "" {
+		os.Spec.Name = os.Name
+	}
 }
 
 func setDefaultValues(dc *OpenSearchDataCentre) {

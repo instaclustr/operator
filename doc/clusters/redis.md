@@ -79,6 +79,9 @@
 ## Cluster create flow
 To create a Redis cluster instance you need to prepare the yaml manifest. Here is an example:
 
+Notice:
+- If you choose to omit the cluster name in the specification, the operator will use it from the metadata name instead. In this case make sure that metadata name matches the name pattern, you can check the pattern on instaclustr API specification
+
 ```yaml
 # redis.yaml
 apiVersion: clusters.instaclustr.com/v1beta1
