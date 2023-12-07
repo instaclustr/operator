@@ -51,6 +51,10 @@ var _ webhook.Defaulter = &Zookeeper{}
 func (z *Zookeeper) Default() {
 	redislog.Info("default", "name", z.Name)
 
+	if z.Spec.Name == "" {
+		z.Spec.Name = z.Name
+	}
+
 	if z.GetAnnotations() == nil {
 		z.SetAnnotations(map[string]string{
 			models.ResourceStateAnnotation: "",

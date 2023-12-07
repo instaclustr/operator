@@ -58,6 +58,10 @@ var _ webhook.Defaulter = &PostgreSQL{}
 func (pg *PostgreSQL) Default() {
 	postgresqllog.Info("default", "name", pg.Name)
 
+	if pg.Spec.Name == "" {
+		pg.Spec.Name = pg.Name
+	}
+
 	if pg.GetAnnotations() == nil {
 		pg.SetAnnotations(map[string]string{
 			models.ResourceStateAnnotation: "",

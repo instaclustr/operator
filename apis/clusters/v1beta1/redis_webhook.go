@@ -51,6 +51,10 @@ var _ webhook.Defaulter = &Redis{}
 func (r *Redis) Default() {
 	redislog.Info("default", "name", r.Name)
 
+	if r.Spec.Name == "" {
+		r.Spec.Name = r.Name
+	}
+
 	if r.GetAnnotations() == nil {
 		r.SetAnnotations(map[string]string{
 			models.ResourceStateAnnotation: "",

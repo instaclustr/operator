@@ -51,6 +51,10 @@ var _ webhook.Defaulter = &Cadence{}
 func (c *Cadence) Default() {
 	cadencelog.Info("default", "name", c.Name)
 
+	if c.Spec.Name == "" {
+		c.Spec.Name = c.Name
+	}
+
 	if c.GetAnnotations() == nil {
 		c.SetAnnotations(map[string]string{
 			models.ResourceStateAnnotation: "",
