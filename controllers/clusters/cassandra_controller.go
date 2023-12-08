@@ -20,12 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/go-logr/logr"
+	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/pkg/exposeservice"
+	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
+	"github.com/instaclustr/operator/pkg/scheduler"
 	calicoclient "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	k8scorev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	virtcorev1 "kubevirt.io/api/core/v1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
+	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,14 +50,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
-	"github.com/instaclustr/operator/apis/clusters/v1beta1"
-	"github.com/instaclustr/operator/pkg/exposeservice"
-	"github.com/instaclustr/operator/pkg/instaclustr"
-	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
-	"github.com/instaclustr/operator/pkg/scheduler"
+	"strconv"
+	"strings"
 )
 
 // CassandraReconciler reconciles a Cassandra object
@@ -419,6 +416,7 @@ func (r *CassandraReconciler) handleCreateOnPremisesCluster(
 		return models.ReconcileRequeue, nil
 	}
 
+	patch = cassandra.NewPatch()
 	controllerutil.AddFinalizer(cassandra, models.DeletionFinalizer)
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 	err := r.Patch(ctx, cassandra, patch)
@@ -1322,7 +1320,6 @@ func (r *CassandraReconciler) newWatchOnPremisesIPsJob(c *v1beta1.Cassandra) sch
 			}
 		}
 
-		request := &v1beta1.OnPremiseNode{}
 		nodes, err := r.IcadminAPI.GetOnPremisesNodes(c.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get Cassandra on-premises nodes from the Instaclustr API",
@@ -1381,18 +1378,54 @@ func (r *CassandraReconciler) newWatchOnPremisesIPsJob(c *v1beta1.Cassandra) sch
 				return err
 			}
 
-			for _, pod := range nodePods.Items {
-				if pod.Status.PodIP != "" && node.PrivateAddress == "" {
-					request.PrivateAddress = pod.Status.PodIP
+			nodeVMList := &virtcorev1.VirtualMachineList{}
+			err = r.List(context.Background(), nodeVMList, &client.ListOptions{
+				LabelSelector: labels.SelectorFromSet(map[string]string{
+					models.ClusterIDLabel: c.Status.ID,
+					models.NodeIDLabel:    node.ID,
+				}),
+				Namespace: c.Namespace,
+			})
+			if err != nil {
+				l.Error(err, "Cannot get on-premises cluster Virtual Machines",
+					"cluster name", c.Spec.Name,
+					"clusterID", c.Status.ID,
+				)
+
+				r.EventRecorder.Eventf(
+					c, models.Warning, models.CreationFailed,
+					"Fetching on-premises cluster Virtual Machines is failed. Reason: %v",
+					err,
+				)
+				return err
+			}
+
+			nodeVM := &virtcorev1.VirtualMachine{}
+			request := &v1beta1.OnPremiseNode{}
+			if len(nodeVMList.Items) == 0 {
+				err = r.handleNodeReplace(context.TODO(), c, node, nil)
+				if err != nil {
+					//TODO Log and event an error
+					return err
 				}
-				//} else if pod.Status.PodIP != "" &&
-				//	pod.Status.PodIP != node.PrivateAddress {
-				//	err = r.handleNodeReplace(context.TODO(), c, node)
-				//	if err != nil {
-				//		//TODO Log and event an error
-				//		return err
-				//	}
-				//}
+				break
+			} else {
+				nodeVM = &nodeVMList.Items[0]
+				for _, pod := range nodePods.Items {
+					if pod.Status.PodIP != "" &&
+						nodeVM.Annotations[models.IPSetAnnotation] != models.True {
+						request.PrivateAddress = pod.Status.PodIP
+						break
+					} else if pod.Status.PodIP != "" &&
+						pod.Status.PodIP != node.PrivateAddress {
+						err = r.handleNodeReplace(context.TODO(), c, node, nodeVM)
+						if err != nil {
+							//TODO Log and event an error
+							return err
+						}
+						break
+					}
+				}
 			}
 
 			for _, svc := range nodeSVCs.Items {
@@ -1427,6 +1460,13 @@ func (r *CassandraReconciler) newWatchOnPremisesIPsJob(c *v1beta1.Cassandra) sch
 					c, models.Normal, models.Created,
 					"Nodes IPs are set",
 				)
+
+				patch := client.MergeFrom(nodeVM.DeepCopy())
+				nodeVM.Annotations[models.IPSetAnnotation] = models.True
+				err = r.Patch(context.TODO(), nodeVM, patch)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -1800,22 +1840,15 @@ func (r *CassandraReconciler) reconcileOnPremResources(
 	ctx context.Context,
 	c *v1beta1.Cassandra,
 ) error {
-	reservedIPs, err := r.reconcileIPReservations(ctx, c)
-	if err != nil {
-		return err
-	}
-
 	if c.Spec.PrivateNetworkCluster {
-		err := r.reconcileSSHGatewayResources(ctx, c, reservedIPs)
+		err := r.reconcileSSHGatewayResources(ctx, c)
 		if err != nil {
 			return err
 		}
 		fmt.Println("CREATED SSH GATEWAY")
 	}
 
-	time.Sleep(3 * time.Second)
-
-	err = r.reconcileNodesResources(ctx, c, reservedIPs)
+	err := r.reconcileNodesResources(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -1826,7 +1859,6 @@ func (r *CassandraReconciler) reconcileOnPremResources(
 func (r *CassandraReconciler) reconcileSSHGatewayResources(
 	ctx context.Context,
 	c *v1beta1.Cassandra,
-	CIDRs []string,
 ) error {
 	gateways, err := r.IcadminAPI.GetGateways(c.Status.DataCentres[0].ID)
 	if err != nil {
@@ -1860,11 +1892,6 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 			return err
 		}
 
-		gwIP, err := getAvailableIP(ctx, CIDRs, r)
-		if err != nil {
-			return err
-		}
-
 		gatewayVM := &virtcorev1.VirtualMachine{}
 		err = r.Get(ctx, types.NamespacedName{
 			Namespace: c.Namespace,
@@ -1882,7 +1909,6 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 				gateway.Rack,
 				gatewayDV.Name,
 				secretName,
-				gwIP,
 				gatewayCPU,
 				gatewayMemory)
 			if err != nil {
@@ -1919,7 +1945,6 @@ func (r *CassandraReconciler) reconcileSSHGatewayResources(
 func (r *CassandraReconciler) reconcileNodesResources(
 	ctx context.Context,
 	c *v1beta1.Cassandra,
-	CIDRs []string,
 ) error {
 	nodes, err := r.IcadminAPI.GetOnPremisesNodes(c.Status.ID)
 	if err != nil {
@@ -1964,10 +1989,6 @@ func (r *CassandraReconciler) reconcileNodesResources(
 			return err
 		}
 
-		nodeIP, err := getAvailableIP(ctx, CIDRs, r)
-		if err != nil {
-			return err
-		}
 		nodeVM := &virtcorev1.VirtualMachine{}
 		err = r.Get(ctx, types.NamespacedName{
 			Namespace: c.Namespace,
@@ -1985,7 +2006,6 @@ func (r *CassandraReconciler) reconcileNodesResources(
 				node.Rack,
 				nodeOSDV.Name,
 				secretName,
-				nodeIP,
 				nodeCPU,
 				nodeMemory,
 				nodeDataDV.Name)
@@ -2071,9 +2091,6 @@ func (r *CassandraReconciler) reconcileNodesResources(
 				return err
 			}
 		}
-
-		fmt.Println("CREATED NODE: ", nodeIP)
-		time.Sleep(3 * time.Second)
 	}
 	return nil
 }
@@ -2358,8 +2375,7 @@ func (r *CassandraReconciler) newVM(
 	nodeID,
 	nodeRack,
 	OSDiskDVName,
-	ignitionSecretName,
-	ip string,
+	ignitionSecretName string,
 	cpu,
 	memory resource.Quantity,
 	storageDVNames ...string,
@@ -2376,7 +2392,6 @@ func (r *CassandraReconciler) newVM(
 		return nil, err
 	}
 
-	ipAnnot := fmt.Sprintf("[\"%s\"]", ip)
 	vm := &virtcorev1.VirtualMachine{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       models.VirtualMachineKind,
@@ -2385,14 +2400,14 @@ func (r *CassandraReconciler) newVM(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vmName,
 			Namespace: c.Namespace,
+			Annotations: map[string]string{
+				models.IPSetAnnotation: models.False,
+			},
 			Labels: map[string]string{
 				models.ClusterIDLabel:      c.Status.ID,
 				models.NodeIDLabel:         nodeID,
 				models.NodeRackLabel:       nodeRack,
 				models.KubevirtDomainLabel: vmName,
-			},
-			Annotations: map[string]string{
-				"cni.projectcalico.org/ipAddrs": ipAnnot,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -2405,9 +2420,6 @@ func (r *CassandraReconciler) newVM(
 						models.NodeIDLabel:         nodeID,
 						models.NodeRackLabel:       nodeRack,
 						models.KubevirtDomainLabel: vmName,
-					},
-					Annotations: map[string]string{
-						"cni.projectcalico.org/ipAddrs": ipAnnot,
 					},
 				},
 				Spec: virtcorev1.VirtualMachineInstanceSpec{
@@ -2725,139 +2737,136 @@ func (r *CassandraReconciler) handleExternalDelete(ctx context.Context, c *v1bet
 	return nil
 }
 
-//func (r *CassandraReconciler) handleNodeReplace(ctx context.Context, c *v1beta1.Cassandra, node *v1beta1.OnPremiseNode) error {
-//	l := log.FromContext(ctx)
-//
-//	err := r.IcadminAPI.RequestNodeReplace(node.ID)
-//	if err != nil {
-//		return err
-//	}
-//
-//	nodeVMList := &virtcorev1.VirtualMachineList{}
-//	err = r.List(context.Background(), nodeVMList, &client.ListOptions{
-//		LabelSelector: labels.SelectorFromSet(map[string]string{
-//			models.ClusterIDLabel: c.Status.ID,
-//			models.NodeIDLabel:    node.ID,
-//		}),
-//		Namespace: c.Namespace,
-//	})
-//	if err != nil {
-//		l.Error(err, "Cannot get on-premises cluster Virtual Machines",
-//			"cluster name", c.Spec.Name,
-//			"clusterID", c.Status.ID,
-//		)
-//
-//		r.EventRecorder.Eventf(
-//			c, models.Warning, models.CreationFailed,
-//			"Fetching on-premises cluster Virtual Machines is failed. Reason: %v",
-//			err,
-//		)
-//		return err
-//	}
-//
-//	nodeVM := &virtcorev1.VirtualMachine{}
-//	for _, vm := range nodeVMList.Items {
-//		nodeVM = &vm
-//	}
-//
-//	newNodes, err := r.IcadminAPI.GetOnPremisesNodes(c.Status.ID)
-//	if err != nil {
-//		return err
-//	}
-//
-//	newIgnition := ""
-//	newNode := &v1beta1.OnPremiseNode{}
-//	for _, newNode = range newNodes {
-//		if newNode.PrivateAddress == "" &&
-//			newNode.PublicAddress == "" {
-//			newIgnition, err = r.IcadminAPI.GetIgnitionScript(newNode.ID)
-//			if err != nil {
-//				return err
-//			}
-//
-//			break
-//		}
-//	}
-//	ignitionSecret := &k8scorev1.Secret{}
-//	secretName, err := r.reconcileIgnitionScriptSecret(ctx, c, nodeVM.Name, node.ID, node.Rack)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = r.Get(ctx, types.NamespacedName{
-//		Namespace: c.Namespace,
-//		Name:      secretName,
-//	}, ignitionSecret)
-//	if err != nil {
-//		return err
-//	}
-//
-//	ignitionSecret.StringData = map[string]string{
-//		models.Script: newIgnition,
-//	}
-//	err = r.Update(ctx, ignitionSecret)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = r.Delete(ctx, nodeVM)
-//	if err != nil {
-//		return err
-//	}
-//
-//	dvList := &cdiv1beta1.DataVolumeList{}
-//	err = r.List(context.Background(), dvList, &client.ListOptions{
-//		LabelSelector: labels.SelectorFromSet(map[string]string{
-//			models.ClusterIDLabel: c.Status.ID,
-//			models.NodeIDLabel:    node.ID,
-//		}),
-//		Namespace: c.Namespace,
-//	})
-//	if err != nil {
-//		l.Error(err, "Cannot get on-premises cluster Virtual Machines",
-//			"cluster name", c.Spec.Name,
-//			"clusterID", c.Status.ID,
-//		)
-//
-//		r.EventRecorder.Eventf(
-//			c, models.Warning, models.CreationFailed,
-//			"Fetching on-premises cluster Virtual Machines is failed. Reason: %v",
-//			err,
-//		)
-//		return err
-//	}
-//
-//	osDVName := ""
-//	storageDVsNames := []string{}
-//	for _, dv := range dvList.Items {
-//		if dv.Labels[models.DVRoleLabel] == models.OSDVRole {
-//			osDVName = dv.Name
-//		} else if dv.Labels[models.DVRoleLabel] == models.StorageDVRole {
-//			storageDVsNames = append(storageDVsNames, dv.Name)
-//		}
-//	}
-//	newVM, err := r.newVM(
-//		ctx,
-//		c,
-//		nodeVM.Name,
-//		newNode.ID,
-//		node.Rack,
-//		osDVName,
-//		ignitionSecret.Name,
-//		*nodeVM.Spec.Template.Spec.Domain.Resources.Requests.Cpu(),
-//		*nodeVM.Spec.Template.Spec.Domain.Resources.Requests.Memory(),
-//		storageDVsNames...)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = r.Create(ctx, newVM)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
+func (r *CassandraReconciler) handleNodeReplace(ctx context.Context, c *v1beta1.Cassandra, node *v1beta1.OnPremiseNode, nodeVM *virtcorev1.VirtualMachine) error {
+	l := log.FromContext(ctx)
+
+	if nodeVM != nil {
+		if nodeVM.Annotations[models.IPSetAnnotation] == models.True {
+			patch := client.MergeFrom(nodeVM.DeepCopy())
+			controllerutil.RemoveFinalizer(nodeVM, models.DeletionFinalizer)
+			err := r.Patch(ctx, nodeVM, patch)
+			if err != nil {
+				return err
+			}
+
+			err = r.Delete(ctx, nodeVM)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err := r.IcadminAPI.RequestNodeReplace(node.ID)
+	if err != nil {
+		return err
+	}
+
+	newNodes, err := r.IcadminAPI.GetOnPremisesNodes(c.Status.ID)
+	if err != nil {
+		return err
+	}
+
+	newIgnition := ""
+	nodeName := ""
+	for i, newNode := range newNodes {
+		if newNode.PrivateAddress == node.PrivateAddress &&
+			newNode.PublicAddress == node.PublicAddress {
+			newIgnition, err = r.IcadminAPI.GetIgnitionScript(newNode.ID)
+			if err != nil {
+				return err
+			}
+
+			node = newNode
+			nodeName = fmt.Sprintf("%s-%d-%s", models.NodeVMPrefix, i, strings.ToLower(c.Name))
+			break
+		}
+	}
+
+	ignitionSecret := &k8scorev1.Secret{}
+	secretName, err := r.reconcileIgnitionScriptSecret(ctx, c, nodeName, node.ID, node.Rack)
+	if err != nil {
+		return err
+	}
+
+	err = r.Get(ctx, types.NamespacedName{
+		Namespace: c.Namespace,
+		Name:      secretName,
+	}, ignitionSecret)
+	if err != nil {
+		return err
+	}
+
+	ignitionSecret.StringData = map[string]string{
+		models.Script: newIgnition,
+	}
+	err = r.Update(ctx, ignitionSecret)
+	if err != nil {
+		return err
+	}
+
+	dvList := &cdiv1beta1.DataVolumeList{}
+	err = r.List(context.Background(), dvList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.ClusterIDLabel: c.Status.ID,
+			models.NodeIDLabel:    node.ID,
+		}),
+		Namespace: c.Namespace,
+	})
+	if err != nil {
+		l.Error(err, "Cannot get on-premises cluster Virtual Machines",
+			"cluster name", c.Spec.Name,
+			"clusterID", c.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"Fetching on-premises cluster Virtual Machines is failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	osDVName := ""
+	storageDVsNames := []string{}
+	for _, dv := range dvList.Items {
+		if dv.Labels[models.DVRoleLabel] == models.OSDVRole {
+			osDVName = dv.Name
+		} else if dv.Labels[models.DVRoleLabel] == models.StorageDVRole {
+			storageDVsNames = append(storageDVsNames, dv.Name)
+		}
+	}
+
+	nodeCPU := resource.Quantity{}
+	nodeCPU.Set(c.Spec.OnPremisesSpec.NodeCPU)
+	nodeMemory, err := resource.ParseQuantity(c.Spec.OnPremisesSpec.NodeMemory)
+	if err != nil {
+		return err
+	}
+
+	newVM, err := r.newVM(
+		ctx,
+		c,
+		nodeName,
+		node.ID,
+		node.Rack,
+		osDVName,
+		ignitionSecret.Name,
+		nodeCPU,
+		nodeMemory,
+		storageDVsNames...)
+	if err != nil {
+		return err
+	}
+
+	err = r.Create(ctx, newVM)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {

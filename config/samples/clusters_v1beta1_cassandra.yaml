@@ -23,8 +23,8 @@ spec:
       region: "CLIENT_DC"
       cloudProvider: "ONPREMISES"
       continuousBackup: false
-      nodesNumber: 2
-      replicationFactor: 2
+      nodesNumber: 3
+      replicationFactor: 3
       privateIpBroadcastForDiscovery: true
       network: "192.168.0.0/16"
       tags:

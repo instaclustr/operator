@@ -1,9 +1,10 @@
 package models
 
 const (
-	ONPREMISES      = "ONPREMISES"
-	CLIENTDC        = "CLIENT_DC"
-	KEEPSTORAGEMODE = "KEEP_STORAGE"
+	ONPREMISES        = "ONPREMISES"
+	CLIENTDC          = "CLIENT_DC"
+	KEEPSTORAGEMODE   = "KEEP_STORAGE"
+	NodeReplaceActive = "Active"
 
 	VirtualMachineKind           = "VirtualMachine"
 	DVKind                       = "DataVolume"
@@ -12,6 +13,7 @@ const (
 	CDIKubevirtV1beta1APIVersion = "cdi.kubevirt.io/v1beta1"
 
 	KubevirtSubdomain          = "kubevirt"
+	IPSetAnnotation            = "instaclustr.com/ip-set"
 	KubevirtDomainLabel        = "kubevirt.io/domain"
 	OperatorLabel              = "instaclustr-operator"
 	NodeIDLabel                = "nodeID"
