@@ -1,0 +1,13 @@
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: KafkaUser
+metadata:
+  name: kafkauser-test-sample
+  namespace: default
+spec:
+  secretRef:
+    name: "secret-test-sample"
+    namespace: "default"
+  initialPermissions: "standard"
+  overrideExistingUser: true
+  saslScramMechanism: "SCRAM-SHA-256"
+  authMechanism: "SASL"
