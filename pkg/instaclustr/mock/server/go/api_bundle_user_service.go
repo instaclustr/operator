@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"k8s.io/utils/strings/slices"
 )
@@ -21,6 +22,7 @@ import (
 // This service should implement the business logic for every endpoint for the BundleUserAPI API.
 // Include any external packages or services that will be required by this service.
 type BundleUserAPIService struct {
+	mu    sync.RWMutex
 	users map[string][]string
 }
 
@@ -36,6 +38,9 @@ func (s *BundleUserAPIService) CreateUser(ctx context.Context, clusterId string,
 
 	// TODO: Uncomment the next line to return response Response(404, ErrorMessage{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorMessage{}), nil
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if slices.Contains(s.users[clusterId], bundleUserCreateRequest.Username) {
 		return Response(400, GenericResponse{fmt.Sprintf("The user already exists, Username: %s", bundleUserCreateRequest.Username)}), nil
@@ -74,11 +79,25 @@ func (s *BundleUserAPIService) DeleteUser(ctx context.Context, clusterId string,
 	// TODO: Uncomment the next line to return response Response(504, {}) or use other options such as http.Ok ...
 	// return Response(504, nil),nil
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	users := s.users[clusterId]
+	for i, username := range users {
+		if username == bundleUserDeleteRequest.Username {
+			users = append(users[:i], users[i+1:]...)
+			break
+		}
+	}
+	s.users[clusterId] = users
+
 	return Response(200, GenericResponse{}), nil
 }
 
 // FetchUsers - Fetch a bundle users
 func (s *BundleUserAPIService) FetchUsers(ctx context.Context, clusterId string, bundle string) (ImplResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	users := s.users[clusterId]
 

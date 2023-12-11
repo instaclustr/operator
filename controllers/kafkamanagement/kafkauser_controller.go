@@ -428,7 +428,12 @@ func (r *KafkaUserReconciler) findSecretObjects(secret client.Object) []ctrl.Req
 	requests := make([]ctrl.Request, len(kafkaUserList.Items))
 	for i, item := range kafkaUserList.Items {
 		patch := item.NewPatch()
-		item.GetAnnotations()[models.ResourceStateAnnotation] = models.SecretEvent
+		annotations := item.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+			item.SetAnnotations(annotations)
+		}
+		annotations[models.ResourceStateAnnotation] = models.SecretEvent
 		err = r.Patch(context.TODO(), &item, patch)
 		if err != nil {
 			return []ctrl.Request{}

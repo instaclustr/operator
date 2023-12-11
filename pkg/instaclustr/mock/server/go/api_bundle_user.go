@@ -70,6 +70,16 @@ func (c *BundleUserAPIController) Routes() Routes {
 			"/provisioning/v1/{clusterId}",
 			c.GetDefaultCreds,
 		},
+		"CreateKafkaUser": Route{
+			Method:      strings.ToUpper("POST"),
+			Pattern:     "/cluster-management/v2/resources/applications/kafka/users/v3/",
+			HandlerFunc: c.CreateKafkaUser,
+		},
+		"DeleteKafkaUser": Route{
+			Method:      strings.ToUpper("POST"),
+			Pattern:     "/cluster-management/v2/resources/applications/kafka/users/v3/{userId}",
+			HandlerFunc: c.CreateKafkaUser,
+		},
 	}
 }
 
@@ -153,6 +163,38 @@ func (c *BundleUserAPIController) GetDefaultCreds(w http.ResponseWriter, r *http
 	clusterID := params["clusterId"]
 
 	result, err := c.service.GetDefaultCreds(r.Context(), clusterID)
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+
+	EncodeJSONResponse(result.Body, &result.Code, w)
+}
+
+func (c *BundleUserAPIController) CreateKafkaUser(w http.ResponseWriter, r *http.Request) {
+	kafkaUserCreate := &KafkaUserV3{}
+	err := json.NewDecoder(r.Body).Decode(kafkaUserCreate)
+	if err != nil {
+		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
+		return
+	}
+
+	result, err := c.service.CreateUser(r.Context(), kafkaUserCreate.ClusterId, "", BundleUserCreateRequest{Username: kafkaUserCreate.Username})
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+
+	EncodeJSONResponse(result.Body, &result.Code, w)
+}
+
+func (c *BundleUserAPIController) DeleteKafkaUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	parts := strings.Split(params["userId"], "_")
+
+	clusterID, username := parts[0], parts[1]
+
+	result, err := c.service.DeleteUser(r.Context(), clusterID, "", BundleUserDeleteRequest{Username: username})
 	if err != nil {
 		c.errorHandler(w, r, err, &result)
 		return
