@@ -71,19 +71,20 @@ func (azure *AzureVNetPeering) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (azure *AzureVNetPeering) AttachToCluster(id string) {
+	azure.Status.CDCID = id
+	azure.Status.ResourceState = models.CreatingEvent
+}
+
+func (azure *AzureVNetPeering) DetachFromCluster() {
+	azure.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&AzureVNetPeering{}, &AzureVNetPeeringList{})
 }
 
 func (azure *AzureVNetPeeringSpec) Validate() error {
-	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(azure.DataCentreID))
-	if err != nil {
-		return err
-	}
-	if !dataCentreIDMatched {
-		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s", models.UUIDStringRegExp)
-	}
-
 	for _, subnet := range azure.PeerSubnets {
 		peerSubnetMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(subnet))
 		if err != nil {

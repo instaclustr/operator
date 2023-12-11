@@ -35,8 +35,6 @@ spec:
           spec:
             description: AzureVNetPeeringSpec defines the desired state of AzureVNetPeering
             properties:
-              cdcId:
-                type: string
               peerAdObjectId:
                 type: string
               peerResourceGroup:
@@ -50,7 +48,6 @@ spec:
               peerVirtualNetworkName:
                 type: string
             required:
-            - cdcId
             - peerResourceGroup
             - peerSubnets
             - peerSubscriptionId
@@ -59,11 +56,15 @@ spec:
           status:
             description: AzureVNetPeeringStatus defines the observed state of AzureVNetPeering
             properties:
+              cdcid:
+                type: string
               failureReason:
                 type: string
               id:
                 type: string
               name:
+                type: string
+              resourceState:
                 type: string
               statusCode:
                 type: string

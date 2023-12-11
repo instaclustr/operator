@@ -494,6 +494,67 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 	return models.ExitReconcile, nil
 }
 
+func (r *PostgreSQLReconciler) handleClusterResourcesEvents(
+	newObj *v1beta1.PostgreSQL,
+	oldObjSpec *v1beta1.PgSpec,
+) {
+	err := HandleResourceEvent(r.Client, models.ClusterbackupRef, oldObjSpec.ClusterResources.ClusterBackups, newObj.Spec.ClusterResources.ClusterBackups, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ClusterNetworkFirewallRuleRef, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+}
+
+func (r *PostgreSQLReconciler) DetachClusterresourcesFromCluster(ctx context.Context, l logr.Logger, pg *v1beta1.PostgreSQL) {
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.ClusterNetworkFirewallRules, models.ClusterNetworkFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.AWSVPCPeerings, models.AWSVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.AWSSecurityGroupFirewallRules, models.AWSSecurityGroupFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.ExclusionWindows, models.ExclusionWindowRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.GCPVPCPeerings, models.GCPVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, pg, pg.Spec.ClusterResources.AzureVNetPeerings, models.AzureVNetPeeringRef)
+}
+
+func (r *PostgreSQLReconciler) DetachClusterresources(ctx context.Context, l logr.Logger, pg *v1beta1.PostgreSQL, refs []*v1beta1.ClusterResourceRef, kind string) {
+	for _, ref := range refs {
+		err := HandleDeleteResource(r.Client, ctx, l, kind, ref)
+		if err != nil {
+			l.Error(err, "Cannot detach clusterresource", "resource kind", kind, "namespace and name", ref)
+			r.EventRecorder.Eventf(pg, models.Warning, models.DeletingEvent,
+				"Cannot detach resource. Reason: %v", err)
+		}
+	}
+}
+
 func (r *PostgreSQLReconciler) createUser(
 	ctx context.Context,
 	l logr.Logger,
@@ -898,6 +959,8 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 			return reconcile.Result{}, err
 		}
 	}
+
+	r.DetachClusterresourcesFromCluster(ctx, logger, pg)
 
 	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
 	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -1691,6 +1754,7 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				oldObj := event.ObjectOld.(*v1beta1.PostgreSQL)
 
 				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
+				r.handleClusterResourcesEvents(newObj, &oldObj.Spec)
 
 				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

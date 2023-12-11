@@ -53,6 +53,29 @@ spec:
       clientEncryption: false
 #      privateLink:
 #        - advertisedHostname: "cadence-sample-test.com"
+  clusterResources:
+    clusterNetworkFirewallRules:
+#          - namespace: default
+#            name: clusternetworkfirewallrule-sample
+    awsVPCPeerings:
+#          - namespace: default
+#            name: awsvpcpeering-sample
+    awsSecurityGroupFirewallRules:
+#          - namespace: default
+#            name: awssecuritygroupfirewallrule-sample
+    exclusionWindows:
+#          - namespace: default
+#            name: exclusionwindow-sample
+    gcpVPCPeerings:
+    #      - namespace: default
+    #        name: gcpvpcpeering-sample
+    #      - namespace: default
+    #        name: gcpvpcpeering-sample-two
+    azureVNetPeerings:
+    #      - namespace: default
+    #        name: azurevnetpeering-sample
+    #      - namespace: default
+    #        name: azurevnetpeering-sample-trough
   slaTier: "NON_PRODUCTION"
   useCadenceWebAuth: false
 #  targetPrimaryCadence:

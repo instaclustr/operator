@@ -69,19 +69,20 @@ func (gcp *GCPVPCPeering) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (gcp *GCPVPCPeering) AttachToCluster(id string) {
+	gcp.Status.CDCID = id
+	gcp.Status.ResourceState = models.CreatingEvent
+}
+
+func (gcp *GCPVPCPeering) DetachFromCluster() {
+	gcp.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&GCPVPCPeering{}, &GCPVPCPeeringList{})
 }
 
 func (gcp *GCPVPCPeeringSpec) Validate() error {
-	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(gcp.DataCentreID))
-	if err != nil {
-		return err
-	}
-	if !dataCentreIDMatched {
-		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s", models.UUIDStringRegExp)
-	}
-
 	for _, subnet := range gcp.PeerSubnets {
 		peerSubnetMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(subnet))
 		if err != nil {

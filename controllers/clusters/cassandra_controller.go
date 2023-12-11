@@ -424,6 +424,67 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	return models.ExitReconcile, nil
 }
 
+func (r *CassandraReconciler) handleClusterResourcesEvents(
+	newObj *v1beta1.Cassandra,
+	oldObjSpec *v1beta1.CassandraSpec,
+) {
+	err := HandleResourceEvent(r.Client, models.ClusterbackupRef, oldObjSpec.ClusterResources.ClusterBackups, newObj.Spec.ClusterResources.ClusterBackups, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ClusterNetworkFirewallRuleRef, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+}
+
+func (r *CassandraReconciler) DetachClusterresourcesFromCluster(ctx context.Context, l logr.Logger, cassandra *v1beta1.Cassandra) {
+	r.DetachClusterresources(ctx, l, cassandra, cassandra.Spec.ClusterResources.ClusterNetworkFirewallRules, models.ClusterNetworkFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, cassandra, cassandra.Spec.ClusterResources.AWSVPCPeerings, models.AWSVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, cassandra, cassandra.Spec.ClusterResources.AWSSecurityGroupFirewallRules, models.AWSSecurityGroupFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, cassandra, cassandra.Spec.ClusterResources.ExclusionWindows, models.ExclusionWindowRef)
+	r.DetachClusterresources(ctx, l, cassandra, cassandra.Spec.ClusterResources.GCPVPCPeerings, models.GCPVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, cassandra, cassandra.Spec.ClusterResources.AzureVNetPeerings, models.AzureVNetPeeringRef)
+}
+
+func (r *CassandraReconciler) DetachClusterresources(ctx context.Context, l logr.Logger, cassandra *v1beta1.Cassandra, refs []*v1beta1.ClusterResourceRef, kind string) {
+	for _, ref := range refs {
+		err := HandleDeleteResource(r.Client, ctx, l, kind, ref)
+		if err != nil {
+			l.Error(err, "Cannot detach clusterresource", "resource kind", kind, "namespace and name", ref)
+			r.EventRecorder.Eventf(cassandra, models.Warning, models.DeletingEvent,
+				"Cannot detach resource. Reason: %v", err)
+		}
+	}
+}
+
 func (r *CassandraReconciler) handleExternalChanges(cassandra, iCassandra *v1beta1.Cassandra, l logr.Logger) (reconcile.Result, error) {
 	if !cassandra.Spec.IsEqual(iCassandra.Spec) {
 		l.Info(msgSpecStillNoMatch,
@@ -574,6 +635,8 @@ func (r *CassandraReconciler) handleDeleteCluster(
 		)
 		return reconcile.Result{}, err
 	}
+
+	r.DetachClusterresourcesFromCluster(ctx, l, cassandra)
 
 	controllerutil.RemoveFinalizer(cassandra, models.DeletionFinalizer)
 	cassandra.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -1076,6 +1139,10 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
+
+				oldObj := event.ObjectOld.(*v1beta1.Cassandra)
+
+				r.handleClusterResourcesEvents(newObj, &oldObj.Spec)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

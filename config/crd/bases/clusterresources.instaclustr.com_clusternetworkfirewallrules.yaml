@@ -37,14 +37,11 @@ spec:
             description: ClusterNetworkFirewallRuleSpec defines the desired state
               of ClusterNetworkFirewallRule
             properties:
-              clusterId:
-                type: string
               network:
                 type: string
               type:
                 type: string
             required:
-            - clusterId
             - network
             - type
             type: object
@@ -52,9 +49,13 @@ spec:
             description: ClusterNetworkFirewallRuleStatus defines the observed state
               of ClusterNetworkFirewallRule
             properties:
+              clusterId:
+                type: string
               deferredReason:
                 type: string
               id:
+                type: string
+              resourceState:
                 type: string
               status:
                 type: string

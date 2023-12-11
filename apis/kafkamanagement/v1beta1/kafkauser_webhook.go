@@ -69,6 +69,11 @@ func (r *KafkaUser) ValidateCreate() error {
 func (r *KafkaUser) ValidateUpdate(old runtime.Object) error {
 	kafkauserlog.Info("validate update", "name", r.Name)
 
+	oldUser := old.(*KafkaUser)
+	if *r.Spec.SecretRef != *oldUser.Spec.SecretRef {
+		return models.ErrImmutableSecretRef
+	}
+
 	for _, request := range r.Spec.CertificateRequests {
 		if request.CSR == "" {
 			if request.Organization == "" || request.OrganizationalUnit == "" || request.Country == "" || request.CommonName == "" {

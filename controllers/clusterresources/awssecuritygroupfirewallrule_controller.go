@@ -75,14 +75,14 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, err
 	}
 
-	switch firewallRule.Annotations[models.ResourceStateAnnotation] {
+	switch firewallRule.Status.ResourceState {
 	case models.CreatingEvent:
 		return r.handleCreateFirewallRule(ctx, firewallRule, &l)
 	case models.DeletingEvent:
 		return r.handleDeleteFirewallRule(ctx, firewallRule, &l)
 	case models.GenericEvent:
 		l.Info("AWS security group firewall rule event isn't handled",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
@@ -100,13 +100,13 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 	if firewallRule.Status.ID == "" {
 		l.Info(
 			"Creating AWS security group firewall rule",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 
 		patch := firewallRule.NewPatch()
 
-		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.AWSSecurityGroupFirewallRuleEndpoint, &firewallRule.Spec)
+		firewallRuleStatus, err := r.API.CreateAWSSecurityGroupFirewallRule(&firewallRule.Spec, firewallRule.Status.ClusterID)
 		if err != nil {
 			l.Error(
 				err, "Cannot create AWS security group firewall rule",
@@ -126,9 +126,10 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 		)
 
 		firewallRule.Status.FirewallRuleStatus = *firewallRuleStatus
+		firewallRule.Status.ResourceState = models.CreatedEvent
 		err = r.Status().Patch(ctx, firewallRule, patch)
 		if err != nil {
-			l.Error(err, "Cannot patch AWS security group firewall rule status ", "ID", firewallRule.Status.ID)
+			l.Error(err, "Cannot patch AWS security group firewall rule status", "ID", firewallRule.Status.ID)
 			r.EventRecorder.Eventf(
 				firewallRule, models.Warning, models.PatchFailed,
 				"Resource status patch is failed. Reason: %v",
@@ -142,7 +143,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 		err = r.Patch(ctx, firewallRule, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch AWS security group firewall rule",
-				"cluster ID", firewallRule.Spec.ClusterID,
+				"cluster ID", firewallRule.Status.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
 			r.EventRecorder.Eventf(
@@ -155,7 +156,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 
 		l.Info(
 			"AWS security group firewall rule resource has been created",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 	}
@@ -189,7 +190,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 
@@ -205,7 +206,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get AWS security group firewall rule status from the Instaclustr API",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 
@@ -219,10 +220,10 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 
 	if status != nil && status.Status != statusDELETED {
 		err = r.API.DeleteFirewallRule(firewallRule.Status.ID, instaclustr.AWSSecurityGroupFirewallRuleEndpoint)
-		if err != nil {
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
 			l.Error(err, "Cannot delete AWS security group firewall rule",
 				"rule ID", firewallRule.Status.ID,
-				"cluster ID", firewallRule.Spec.ClusterID,
+				"cluster ID", firewallRule.Status.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
 
@@ -239,13 +240,24 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 		)
 	}
 
+	firewallRule.Status.ResourceState = models.DeletedEvent
+	err = r.Status().Patch(ctx, firewallRule, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch AWS security group firewall rule status", "ID", firewallRule.Status.ID)
+		r.EventRecorder.Eventf(
+			firewallRule, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
+		return ctrl.Result{}, err
+	}
+
 	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
 	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
-	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"status", firewallRule.Status,
 		)
@@ -259,7 +271,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	}
 
 	l.Info("AWS security group firewall rule has been deleted",
-		"cluster ID", firewallRule.Spec.ClusterID,
+		"cluster ID", firewallRule.Status.ClusterID,
 		"type", firewallRule.Spec.Type,
 		"status", firewallRule.Status,
 	)
@@ -355,36 +367,21 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) SetupWithManager(mgr ctrl.Manag
 			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.AWSSecurityGroupFirewallRule{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
-					return true
-				}
-
-				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.AWSSecurityGroupFirewallRule)
-				if newObj.Generation == event.ObjectOld.GetGeneration() {
-					return false
-				}
+				oldObj := event.ObjectOld.(*v1beta1.AWSSecurityGroupFirewallRule)
 
-				if newObj.DeletionTimestamp != nil {
-					event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.DeletingEvent
+				if oldObj.Status.ResourceState == "" && newObj.Status.ResourceState == models.CreatingEvent {
 					return true
 				}
 
-				if newObj.Status.ID == "" {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+				if newObj.Status.ResourceState == models.DeletingEvent {
 					return true
 				}
 
-				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-				return true
-			},
-			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				genericEvent.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.GenericEvent
-				return true
+				return false
 			},
 		})).
 		Complete(r)

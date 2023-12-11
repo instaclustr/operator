@@ -111,6 +111,7 @@ type KafkaConnectSpec struct {
 
 	// CustomConnectors defines the location for custom connector storage and access info.
 	CustomConnectors []*CustomConnectors `json:"customConnectors,omitempty"`
+	ClusterResources ClusterResourceRefs `json:"clusterResources,omitempty"`
 }
 
 // KafkaConnectStatus defines the observed state of KafkaConnect

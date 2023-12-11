@@ -46,12 +46,38 @@ spec:
 #    - nodeSize: SRH-DEV-t4g.small-5
 #      oidcProvider: ''
 #      version: opensearch-dashboards:2.5.0
-  version: 2.9.0
+  version: 2.11.0
   pciCompliance: false
   privateNetworkCluster: false
   reportingPlugin: false
   slaTier: NON_PRODUCTION
   sqlPlugin: false
+  clusterResources:
+    clusterBackups:
+#      - namespace: default
+#        name: clusterbackup-sample
+    clusterNetworkFirewallRules:
+#      - namespace: default
+#        name: clusternetworkfirewallrule-sample
+    awsVPCPeerings:
+#          - namespace: default
+#            name: awsvpcpeering-sample
+    awsSecurityGroupFirewallRules:
+#          - namespace: default
+#            name: awssecuritygroupfirewallrule-sample
+    exclusionWindows:
+#          - namespace: default
+#            name: exclusionwindow-sample
+    gcpVPCPeerings:
+    #      - namespace: default
+    #        name: gcpvpcpeering-sample
+    #      - namespace: default
+    #        name: gcpvpcpeering-sample-two
+    azureVNetPeerings:
+  #      - namespace: default
+  #        name: azurevnetpeering-sample
+  #      - namespace: default
+  #        name: azurevnetpeering-sample-trough
 #  resizeSettings:
 #    - notifySupportContacts: false
 #      concurrency: 3

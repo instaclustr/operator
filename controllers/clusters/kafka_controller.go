@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
-	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
+	kafkamanagementv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -322,6 +322,62 @@ func (r *KafkaReconciler) handleUpdateCluster(
 	return models.ExitReconcile, nil
 }
 
+func (r *KafkaReconciler) handleClusterResourcesEvents(
+	newObj *v1beta1.Kafka,
+	oldObjSpec *v1beta1.KafkaSpec,
+) {
+	err := HandleResourceEvent(r.Client, models.ClusterNetworkFirewallRuleRef, oldObjSpec.ClusterResources.ClusterNetworkFirewallRules, newObj.Spec.ClusterResources.ClusterNetworkFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSVPCPeeringRef, oldObjSpec.ClusterResources.AWSVPCPeerings, newObj.Spec.ClusterResources.AWSVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AWSSecurityGroupFirewallRuleRef, oldObjSpec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Spec.ClusterResources.AWSSecurityGroupFirewallRules, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.ExclusionWindowRef, oldObjSpec.ClusterResources.ExclusionWindows, newObj.Spec.ClusterResources.ExclusionWindows, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.GCPVPCPeeringRef, oldObjSpec.ClusterResources.GCPVPCPeerings, newObj.Spec.ClusterResources.GCPVPCPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+	err = HandleResourceEvent(r.Client, models.AzureVNetPeeringRef, oldObjSpec.ClusterResources.AzureVNetPeerings, newObj.Spec.ClusterResources.AzureVNetPeerings, newObj.Status.ID, newObj.Status.DataCentres)
+	if err != nil {
+		r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
+			CannotHandleUserEvent, err)
+	}
+}
+
+func (r *KafkaReconciler) DetachClusterresourcesFromCluster(ctx context.Context, l logr.Logger, kafka *v1beta1.Kafka) {
+	r.DetachClusterresources(ctx, l, kafka, kafka.Spec.ClusterResources.ClusterNetworkFirewallRules, models.ClusterNetworkFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, kafka, kafka.Spec.ClusterResources.AWSVPCPeerings, models.AWSVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, kafka, kafka.Spec.ClusterResources.AWSSecurityGroupFirewallRules, models.AWSSecurityGroupFirewallRuleRef)
+	r.DetachClusterresources(ctx, l, kafka, kafka.Spec.ClusterResources.ExclusionWindows, models.ExclusionWindowRef)
+	r.DetachClusterresources(ctx, l, kafka, kafka.Spec.ClusterResources.GCPVPCPeerings, models.GCPVPCPeeringRef)
+	r.DetachClusterresources(ctx, l, kafka, kafka.Spec.ClusterResources.AzureVNetPeerings, models.AzureVNetPeeringRef)
+}
+
+func (r *KafkaReconciler) DetachClusterresources(ctx context.Context, l logr.Logger, kafka *v1beta1.Kafka, refs []*v1beta1.ClusterResourceRef, kind string) {
+	for _, ref := range refs {
+		err := HandleDeleteResource(r.Client, ctx, l, kind, ref)
+		if err != nil {
+			l.Error(err, "Cannot detach clusterresource", "resource kind", kind, "namespace and name", ref)
+			r.EventRecorder.Eventf(kafka, models.Warning, models.DeletingEvent,
+				"Cannot detach resource. Reason: %v", err)
+		}
+	}
+}
+
 func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	if !k.Spec.IsEqual(ik.Spec) {
 		l.Info("The k8s specification is different from Instaclustr Console. Update operations are blocked.",
@@ -432,6 +488,8 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, kafka *v1beta
 		)
 		return reconcile.Result{}, err
 	}
+
+	r.DetachClusterresourcesFromCluster(ctx, l, kafka)
 
 	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.StatusChecker))
 	r.Scheduler.RemoveJob(kafka.GetJobID(scheduler.UserCreator))
@@ -704,7 +762,7 @@ func (r *KafkaReconciler) handleExternalDelete(ctx context.Context, kafka *v1bet
 }
 
 func (r *KafkaReconciler) NewUserResource() userObject {
-	return &clusterresourcesv1beta1.KafkaUser{}
+	return &kafkamanagementv1beta1.KafkaUser{}
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -743,6 +801,10 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if newObj.Generation == event.ObjectOld.GetGeneration() {
 					return false
 				}
+
+				oldObj := event.ObjectOld.(*v1beta1.Kafka)
+
+				r.handleClusterResourcesEvents(newObj, &oldObj.Spec)
 
 				newObj.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true

@@ -3,7 +3,7 @@ kind: ExclusionWindow
 metadata:
   name: exclusionwindow-sample
 spec:
-  clusterId: "4b453851-9002-475a-a603-f8fb1e0ae7df"
+#  clusterId: "d72b0c01-d263-40c7-8d3d-adb837602647"
   dayOfWeek: "MONDAY"
   startHour: 10
   durationInHours: 40

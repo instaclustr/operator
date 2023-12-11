@@ -69,7 +69,8 @@ type RedisSpec struct {
 	//+kubebuilder:validation:MaxItems:=2
 	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
 
-	UserRefs References `json:"userRefs,omitempty"`
+	UserRefs         References          `json:"userRefs,omitempty"`
+	ClusterResources ClusterResourceRefs `json:"clusterResources,omitempty"`
 	//+kubebuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
@@ -143,7 +144,6 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.Clust
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   r.Status.ID,
 			ClusterKind: models.RedisClusterKind,
 		},
 	}

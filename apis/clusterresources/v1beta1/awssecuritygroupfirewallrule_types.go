@@ -65,6 +65,15 @@ func (fr *AWSSecurityGroupFirewallRule) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (fr *AWSSecurityGroupFirewallRule) AttachToCluster(id string) {
+	fr.Status.ClusterID = id
+	fr.Status.ResourceState = models.CreatingEvent
+}
+
+func (fr *AWSSecurityGroupFirewallRule) DetachFromCluster() {
+	fr.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&AWSSecurityGroupFirewallRule{}, &AWSSecurityGroupFirewallRuleList{})
 }

@@ -19,11 +19,12 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 // ExclusionWindowSpec defines the desired state of ExclusionWindow
 type ExclusionWindowSpec struct {
-	ClusterID string `json:"clusterId"`
 	DayOfWeek string `json:"dayOfWeek"`
 	//+kubebuilder:validation:Minimum:=0
 	//+kubebuilder:validation:Maximum:=23
@@ -36,7 +37,9 @@ type ExclusionWindowSpec struct {
 
 // ExclusionWindowStatus defines the observed state of ExclusionWindow
 type ExclusionWindowStatus struct {
-	ID string `json:"id"`
+	ID            string `json:"id,omitempty"`
+	ClusterID     string `json:"clusterId,omitempty"`
+	ResourceState string `json:"resourceState,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -60,11 +63,20 @@ type ExclusionWindowList struct {
 	Items           []ExclusionWindow `json:"items"`
 }
 
+func (ew *ExclusionWindow) AttachToCluster(id string) {
+	ew.Status.ClusterID = id
+	ew.Status.ResourceState = models.CreatingEvent
+}
+
+func (ew *ExclusionWindow) DetachFromCluster() {
+	ew.Status.ResourceState = models.DeletingEvent
+}
+
 func init() {
 	SchemeBuilder.Register(&ExclusionWindow{}, &ExclusionWindowList{})
 }
 
-func (r *ExclusionWindow) NewPatch() client.Patch {
-	old := r.DeepCopy()
+func (ew *ExclusionWindow) NewPatch() client.Patch {
+	old := ew.DeepCopy()
 	return client.MergeFrom(old)
 }

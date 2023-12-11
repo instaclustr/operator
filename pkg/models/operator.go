@@ -105,6 +105,14 @@ const (
 	KafkaConnectAppType = "KAFKA_CONNECT"
 	CassandraAppType    = "APACHE_CASSANDRA"
 
+	ClusterbackupRef                = "ClusterBackup"
+	ClusterNetworkFirewallRuleRef   = "ClusterNetworkFirewallRule"
+	AWSVPCPeeringRef                = "AWSVPCPeering"
+	AWSSecurityGroupFirewallRuleRef = "AWSSecurityGroupFirewallRule"
+	ExclusionWindowRef              = "ExclusionWindow"
+	GCPVPCPeeringRef                = "GCPVPCPeering"
+	AzureVNetPeeringRef             = "AzureVNetPeering"
+
 	DefaultPgUsernameValue = "icpostgresql"
 	DefaultPgDbNameValue   = "postgres"
 	DefaultPgDbPortValue   = 5432

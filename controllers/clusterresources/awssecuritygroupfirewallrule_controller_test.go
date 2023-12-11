@@ -33,8 +33,7 @@ var _ = Describe("Successful creation of a AWS Security Group Firewall Rule reso
 	Context("When setting up a AWS Security Group Firewall Rule CRD", func() {
 		awsSGFirewallRuleSpec := v1beta1.AWSSecurityGroupFirewallRuleSpec{
 			FirewallRuleSpec: v1beta1.FirewallRuleSpec{
-				ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
-				Type:      "SECURITY",
+				Type: "SECURITY",
 			},
 			SecurityGroupID: "sg-1434412",
 		}
@@ -49,10 +48,20 @@ var _ = Describe("Successful creation of a AWS Security Group Firewall Rule reso
 				},
 			},
 			Spec: awsSGFirewallRuleSpec,
+			Status: v1beta1.AWSSecurityGroupFirewallRuleStatus{
+				FirewallRuleStatus: v1beta1.FirewallRuleStatus{
+					ClusterID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
+				},
+			},
 		}
 
 		It("Should create a AWS Security Group Firewall Rule resources", func() {
 			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
+
+			patch := resource.NewPatch()
+			resource.Status.ClusterID = "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2"
+			resource.Status.ResourceState = models.CreatingEvent
+			Expect(k8sClient.Status().Patch(ctx, &resource, patch)).Should(Succeed())
 
 			By("Sending AWS Security Group Firewall Rule Specification to Instaclustr API v2")
 			var awsSGFirewallRule v1beta1.AWSSecurityGroupFirewallRule

@@ -1,11 +1,11 @@
 apiVersion: clusterresources.instaclustr.com/v1beta1
 kind: AzureVNetPeering
 metadata:
-  name: azurevnetpeering-sample
+  name: azurevnetpeering-sample-trough
 spec:
-  cdcId: f8581465-098c-4576-9e52-ea8308a27d8a
+#  cdcId: f8581465-098c-4576-9e52-ea8308a27d8a
   peerResourceGroup: rnd
   peerSubnets:
     - 10.224.0.0/16
   peerSubscriptionId: 1a2f3ab8-6815-49c5-a47e-b1a354b51240
-  peerVirtualNetworkName: aks-vnet-17973335
+  peerVirtualNetworkName: aks-vnet-17973335222666

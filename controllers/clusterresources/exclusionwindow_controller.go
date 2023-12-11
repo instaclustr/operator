@@ -75,14 +75,14 @@ func (r *ExclusionWindowReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	switch ew.Annotations[models.ResourceStateAnnotation] {
+	switch ew.Status.ResourceState {
 	case models.CreatingEvent:
 		return r.handleCreateWindow(ctx, ew, l)
 	case models.DeletingEvent:
 		return r.handleDeleteWindow(ctx, ew, l)
 	default:
 		l.Info("event isn't handled",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 			"Request", req,
 			"event", ew.Annotations[models.ResourceStateAnnotation])
@@ -98,11 +98,11 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 	if ew.Status.ID == "" {
 		l.Info(
 			"Creating Exclusion Window resource",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 		)
 
-		id, err := r.API.CreateExclusionWindow(ew.Spec.ClusterID, &ew.Spec)
+		id, err := r.API.CreateExclusionWindow(ew.Status.ClusterID, &ew.Spec)
 		if err != nil {
 			l.Error(
 				err, "cannot create Exclusion Window resource",
@@ -123,10 +123,11 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 
 		patch := ew.NewPatch()
 		ew.Status.ID = id
+		ew.Status.ResourceState = models.CreatedEvent
 		err = r.Status().Patch(ctx, ew, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Exclusion Window resource status after creation",
-				"Cluster ID", ew.Spec.ClusterID,
+			l.Error(err, "Cannot patch Exclusion Window resource status after creation",
+				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
 				"Exclusion Window metadata", ew.ObjectMeta,
 			)
@@ -139,11 +140,10 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 		}
 
 		controllerutil.AddFinalizer(ew, models.DeletionFinalizer)
-		ew.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		err = r.Patch(ctx, ew, patch)
 		if err != nil {
-			l.Error(err, "cannot patch Exclusion Window resource metadata with created event",
-				"Cluster ID", ew.Spec.ClusterID,
+			l.Error(err, "Cannot patch Exclusion Window resource metadata with created event",
+				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
 				"Exclusion Window metadata", ew.ObjectMeta,
 			)
@@ -157,7 +157,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 
 		l.Info(
 			"Exclusion Window resource was created",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 		)
 	}
@@ -174,7 +174,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "cannot get Exclusion Window status from the Instaclustr API",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 		)
 		r.EventRecorder.Eventf(
@@ -187,9 +187,9 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 
 	if status != "" {
 		err = r.API.DeleteExclusionWindow(ew.Status.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
 			l.Error(err, "cannot delete Exclusion Window resource",
-				"Cluster ID", ew.Spec.ClusterID,
+				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
 				"Exclusion Window metadata", ew.ObjectMeta,
 			)
@@ -207,12 +207,26 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	}
 
 	patch := ew.NewPatch()
+	ew.Status.ResourceState = models.DeletedEvent
+	err = r.Status().Patch(ctx, ew, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch Exclusion Window resource status",
+			"Cluster ID", ew.Status.ClusterID,
+			"Exclusion Window Spec", ew.Spec,
+			"Exclusion Window metadata", ew.ObjectMeta,
+		)
+		r.EventRecorder.Eventf(
+			ew, models.Warning, models.PatchFailed,
+			"Status patch is failed. Reason: %v",
+			err,
+		)
+		return ctrl.Result{}, err
+	}
 	controllerutil.RemoveFinalizer(ew, models.DeletionFinalizer)
-	ew.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, ew, patch)
 	if err != nil {
-		l.Error(err, "cannot patch Exclusion Window resource metadata with deleted event",
-			"Cluster ID", ew.Spec.ClusterID,
+		l.Error(err, "Cannot patch Exclusion Window resource metadata with deleted event",
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 			"Exclusion Window metadata", ew.ObjectMeta,
 		)
@@ -225,7 +239,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	}
 
 	l.Info("Exclusion Window has been deleted",
-		"Cluster ID", ew.Spec.ClusterID,
+		"Cluster ID", ew.Status.ClusterID,
 		"Exclusion Window Spec", ew.Spec,
 		"Exclusion Window Status", ew.Status,
 	)
@@ -245,21 +259,17 @@ func (r *ExclusionWindowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
 		For(&v1beta1.ExclusionWindow{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})
-				if event.Object.GetDeletionTimestamp() != nil {
-					event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.DeletingEvent})
-				}
 				return true
 			},
 			UpdateFunc: func(event event.UpdateEvent) bool {
 				newObj := event.ObjectNew.(*v1beta1.ExclusionWindow)
-				if newObj.DeletionTimestamp != nil {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.DeletingEvent
+				oldObj := event.ObjectOld.(*v1beta1.ExclusionWindow)
+
+				if oldObj.Status.ResourceState == "" && newObj.Status.ResourceState == models.CreatingEvent {
 					return true
 				}
 
-				if newObj.Status.ID == "" {
-					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
+				if newObj.Status.ResourceState == models.DeletingEvent {
 					return true
 				}
 
@@ -272,10 +282,6 @@ func (r *ExclusionWindowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			DeleteFunc: func(event event.DeleteEvent) bool {
 				return false
-			},
-			GenericFunc: func(event event.GenericEvent) bool {
-				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.GenericEvent})
-				return true
 			},
 		})).Complete(r)
 }

@@ -58,6 +58,7 @@ type CassandraSpec struct {
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 	UserRefs            References             `json:"userRefs,omitempty"`
+	ClusterResources    ClusterResourceRefs    `json:"clusterResources,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
 }
@@ -188,7 +189,6 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.C
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   c.Status.ID,
 			ClusterKind: models.CassandraClusterKind,
 		},
 	}
