@@ -15,7 +15,17 @@ spec:
     singular: mirror
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: ID
+      type: string
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .status.connectorName
+      name: ConnectorName
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Mirror is the Schema for the mirrors API

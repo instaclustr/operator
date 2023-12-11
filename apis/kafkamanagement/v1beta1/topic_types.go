@@ -47,6 +47,7 @@ type TopicStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 
 // Topic is the Schema for the topics API
 type Topic struct {

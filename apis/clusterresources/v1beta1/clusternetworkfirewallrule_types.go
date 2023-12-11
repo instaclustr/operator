@@ -36,6 +36,9 @@ type ClusterNetworkFirewallRuleStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status"
 
 // ClusterNetworkFirewallRule is the Schema for the clusternetworkfirewallrules API
 type ClusterNetworkFirewallRule struct {

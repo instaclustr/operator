@@ -123,9 +123,9 @@ func (d *CassandraDataCentre) DebeziumEquals(other *CassandraDataCentre) bool {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-//+kubebuilder:printcolumn:name="ID",type=string,JSONPath=`.status.id`
-//+kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
-//+kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.version`
+//+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
+//+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
 
 // Cassandra is the Schema for the cassandras API
 type Cassandra struct {

@@ -39,6 +39,10 @@ type AWSEncryptionKeyStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
+//+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="InUse",type="string",JSONPath=".status.inUse"
 
 // AWSEncryptionKey is the Schema for the awsencryptionkeys API
 type AWSEncryptionKey struct {
