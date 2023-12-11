@@ -15,7 +15,14 @@ spec:
     singular: exclusionwindow
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.id
+      name: ID
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: ExclusionWindow is the Schema for the exclusionwindows API

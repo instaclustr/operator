@@ -47,6 +47,7 @@ type KafkaACLStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 
 // KafkaACL is the Schema for the kafkaacls API
 type KafkaACL struct {

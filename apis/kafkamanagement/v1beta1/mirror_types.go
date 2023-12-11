@@ -121,6 +121,9 @@ type MirrorStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status"
+//+kubebuilder:printcolumn:name="ConnectorName",type="string",JSONPath=".status.connectorName"
 
 // Mirror is the Schema for the mirrors API
 type Mirror struct {

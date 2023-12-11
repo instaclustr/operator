@@ -15,7 +15,11 @@ spec:
     singular: kafkaacl
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: ID
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: KafkaACL is the Schema for the kafkaacls API

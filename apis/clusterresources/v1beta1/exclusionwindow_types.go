@@ -41,6 +41,8 @@ type ExclusionWindowStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 
 // ExclusionWindow is the Schema for the exclusionwindows API
 type ExclusionWindow struct {

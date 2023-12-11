@@ -36,6 +36,9 @@ type AWSSecurityGroupFirewallRuleStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status"
 
 // AWSSecurityGroupFirewallRule is the Schema for the awssecuritygroupfirewallrules API
 type AWSSecurityGroupFirewallRule struct {

@@ -41,6 +41,9 @@ type ClusterBackupStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="Progress",type="string",JSONPath=".status.progress"
+//+kubebuilder:printcolumn:name="OperationStatus",type="string",JSONPath=".status.operationStatus"
 
 // ClusterBackup is the Schema for the clusterbackups API
 type ClusterBackup struct {

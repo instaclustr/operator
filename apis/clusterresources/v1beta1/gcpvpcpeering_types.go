@@ -40,6 +40,9 @@ type GCPVPCPeeringStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
+//+kubebuilder:printcolumn:name="StatusCode",type="string",JSONPath=".status.statusCode"
 
 // GCPVPCPeering is the Schema for the gcpvpcpeerings API
 type GCPVPCPeering struct {
