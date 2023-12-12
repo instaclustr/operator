@@ -94,3 +94,62 @@ To delete user from the cluster, remove userRef from "spec", then use following 
 ```console
 kubectl apply -f redis.yaml
 ```
+
+## Kafka user certificates
+
+### Creation flow
+If you want to use MTLS for a Kafka user you should create a `UserCertificate` resource.
+Here is an example of the manifest:
+```yaml
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: UserCertificate
+metadata:
+  name: user-cert-from-secret-sample
+spec:
+  clusterRef:
+    name: kafka
+    namespace: default
+  userRef:
+    name: kafka-user
+    namespace: default
+  secretRef:
+    name: csr-1
+    namespace: default
+    key: kafka-user.csr
+  validPeriod: 3
+```
+It will use a pre-generated certificate request from the provided secret to create the signed certificate.
+Remember that the common name in the CSR must match the username of the Kafka User.
+You can find the signed certificate in the secret created by the operator. The reference to the secret
+is stored in the `UserCertificate` status in the `signedCertSecretRef` field.
+
+Also, you may use the operator to generate a certificate request and create a signed cert.
+Manifest example:
+```yaml
+apiVersion: kafkamanagement.instaclustr.com/v1beta1
+kind: UserCertificate
+metadata:
+  name: user-cert-from-template-sample
+spec:
+  clusterRef:
+    name: kafka
+    namespace: default
+  userRef:
+    name: kafka-user
+    namespace: default
+  certificateRequestTemplate:
+    country: Ireland
+    organization: Instaclustr
+    organizationalUnit: IC 
+  validPeriod: 3
+```
+It will generate CSR, and create a secret in the same namespace as UserCertificate is created. The secret stores
+rsa2048 privateKey and certificate request.
+
+## Deletion flow
+To delete `UserCertificate` use the following command:
+```console
+kubectl delete -f user-certificate.yaml
+```
+It also deletes secrets created by the operator secrets, because there are `ownerReferecenes` to user certificate resource.
+
