@@ -229,9 +229,9 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 	}
 
 	r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.StatusChecker))
+	patch := encryptionKey.NewPatch()
 	controllerutil.RemoveFinalizer(encryptionKey, models.DeletionFinalizer)
 	encryptionKey.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	patch := encryptionKey.NewPatch()
 	err = r.Patch(ctx, encryptionKey, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch AWS encryption key metadata",

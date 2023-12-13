@@ -52,22 +52,22 @@ func (c *AWSSecurityGroupFirewallRuleV2APIController) Routes() Routes {
 	return Routes{
 		"ClusterManagementV2DataSourcesProvidersAwsAwsClusterClusterIdSecurityGroupFirewallRulesV2Get": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/data-sources/providers/aws/aws_cluster/{clusterId}/security-group-firewall-rules/v2",
+			"/cluster-management/v2/data-sources/providers/aws/aws_cluster/{clusterId}/security-group-firewall-rules/v2/",
 			c.ClusterManagementV2DataSourcesProvidersAwsAwsClusterClusterIdSecurityGroupFirewallRulesV2Get,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdDelete": Route{
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/{firewallRuleId}",
+			"/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/{firewallRuleId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdDelete,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdGet": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/{firewallRuleId}",
+			"/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/{firewallRuleId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdGet,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2Post": Route{
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2",
+			"/cluster-management/v2/resources/providers/aws/security-group-firewall-rules/v2/",
 			c.ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2Post,
 		},
 	}

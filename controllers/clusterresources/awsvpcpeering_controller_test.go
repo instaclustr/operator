@@ -21,50 +21,75 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
-	"github.com/instaclustr/operator/pkg/instaclustr/mock"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
-var _ = Describe("Successful creation of a AWS VPC Peering resource", func() {
-	Context("When setting up a AWS VPC Peering CRD", func() {
-		awsVPCPeeringSpec := v1beta1.AWSVPCPeeringSpec{
-			VPCPeeringSpec: v1beta1.VPCPeeringSpec{
-				DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
-				PeerSubnets:  []string{"172.31.0.0/16", "192.168.0.0/16"},
+var _ = Describe("Successful creation of a AWS VPC Peering resource", Ordered, func() {
+	awsVPCPeeringSpec := v1beta1.AWSVPCPeeringSpec{
+		VPCPeeringSpec: v1beta1.VPCPeeringSpec{
+			DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
+			PeerSubnets:  []string{"172.31.0.0/16", "192.168.0.0/16"},
+		},
+		PeerAWSAccountID: "152668027680",
+		PeerVPCID:        "vpc-87241ae1",
+		PeerRegion:       "US_EAST_1",
+	}
+
+	ctx := context.Background()
+	resource := v1beta1.AWSVPCPeering{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "awsvpcpeering",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"instaclustr.com/test": "true",
 			},
-			PeerAWSAccountID: "152668027680",
-			PeerVPCID:        "vpc-87241ae1",
-			PeerRegion:       "US_EAST_1",
-		}
+		},
+		Spec: awsVPCPeeringSpec,
+	}
 
-		ctx := context.Background()
-		resource := v1beta1.AWSVPCPeering{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "awsvpcpeering",
-				Namespace: "default",
-				Annotations: map[string]string{
-					models.ResourceStateAnnotation: models.CreatingEvent,
-				},
-			},
-			Spec: awsVPCPeeringSpec,
-		}
+	key := client.ObjectKeyFromObject(&resource)
+	It("Should create a AWS VPC Peering resources", func() {
+		Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
 
-		It("Should create a AWS VPC Peering resources", func() {
-			Expect(k8sClient.Create(ctx, &resource)).Should(Succeed())
+		By("Sending AWS VPC Peering Specification to Instaclustr API v2")
+		Eventually(func() bool {
+			if err := k8sClient.Get(ctx, key, &resource); err != nil {
+				return false
+			}
 
-			By("Sending AWS VPC Peering Specification to Instaclustr API v2")
-			var awsVPCPeering v1beta1.AWSVPCPeering
+			if !controllerutil.ContainsFinalizer(&resource, models.DeletionFinalizer) {
+				return false
+			}
+
+			return resource.Status.ID != ""
+		}).Should(BeTrue())
+	})
+
+	Context("When deleting AWCVPCPeering k8s resource", func() {
+		It("Should delete the resource in k8s and API", FlakeAttempts(3), func() {
+			id := resource.Status.ID
+
+			By("sending delete request to k8s")
+			Expect(k8sClient.Delete(ctx, &resource)).Should(Succeed())
+
+			By("checking if resource exists on the Instaclustr API")
+			Eventually(func() error {
+				_, err := instaClient.GetPeeringStatus(id, instaclustr.AWSPeeringEndpoint)
+				return err
+			}, timeout, interval).Should(Equal(instaclustr.NotFound))
+
+			By("checking if the resource exists in k8s")
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "awsvpcpeering", Namespace: "default"}, &awsVPCPeering); err != nil {
-					return false
-				}
-
-				return awsVPCPeering.Status.ID == mock.StatusID
-			}).Should(BeTrue())
+				var resource v1beta1.AWSVPCPeering
+				return errors.IsNotFound(k8sClient.Get(ctx, key, &resource))
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })

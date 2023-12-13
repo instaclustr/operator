@@ -62,12 +62,12 @@ func (c *AWSEndpointServicePrincipalsV2APIController) Routes() Routes {
 		},
 		"ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdDelete": Route{
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/aws-endpoint-service-principals/v2/{principalId}",
+			"/cluster-management/v2/resources/aws-endpoint-service-principals/v2/{principalId}/",
 			c.ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdDelete,
 		},
 		"ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdGet": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/aws-endpoint-service-principals/v2/{principalId}",
+			"/cluster-management/v2/resources/aws-endpoint-service-principals/v2/{principalId}/",
 			c.ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdGet,
 		},
 	}

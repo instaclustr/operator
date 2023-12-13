@@ -52,27 +52,27 @@ func (c *AWSEncryptionKeyV2APIController) Routes() Routes {
 	return Routes{
 		"ClusterManagementV2DataSourcesProvidersAwsEncryptionKeysV2Get": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/data-sources/providers/aws/encryption-keys/v2",
+			"/cluster-management/v2/data-sources/providers/aws/encryption-keys/v2/",
 			c.ClusterManagementV2DataSourcesProvidersAwsEncryptionKeysV2Get,
 		},
 		"ClusterManagementV2OperationsProvidersAwsEncryptionKeysV2EncryptionKeyIdValidateV2Get": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/operations/providers/aws/encryption-keys/v2/{encryptionKeyId}/validate/v2",
+			"/cluster-management/v2/operations/providers/aws/encryption-keys/v2/{encryptionKeyId}/validate/v2/",
 			c.ClusterManagementV2OperationsProvidersAwsEncryptionKeysV2EncryptionKeyIdValidateV2Get,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdDelete": Route{
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/providers/aws/encryption-keys/v2/{encryptionKeyId}",
+			"/cluster-management/v2/resources/providers/aws/encryption-keys/v2/{encryptionKeyId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdDelete,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdGet": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/providers/aws/encryption-keys/v2/{encryptionKeyId}",
+			"/cluster-management/v2/resources/providers/aws/encryption-keys/v2/{encryptionKeyId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdGet,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2Post": Route{
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/providers/aws/encryption-keys/v2",
+			"/cluster-management/v2/resources/providers/aws/encryption-keys/v2/",
 			c.ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2Post,
 		},
 	}

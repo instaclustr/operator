@@ -13,17 +13,22 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 // AzureVnetPeerV2APIService is a service that implements the logic for the AzureVnetPeerV2APIServicer
 // This service should implement the business logic for every endpoint for the AzureVnetPeerV2API API.
 // Include any external packages or services that will be required by this service.
 type AzureVnetPeerV2APIService struct {
+	mu    sync.RWMutex
+	peers map[string]*AzureVnetPeerV2
 }
 
 // NewAzureVnetPeerV2APIService creates a default api service
 func NewAzureVnetPeerV2APIService() AzureVnetPeerV2APIServicer {
-	return &AzureVnetPeerV2APIService{}
+	return &AzureVnetPeerV2APIService{peers: map[string]*AzureVnetPeerV2{}}
 }
 
 // ClusterManagementV2DataSourcesProvidersAzureVnetPeersV2Get - List all Azure VNet Peering requests
@@ -45,7 +50,19 @@ func (s *AzureVnetPeerV2APIService) ClusterManagementV2ResourcesProvidersAzureVn
 	// TODO: Uncomment the next line to return response Response(202, AzureVnetPeerV2{}) or use other options such as http.Ok ...
 	// return Response(202, AzureVnetPeerV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAzureVnetPeersV2Post method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return Response(http.StatusInternalServerError, nil), err
+	}
+
+	azureVnetPeerV2.Id = id.String()
+
+	s.peers[azureVnetPeerV2.Id] = &azureVnetPeerV2
+
+	return Response(http.StatusAccepted, &azureVnetPeerV2), nil
 }
 
 // ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdDelete - Delete Azure Vnet Peering Connection
@@ -59,7 +76,17 @@ func (s *AzureVnetPeerV2APIService) ClusterManagementV2ResourcesProvidersAzureVn
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdDelete method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists := s.peers[vpcPeerId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	delete(s.peers, vpcPeerId)
+
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdGet - Get Azure Vnet Peering Connection info
@@ -73,5 +100,13 @@ func (s *AzureVnetPeerV2APIService) ClusterManagementV2ResourcesProvidersAzureVn
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAzureVnetPeersV2VpcPeerIdGet method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	peer, exists := s.peers[vpcPeerId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	return Response(http.StatusOK, peer), nil
 }

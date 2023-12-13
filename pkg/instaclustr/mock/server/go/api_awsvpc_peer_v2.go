@@ -52,27 +52,27 @@ func (c *AWSVPCPeerV2APIController) Routes() Routes {
 	return Routes{
 		"ClusterManagementV2DataSourcesProvidersAwsVpcPeersV2Get": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/data-sources/providers/aws/vpc-peers/v2",
+			"/cluster-management/v2/data-sources/providers/aws/vpc-peers/v2/",
 			c.ClusterManagementV2DataSourcesProvidersAwsVpcPeersV2Get,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsVpcPeersV2Post": Route{
 			strings.ToUpper("Post"),
-			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2",
+			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/",
 			c.ClusterManagementV2ResourcesProvidersAwsVpcPeersV2Post,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsVpcPeersV2VpcPeerIdDelete": Route{
 			strings.ToUpper("Delete"),
-			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/{vpcPeerId}",
+			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/{vpcPeerId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsVpcPeersV2VpcPeerIdDelete,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsVpcPeersV2VpcPeerIdGet": Route{
 			strings.ToUpper("Get"),
-			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/{vpcPeerId}",
+			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/{vpcPeerId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsVpcPeersV2VpcPeerIdGet,
 		},
 		"ClusterManagementV2ResourcesProvidersAwsVpcPeersV2VpcPeerIdPut": Route{
 			strings.ToUpper("Put"),
-			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/{vpcPeerId}",
+			"/cluster-management/v2/resources/providers/aws/vpc-peers/v2/{vpcPeerId}/",
 			c.ClusterManagementV2ResourcesProvidersAwsVpcPeersV2VpcPeerIdPut,
 		},
 	}

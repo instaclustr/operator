@@ -13,17 +13,22 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 // ClusterNetworkFirewallRuleV2APIService is a service that implements the logic for the ClusterNetworkFirewallRuleV2APIServicer
 // This service should implement the business logic for every endpoint for the ClusterNetworkFirewallRuleV2API API.
 // Include any external packages or services that will be required by this service.
 type ClusterNetworkFirewallRuleV2APIService struct {
+	mu    sync.RWMutex
+	rules map[string]*ClusterNetworkFirewallRuleV2
 }
 
 // NewClusterNetworkFirewallRuleV2APIService creates a default api service
 func NewClusterNetworkFirewallRuleV2APIService() ClusterNetworkFirewallRuleV2APIServicer {
-	return &ClusterNetworkFirewallRuleV2APIService{}
+	return &ClusterNetworkFirewallRuleV2APIService{rules: map[string]*ClusterNetworkFirewallRuleV2{}}
 }
 
 // ClusterManagementV2DataSourcesClusterClusterIdNetworkFirewallRulesV2Get - List all cluster network firewall rules
@@ -48,7 +53,17 @@ func (s *ClusterNetworkFirewallRuleV2APIService) ClusterManagementV2ResourcesNet
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesNetworkFirewallRulesV2FirewallRuleIdDelete method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists := s.rules[firewallRuleId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	delete(s.rules, firewallRuleId)
+
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesNetworkFirewallRulesV2FirewallRuleIdGet - Get cluster network firewall rule details
@@ -62,7 +77,15 @@ func (s *ClusterNetworkFirewallRuleV2APIService) ClusterManagementV2ResourcesNet
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesNetworkFirewallRulesV2FirewallRuleIdGet method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	rule, exists := s.rules[firewallRuleId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	return Response(http.StatusOK, rule), nil
 }
 
 // ClusterManagementV2ResourcesNetworkFirewallRulesV2Post - Add a cluster network firewall rule
@@ -76,5 +99,17 @@ func (s *ClusterNetworkFirewallRuleV2APIService) ClusterManagementV2ResourcesNet
 	// TODO: Uncomment the next line to return response Response(409, ErrorResponseV2{}) or use other options such as http.Ok ...
 	// return Response(409, ErrorResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesNetworkFirewallRulesV2Post method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return Response(http.StatusInternalServerError, nil), err
+	}
+
+	clusterNetworkFirewallRuleV2.Id = id.String()
+
+	s.rules[clusterNetworkFirewallRuleV2.Id] = &clusterNetworkFirewallRuleV2
+
+	return Response(http.StatusAccepted, &clusterNetworkFirewallRuleV2), nil
 }

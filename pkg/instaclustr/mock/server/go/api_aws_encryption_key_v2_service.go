@@ -12,18 +12,24 @@ package openapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 // AWSEncryptionKeyV2APIService is a service that implements the logic for the AWSEncryptionKeyV2APIServicer
 // This service should implement the business logic for every endpoint for the AWSEncryptionKeyV2API API.
 // Include any external packages or services that will be required by this service.
 type AWSEncryptionKeyV2APIService struct {
+	mu   sync.RWMutex
+	keys map[string]*AwsEncryptionKeyV2
 }
 
 // NewAWSEncryptionKeyV2APIService creates a default api service
 func NewAWSEncryptionKeyV2APIService() AWSEncryptionKeyV2APIServicer {
-	return &AWSEncryptionKeyV2APIService{}
+	return &AWSEncryptionKeyV2APIService{keys: map[string]*AwsEncryptionKeyV2{}}
 }
 
 // ClusterManagementV2DataSourcesProvidersAwsEncryptionKeysV2Get - List all AWS encryption keys
@@ -53,39 +59,48 @@ func (s *AWSEncryptionKeyV2APIService) ClusterManagementV2OperationsProvidersAws
 
 // ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdDelete - Delete encryption key
 func (s *AWSEncryptionKeyV2APIService) ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdDelete(ctx context.Context, encryptionKeyId string) (ImplResponse, error) {
-	// TODO - update ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdDelete with the required logic for this service method.
-	// Add api_aws_encryption_key_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	// TODO: Uncomment the next line to return response Response(204, {}) or use other options such as http.Ok ...
-	// return Response(204, nil),nil
+	if _, exists := s.keys[encryptionKeyId]; !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
 
-	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
-	// return Response(404, ErrorListResponseV2{}), nil
+	delete(s.keys, encryptionKeyId)
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdDelete method not implemented")
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdGet - Get encryption key details
 func (s *AWSEncryptionKeyV2APIService) ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdGet(ctx context.Context, encryptionKeyId string) (ImplResponse, error) {
-	// TODO - update ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdGet with the required logic for this service method.
-	// Add api_aws_encryption_key_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	// TODO: Uncomment the next line to return response Response(200, AwsEncryptionKeyV2{}) or use other options such as http.Ok ...
-	// return Response(200, AwsEncryptionKeyV2{}), nil
+	key, exists := s.keys[encryptionKeyId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
 
-	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
-	// return Response(404, ErrorListResponseV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2EncryptionKeyIdGet method not implemented")
+	return Response(http.StatusOK, key), nil
 }
 
 // ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2Post - Add an AWS KMS encryption key
 func (s *AWSEncryptionKeyV2APIService) ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2Post(ctx context.Context, awsEncryptionKeyV2 AwsEncryptionKeyV2) (ImplResponse, error) {
-	// TODO - update ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2Post with the required logic for this service method.
-	// Add api_aws_encryption_key_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return Response(http.StatusInternalServerError, nil), fmt.Errorf("failed to generate uuid: %w", err)
+	}
 
-	// TODO: Uncomment the next line to return response Response(202, AwsEncryptionKeyV2{}) or use other options such as http.Ok ...
-	// return Response(202, AwsEncryptionKeyV2{}), nil
+	awsEncryptionKeyV2.Id = id.String()
+	awsEncryptionKeyV2.InUse = true
+	awsEncryptionKeyV2.Regions = []AwsRegionV2{
+		{Name: "test-region-1"},
+	}
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAwsEncryptionKeysV2Post method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.keys[awsEncryptionKeyV2.Id] = &awsEncryptionKeyV2
+
+	return Response(http.StatusAccepted, awsEncryptionKeyV2), nil
 }

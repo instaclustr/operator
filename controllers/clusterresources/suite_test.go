@@ -34,6 +34,7 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/instaclustr/mock"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
@@ -47,7 +48,7 @@ var (
 	testEnv     *envtest.Environment
 	ctx         context.Context
 	cancel      context.CancelFunc
-	MockInstAPI = mock.NewInstAPI()
+	instaClient = instaclustr.NewClient("test", "test", "http://localhost:8082", time.Second*10)
 
 	timeout  = time.Second * 10
 	interval = time.Millisecond * 20
@@ -73,6 +74,7 @@ var _ = BeforeSuite(func() {
 	ratelimiter.DefaultMaxDelay = interval * 3
 
 	models.ReconcileRequeue.RequeueAfter = time.Millisecond * 20
+	scheduler.ClusterStatusInterval = time.Millisecond * 20
 
 	var err error
 	// cfg is defined in this file globally.
@@ -102,7 +104,7 @@ var _ = BeforeSuite(func() {
 	err = (&AWSVPCPeeringReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
@@ -111,7 +113,7 @@ var _ = BeforeSuite(func() {
 	err = (&AzureVNetPeeringReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
@@ -120,7 +122,7 @@ var _ = BeforeSuite(func() {
 	err = (&GCPVPCPeeringReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
@@ -129,7 +131,7 @@ var _ = BeforeSuite(func() {
 	err = (&NodeReloadReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           mock.NewInstAPI(),
 		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -137,7 +139,7 @@ var _ = BeforeSuite(func() {
 	err = (&AWSSecurityGroupFirewallRuleReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
@@ -146,25 +148,27 @@ var _ = BeforeSuite(func() {
 	err = (&ClusterNetworkFirewallRuleReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&ClusterBackupReconciler{
+	err = (&AWSEncryptionKeyReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		EventRecorder: eRecorder,
+		Scheduler:     scheduler.NewScheduler(logf.Log),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&RedisUserReconciler{
+	err = (&AWSEndpointServicePrincipalReconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		API:           MockInstAPI,
+		API:           instaClient,
 		EventRecorder: eRecorder,
+		Scheduler:     scheduler.NewScheduler(logf.Log),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
