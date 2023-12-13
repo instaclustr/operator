@@ -13,17 +13,22 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 // GCPVPCPeerV2APIService is a service that implements the logic for the GCPVPCPeerV2APIServicer
 // This service should implement the business logic for every endpoint for the GCPVPCPeerV2API API.
 // Include any external packages or services that will be required by this service.
 type GCPVPCPeerV2APIService struct {
+	mu    sync.RWMutex
+	peers map[string]*GcpVpcPeerV2
 }
 
 // NewGCPVPCPeerV2APIService creates a default api service
 func NewGCPVPCPeerV2APIService() GCPVPCPeerV2APIServicer {
-	return &GCPVPCPeerV2APIService{}
+	return &GCPVPCPeerV2APIService{peers: map[string]*GcpVpcPeerV2{}}
 }
 
 // ClusterManagementV2DataSourcesProvidersGcpVpcPeersV2Get - List all GCP VPC Peering requests
@@ -45,7 +50,19 @@ func (s *GCPVPCPeerV2APIService) ClusterManagementV2ResourcesProvidersGcpVpcPeer
 	// TODO: Uncomment the next line to return response Response(202, GcpVpcPeerV2{}) or use other options such as http.Ok ...
 	// return Response(202, GcpVpcPeerV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersGcpVpcPeersV2Post method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return Response(http.StatusInternalServerError, nil), err
+	}
+
+	gcpVpcPeerV2.Id = id.String()
+
+	s.peers[gcpVpcPeerV2.Id] = &gcpVpcPeerV2
+
+	return Response(http.StatusAccepted, &gcpVpcPeerV2), nil
 }
 
 // ClusterManagementV2ResourcesProvidersGcpVpcPeersV2VpcPeerIdDelete - Delete GCP VPC Peering Connection
@@ -59,7 +76,17 @@ func (s *GCPVPCPeerV2APIService) ClusterManagementV2ResourcesProvidersGcpVpcPeer
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersGcpVpcPeersV2VpcPeerIdDelete method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists := s.peers[vpcPeerId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	delete(s.peers, vpcPeerId)
+
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesProvidersGcpVpcPeersV2VpcPeerIdGet - Get GCP VPC Peering Connection info
@@ -73,5 +100,13 @@ func (s *GCPVPCPeerV2APIService) ClusterManagementV2ResourcesProvidersGcpVpcPeer
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersGcpVpcPeersV2VpcPeerIdGet method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	peer, exists := s.peers[vpcPeerId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	return Response(http.StatusOK, peer), nil
 }

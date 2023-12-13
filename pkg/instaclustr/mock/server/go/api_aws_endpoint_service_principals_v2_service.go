@@ -12,18 +12,24 @@ package openapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 // AWSEndpointServicePrincipalsV2APIService is a service that implements the logic for the AWSEndpointServicePrincipalsV2APIServicer
 // This service should implement the business logic for every endpoint for the AWSEndpointServicePrincipalsV2API API.
 // Include any external packages or services that will be required by this service.
 type AWSEndpointServicePrincipalsV2APIService struct {
+	mu         sync.RWMutex
+	principals map[string]*IamPrincipalArnV2
 }
 
 // NewAWSEndpointServicePrincipalsV2APIService creates a default api service
 func NewAWSEndpointServicePrincipalsV2APIService() AWSEndpointServicePrincipalsV2APIServicer {
-	return &AWSEndpointServicePrincipalsV2APIService{}
+	return &AWSEndpointServicePrincipalsV2APIService{principals: map[string]*IamPrincipalArnV2{}}
 }
 
 // ClusterManagementV2DataSourcesClusterDataCenterClusterDataCenterIdAwsEndpointServicePrincipalsV2Get - List all IAM Principal ARNs.
@@ -45,7 +51,26 @@ func (s *AWSEndpointServicePrincipalsV2APIService) ClusterManagementV2ResourcesA
 	// TODO: Uncomment the next line to return response Response(202, IamPrincipalArnV2{}) or use other options such as http.Ok ...
 	// return Response(202, IamPrincipalArnV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2Post method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return Response(http.StatusInternalServerError, nil), fmt.Errorf("failed to generate uuid: %w", err)
+	}
+
+	iamPrincipalArnV2.Id = id.String()
+	if iamPrincipalArnV2.EndPointServiceId == "" {
+		id, err := uuid.NewUUID()
+		if err != nil {
+			return Response(http.StatusInternalServerError, nil), fmt.Errorf("failed to generate uuid: %w", err)
+		}
+		iamPrincipalArnV2.EndPointServiceId = id.String()
+	}
+
+	s.principals[iamPrincipalArnV2.Id] = &iamPrincipalArnV2
+
+	return Response(http.StatusAccepted, &iamPrincipalArnV2), nil
 }
 
 // ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdDelete - Delete an IAM Principal ARN
@@ -59,7 +84,17 @@ func (s *AWSEndpointServicePrincipalsV2APIService) ClusterManagementV2ResourcesA
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdDelete method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists := s.principals[principalId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	delete(s.principals, principalId)
+
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdGet - Retrieve a single IAM Principal ARN
@@ -73,5 +108,13 @@ func (s *AWSEndpointServicePrincipalsV2APIService) ClusterManagementV2ResourcesA
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesAwsEndpointServicePrincipalsV2PrincipalIdGet method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	principal, exists := s.principals[principalId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	return Response(http.StatusOK, principal), nil
 }

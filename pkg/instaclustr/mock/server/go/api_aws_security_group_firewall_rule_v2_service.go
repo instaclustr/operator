@@ -13,17 +13,22 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 // AWSSecurityGroupFirewallRuleV2APIService is a service that implements the logic for the AWSSecurityGroupFirewallRuleV2APIServicer
 // This service should implement the business logic for every endpoint for the AWSSecurityGroupFirewallRuleV2API API.
 // Include any external packages or services that will be required by this service.
 type AWSSecurityGroupFirewallRuleV2APIService struct {
+	mu    sync.RWMutex
+	rules map[string]*AwsSecurityGroupFirewallRuleV2
 }
 
 // NewAWSSecurityGroupFirewallRuleV2APIService creates a default api service
 func NewAWSSecurityGroupFirewallRuleV2APIService() AWSSecurityGroupFirewallRuleV2APIServicer {
-	return &AWSSecurityGroupFirewallRuleV2APIService{}
+	return &AWSSecurityGroupFirewallRuleV2APIService{rules: map[string]*AwsSecurityGroupFirewallRuleV2{}}
 }
 
 // ClusterManagementV2DataSourcesProvidersAwsAwsClusterClusterIdSecurityGroupFirewallRulesV2Get - List all security group firewall rules
@@ -48,7 +53,17 @@ func (s *AWSSecurityGroupFirewallRuleV2APIService) ClusterManagementV2ResourcesP
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdDelete method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists := s.rules[firewallRuleId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	delete(s.rules, firewallRuleId)
+
+	return Response(http.StatusNoContent, nil), nil
 }
 
 // ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdGet - Get AWS security group firewall rule details
@@ -62,7 +77,15 @@ func (s *AWSSecurityGroupFirewallRuleV2APIService) ClusterManagementV2ResourcesP
 	// TODO: Uncomment the next line to return response Response(404, ErrorListResponseV2{}) or use other options such as http.Ok ...
 	// return Response(404, ErrorListResponseV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2FirewallRuleIdGet method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	rule, exists := s.rules[firewallRuleId]
+	if !exists {
+		return Response(http.StatusNotFound, nil), nil
+	}
+
+	return Response(http.StatusOK, &rule), nil
 }
 
 // ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2Post - Add an AWS security group firewall rule
@@ -73,5 +96,17 @@ func (s *AWSSecurityGroupFirewallRuleV2APIService) ClusterManagementV2ResourcesP
 	// TODO: Uncomment the next line to return response Response(202, AwsSecurityGroupFirewallRuleV2{}) or use other options such as http.Ok ...
 	// return Response(202, AwsSecurityGroupFirewallRuleV2{}), nil
 
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2ResourcesProvidersAwsSecurityGroupFirewallRulesV2Post method not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return Response(http.StatusInternalServerError, nil), err
+	}
+
+	awsSecurityGroupFirewallRuleV2.Id = id.String()
+
+	s.rules[awsSecurityGroupFirewallRuleV2.Id] = &awsSecurityGroupFirewallRuleV2
+
+	return Response(http.StatusAccepted, &awsSecurityGroupFirewallRuleV2), nil
 }

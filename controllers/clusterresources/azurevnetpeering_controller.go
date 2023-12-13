@@ -247,7 +247,6 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 			azure, models.Normal, models.DeletionStarted,
 			"Resource deletion request is sent",
 		)
-		return ctrl.Result{}, err
 	}
 
 	patch := azure.NewPatch()
