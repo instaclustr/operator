@@ -68,4 +68,6 @@ var (
 	ErrOnlySingleConcurrentResizeAvailable        = errors.New("only single concurrent resize is allowed")
 	ErrBundledUseOnlyResourceUpdateIsNotSupported = errors.New("updating of bundled use resource is not supported")
 	ErrDebeziumImmutable                          = errors.New("debezium array is immutable")
+	ErrCreateClusterWithMultiDC                   = errors.New("Multiple data center is still not supported. Please create a cluster with one data centre and add a second one when the cluster is in the running state")
+	ErrOnPremicesWithMultiDC                      = errors.New("on-premises cluster can be provisioned with only one data centre")
 )

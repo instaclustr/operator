@@ -129,8 +129,11 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return fmt.Errorf("data centres field is empty")
 	}
 
-	if len(r.Spec.DataCentres) > 1 && r.Spec.OnPremisesSpec != nil {
-		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
+	if len(r.Spec.DataCentres) > 1 {
+		if r.Spec.OnPremisesSpec != nil {
+			return models.ErrOnPremicesWithMultiDC
+		}
+		return models.ErrCreateClusterWithMultiDC
 	}
 
 	for _, dc := range r.Spec.DataCentres {

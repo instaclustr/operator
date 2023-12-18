@@ -10,7 +10,7 @@ metadata:
   name: redis-sample
 spec:
   name: "Username-redis"
-  version: "7.0.12"
+  version: "7.0.14"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
   passwordAndUserAuth: true
@@ -26,6 +26,7 @@ spec:
   #    - email: "rostyslp@netapp.com"
   dataCentres:
     - region: "US_WEST_2"
+      name: "testDC1"
       cloudProvider: "AWS_VPC"
       network: "10.1.0.0/16"
 #      nodeSize: "r6g.large-100-r"
@@ -40,7 +41,7 @@ spec:
 #      name: "testDC2"
 #      cloudProvider: "AWS_VPC"
 #      network: "10.2.0.0/16"
-#      nodeSize: "t3.small-20-r"
+#      nodeSize: "RDS-DEV-t4g.small-20"
 #      nodesNumber: 0
 #      masterNodes: 3
 #      replicationFactor: 0
