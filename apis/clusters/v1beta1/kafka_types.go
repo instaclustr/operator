@@ -484,6 +484,18 @@ func (k *Kafka) GetClusterID() string {
 	return k.Status.ID
 }
 
+func (k *Kafka) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return k.Status.DataCentres[0].ID
+	}
+	for _, cdc := range k.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
+}
+
 func (k *Kafka) SetClusterID(id string) {
 	k.Status.ID = id
 }

@@ -85,10 +85,11 @@ type CassandraDataCentre struct {
 
 type DebeziumCassandraSpec struct {
 	// KafkaVPCType with only VPC_PEERED supported
-	KafkaVPCType      string `json:"kafkaVpcType"`
-	KafkaTopicPrefix  string `json:"kafkaTopicPrefix"`
-	KafkaDataCentreID string `json:"kafkaCdcId"`
-	Version           string `json:"version"`
+	KafkaVPCType      string                              `json:"kafkaVpcType"`
+	KafkaTopicPrefix  string                              `json:"kafkaTopicPrefix"`
+	KafkaDataCentreID string                              `json:"kafkaCdcId,omitempty"`
+	ClusterRef        *clusterresourcesv1beta1.ClusterRef `json:"clusterRef,omitempty"`
+	Version           string                              `json:"version"`
 }
 
 func (d *CassandraDataCentre) DebeziumToInstAPI() []*models.Debezium {
@@ -104,14 +105,16 @@ func (d *CassandraDataCentre) DebeziumToInstAPI() []*models.Debezium {
 	return instDebezium
 }
 
-func (d *CassandraDataCentre) DebeziumEquals(other *CassandraDataCentre) bool {
-	if len(d.Debezium) != len(other.Debezium) {
+func (d *CassandraDataCentre) DebeziumEquals(new *CassandraDataCentre) bool {
+	if len(d.Debezium) != len(new.Debezium) {
 		return false
 	}
 
-	for _, old := range d.Debezium {
-		for _, new := range other.Debezium {
-			if old != new {
+	for _, oldDbz := range d.Debezium {
+		for _, newDbz := range new.Debezium {
+			if newDbz.Version != oldDbz.Version ||
+				newDbz.KafkaTopicPrefix != oldDbz.KafkaTopicPrefix ||
+				newDbz.KafkaVPCType != oldDbz.KafkaVPCType {
 				return false
 			}
 		}
@@ -191,8 +194,11 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.C
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   c.Status.ID,
-			ClusterKind: models.CassandraClusterKind,
+			ClusterRef: &clusterresourcesv1beta1.ClusterRef{
+				Name:        c.Name,
+				Namespace:   c.Namespace,
+				ClusterKind: models.CassandraClusterKind,
+			},
 		},
 	}
 }
@@ -533,6 +539,18 @@ func (c *Cassandra) SetUserRefs(refs References) {
 
 func (c *Cassandra) GetClusterID() string {
 	return c.Status.ID
+}
+
+func (c *Cassandra) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return c.Status.DataCentres[0].ID
+	}
+	for _, cdc := range c.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
 }
 
 func (c *Cassandra) SetClusterID(id string) {

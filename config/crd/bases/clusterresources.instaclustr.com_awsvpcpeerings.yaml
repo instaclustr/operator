@@ -47,6 +47,17 @@ spec:
             properties:
               cdcId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               peerAwsAccountId:
                 type: string
               peerRegion:
@@ -58,7 +69,6 @@ spec:
               peerVpcId:
                 type: string
             required:
-            - cdcId
             - peerAwsAccountId
             - peerSubnets
             - peerVpcId
@@ -66,6 +76,8 @@ spec:
           status:
             description: AWSVPCPeeringStatus defines the observed state of AWSVPCPeering
             properties:
+              cdcId:
+                type: string
               failureReason:
                 type: string
               id:

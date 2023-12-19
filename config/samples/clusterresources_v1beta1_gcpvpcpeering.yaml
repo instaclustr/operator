@@ -3,7 +3,11 @@ kind: GCPVPCPeering
 metadata:
   name: gcpvpcpeering-sample
 spec:
-  cdcId: ab974700-1ba9-4fcd-8399-3dc83fc2a3c3
+  cdcId: 095f8410-ee09-473a-afcd-69c74271a750
+  clusterRef:
+    name: redis-sample
+    namespace: default
+    clusterKind: Redis
   peerProjectId: netapp-hcl-seclab
   peerSubnets:
     - 192.168.0.0/16

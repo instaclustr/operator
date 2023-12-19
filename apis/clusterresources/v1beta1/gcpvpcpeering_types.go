@@ -28,7 +28,7 @@ import (
 
 // GCPVPCPeeringSpec defines the desired state of GCPVPCPeering
 type GCPVPCPeeringSpec struct {
-	VPCPeeringSpec     `json:",inline"`
+	PeeringSpec        `json:",inline"`
 	PeerVPCNetworkName string `json:"peerVpcNetworkName"`
 	PeerProjectID      string `json:"peerProjectId"`
 }

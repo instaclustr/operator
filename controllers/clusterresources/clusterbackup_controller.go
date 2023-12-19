@@ -77,13 +77,40 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	patch := backup.NewPatch()
+	var clusterID string
+	if backup.Spec.ClusterRef.Name != "" {
+		clusterID, err = GetClusterID(r.Client, ctx, backup.Spec.ClusterRef)
+		if err != nil {
+			logger.Error(err, "Cannot get ClusterID",
+				"Cluster reference", backup.Spec.ClusterRef,
+			)
+			return ctrl.Result{}, err
+		}
+	} else {
+		clusterID = backup.Spec.ClusterID
+	}
 
-	if backup.Labels[models.ClusterIDLabel] != backup.Spec.ClusterID {
+	patch := backup.NewPatch()
+	backup.Status.ClusterID = clusterID
+	err = r.Status().Patch(ctx, backup, patch)
+	if err != nil {
+		logger.Error(err, "Cannot patch cluster backup resource status",
+			"backup name", backup.Name,
+		)
+
+		r.EventRecorder.Eventf(
+			backup, models.Warning, models.PatchFailed,
+			"Resource status patch is failed. Reason: %v",
+			err,
+		)
+		return ctrl.Result{}, err
+	}
+
+	if backup.Labels[models.ClusterIDLabel] != backup.Status.ClusterID {
 		if backup.Labels == nil {
-			backup.Labels = map[string]string{models.ClusterIDLabel: backup.Spec.ClusterID}
+			backup.Labels = map[string]string{models.ClusterIDLabel: backup.Status.ClusterID}
 		} else {
-			backup.Labels[models.ClusterIDLabel] = backup.Spec.ClusterID
+			backup.Labels[models.ClusterIDLabel] = backup.Status.ClusterID
 		}
 		err = r.Patch(ctx, backup, patch)
 		if err != nil {
@@ -100,11 +127,11 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	backupsList, err := r.listClusterBackups(ctx, backup.Spec.ClusterID, backup.Namespace)
+	backupsList, err := r.listClusterBackups(ctx, backup.Status.ClusterID, backup.Namespace)
 	if err != nil {
 		logger.Error(err, "Cannot get cluster backups",
 			"backup name", backup.Name,
-			"cluster ID", backup.Spec.ClusterID,
+			"cluster ID", backup.Status.ClusterID,
 		)
 
 		r.EventRecorder.Eventf(
@@ -115,16 +142,16 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	clusterKind := models.ClusterKindsMap[backup.Spec.ClusterKind]
-	if backup.Spec.ClusterKind == models.PgClusterKind {
+	clusterKind := models.ClusterKindsMap[backup.Spec.ClusterRef.ClusterKind]
+	if backup.Spec.ClusterRef.ClusterKind == models.PgClusterKind {
 		clusterKind = models.PgAppKind
 	}
 
-	iBackup, err := r.API.GetClusterBackups(backup.Spec.ClusterID, clusterKind)
+	iBackup, err := r.API.GetClusterBackups(backup.Status.ClusterID, clusterKind)
 	if err != nil {
 		logger.Error(err, "Cannot get cluster backups from Instaclustr",
 			"backup name", backup.Name,
-			"cluster ID", backup.Spec.ClusterID,
+			"cluster ID", backup.Status.ClusterID,
 		)
 
 		r.EventRecorder.Eventf(
@@ -135,14 +162,14 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	iBackupEvents := iBackup.GetBackupEvents(backup.Spec.ClusterKind)
+	iBackupEvents := iBackup.GetBackupEvents(backup.Spec.ClusterRef.ClusterKind)
 
 	if len(iBackupEvents) < len(backupsList.Items) {
-		err = r.API.TriggerClusterBackup(backup.Spec.ClusterID, models.ClusterKindsMap[backup.Spec.ClusterKind])
+		err = r.API.TriggerClusterBackup(backup.Status.ClusterID, models.ClusterKindsMap[backup.Spec.ClusterRef.ClusterKind])
 		if err != nil {
 			logger.Error(err, "Cannot trigger cluster backup",
 				"backup name", backup.Name,
-				"cluster ID", backup.Spec.ClusterID,
+				"cluster ID", backup.Status.ClusterID,
 			)
 
 			r.EventRecorder.Eventf(
@@ -158,7 +185,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"Resource creation request is sent",
 		)
 		logger.Info("New cluster backup request was sent",
-			"cluster ID", backup.Spec.ClusterID,
+			"cluster ID", backup.Status.ClusterID,
 		)
 	}
 
@@ -216,7 +243,7 @@ func (r *ClusterBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	logger.Info("Cluster backup resource was reconciled",
 		"backup name", backup.Name,
-		"cluster ID", backup.Spec.ClusterID,
+		"cluster ID", backup.Status.ClusterID,
 	)
 
 	return ctrl.Result{}, nil

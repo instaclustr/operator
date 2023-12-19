@@ -44,6 +44,17 @@ spec:
             properties:
               clusterId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               dayOfWeek:
                 type: string
               durationInHours:
@@ -56,7 +67,6 @@ spec:
                 minimum: 0
                 type: integer
             required:
-            - clusterId
             - dayOfWeek
             - durationInHours
             - startHour
@@ -64,6 +74,8 @@ spec:
           status:
             description: ExclusionWindowStatus defines the observed state of ExclusionWindow
             properties:
+              clusterId:
+                type: string
               id:
                 type: string
             required:

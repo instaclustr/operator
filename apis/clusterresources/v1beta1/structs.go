@@ -20,11 +20,14 @@ import (
 	"encoding/json"
 
 	"github.com/instaclustr/operator/pkg/apiextensions"
+
+	"k8s.io/apimachinery/pkg/types"
 )
 
-type VPCPeeringSpec struct {
-	DataCentreID string   `json:"cdcId"`
-	PeerSubnets  []string `json:"peerSubnets"`
+type PeeringSpec struct {
+	DataCentreID string      `json:"cdcId,omitempty"`
+	PeerSubnets  []string    `json:"peerSubnets"`
+	ClusterRef   *ClusterRef `json:"clusterRef,omitempty"`
 }
 
 type PeeringStatus struct {
@@ -32,6 +35,7 @@ type PeeringStatus struct {
 	StatusCode    string `json:"statusCode,omitempty"`
 	Name          string `json:"name,omitempty"`
 	FailureReason string `json:"failureReason,omitempty"`
+	CDCID         string `json:"cdcId,omitempty"`
 }
 
 type PatchRequest struct {
@@ -41,14 +45,16 @@ type PatchRequest struct {
 }
 
 type FirewallRuleSpec struct {
-	ClusterID string `json:"clusterId"`
-	Type      string `json:"type"`
+	ClusterID  string      `json:"clusterId,omitempty"`
+	Type       string      `json:"type"`
+	ClusterRef *ClusterRef `json:"clusterRef,omitempty"`
 }
 
 type FirewallRuleStatus struct {
 	ID             string `json:"id,omitempty"`
 	DeferredReason string `json:"deferredReason,omitempty"`
 	Status         string `json:"status,omitempty"`
+	ClusterID      string `json:"clusterId,omitempty"`
 }
 
 type immutablePeeringFields struct {
@@ -57,3 +63,17 @@ type immutablePeeringFields struct {
 
 // +kubebuilder:object:generate:=false
 type SecretReference = apiextensions.ObjectReference
+
+type ClusterRef struct {
+	Name        string `json:"name,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	ClusterKind string `json:"clusterKind,omitempty"`
+	CDCName     string `json:"cdcName,omitempty"`
+}
+
+func (r *ClusterRef) AsNamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Name:      r.Name,
+		Namespace: r.Namespace,
+	}
+}

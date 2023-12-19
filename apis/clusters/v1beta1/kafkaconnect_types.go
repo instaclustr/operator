@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -49,7 +50,8 @@ type ExternalCluster struct {
 }
 
 type ManagedCluster struct {
-	TargetKafkaClusterID string `json:"targetKafkaClusterId"`
+	TargetKafkaClusterID string                      `json:"targetKafkaClusterId,omitempty"`
+	ClusterRef           *clusterresource.ClusterRef `json:"clusterRef,omitempty"`
 
 	// 	Available options are KAFKA_VPC, VPC_PEERED, SEPARATE_VPC
 	KafkaConnectVPCType string `json:"kafkaConnectVpcType"`
@@ -118,7 +120,8 @@ type KafkaConnectSpec struct {
 
 // KafkaConnectStatus defines the observed state of KafkaConnect
 type KafkaConnectStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus        `json:",inline"`
+	TargetKafkaClusterID string `json:"targetKafkaClusterId,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -154,6 +157,21 @@ func (k *KafkaConnect) NewPatch() client.Patch {
 	old := k.DeepCopy()
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
+}
+
+func (k *KafkaConnect) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return k.Status.DataCentres[0].ID
+	}
+	for _, cdc := range k.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
+}
+func (k *KafkaConnect) GetClusterID() string {
+	return k.Status.ID
 }
 
 func init() {
@@ -287,9 +305,13 @@ func validateImmutableExternalClusterFields(new, old *TargetCluster) error {
 }
 
 func validateImmutableManagedClusterFields(new, old *TargetCluster) error {
-	for _, index := range new.ManagedCluster {
-		for _, elem := range old.ManagedCluster {
-			if *index != *elem {
+	for _, nm := range new.ManagedCluster {
+		for _, om := range old.ManagedCluster {
+			if nm.TargetKafkaClusterID != om.TargetKafkaClusterID ||
+				nm.KafkaConnectVPCType != om.KafkaConnectVPCType ||
+				(nm.ClusterRef != nil && om.ClusterRef == nil) ||
+				(nm.ClusterRef == nil && om.ClusterRef != nil) ||
+				(nm.ClusterRef != nil && *nm.ClusterRef != *om.ClusterRef) {
 				return models.ErrImmutableManagedCluster
 			}
 		}
@@ -507,7 +529,7 @@ func (tc *TargetCluster) AreManagedClustersEqual(mClusters []*ManagedCluster) bo
 
 	for i, mCluster := range mClusters {
 		cluster := tc.ManagedCluster[i]
-		if *mCluster != *cluster {
+		if mCluster.KafkaConnectVPCType != cluster.KafkaConnectVPCType {
 			return false
 		}
 	}

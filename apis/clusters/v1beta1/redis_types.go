@@ -146,8 +146,11 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.Clust
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   r.Status.ID,
-			ClusterKind: models.RedisClusterKind,
+			ClusterRef: &clusterresourcesv1beta1.ClusterRef{
+				Name:        r.Name,
+				Namespace:   r.Namespace,
+				ClusterKind: models.RedisClusterKind,
+			},
 		},
 	}
 }
@@ -486,6 +489,18 @@ func (r *Redis) SetAvailableUsers(users References) {
 
 func (r *Redis) GetClusterID() string {
 	return r.Status.ID
+}
+
+func (r *Redis) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return r.Status.DataCentres[0].ID
+	}
+	for _, cdc := range r.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
 }
 
 func (r *Redis) SetClusterID(id string) {

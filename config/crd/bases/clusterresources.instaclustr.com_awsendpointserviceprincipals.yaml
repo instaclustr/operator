@@ -50,6 +50,17 @@ spec:
               clusterDataCenterId:
                 description: The ID of the cluster data center
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               endPointServiceId:
                 description: The Instaclustr ID of the AWS endpoint service
                 type: string
@@ -57,13 +68,14 @@ spec:
                 description: The IAM Principal ARN
                 type: string
             required:
-            - clusterDataCenterId
             - principalArn
             type: object
           status:
             description: AWSEndpointServicePrincipalStatus defines the observed state
               of AWSEndpointServicePrincipal
             properties:
+              cdcId:
+                type: string
               endPointServiceId:
                 description: The Instaclustr ID of the AWS endpoint service
                 type: string

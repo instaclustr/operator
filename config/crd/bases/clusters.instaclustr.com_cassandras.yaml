@@ -77,6 +77,17 @@ spec:
                         Cassandra to the Cassandra cluster
                       items:
                         properties:
+                          clusterRef:
+                            properties:
+                              cdcName:
+                                type: string
+                              clusterKind:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            type: object
                           kafkaCdcId:
                             type: string
                           kafkaTopicPrefix:
@@ -87,7 +98,6 @@ spec:
                           version:
                             type: string
                         required:
-                        - kafkaCdcId
                         - kafkaTopicPrefix
                         - kafkaVpcType
                         - version
@@ -301,6 +311,8 @@ spec:
                     encryptionKeyId:
                       type: string
                     id:
+                      type: string
+                    name:
                       type: string
                     nodeNumber:
                       type: integer

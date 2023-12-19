@@ -28,7 +28,7 @@ import (
 
 // AzureVNetPeeringSpec defines the desired state of AzureVNetPeering
 type AzureVNetPeeringSpec struct {
-	VPCPeeringSpec         `json:",inline"`
+	PeeringSpec            `json:",inline"`
 	PeerResourceGroup      string `json:"peerResourceGroup"`
 	PeerSubscriptionID     string `json:"peerSubscriptionId"`
 	PeerADObjectID         string `json:"peerAdObjectId,omitempty"`

@@ -3,7 +3,11 @@ kind: AzureVNetPeering
 metadata:
   name: azurevnetpeering-sample
 spec:
-  cdcId: f8581465-098c-4576-9e52-ea8308a27d8a
+  cdcId: a8ffb0e9-ed1c-4e56-8275-031316fdf4d4
+#  clusterRef:
+#    name: redis-sample
+#    namespace: default
+#    clusterKind: Redis
   peerResourceGroup: rnd
   peerSubnets:
     - 10.224.0.0/16

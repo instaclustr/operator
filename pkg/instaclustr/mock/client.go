@@ -79,7 +79,27 @@ func (c *mockClient) DeletePeering(peerID, peeringEndpoint string) error {
 	panic("DeletePeering: is not implemented")
 }
 
-func (c *mockClient) CreatePeering(url string, peeringSpec any) (*clusterresourcesv1beta1.PeeringStatus, error) {
+func (c *mockClient) CreateAzureVNetPeering(peeringSpec *clusterresourcesv1beta1.AzureVNetPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error) {
+	ps := &clusterresourcesv1beta1.PeeringStatus{
+		ID:            StatusID,
+		Name:          "name",
+		StatusCode:    "statusCode",
+		FailureReason: "failureReason",
+	}
+	return ps, nil
+}
+
+func (c *mockClient) CreateAWSVPCPeering(peeringSpec *clusterresourcesv1beta1.AWSVPCPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error) {
+	ps := &clusterresourcesv1beta1.PeeringStatus{
+		ID:            StatusID,
+		Name:          "name",
+		StatusCode:    "statusCode",
+		FailureReason: "failureReason",
+	}
+	return ps, nil
+}
+
+func (c *mockClient) CreateGCPVPCPeering(peeringSpec *clusterresourcesv1beta1.GCPVPCPeeringSpec, cdcId string) (*clusterresourcesv1beta1.PeeringStatus, error) {
 	ps := &clusterresourcesv1beta1.PeeringStatus{
 		ID:            StatusID,
 		Name:          "name",
@@ -98,7 +118,15 @@ func (c *mockClient) GetFirewallRuleStatus(firewallRuleID string, firewallRuleEn
 	return fwRule, nil
 }
 
-func (c *mockClient) CreateFirewallRule(url string, firewallRuleSpec any) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
+func (c *mockClient) CreateAWSSecurityGroupFirewallRule(firewallRuleSpec *clusterresourcesv1beta1.AWSSecurityGroupFirewallRuleSpec, clusterID string) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
+	fwRule := &clusterresourcesv1beta1.FirewallRuleStatus{
+		ID:             StatusID,
+		Status:         "OK",
+		DeferredReason: "NO",
+	}
+	return fwRule, nil
+}
+func (c *mockClient) CreateClusterNetworkFirewallRule(firewallRuleSpec *clusterresourcesv1beta1.ClusterNetworkFirewallRuleSpec, clusterID string) (*clusterresourcesv1beta1.FirewallRuleStatus, error) {
 	fwRule := &clusterresourcesv1beta1.FirewallRuleStatus{
 		ID:             StatusID,
 		Status:         "OK",
@@ -390,7 +418,7 @@ func (c *mockClient) UpdateClusterSettings(clusterID string, settings *models.Cl
 	panic("UpdateClusterSettings: is not implemented")
 }
 
-func (c *mockClient) CreateAWSEndpointServicePrincipal(spec any) ([]byte, error) {
+func (c *mockClient) CreateAWSEndpointServicePrincipal(spec clusterresourcesv1beta1.AWSEndpointServicePrincipalSpec, CDCID string) ([]byte, error) {
 	panic("CreateAWSEndpointServicePrincipal: is not implemented")
 }
 

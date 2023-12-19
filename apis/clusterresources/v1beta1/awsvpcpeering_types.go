@@ -29,7 +29,7 @@ import (
 
 // AWSVPCPeeringSpec defines the desired state of AWSVPCPeering
 type AWSVPCPeeringSpec struct {
-	VPCPeeringSpec   `json:",inline"`
+	PeeringSpec      `json:",inline"`
 	PeerAWSAccountID string `json:"peerAwsAccountId"`
 	PeerVPCID        string `json:"peerVpcId"`
 	PeerRegion       string `json:"peerRegion,omitempty"`
@@ -128,9 +128,11 @@ func (aws *AWSVPCPeeringSpec) Validate(availableRegions []string) error {
 		return fmt.Errorf("VPC ID must begin with 'vpc-' and fit pattern: %s. %v", models.PeerVPCIDRegExp, err)
 	}
 
-	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(aws.DataCentreID))
-	if !dataCentreIDMatched || err != nil {
-		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s. %v", models.UUIDStringRegExp, err)
+	if aws.DataCentreID != "" {
+		dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(aws.DataCentreID))
+		if !dataCentreIDMatched || err != nil {
+			return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s. %v", models.UUIDStringRegExp, err)
+		}
 	}
 
 	if !validation.Contains(aws.PeerRegion, availableRegions) {

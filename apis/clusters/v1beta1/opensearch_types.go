@@ -584,8 +584,11 @@ func (os *OpenSearch) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   os.Status.ID,
-			ClusterKind: models.OsClusterKind,
+			ClusterRef: &clusterresourcesv1beta1.ClusterRef{
+				Name:        os.Name,
+				Namespace:   os.Namespace,
+				ClusterKind: models.OsClusterKind,
+			},
 		},
 	}
 }
@@ -626,6 +629,18 @@ func (oss *OpenSearch) SetAvailableUsers(users References) {
 
 func (oss *OpenSearch) GetClusterID() string {
 	return oss.Status.ID
+}
+
+func (oss *OpenSearch) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return oss.Status.DataCentres[0].ID
+	}
+	for _, cdc := range oss.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
 }
 
 func (oss *OpenSearch) SetClusterID(id string) {

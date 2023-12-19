@@ -65,6 +65,11 @@ func (fr *ClusterNetworkFirewallRule) ValidateCreate() error {
 			fr.Spec.Type, models.BundleTypes)
 	}
 
+	if (fr.Spec.ClusterID == "" && fr.Spec.ClusterRef == nil) ||
+		(fr.Spec.ClusterID != "" && fr.Spec.ClusterRef != nil) {
+		return fmt.Errorf("only one of the following fields should be specified: clusterId, clusterRef")
+	}
+
 	return nil
 }
 

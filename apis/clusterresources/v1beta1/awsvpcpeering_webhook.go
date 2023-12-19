@@ -67,8 +67,9 @@ func (r *AWSVPCPeering) ValidateCreate() error {
 		return fmt.Errorf("peer AWS Account Region is empty")
 	}
 
-	if r.Spec.DataCentreID == "" {
-		return fmt.Errorf("dataCentre ID is empty")
+	if (r.Spec.DataCentreID == "" && r.Spec.ClusterRef == nil) ||
+		(r.Spec.DataCentreID != "" && r.Spec.ClusterRef != nil) {
+		return fmt.Errorf("only one of the following fields should be specified: dataCentreId, clusterRef")
 	}
 
 	if r.Spec.PeerSubnets == nil {

@@ -38,6 +38,7 @@ import (
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/controllers/clusterresources"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -155,8 +156,23 @@ func (r *CassandraReconciler) handleCreateCluster(
 				"cluster name", c.Spec.Name,
 				"data centres", c.Spec.DataCentres,
 			)
+			iCassandraSpec := c.Spec.ToInstAPI()
+			for i, dc := range c.Spec.DataCentres {
+				for j, debezium := range dc.Debezium {
+					if debezium.ClusterRef != nil {
+						cdcID, err := clusterresources.GetDataCentreID(r.Client, ctx, debezium.ClusterRef)
+						if err != nil {
+							l.Error(err, "Cannot get cluster ID",
+								"Cluster reference", debezium.ClusterRef,
+							)
+							return ctrl.Result{}, err
+						}
+						iCassandraSpec.DataCentres[i].Debezium[j].KafkaDataCentreID = cdcID
+					}
+				}
+			}
 
-			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, c.Spec.ToInstAPI())
+			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, iCassandraSpec)
 			if err != nil {
 				l.Error(
 					err, "Cannot create cluster",

@@ -55,6 +55,11 @@ var _ webhook.Validator = &ExclusionWindow{}
 func (r *ExclusionWindow) ValidateCreate() error {
 	exclusionwindowlog.Info("validate create", "name", r.Name)
 
+	if (r.Spec.ClusterID == "" && r.Spec.ClusterRef == nil) ||
+		(r.Spec.ClusterID != "" && r.Spec.ClusterRef != nil) {
+		return fmt.Errorf("only one of the following fields should be specified: clusterId, clusterRef")
+	}
+
 	if !validation.Contains(r.Spec.DayOfWeek, models.DaysOfWeek) {
 		return fmt.Errorf("%v, available values: %v",
 			models.ErrIncorrectDayOfWeek, models.DaysOfWeek)
@@ -67,7 +72,7 @@ func (r *ExclusionWindow) ValidateUpdate(old runtime.Object) error {
 	exclusionwindowlog.Info("validate update", "name", r.Name)
 	oldWindow := old.(*ExclusionWindow)
 
-	if r.Spec != oldWindow.Spec {
+	if !r.Spec.validateUpdate(oldWindow.Spec) {
 		return models.ErrImmutableSpec
 	}
 

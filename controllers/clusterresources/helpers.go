@@ -17,10 +17,16 @@ limitations under the License.
 package clusterresources
 
 import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/strings/slices"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	clustersv1beta1 "github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/models"
 )
 
 func areFirewallRuleStatusesEqual(a, b *v1beta1.FirewallRuleStatus) bool {
@@ -93,4 +99,81 @@ func subnetsEqual(subnets1, subnets2 []string) bool {
 	}
 
 	return true
+}
+
+type ClusterIDProvider interface {
+	client.Object
+	GetClusterID() string
+	GetDataCentreID(cdcName string) string
+}
+
+func GetDataCentreID(cl client.Client, ctx context.Context, ref *v1beta1.ClusterRef) (string, error) {
+	var obj ClusterIDProvider
+	ns := types.NamespacedName{
+		Namespace: ref.Namespace,
+		Name:      ref.Name,
+	}
+
+	switch ref.ClusterKind {
+	case models.RedisClusterKind:
+		obj = &clustersv1beta1.Redis{}
+	case models.OpenSearchKind:
+		obj = &clustersv1beta1.OpenSearch{}
+	case models.KafkaKind:
+		obj = &clustersv1beta1.Kafka{}
+	case models.CassandraKind:
+		obj = &clustersv1beta1.Cassandra{}
+	case models.PgClusterKind:
+		obj = &clustersv1beta1.PostgreSQL{}
+	case models.ZookeeperClusterKind:
+		obj = &clustersv1beta1.Zookeeper{}
+	case models.CadenceClusterKind:
+		obj = &clustersv1beta1.Cadence{}
+	case models.KafkaConnectClusterKind:
+		obj = &clustersv1beta1.KafkaConnect{}
+	default:
+		return "", models.ErrUnsupportedClusterKind
+	}
+	err := cl.Get(ctx, ns, obj)
+	if err != nil {
+		return "", err
+	}
+
+	return obj.GetDataCentreID(ref.CDCName), nil
+}
+
+func GetClusterID(cl client.Client, ctx context.Context, ref *v1beta1.ClusterRef) (string, error) {
+	var obj ClusterIDProvider
+	ns := types.NamespacedName{
+		Namespace: ref.Namespace,
+		Name:      ref.Name,
+	}
+
+	switch ref.ClusterKind {
+	case models.RedisClusterKind:
+		obj = &clustersv1beta1.Redis{}
+	case models.OpenSearchKind:
+		obj = &clustersv1beta1.OpenSearch{}
+	case models.KafkaKind:
+		obj = &clustersv1beta1.Kafka{}
+	case models.CassandraKind:
+		obj = &clustersv1beta1.Cassandra{}
+	case models.PgClusterKind:
+		obj = &clustersv1beta1.PostgreSQL{}
+	case models.ZookeeperClusterKind:
+		obj = &clustersv1beta1.Zookeeper{}
+	case models.CadenceClusterKind:
+		obj = &clustersv1beta1.Cadence{}
+	case models.KafkaConnectClusterKind:
+		obj = &clustersv1beta1.KafkaConnect{}
+	default:
+		return "", models.ErrUnsupportedClusterKind
+	}
+
+	err := cl.Get(ctx, ns, obj)
+	if err != nil {
+		return "", err
+	}
+
+	return obj.GetClusterID(), nil
 }

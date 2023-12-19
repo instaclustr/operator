@@ -82,7 +82,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) Reconcile(ctx context.Context, 
 		return r.handleDeleteFirewallRule(ctx, firewallRule, &l)
 	case models.GenericEvent:
 		l.Info("AWS security group firewall rule event isn't handled",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
@@ -98,15 +98,32 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 	l *logr.Logger,
 ) (ctrl.Result, error) {
 	if firewallRule.Status.ID == "" {
-		l.Info(
-			"Creating AWS security group firewall rule",
-			"cluster ID", firewallRule.Spec.ClusterID,
-			"type", firewallRule.Spec.Type,
-		)
-
+		var clusterID string
+		var err error
+		if firewallRule.Spec.ClusterRef != nil {
+			clusterID, err = GetClusterID(r.Client, ctx, firewallRule.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get CDCID",
+					"Cluster reference", firewallRule.Spec.ClusterRef,
+				)
+				return ctrl.Result{}, err
+			}
+			l.Info(
+				"Creating AWS security group firewall rule from the cluster reference",
+				"cluster reference", firewallRule.Spec.ClusterRef,
+				"cluster ID", clusterID,
+			)
+		} else {
+			clusterID = firewallRule.Spec.ClusterID
+			l.Info(
+				"Creating AWS security group firewall rule",
+				"cluster ID", clusterID,
+				"type", firewallRule.Spec.Type,
+			)
+		}
 		patch := firewallRule.NewPatch()
 
-		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.AWSSecurityGroupFirewallRuleEndpoint, &firewallRule.Spec)
+		firewallRuleStatus, err := r.API.CreateAWSSecurityGroupFirewallRule(&firewallRule.Spec, clusterID)
 		if err != nil {
 			l.Error(
 				err, "Cannot create AWS security group firewall rule",
@@ -142,7 +159,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 		err = r.Patch(ctx, firewallRule, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch AWS security group firewall rule",
-				"cluster ID", firewallRule.Spec.ClusterID,
+				"cluster ID", firewallRule.Status.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
 			r.EventRecorder.Eventf(
@@ -155,7 +172,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleCreateFirewallRule(
 
 		l.Info(
 			"AWS security group firewall rule resource has been created",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 	}
@@ -189,7 +206,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 
@@ -205,7 +222,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get AWS security group firewall rule status from the Instaclustr API",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 
@@ -222,7 +239,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 		if err != nil {
 			l.Error(err, "Cannot delete AWS security group firewall rule",
 				"rule ID", firewallRule.Status.ID,
-				"cluster ID", firewallRule.Spec.ClusterID,
+				"cluster ID", firewallRule.Status.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
 
@@ -245,7 +262,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	err = r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch AWS security group firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"status", firewallRule.Status,
 		)
@@ -259,7 +276,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 	}
 
 	l.Info("AWS security group firewall rule has been deleted",
-		"cluster ID", firewallRule.Spec.ClusterID,
+		"cluster ID", firewallRule.Status.ClusterID,
 		"type", firewallRule.Spec.Type,
 		"status", firewallRule.Status,
 	)

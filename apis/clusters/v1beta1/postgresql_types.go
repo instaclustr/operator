@@ -162,8 +162,11 @@ func (pg *PostgreSQL) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1
 			Finalizers:  []string{models.DeletionFinalizer},
 		},
 		Spec: clusterresourcesv1beta1.ClusterBackupSpec{
-			ClusterID:   pg.Status.ID,
-			ClusterKind: models.PgClusterKind,
+			ClusterRef: &clusterresourcesv1beta1.ClusterRef{
+				Name:        pg.Name,
+				Namespace:   pg.Namespace,
+				ClusterKind: models.PgClusterKind,
+			},
 		},
 	}
 }
@@ -182,6 +185,21 @@ func (pg *PostgreSQL) RestoreInfoToInstAPI(restoreData *PgRestoreFrom) any {
 	}
 
 	return iRestore
+}
+
+func (pg *PostgreSQL) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return pg.Status.DataCentres[0].ID
+	}
+	for _, cdc := range pg.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
+}
+func (pg *PostgreSQL) GetClusterID() string {
+	return pg.Status.ID
 }
 
 func (pgs *PgSpec) HasRestore() bool {

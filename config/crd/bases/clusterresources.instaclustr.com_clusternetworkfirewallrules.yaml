@@ -49,12 +49,22 @@ spec:
             properties:
               clusterId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               network:
                 type: string
               type:
                 type: string
             required:
-            - clusterId
             - network
             - type
             type: object
@@ -62,6 +72,8 @@ spec:
             description: ClusterNetworkFirewallRuleStatus defines the observed state
               of ClusterNetworkFirewallRule
             properties:
+              clusterId:
+                type: string
               deferredReason:
                 type: string
               id:

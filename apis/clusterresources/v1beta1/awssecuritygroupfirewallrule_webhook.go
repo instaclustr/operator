@@ -65,6 +65,11 @@ func (r *AWSSecurityGroupFirewallRule) ValidateCreate() error {
 			r.Spec.Type, models.BundleTypes)
 	}
 
+	if (r.Spec.ClusterID == "" && r.Spec.ClusterRef == nil) ||
+		(r.Spec.ClusterID != "" && r.Spec.ClusterRef != nil) {
+		return fmt.Errorf("only one of dataCenter ID and cluster reference fields should be specified")
+	}
+
 	return nil
 }
 

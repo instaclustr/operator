@@ -82,7 +82,7 @@ func (r *ExclusionWindowReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return r.handleDeleteWindow(ctx, ew, l)
 	default:
 		l.Info("event isn't handled",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 			"Request", req,
 			"event", ew.Annotations[models.ResourceStateAnnotation])
@@ -96,13 +96,31 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 	l logr.Logger,
 ) (ctrl.Result, error) {
 	if ew.Status.ID == "" {
-		l.Info(
-			"Creating Exclusion Window resource",
-			"Cluster ID", ew.Spec.ClusterID,
-			"Exclusion Window Spec", ew.Spec,
-		)
+		var clusterID string
+		var err error
+		if ew.Spec.ClusterRef != nil {
+			clusterID, err = GetClusterID(r.Client, ctx, ew.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get ClusterID",
+					"Cluster reference", ew.Spec.ClusterRef,
+				)
+				return ctrl.Result{}, err
+			}
+			l.Info(
+				"Creating Exclusion Window resource from the cluster reference",
+				"Cluster ID", ew.Status.ClusterID,
+				"Exclusion Window Spec", ew.Spec,
+			)
+		} else {
+			clusterID = ew.Spec.ClusterID
+			l.Info(
+				"Creating Exclusion Window resource",
+				"Cluster ID", ew.Status.ClusterID,
+				"Exclusion Window Spec", ew.Spec,
+			)
+		}
 
-		id, err := r.API.CreateExclusionWindow(ew.Spec.ClusterID, &ew.Spec)
+		id, err := r.API.CreateExclusionWindow(clusterID, &ew.Spec)
 		if err != nil {
 			l.Error(
 				err, "cannot create Exclusion Window resource",
@@ -123,10 +141,11 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 
 		patch := ew.NewPatch()
 		ew.Status.ID = id
+		ew.Status.ClusterID = clusterID
 		err = r.Status().Patch(ctx, ew, patch)
 		if err != nil {
 			l.Error(err, "cannot patch Exclusion Window resource status after creation",
-				"Cluster ID", ew.Spec.ClusterID,
+				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
 				"Exclusion Window metadata", ew.ObjectMeta,
 			)
@@ -143,7 +162,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 		err = r.Patch(ctx, ew, patch)
 		if err != nil {
 			l.Error(err, "cannot patch Exclusion Window resource metadata with created event",
-				"Cluster ID", ew.Spec.ClusterID,
+				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
 				"Exclusion Window metadata", ew.ObjectMeta,
 			)
@@ -157,7 +176,7 @@ func (r *ExclusionWindowReconciler) handleCreateWindow(
 
 		l.Info(
 			"Exclusion Window resource was created",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 		)
 	}
@@ -174,7 +193,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "cannot get Exclusion Window status from the Instaclustr API",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 		)
 		r.EventRecorder.Eventf(
@@ -187,9 +206,9 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 
 	if status != "" {
 		err = r.API.DeleteExclusionWindow(ew.Status.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, instaclustr.NotFound) {
 			l.Error(err, "cannot delete Exclusion Window resource",
-				"Cluster ID", ew.Spec.ClusterID,
+				"Cluster ID", ew.Status.ClusterID,
 				"Exclusion Window Spec", ew.Spec,
 				"Exclusion Window metadata", ew.ObjectMeta,
 			)
@@ -212,7 +231,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	err = r.Patch(ctx, ew, patch)
 	if err != nil {
 		l.Error(err, "cannot patch Exclusion Window resource metadata with deleted event",
-			"Cluster ID", ew.Spec.ClusterID,
+			"Cluster ID", ew.Status.ClusterID,
 			"Exclusion Window Spec", ew.Spec,
 			"Exclusion Window metadata", ew.ObjectMeta,
 		)
@@ -225,7 +244,7 @@ func (r *ExclusionWindowReconciler) handleDeleteWindow(
 	}
 
 	l.Info("Exclusion Window has been deleted",
-		"Cluster ID", ew.Spec.ClusterID,
+		"Cluster ID", ew.Status.ClusterID,
 		"Exclusion Window Spec", ew.Spec,
 		"Exclusion Window Status", ew.Status,
 	)

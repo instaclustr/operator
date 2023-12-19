@@ -97,14 +97,35 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 	l logr.Logger,
 ) (ctrl.Result, error) {
 	if aws.Status.ID == "" {
-		l.Info(
-			"Creating AWS VPC Peering resource",
-			"AWS Account ID", aws.Spec.PeerAWSAccountID,
-			"VPC ID", aws.Spec.PeerVPCID,
-			"Region", aws.Spec.PeerRegion,
-		)
+		var cdcID string
+		var err error
+		if aws.Spec.ClusterRef != nil {
+			cdcID, err = GetDataCentreID(r.Client, ctx, aws.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get CDCID",
+					"Cluster reference", aws.Spec.ClusterRef,
+				)
+				return ctrl.Result{}, err
+			}
+			l.Info(
+				"Creating AWS VPC Peering resource from the cluster reference",
+				"cluster reference", aws.Spec.ClusterRef,
+				"cdcID ID", cdcID,
+				"AWS Account ID", aws.Spec.PeerAWSAccountID,
+				"VPC ID", aws.Spec.PeerVPCID,
+				"Region", aws.Spec.PeerRegion,
+			)
+		} else {
+			cdcID = aws.Spec.DataCentreID
+			l.Info(
+				"Creating AWS VPC Peering resource",
+				"AWS Account ID", aws.Spec.PeerAWSAccountID,
+				"VPC ID", aws.Spec.PeerVPCID,
+				"Region", aws.Spec.PeerRegion,
+			)
+		}
 
-		awsStatus, err := r.API.CreatePeering(instaclustr.AWSPeeringEndpoint, &aws.Spec)
+		awsStatus, err := r.API.CreateAWSVPCPeering(&aws.Spec, cdcID)
 		if err != nil {
 			l.Error(
 				err, "cannot create AWS VPC Peering resource",
@@ -126,6 +147,7 @@ func (r *AWSVPCPeeringReconciler) handleCreatePeering(
 
 		patch := aws.NewPatch()
 		aws.Status.PeeringStatus = *awsStatus
+		aws.Status.CDCID = cdcID
 		err = r.Status().Patch(ctx, aws, patch)
 		if err != nil {
 			l.Error(err, "cannot patch AWS VPC Peering resource status",
@@ -287,7 +309,7 @@ func (r *AWSVPCPeeringReconciler) handleUpdatePeering(
 		"AWS Account ID", aws.Spec.PeerAWSAccountID,
 		"VPC ID", aws.Spec.PeerVPCID,
 		"Region", aws.Spec.PeerRegion,
-		"AWS VPC Peering Data Centre ID", aws.Spec.DataCentreID,
+		"AWS VPC Peering Data Centre ID", aws.Status.CDCID,
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 
@@ -366,7 +388,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 		"AWS VPC Peering ID", aws.Status.ID,
 		"VPC ID", aws.Spec.PeerVPCID,
 		"Region", aws.Spec.PeerRegion,
-		"AWS VPC Peering Data Centre ID", aws.Spec.DataCentreID,
+		"AWS VPC Peering Data Centre ID", aws.Status.CDCID,
 		"AWS VPC Peering Status", aws.Status.PeeringStatus,
 	)
 

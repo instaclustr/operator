@@ -15,4 +15,4 @@ spec:
   name: "Username-zookeeper"
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
-  version: "3.7.1"
+  version: "3.8.2"

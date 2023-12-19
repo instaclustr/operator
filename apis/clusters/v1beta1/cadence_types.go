@@ -172,6 +172,21 @@ func (c *Cadence) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
+func (c *Cadence) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return c.Status.DataCentres[0].ID
+	}
+	for _, cdc := range c.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
+}
+func (c *Cadence) GetClusterID() string {
+	return c.Status.ID
+}
+
 func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (*models.CadenceCluster, error) {
 	awsArchival, err := cs.ArchivalToInstAPI(ctx, k8sClient)
 	if err != nil {

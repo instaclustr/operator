@@ -47,6 +47,17 @@ spec:
             properties:
               cdcId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               peerAdObjectId:
                 type: string
               peerResourceGroup:
@@ -60,7 +71,6 @@ spec:
               peerVirtualNetworkName:
                 type: string
             required:
-            - cdcId
             - peerResourceGroup
             - peerSubnets
             - peerSubscriptionId
@@ -69,6 +79,8 @@ spec:
           status:
             description: AzureVNetPeeringStatus defines the observed state of AzureVNetPeering
             properties:
+              cdcId:
+                type: string
               failureReason:
                 type: string
               id:
