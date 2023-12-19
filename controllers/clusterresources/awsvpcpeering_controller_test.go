@@ -33,7 +33,7 @@ import (
 
 var _ = Describe("Successful creation of a AWS VPC Peering resource", Ordered, func() {
 	awsVPCPeeringSpec := v1beta1.AWSVPCPeeringSpec{
-		VPCPeeringSpec: v1beta1.VPCPeeringSpec{
+		PeeringSpec: v1beta1.PeeringSpec{
 			DataCentreID: "375e4d1c-2f77-4d02-a6f2-1af617ff2ab2",
 			PeerSubnets:  []string{"172.31.0.0/16", "192.168.0.0/16"},
 		},

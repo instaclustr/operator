@@ -265,6 +265,17 @@ spec:
                         Cannot be provided if targeting an external cluster.
                       items:
                         properties:
+                          clusterRef:
+                            properties:
+                              cdcName:
+                                type: string
+                              clusterKind:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            type: object
                           kafkaConnectVpcType:
                             description: Available options are KAFKA_VPC, VPC_PEERED,
                               SEPARATE_VPC
@@ -273,7 +284,6 @@ spec:
                             type: string
                         required:
                         - kafkaConnectVpcType
-                        - targetKafkaClusterId
                         type: object
                       type: array
                   type: object
@@ -310,6 +320,8 @@ spec:
                     encryptionKeyId:
                       type: string
                     id:
+                      type: string
+                    name:
                       type: string
                     nodeNumber:
                       type: integer
@@ -503,6 +515,8 @@ spec:
                     type: string
                 type: object
               state:
+                type: string
+              targetKafkaClusterId:
                 type: string
               twoFactorDeleteEnabled:
                 type: boolean

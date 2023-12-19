@@ -102,6 +102,22 @@ func (z *Zookeeper) FromInstAPI(iData []byte) (*Zookeeper, error) {
 	}, nil
 }
 
+func (z *Zookeeper) GetDataCentreID(cdcName string) string {
+	if cdcName == "" {
+		return z.Status.DataCentres[0].ID
+	}
+	for _, cdc := range z.Status.DataCentres {
+		if cdc.Name == cdcName {
+			return cdc.ID
+		}
+	}
+	return ""
+}
+
+func (z *Zookeeper) GetClusterID() string {
+	return z.Status.ID
+}
+
 func (zs *ZookeeperSpec) FromInstAPI(iZook *models.ZookeeperCluster) ZookeeperSpec {
 	return ZookeeperSpec{
 		Cluster: Cluster{

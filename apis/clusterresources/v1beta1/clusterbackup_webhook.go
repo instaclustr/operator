@@ -54,9 +54,17 @@ var _ webhook.Validator = &ClusterBackup{}
 func (r *ClusterBackup) ValidateCreate() error {
 	clusterbackuplog.Info("validate create", "name", r.Name)
 
-	_, ok := models.ClusterKindsMap[r.Spec.ClusterKind]
+	_, ok := models.ClusterKindsMap[r.Spec.ClusterRef.ClusterKind]
 	if !ok {
 		return models.ErrUnsupportedBackupClusterKind
+	}
+
+	if r.Spec.ClusterRef.Name != "" && r.Spec.ClusterRef.Namespace == "" {
+		return models.ErrEmptyNamespace
+	}
+
+	if r.Spec.ClusterRef.Namespace != "" && r.Spec.ClusterRef.Name == "" {
+		return models.ErrEmptyName
 	}
 
 	return nil

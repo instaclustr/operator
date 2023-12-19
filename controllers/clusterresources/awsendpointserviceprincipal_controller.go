@@ -87,7 +87,29 @@ func (r *AWSEndpointServicePrincipalReconciler) Reconcile(ctx context.Context, r
 }
 
 func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context, l logr.Logger, principal *clusterresourcesv1beta1.AWSEndpointServicePrincipal) (ctrl.Result, error) {
-	b, err := r.API.CreateAWSEndpointServicePrincipal(principal.Spec)
+	var cdcID string
+	var err error
+	if principal.Spec.ClusterRef != nil {
+		cdcID, err = GetDataCentreID(r.Client, ctx, principal.Spec.ClusterRef)
+		if err != nil {
+			l.Error(err, "Cannot get CDCID",
+				"Cluster reference", principal.Spec.ClusterRef,
+			)
+			return ctrl.Result{}, err
+		}
+		l.Info(
+			"Creating AWS Endpoint Service Principal resource from the cluster reference",
+			"cluster reference", principal.Spec.ClusterRef,
+		)
+	} else {
+		cdcID = principal.Spec.ClusterDataCenterID
+		l.Info(
+			"Creating AWS Endpoint Service Principal resource",
+			"principal", principal.Spec,
+		)
+	}
+
+	b, err := r.API.CreateAWSEndpointServicePrincipal(principal.Spec, cdcID)
 	if err != nil {
 		l.Error(err, "failed to create an AWS endpoint service principal resource on Instaclustr")
 		r.EventRecorder.Eventf(principal, models.Warning, models.CreationFailed,
@@ -108,6 +130,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 		return ctrl.Result{}, err
 	}
 
+	principal.Status.CDCID = cdcID
 	err = r.Status().Patch(ctx, principal, patch)
 	if err != nil {
 		l.Error(err, "failed to patch an AWS endpoint service principal resource status with its ID")

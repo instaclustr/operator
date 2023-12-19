@@ -45,9 +45,9 @@ var principalArnPattern, _ = regexp.Compile(`^arn:aws:iam::[0-9]{12}:(root$|user
 func (r *AWSEndpointServicePrincipal) ValidateCreate() error {
 	awsendpointserviceprincipallog.Info("validate create", "name", r.Name)
 
-	if r.Spec.ClusterDataCenterID == "" ||
-		r.Spec.PrincipalARN == "" {
-		return fmt.Errorf("spec.clusterDataCenterId and spec.principalArn should be filled")
+	if (r.Spec.ClusterDataCenterID == "" && r.Spec.ClusterRef == nil) ||
+		(r.Spec.ClusterDataCenterID != "" && r.Spec.ClusterRef != nil) {
+		return fmt.Errorf("only one of the following fields should be specified: dataCentreId, clusterRef")
 	}
 
 	if !principalArnPattern.MatchString(r.Spec.PrincipalARN) {

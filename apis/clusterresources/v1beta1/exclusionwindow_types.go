@@ -23,8 +23,9 @@ import (
 
 // ExclusionWindowSpec defines the desired state of ExclusionWindow
 type ExclusionWindowSpec struct {
-	ClusterID string `json:"clusterId"`
-	DayOfWeek string `json:"dayOfWeek"`
+	ClusterID  string      `json:"clusterId,omitempty"`
+	ClusterRef *ClusterRef `json:"clusterRef,omitempty"`
+	DayOfWeek  string      `json:"dayOfWeek"`
 	//+kubebuilder:validation:Minimum:=0
 	//+kubebuilder:validation:Maximum:=23
 	StartHour int32 `json:"startHour"`
@@ -36,7 +37,8 @@ type ExclusionWindowSpec struct {
 
 // ExclusionWindowStatus defines the observed state of ExclusionWindow
 type ExclusionWindowStatus struct {
-	ID string `json:"id"`
+	ClusterID string `json:"clusterId,omitempty"`
+	ID        string `json:"id"`
 }
 
 //+kubebuilder:object:root=true
@@ -69,4 +71,18 @@ func init() {
 func (r *ExclusionWindow) NewPatch() client.Patch {
 	old := r.DeepCopy()
 	return client.MergeFrom(old)
+}
+
+func (e *ExclusionWindowSpec) validateUpdate(old ExclusionWindowSpec) bool {
+	if e.DayOfWeek != old.DayOfWeek ||
+		e.ClusterID != old.ClusterID ||
+		e.DurationInHours != old.DurationInHours ||
+		e.StartHour != old.StartHour ||
+		(e.ClusterRef != nil && old.ClusterRef == nil) ||
+		(e.ClusterRef == nil && old.ClusterRef != nil) ||
+		(e.ClusterRef != nil && *e.ClusterRef != *old.ClusterRef) {
+		return false
+	}
+
+	return true
 }

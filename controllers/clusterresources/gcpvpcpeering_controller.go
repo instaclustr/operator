@@ -96,13 +96,32 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 	l logr.Logger,
 ) (ctrl.Result, error) {
 	if gcp.Status.ID == "" {
-		l.Info(
-			"Creating GCP VPC Peering resource",
-			"project ID", gcp.Spec.PeerProjectID,
-			"network name", gcp.Spec.PeerVPCNetworkName,
-		)
+		var cdcID string
+		var err error
+		if gcp.Spec.ClusterRef != nil {
+			cdcID, err = GetDataCentreID(r.Client, ctx, gcp.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get CDCID",
+					"Cluster reference", gcp.Spec.ClusterRef,
+				)
+				return ctrl.Result{}, err
+			}
+			l.Info(
+				"Creating GCP VPC Peering resource from the cluster reference",
+				"cluster reference", gcp.Spec.ClusterRef,
+				"project ID", gcp.Spec.PeerProjectID,
+				"network name", gcp.Spec.PeerVPCNetworkName,
+			)
+		} else {
+			cdcID = gcp.Spec.DataCentreID
+			l.Info(
+				"Creating GCP VPC Peering resource",
+				"project ID", gcp.Spec.PeerProjectID,
+				"network name", gcp.Spec.PeerVPCNetworkName,
+			)
+		}
 
-		gcpStatus, err := r.API.CreatePeering(instaclustr.GCPPeeringEndpoint, &gcp.Spec)
+		gcpStatus, err := r.API.CreateGCPVPCPeering(&gcp.Spec, cdcID)
 		if err != nil {
 			l.Error(
 				err, "Cannot create GCP VPC Peering resource",
@@ -124,6 +143,7 @@ func (r *GCPVPCPeeringReconciler) handleCreateCluster(
 
 		patch := gcp.NewPatch()
 		gcp.Status.PeeringStatus = *gcpStatus
+		gcp.Status.CDCID = cdcID
 		err = r.Status().Patch(ctx, gcp, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch GCP VPC Peering resource status",
@@ -260,7 +280,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 		"id", gcp.Status.ID,
 		"project ID", gcp.Spec.PeerProjectID,
 		"network name", gcp.Spec.PeerVPCNetworkName,
-		"data centre ID", gcp.Spec.DataCentreID,
+		"data centre ID", gcp.Status.CDCID,
 		"status", gcp.Status.PeeringStatus,
 	)
 

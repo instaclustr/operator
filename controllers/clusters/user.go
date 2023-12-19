@@ -16,13 +16,14 @@ type userObject interface {
 	SetClusterEvents(events map[string]string)
 }
 
-type clusterObject interface {
+type ClusterObject interface {
 	Object
 	GetUserRefs() v1beta1.References
 	SetUserRefs(refs v1beta1.References)
 	GetAvailableUsers() v1beta1.References
 	SetAvailableUsers(users v1beta1.References)
 	GetClusterID() string
+	GetDataCentreID(cdcName string) string
 	SetClusterID(id string)
 }
 
@@ -37,7 +38,7 @@ func handleUsersChanges(
 	ctx context.Context,
 	c client.Client,
 	userFactory userResourceFactory,
-	cluster clusterObject,
+	cluster ClusterObject,
 ) error {
 	l := log.FromContext(ctx).V(1)
 
@@ -107,7 +108,7 @@ func detachUsers(
 	ctx context.Context,
 	c client.Client,
 	userFactory userResourceFactory,
-	cluster clusterObject,
+	cluster ClusterObject,
 ) error {
 	l := log.FromContext(ctx).V(1)
 

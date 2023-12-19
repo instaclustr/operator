@@ -123,9 +123,16 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 			return fmt.Errorf("externalCluster array size must be between 0 and 1")
 		}
 		for _, mc := range tc.ManagedCluster {
-			clusterIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(mc.TargetKafkaClusterID))
-			if !clusterIDMatched || err != nil {
-				return fmt.Errorf("cluster ID is a UUID formated string. It must fit the pattern: %s, %v", models.UUIDStringRegExp, err)
+			if (mc.TargetKafkaClusterID == "" && mc.ClusterRef == nil) ||
+				(mc.TargetKafkaClusterID != "" && mc.ClusterRef != nil) {
+				return fmt.Errorf("only one of dataCenter ID and cluster reference fields should be specified")
+			}
+
+			if mc.TargetKafkaClusterID != "" {
+				clusterIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(mc.TargetKafkaClusterID))
+				if !clusterIDMatched || err != nil {
+					return fmt.Errorf("cluster ID is a UUID formated string. It must fit the pattern: %s, %v", models.UUIDStringRegExp, err)
+				}
 			}
 
 			if !validation.Contains(mc.KafkaConnectVPCType, models.KafkaConnectVPCTypes) {

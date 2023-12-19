@@ -49,12 +49,22 @@ spec:
             properties:
               clusterId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               securityGroupId:
                 type: string
               type:
                 type: string
             required:
-            - clusterId
             - securityGroupId
             - type
             type: object
@@ -62,6 +72,8 @@ spec:
             description: AWSSecurityGroupFirewallRuleStatus defines the observed state
               of AWSSecurityGroupFirewallRule
             properties:
+              clusterId:
+                type: string
               deferredReason:
                 type: string
               id:

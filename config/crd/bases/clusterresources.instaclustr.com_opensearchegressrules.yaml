@@ -44,6 +44,17 @@ spec:
             properties:
               clusterId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               openSearchBindingId:
                 type: string
               source:
@@ -51,12 +62,13 @@ spec:
               type:
                 type: string
             required:
-            - clusterId
             - openSearchBindingId
             - source
             type: object
           status:
             properties:
+              clusterId:
+                type: string
               id:
                 type: string
             type: object

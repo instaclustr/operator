@@ -88,7 +88,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) Reconcile(ctx context.Context, re
 		return r.HandleDeleteFirewallRule(ctx, firewallRule, &l)
 	case models.GenericEvent:
 		l.Info("Cluster network firewall rule event isn't handled",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"request", req,
 			"event", firewallRule.Annotations[models.ResourceStateAnnotation])
@@ -104,15 +104,32 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 	l *logr.Logger,
 ) (ctrl.Result, error) {
 	if firewallRule.Status.ID == "" {
-		l.Info(
-			"Creating cluster network firewall rule",
-			"cluster ID", firewallRule.Spec.ClusterID,
-			"type", firewallRule.Spec.Type,
-		)
+		var clusterID string
+		var err error
+		if firewallRule.Spec.ClusterRef != nil {
+			clusterID, err = GetClusterID(r.Client, ctx, firewallRule.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get cluster ID",
+					"Cluster reference", firewallRule.Spec.ClusterRef,
+				)
+				return ctrl.Result{}, err
+			}
+			l.Info(
+				"Creating cluster network firewall rule from the cluster reference",
+				"cluster reference", firewallRule.Spec.ClusterRef,
+				"cluster ID", clusterID,
+			)
+		} else {
+			clusterID = firewallRule.Spec.ClusterID
+			l.Info(
+				"Creating cluster network firewall rule",
+				"cluster ID", clusterID,
+				"type", firewallRule.Spec.Type,
+			)
+		}
 
 		patch := firewallRule.NewPatch()
-
-		firewallRuleStatus, err := r.API.CreateFirewallRule(instaclustr.ClusterNetworkFirewallRuleEndpoint, &firewallRule.Spec)
+		firewallRuleStatus, err := r.API.CreateClusterNetworkFirewallRule(&firewallRule.Spec, clusterID)
 		if err != nil {
 			l.Error(
 				err, "Cannot create cluster network firewall rule",
@@ -132,6 +149,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		)
 
 		firewallRule.Status.FirewallRuleStatus = *firewallRuleStatus
+		firewallRule.Status.ClusterID = clusterID
 
 		err = r.Status().Patch(ctx, firewallRule, patch)
 		if err != nil {
@@ -150,7 +168,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 		err = r.Patch(ctx, firewallRule, patch)
 		if err != nil {
 			l.Error(err, "Cannot patch cluster network firewall rule",
-				"cluster ID", firewallRule.Spec.ClusterID,
+				"cluster ID", firewallRule.Status.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
 			r.EventRecorder.Eventf(
@@ -163,7 +181,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleCreateFirewallRule(
 
 		l.Info(
 			"Cluster network firewall rule resource has been created",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 	}
@@ -194,7 +212,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleUpdateFirewallRule(
 	l *logr.Logger,
 ) (ctrl.Result, error) {
 	l.Info("Cluster network firewall rule update is not implemented",
-		"firewall rule ID", firewallRule.Spec.ClusterID,
+		"firewall rule ID", firewallRule.Status.ClusterID,
 		"type", firewallRule.Spec.Type,
 	)
 
@@ -210,7 +228,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	err := r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster network firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 		r.EventRecorder.Eventf(
@@ -225,7 +243,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(
 			err, "Cannot get cluster network firewall rule status from the Instaclustr API",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 		)
 		r.EventRecorder.Eventf(
@@ -241,7 +259,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 		if err != nil {
 			l.Error(err, "Cannot delete cluster network firewall rule",
 				"rule ID", firewallRule.Status.ID,
-				"cluster ID", firewallRule.Spec.ClusterID,
+				"cluster ID", firewallRule.Status.ClusterID,
 				"type", firewallRule.Spec.Type,
 			)
 			r.EventRecorder.Eventf(
@@ -264,7 +282,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	err = r.Patch(ctx, firewallRule, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster network firewall rule metadata",
-			"cluster ID", firewallRule.Spec.ClusterID,
+			"cluster ID", firewallRule.Status.ClusterID,
 			"type", firewallRule.Spec.Type,
 			"status", firewallRule.Status,
 		)
@@ -277,7 +295,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 	}
 
 	l.Info("Cluster network firewall rule has been deleted",
-		"cluster ID", firewallRule.Spec.ClusterID,
+		"cluster ID", firewallRule.Status.ClusterID,
 		"type", firewallRule.Spec.Type,
 		"status", firewallRule.Status,
 	)

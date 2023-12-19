@@ -64,6 +64,8 @@ const (
 	PgClusterKind                    = "PostgreSQL"
 	RedisClusterKind                 = "Redis"
 	OsClusterKind                    = "OpenSearch"
+	CadenceClusterKind               = "Cadence"
+	KafkaConnectClusterKind          = "KafkaConnect"
 	CassandraClusterKind             = "Cassandra"
 	ZookeeperClusterKind             = "Zookeeper"
 	ClusterNetworkFirewallRuleKind   = "ClusterNetworkFirewallRule"

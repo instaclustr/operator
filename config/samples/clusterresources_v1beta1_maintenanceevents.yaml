@@ -3,7 +3,6 @@ kind: MaintenanceEvents
 metadata:
   name: maintenanceevents-sample
 spec:
-  clusterId: "9cf09a53-a09e-450a-ba7d-e98b3c724911"
   maintenanceEventsReschedule:
     - scheduledStartTime: "2023-11-09T04:30:00Z"
       maintenanceEventId: "0d25b466-bc22-44a8-b15d-8f92e815cb6e"

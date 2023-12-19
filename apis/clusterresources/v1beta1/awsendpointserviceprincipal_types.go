@@ -24,7 +24,8 @@ import (
 // AWSEndpointServicePrincipalSpec defines the desired state of AWSEndpointServicePrincipal
 type AWSEndpointServicePrincipalSpec struct {
 	// The ID of the cluster data center
-	ClusterDataCenterID string `json:"clusterDataCenterId"`
+	ClusterDataCenterID string      `json:"clusterDataCenterId,omitempty"`
+	ClusterRef          *ClusterRef `json:"clusterRef,omitempty"`
 
 	// The Instaclustr ID of the AWS endpoint service
 	EndPointServiceID string `json:"endPointServiceId,omitempty"`
@@ -36,7 +37,8 @@ type AWSEndpointServicePrincipalSpec struct {
 // AWSEndpointServicePrincipalStatus defines the observed state of AWSEndpointServicePrincipal
 type AWSEndpointServicePrincipalStatus struct {
 	// The Instaclustr ID of the IAM Principal ARN
-	ID string `json:"id,omitempty"`
+	ID    string `json:"id,omitempty"`
+	CDCID string `json:"cdcId,omitempty"`
 
 	// The Instaclustr ID of the AWS endpoint service
 	EndPointServiceID string `json:"endPointServiceId,omitempty"`

@@ -3,7 +3,11 @@ kind: ExclusionWindow
 metadata:
   name: exclusionwindow-sample
 spec:
-  clusterId: "4b453851-9002-475a-a603-f8fb1e0ae7df"
+  clusterId: 9b5ba158-12f5-4681-a279-df5c371b417c
+#  clusterRef:
+#    name: kafka
+#    namespace: default
+#    clusterKind: Kafka
   dayOfWeek: "MONDAY"
   startHour: 10
   durationInHours: 40

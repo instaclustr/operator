@@ -47,6 +47,17 @@ spec:
             properties:
               cdcId:
                 type: string
+              clusterRef:
+                properties:
+                  cdcName:
+                    type: string
+                  clusterKind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               peerProjectId:
                 type: string
               peerSubnets:
@@ -56,7 +67,6 @@ spec:
               peerVpcNetworkName:
                 type: string
             required:
-            - cdcId
             - peerProjectId
             - peerSubnets
             - peerVpcNetworkName
@@ -64,6 +74,8 @@ spec:
           status:
             description: GCPVPCPeeringStatus defines the observed state of GCPVPCPeering
             properties:
+              cdcId:
+                type: string
               failureReason:
                 type: string
               id:

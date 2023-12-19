@@ -65,6 +65,11 @@ func (r *OpenSearchEgressRules) ValidateCreate() error {
 		return fmt.Errorf("the type should be equal to one of the options: %q , got: %q", destinationTypes, r.Spec.Type)
 	}
 
+	if (r.Spec.ClusterID == "" && r.Spec.ClusterRef == nil) ||
+		(r.Spec.ClusterID != "" && r.Spec.ClusterRef != nil) {
+		return fmt.Errorf("only one of the following fields should be specified: clusterId, clusterRef")
+	}
+
 	return nil
 }
 
@@ -78,7 +83,7 @@ func (r *OpenSearchEgressRules) ValidateUpdate(old runtime.Object) error {
 		return r.ValidateCreate()
 	}
 
-	if r.Spec != oldRules.Spec {
+	if r.Spec != oldRules.Spec && r.Generation != oldRules.Generation {
 		return models.ErrImmutableSpec
 	}
 

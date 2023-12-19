@@ -98,15 +98,36 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 	l logr.Logger,
 ) (ctrl.Result, error) {
 	if azure.Status.ID == "" {
-		l.Info(
-			"Creating Azure VNet Peering resource",
-			"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
-			"AD Object ID", azure.Spec.PeerADObjectID,
-			"Resource Group", azure.Spec.PeerResourceGroup,
-			"Vnet Name", azure.Spec.PeerVirtualNetworkName,
-		)
+		var cdcID string
+		var err error
+		if azure.Spec.ClusterRef != nil {
+			cdcID, err = GetDataCentreID(r.Client, ctx, azure.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get CDCID",
+					"Cluster reference", azure.Spec.ClusterRef,
+				)
+				return ctrl.Result{}, err
+			}
+			l.Info(
+				"Creating Azure VNet Peering resource from the cluster reference",
+				"cluster reference", azure.Spec.ClusterRef,
+				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+				"AD Object ID", azure.Spec.PeerADObjectID,
+				"Resource Group", azure.Spec.PeerResourceGroup,
+				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
+			)
+		} else {
+			cdcID = azure.Spec.DataCentreID
+			l.Info(
+				"Creating Azure VNet Peering resource",
+				"Azure Subscription ID", azure.Spec.PeerSubscriptionID,
+				"AD Object ID", azure.Spec.PeerADObjectID,
+				"Resource Group", azure.Spec.PeerResourceGroup,
+				"Vnet Name", azure.Spec.PeerVirtualNetworkName,
+			)
+		}
 
-		azureStatus, err := r.API.CreatePeering(instaclustr.AzurePeeringEndpoint, &azure.Spec)
+		azureStatus, err := r.API.CreateAzureVNetPeering(&azure.Spec, cdcID)
 		if err != nil {
 			l.Error(
 				err, "cannot create Azure VNet Peering resource",
@@ -128,6 +149,7 @@ func (r *AzureVNetPeeringReconciler) handleCreatePeering(
 
 		patch := azure.NewPatch()
 		azure.Status.PeeringStatus = *azureStatus
+		azure.Status.CDCID = cdcID
 		err = r.Status().Patch(ctx, azure, patch)
 		if err != nil {
 			l.Error(err, "cannot patch Azure VNet Peering resource status",

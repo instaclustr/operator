@@ -104,7 +104,32 @@ func (r *OpenSearchEgressRulesReconciler) handleCreate(ctx context.Context, l lo
 	patch := rule.NewPatch()
 
 	if rule.Status.ID == "" {
-		rule.Status.ID = fmt.Sprintf("%s~%s~%s", rule.Spec.ClusterID, rule.Spec.Source, rule.Spec.OpenSearchBindingID)
+		var clusterID string
+		var err error
+		if rule.Spec.ClusterRef != nil {
+			clusterID, err = GetClusterID(r.Client, ctx, rule.Spec.ClusterRef)
+			if err != nil {
+				l.Error(err, "Cannot get cluster ID",
+					"Cluster reference", rule.Spec.ClusterRef,
+				)
+				return err
+			}
+			l.Info(
+				"Creating OpenSearch Egress rule from the cluster reference",
+				"cluster reference", rule.Spec.ClusterRef,
+				"cluster ID", clusterID,
+			)
+		} else {
+			clusterID = rule.Spec.ClusterID
+			l.Info(
+				"Creating OpenSearch Egress rule",
+				"cluster ID", clusterID,
+				"type", rule.Spec.Type,
+			)
+		}
+
+		rule.Status.ID = fmt.Sprintf("%s~%s~%s", clusterID, rule.Spec.Source, rule.Spec.OpenSearchBindingID)
+		rule.Status.ClusterID = clusterID
 	}
 
 	_, err := r.API.GetOpenSearchEgressRule(rule.Status.ID)

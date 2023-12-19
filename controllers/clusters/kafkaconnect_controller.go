@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/controllers/clusterresources"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -102,14 +103,41 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 	l = l.WithName("Creation Event")
 
 	if kc.Status.ID == "" {
-		l.Info("Creating Kafka Connect cluster",
-			"cluster name", kc.Spec.Name,
-			"data centres", kc.Spec.DataCentres)
+		var err error
+		iKafkaConnectSpec := kc.Spec.ToInstAPI()
+		var targetClusterID string
+
+		for i, targetCluster := range kc.Spec.TargetCluster {
+			for j, managedCluster := range targetCluster.ManagedCluster {
+				if managedCluster.ClusterRef != nil {
+					targetClusterID, err = clusterresources.GetClusterID(r.Client, ctx, managedCluster.ClusterRef)
+					if err != nil {
+						l.Error(err, "Cannot get cluster ID",
+							"Cluster reference", managedCluster.ClusterRef,
+						)
+						return ctrl.Result{}, err
+					}
+
+					iKafkaConnectSpec.TargetCluster[i].ManagedCluster[j].TargetKafkaClusterID = targetClusterID
+					l.Info(
+						"Creating KafkaConnect cluster from cluster reference",
+						"cluster reference", managedCluster.ClusterRef,
+						"cluster ID", targetClusterID,
+					)
+				} else {
+					targetClusterID = managedCluster.TargetKafkaClusterID
+					l.Info(
+						"Creating Kafka Connect cluster",
+						"cluster name", kc.Spec.Name,
+						"cluster ID", targetClusterID,
+						"data centres", kc.Spec.DataCentres,
+					)
+				}
+			}
+		}
 
 		patch := kc.NewPatch()
-		var err error
-
-		kc.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaConnectEndpoint, kc.Spec.ToInstAPI())
+		kc.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaConnectEndpoint, iKafkaConnectSpec)
 		if err != nil {
 			l.Error(err, "cannot create Kafka Connect in Instaclustr", "Kafka Connect manifest", kc.Spec)
 			r.EventRecorder.Eventf(
@@ -119,6 +147,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 			)
 			return reconcile.Result{}, err
 		}
+		kc.Status.TargetKafkaClusterID = targetClusterID
 
 		r.EventRecorder.Eventf(
 			kc, models.Normal, models.Created,

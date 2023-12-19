@@ -10,5 +10,9 @@ metadata:
   name: clusternetworkfirewallrule-sample
 spec:
   network: 62.212.64.19/32
-  clusterId: 944cfe6b-441f-4c5a-865b-42fd40c7d816
-  type: KAFKA
+#  clusterId: 59ff1cc6-9b1c-4755-85e3-9ef4d892a96e
+  type: KAFKA_CONNECT
+  clusterRef:
+    name: kafkaconnect-sample
+    namespace: default
+    clusterKind: KafkaConnect

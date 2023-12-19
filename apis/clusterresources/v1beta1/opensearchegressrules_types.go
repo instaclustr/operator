@@ -22,14 +22,16 @@ import (
 )
 
 type OpenSearchEgressRulesSpec struct {
-	ClusterID           string `json:"clusterId"`
-	OpenSearchBindingID string `json:"openSearchBindingId"`
-	Source              string `json:"source"`
-	Type                string `json:"type,omitempty"`
+	ClusterID           string      `json:"clusterId,omitempty"`
+	ClusterRef          *ClusterRef `json:"clusterRef,omitempty"`
+	OpenSearchBindingID string      `json:"openSearchBindingId"`
+	Source              string      `json:"source"`
+	Type                string      `json:"type,omitempty"`
 }
 
 type OpenSearchEgressRulesStatus struct {
-	ID string `json:"id,omitempty"`
+	ID        string `json:"id,omitempty"`
+	ClusterID string `json:"clusterId,omitempty"`
 }
 
 //+kubebuilder:object:root=true

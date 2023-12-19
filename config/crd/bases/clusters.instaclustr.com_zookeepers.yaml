@@ -148,6 +148,8 @@ spec:
                       type: string
                     id:
                       type: string
+                    name:
+                      type: string
                     nodeNumber:
                       type: integer
                     nodes:

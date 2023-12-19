@@ -44,6 +44,7 @@ type DataCentre struct {
 }
 
 type DataCentreStatus struct {
+	Name             string              `json:"name,omitempty"`
 	ID               string              `json:"id,omitempty"`
 	Status           string              `json:"status,omitempty"`
 	Nodes            []*Node             `json:"nodes,omitempty"`
@@ -568,6 +569,7 @@ func areClusteredMaintenanceEventStatusEqual(a, b *clusterresource.MaintenanceEv
 
 func (cs *ClusterStatus) DCFromInstAPI(iDC models.DataCentre) *DataCentreStatus {
 	return &DataCentreStatus{
+		Name:       iDC.Name,
 		ID:         iDC.ID,
 		Status:     iDC.Status,
 		Nodes:      cs.NodesFromInstAPI(iDC.Nodes),

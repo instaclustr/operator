@@ -35,8 +35,6 @@ spec:
           spec:
             description: MaintenanceEventsSpec defines the desired state of MaintenanceEvents
             properties:
-              clusterId:
-                type: string
               maintenanceEventsReschedule:
                 items:
                   properties:
@@ -50,7 +48,6 @@ spec:
                   type: object
                 type: array
             required:
-            - clusterId
             - maintenanceEventsReschedule
             type: object
           status:
