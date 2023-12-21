@@ -311,7 +311,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 				return reconcile.Result{}, err
 			}
 
-			err = r.startClusterOnPremisesIPsJob(pg, bootstrap)
+			err = r.startClusterOnPremisesIPsJob(ctx, pg, bootstrap)
 			if err != nil {
 				l.Error(err, "Cannot start on-premises cluster IPs check job",
 					"cluster ID", pg.Status.ID,
@@ -1151,8 +1151,8 @@ func (r *PostgreSQLReconciler) handleUpdateDefaultUserPassword(
 	return models.ExitReconcile, nil
 }
 
-func (r *PostgreSQLReconciler) startClusterOnPremisesIPsJob(pg *v1beta1.PostgreSQL, b *onPremisesBootstrap) error {
-	job := newWatchOnPremisesIPsJob(pg.Kind, b)
+func (r *PostgreSQLReconciler) startClusterOnPremisesIPsJob(ctx context.Context, pg *v1beta1.PostgreSQL, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(ctx, pg.Kind, b)
 
 	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {

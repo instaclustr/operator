@@ -19,10 +19,7 @@ package clusters
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	k8scorev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -93,105 +90,120 @@ func handleCreateOnPremisesClusterResources(ctx context.Context, b *onPremisesBo
 	return nil
 }
 
+func handleNodeReplace(ctx context.Context, b *onPremisesBootstrap, newNode, oldNode *v1beta1.Node) error {
+	if len(b.ClusterStatus.DataCentres) == 0 {
+		return models.ErrZeroDataCentres
+	}
+
+	if newNode == nil ||
+		oldNode == nil {
+		return models.ErrNoNodeToReplace
+	}
+
+	objectName := b.K8sObject.GetName()
+	vm := &virtcorev1.VirtualMachine{}
+	for i := 0; i < len(b.ClusterStatus.DataCentres[0].Nodes); i++ {
+		nodeName := fmt.Sprintf("%s-%d-%s", models.NodeVMPrefix, i, objectName)
+		err := b.K8sClient.Get(ctx, types.NamespacedName{
+			Namespace: b.K8sObject.GetNamespace(),
+			Name:      nodeName,
+		}, vm)
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		if err == nil {
+			continue
+		}
+
+		osDVName := fmt.Sprintf("%s-%d-%s", models.NodeOSDVPrefix, i, objectName)
+		osDV, err := reconcileDV(ctx, b, newNode.ID, osDVName, models.OSDVLabel)
+		if err != nil {
+			return err
+		}
+
+		storageDVList := &cdiv1beta1.DataVolumeList{}
+		err = b.K8sClient.List(ctx, storageDVList, &client.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				models.NodeIDLabel: oldNode.ID,
+				models.DVRoleLabel: models.StorageDVLabel,
+			}),
+		})
+		if err != nil {
+			return err
+		}
+
+		storageDV := &cdiv1beta1.DataVolume{}
+		storageDVName := fmt.Sprintf("%s-%d-%s", models.NodeDVPrefix, i, objectName)
+		err = b.K8sClient.Get(ctx, types.NamespacedName{
+			Namespace: b.K8sObject.GetNamespace(),
+			Name:      storageDVName,
+		}, storageDV)
+		if err != nil {
+			return err
+		}
+
+		patch := client.MergeFrom(storageDV.DeepCopy())
+		storageDV.Labels[models.NodeIDLabel] = newNode.ID
+		err = b.K8sClient.Patch(ctx, storageDV, patch)
+		if err != nil {
+			return err
+		}
+
+		svc := &k8scorev1.Service{}
+		svcName := fmt.Sprintf("%s-%s", models.ClusterIPServiceRoleLabel, nodeName)
+		err = b.K8sClient.Get(ctx, types.NamespacedName{
+			Namespace: b.K8sObject.GetNamespace(),
+			Name:      svcName,
+		}, svc)
+		if err != nil {
+			return err
+		}
+
+		patch = client.MergeFrom(svc.DeepCopy())
+		svc.Labels[models.NodeIDLabel] = newNode.ID
+		err = b.K8sClient.Patch(ctx, svc, patch)
+		if err != nil {
+			return err
+		}
+
+		_, err = reconcileVM(ctx, b, newNode.ID, nodeName, newNode.Rack, osDV.Name, storageDV.Name)
+		if err != nil {
+			return err
+		}
+
+		break
+	}
+
+	return nil
+}
+
 func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) error {
-	gatewayDVSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
+	gatewayDVName := fmt.Sprintf("%s-%s", models.GatewayDVPrefix, b.K8sObject.GetName())
+	gatewayDV, err := reconcileDV(ctx, b, b.ClusterStatus.DataCentres[0].ID, gatewayDVName, models.OSDVLabel)
 	if err != nil {
 		return err
 	}
 
-	gatewayDVName := fmt.Sprintf("%s-%s", models.GatewayDVPrefix, strings.ToLower(b.K8sObject.GetName()))
-	gatewayDV, err := createDV(
+	gatewayName := fmt.Sprintf("%s-%s", models.GatewayVMPrefix, b.K8sObject.GetName())
+	gatewayVM, err := reconcileVM(
 		ctx,
 		b,
-		gatewayDVName,
 		b.ClusterStatus.DataCentres[0].ID,
-		gatewayDVSize,
-		true,
-	)
+		gatewayName,
+		models.GatewayRack,
+		gatewayDV.Name)
 	if err != nil {
 		return err
 	}
 
-	gatewayCPU := resource.Quantity{}
-	gatewayCPU.Set(b.OnPremisesSpec.SSHGatewayCPU)
-
-	gatewayMemory, err := resource.ParseQuantity(b.OnPremisesSpec.SSHGatewayMemory)
+	_, err = reconcileService(ctx, b, b.ClusterStatus.DataCentres[0].ID, gatewayVM.Name, models.ExposeServiceRoleLabel)
 	if err != nil {
 		return err
 	}
 
-	gatewayName := fmt.Sprintf("%s-%s", models.GatewayVMPrefix, strings.ToLower(b.K8sObject.GetName()))
-
-	gatewayVM := &virtcorev1.VirtualMachine{}
-	err = b.K8sClient.Get(ctx, types.NamespacedName{
-		Namespace: b.K8sObject.GetNamespace(),
-		Name:      gatewayName,
-	}, gatewayVM)
-	if client.IgnoreNotFound(err) != nil {
+	_, err = reconcileService(ctx, b, b.ClusterStatus.DataCentres[0].ID, gatewayVM.Name, models.ClusterIPServiceRoleLabel)
+	if err != nil {
 		return err
-	}
-	if k8serrors.IsNotFound(err) {
-		gatewayVM, err = newVM(
-			ctx,
-			b,
-			gatewayName,
-			b.ClusterStatus.DataCentres[0].ID,
-			models.GatewayRack,
-			gatewayDV.Name,
-			gatewayCPU,
-			gatewayMemory)
-		if err != nil {
-			return err
-		}
-		err = b.K8sClient.Create(ctx, gatewayVM)
-		if err != nil {
-			return err
-		}
-	}
-
-	gatewaySvcName := fmt.Sprintf("%s-%s", models.GatewaySvcPrefix, gatewayName)
-	gatewayExposeService := &k8scorev1.Service{}
-	err = b.K8sClient.Get(ctx, types.NamespacedName{
-		Namespace: b.K8sObject.GetNamespace(),
-		Name:      gatewaySvcName,
-	}, gatewayExposeService)
-
-	if client.IgnoreNotFound(err) != nil {
-		return err
-	}
-	if k8serrors.IsNotFound(err) {
-		gatewayExposeService = newExposeService(
-			b,
-			gatewaySvcName,
-			gatewayName,
-			b.ClusterStatus.DataCentres[0].ID,
-		)
-		err = b.K8sClient.Create(ctx, gatewayExposeService)
-		if err != nil {
-			return err
-		}
-	}
-
-	clusterIPServiceName := fmt.Sprintf("cluster-ip-%s", gatewayName)
-	nodeExposeService := &k8scorev1.Service{}
-	err = b.K8sClient.Get(ctx, types.NamespacedName{
-		Namespace: b.K8sObject.GetNamespace(),
-		Name:      clusterIPServiceName,
-	}, nodeExposeService)
-	if client.IgnoreNotFound(err) != nil {
-		return err
-	}
-	if k8serrors.IsNotFound(err) {
-		nodeExposeService = newClusterIPService(
-			b,
-			clusterIPServiceName,
-			gatewayName,
-			b.ClusterStatus.DataCentres[0].ID,
-		)
-		err = b.K8sClient.Create(ctx, nodeExposeService)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -199,196 +211,260 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 
 func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error {
 	for i, node := range b.ClusterStatus.DataCentres[0].Nodes {
-		nodeOSDiskSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
+		objectName := b.K8sObject.GetName()
+		newOSDVName := fmt.Sprintf("%s-%d-%s", models.NodeOSDVPrefix, i, objectName)
+		nodeOSDV, err := reconcileDV(ctx, b, node.ID, newOSDVName, models.OSDVLabel)
 		if err != nil {
 			return err
 		}
 
-		nodeOSDiskDVName := fmt.Sprintf("%s-%d-%s", models.NodeOSDVPrefix, i, strings.ToLower(b.K8sObject.GetName()))
-		nodeOSDV, err := createDV(
-			ctx,
-			b,
-			nodeOSDiskDVName,
-			node.ID,
-			nodeOSDiskSize,
-			true,
-		)
+		nodeDataDiskDVName := fmt.Sprintf("%s-%d-%s", models.NodeDVPrefix, i, objectName)
+		nodeDataDV, err := reconcileDV(ctx, b, node.ID, nodeDataDiskDVName, models.StorageDVLabel)
 		if err != nil {
 			return err
 		}
 
-		nodeDataDiskDVSize, err := resource.ParseQuantity(b.OnPremisesSpec.DataDiskSize)
+		nodeName := fmt.Sprintf("%s-%d-%s", models.NodeVMPrefix, i, objectName)
+		nodeVM, err := reconcileVM(ctx, b, node.ID, nodeName, node.Rack, nodeOSDV.Name, nodeDataDV.Name)
 		if err != nil {
 			return err
-		}
-
-		nodeDataDiskDVName := fmt.Sprintf("%s-%d-%s", models.NodeDVPrefix, i, strings.ToLower(b.K8sObject.GetName()))
-		nodeDataDV, err := createDV(
-			ctx,
-			b,
-			nodeDataDiskDVName,
-			node.ID,
-			nodeDataDiskDVSize,
-			false,
-		)
-		if err != nil {
-			return err
-		}
-
-		nodeCPU := resource.Quantity{}
-		nodeCPU.Set(b.OnPremisesSpec.NodeCPU)
-
-		nodeMemory, err := resource.ParseQuantity(b.OnPremisesSpec.NodeMemory)
-		if err != nil {
-			return err
-		}
-
-		nodeName := fmt.Sprintf("%s-%d-%s", models.NodeVMPrefix, i, strings.ToLower(b.K8sObject.GetName()))
-
-		nodeVM := &virtcorev1.VirtualMachine{}
-		err = b.K8sClient.Get(ctx, types.NamespacedName{
-			Namespace: b.K8sObject.GetNamespace(),
-			Name:      nodeName,
-		}, nodeVM)
-		if client.IgnoreNotFound(err) != nil {
-			return err
-		}
-		if k8serrors.IsNotFound(err) {
-			nodeVM, err = newVM(
-				ctx,
-				b,
-				nodeName,
-				node.ID,
-				node.Rack,
-				nodeOSDV.Name,
-				nodeCPU,
-				nodeMemory,
-				nodeDataDV.Name,
-			)
-			if err != nil {
-				return err
-			}
-			err = b.K8sClient.Create(ctx, nodeVM)
-			if err != nil {
-				return err
-			}
 		}
 
 		if !b.PrivateNetworkCluster {
-			nodeExposeName := fmt.Sprintf("%s-%s", models.NodeSvcPrefix, nodeName)
-			nodeExposeService := &k8scorev1.Service{}
-			err = b.K8sClient.Get(ctx, types.NamespacedName{
-				Namespace: b.K8sObject.GetNamespace(),
-				Name:      nodeExposeName,
-			}, nodeExposeService)
-			if client.IgnoreNotFound(err) != nil {
-				return err
-			}
-			if k8serrors.IsNotFound(err) {
-				nodeExposeService = newExposeService(
-					b,
-					nodeExposeName,
-					nodeName,
-					node.ID,
-				)
-				err = b.K8sClient.Create(ctx, nodeExposeService)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		headlessServiceName := fmt.Sprintf("%s-%s", models.KubevirtSubdomain, strings.ToLower(b.K8sObject.GetName()))
-		headlessSVC := &k8scorev1.Service{}
-		err = b.K8sClient.Get(ctx, types.NamespacedName{
-			Namespace: b.K8sObject.GetNamespace(),
-			Name:      headlessServiceName,
-		}, headlessSVC)
-
-		if client.IgnoreNotFound(err) != nil {
-			return err
-		}
-		if k8serrors.IsNotFound(err) {
-			headlessSVC = newHeadlessService(
-				b,
-				headlessServiceName,
-			)
-			err = b.K8sClient.Create(ctx, headlessSVC)
+			_, err = reconcileService(ctx, b, node.ID, nodeVM.Name, models.ExposeServiceRoleLabel)
 			if err != nil {
 				return err
 			}
 		}
 
-		clusterIPServiceName := fmt.Sprintf("cluster-ip-%s", nodeName)
-		nodeExposeService := &k8scorev1.Service{}
-		err = b.K8sClient.Get(ctx, types.NamespacedName{
-			Namespace: b.K8sObject.GetNamespace(),
-			Name:      clusterIPServiceName,
-		}, nodeExposeService)
-		if client.IgnoreNotFound(err) != nil {
+		_, err = reconcileService(ctx, b, node.ID, nodeVM.Name, models.HeadlessServiceRoleLabel)
+		if err != nil {
 			return err
 		}
-		if k8serrors.IsNotFound(err) {
-			nodeExposeService = newClusterIPService(
-				b,
-				clusterIPServiceName,
-				nodeName,
-				node.ID,
-			)
-			err = b.K8sClient.Create(ctx, nodeExposeService)
-			if err != nil {
-				return err
-			}
-		}
 
+		_, err = reconcileService(ctx, b, node.ID, nodeVM.Name, models.ClusterIPServiceRoleLabel)
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
+}
+
+func reconcileVM(
+	ctx context.Context,
+	b *onPremisesBootstrap,
+	nodeID,
+	nodeName,
+	rack,
+	osDVName string,
+	storageDVName ...string) (*virtcorev1.VirtualMachine, error) {
+	nodeCPU := resource.Quantity{}
+	var memory string
+	var err error
+
+	switch rack {
+	case models.GatewayRack:
+		nodeCPU.Set(b.OnPremisesSpec.SSHGatewayCPU)
+		memory = b.OnPremisesSpec.SSHGatewayMemory
+	default:
+		nodeCPU.Set(b.OnPremisesSpec.NodeCPU)
+		memory = b.OnPremisesSpec.NodeMemory
+	}
+
+	vmList := &virtcorev1.VirtualMachineList{}
+	err = b.K8sClient.List(ctx, vmList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.NodeIDLabel: nodeID,
+		}),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	nodeMemory, err := resource.ParseQuantity(memory)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vmList.Items) == 0 {
+		vm, err := newVM(
+			ctx,
+			b,
+			nodeName,
+			nodeID,
+			rack,
+			osDVName,
+			nodeCPU,
+			nodeMemory,
+			storageDVName...,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = b.K8sClient.Create(ctx, vm)
+		if err != nil {
+
+			return nil, err
+		}
+
+		return vm, nil
+	}
+
+	return &vmList.Items[0], nil
+}
+
+func reconcileDV(ctx context.Context, b *onPremisesBootstrap, nodeID, diskName, diskRole string) (*cdiv1beta1.DataVolume, error) {
+	dvList := &cdiv1beta1.DataVolumeList{}
+	err := b.K8sClient.List(ctx, dvList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.NodeIDLabel: nodeID,
+			models.DVRoleLabel: diskRole,
+		}),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(dvList.Items) == 0 {
+		dvSize := resource.Quantity{}
+		switch diskRole {
+		case models.OSDVLabel:
+			dvSize, err = resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
+			if err != nil {
+				return nil, err
+			}
+		case models.StorageDVLabel:
+			dvSize, err = resource.ParseQuantity(b.OnPremisesSpec.DataDiskSize)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		dv, err := createDV(
+			ctx,
+			b,
+			diskName,
+			nodeID,
+			diskRole,
+			dvSize,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return dv, nil
+	}
+
+	return &dvList.Items[0], nil
+}
+
+func reconcileService(ctx context.Context, b *onPremisesBootstrap, nodeID, nodeName, role string) (*k8scorev1.Service, error) {
+	svcList := &k8scorev1.ServiceList{}
+	svcLabels := map[string]string{
+		models.ServiceRoleLabel: role,
+		models.ClusterIDLabel:   b.ClusterStatus.ID,
+	}
+
+	var svcName string
+	if role == models.HeadlessServiceRoleLabel {
+		svcName = fmt.Sprintf("%s-%s", role, b.K8sObject.GetName())
+	} else {
+		svcName = fmt.Sprintf("%s-%s", role, nodeName)
+		svcLabels[models.NodeIDLabel] = nodeID
+	}
+
+	err := b.K8sClient.List(ctx, svcList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(svcLabels),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	svc := &k8scorev1.Service{}
+	if len(svcList.Items) == 0 {
+		switch role {
+		case models.ExposeServiceRoleLabel:
+			svc = newExposeService(
+				b,
+				svcName,
+				nodeName,
+				nodeID,
+			)
+		case models.HeadlessServiceRoleLabel:
+			svc = newHeadlessService(
+				b,
+				svcName,
+			)
+		case models.ClusterIPServiceRoleLabel:
+			svc = newClusterIPService(
+				b,
+				svcName,
+				nodeName,
+				nodeID,
+			)
+		}
+		err = b.K8sClient.Create(ctx, svc)
+		if err != nil {
+			return nil, err
+		}
+
+		return svc, nil
+	}
+
+	err = b.K8sClient.Get(ctx, types.NamespacedName{
+		Namespace: b.K8sObject.GetNamespace(),
+		Name:      svcName,
+	}, svc)
+	if err != nil {
+		return nil, err
+	}
+
+	return svc, nil
 }
 
 func createDV(
 	ctx context.Context,
 	b *onPremisesBootstrap,
 	name,
-	nodeID string,
+	nodeID,
+	diskRole string,
 	size resource.Quantity,
-	isOSDisk bool,
 ) (*cdiv1beta1.DataVolume, error) {
-	dv := &cdiv1beta1.DataVolume{}
-	err := b.K8sClient.Get(ctx, types.NamespacedName{
-		Namespace: b.K8sObject.GetNamespace(),
-		Name:      name,
-	}, dv)
-	if client.IgnoreNotFound(err) != nil {
+	dv := newDataDiskDV(
+		b,
+		name,
+		nodeID,
+		diskRole,
+		size,
+	)
+	err := b.K8sClient.Create(ctx, dv)
+	if err != nil {
 		return nil, err
 	}
-	if k8serrors.IsNotFound(err) {
-		dv = newDataDiskDV(
-			b,
-			name,
-			nodeID,
-			size,
-			isOSDisk,
-		)
-		err = b.K8sClient.Create(ctx, dv)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	return dv, nil
 }
 
 func newDataDiskDV(
 	b *onPremisesBootstrap,
 	name,
-	nodeID string,
+	nodeID,
+	diskRole string,
 	storageSize resource.Quantity,
-	isOSDisk bool,
 ) *cdiv1beta1.DataVolume {
 	dvSource := &cdiv1beta1.DataVolumeSource{}
+	dvLabels := map[string]string{
+		models.ClusterIDLabel: b.ClusterStatus.ID,
+		models.NodeIDLabel:    nodeID,
+		models.DVRoleLabel:    diskRole,
+	}
 
-	if isOSDisk {
+	switch diskRole {
+	case models.OSDVLabel:
 		dvSource.HTTP = &cdiv1beta1.DataVolumeSourceHTTP{URL: b.OnPremisesSpec.OSImageURL}
-	} else {
+	case models.StorageDVLabel:
 		dvSource.Blank = &cdiv1beta1.DataVolumeBlankImage{}
 	}
 
@@ -398,12 +474,9 @@ func newDataDiskDV(
 			APIVersion: models.CDIKubevirtV1beta1APIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: b.K8sObject.GetNamespace(),
-			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
-				models.NodeIDLabel:    nodeID,
-			},
+			Name:       name,
+			Namespace:  b.K8sObject.GetNamespace(),
+			Labels:     dvLabels,
 			Finalizers: []string{models.DeletionFinalizer},
 		},
 		Spec: cdiv1beta1.DataVolumeSpec{
@@ -517,10 +590,8 @@ func newVM(
 						{
 							Name: models.Boot,
 							VolumeSource: virtcorev1.VolumeSource{
-								PersistentVolumeClaim: &virtcorev1.PersistentVolumeClaimVolumeSource{
-									PersistentVolumeClaimVolumeSource: k8scorev1.PersistentVolumeClaimVolumeSource{
-										ClaimName: OSDiskDVName,
-									},
+								DataVolume: &virtcorev1.DataVolumeSource{
+									Name: OSDiskDVName,
 								},
 							},
 						},
@@ -566,10 +637,8 @@ func newVM(
 		vm.Spec.Template.Spec.Volumes = append(vm.Spec.Template.Spec.Volumes, virtcorev1.Volume{
 			Name: diskName,
 			VolumeSource: virtcorev1.VolumeSource{
-				PersistentVolumeClaim: &virtcorev1.PersistentVolumeClaimVolumeSource{
-					PersistentVolumeClaimVolumeSource: k8scorev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: dvName,
-					},
+				DataVolume: &virtcorev1.DataVolumeSource{
+					Name: dvName,
 				},
 			},
 		})
@@ -593,8 +662,9 @@ func newExposeService(
 			Name:      svcName,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
-				models.NodeIDLabel:    nodeID,
+				models.ClusterIDLabel:   b.ClusterStatus.ID,
+				models.NodeIDLabel:      nodeID,
+				models.ServiceRoleLabel: models.ExposeServiceRoleLabel,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -622,7 +692,8 @@ func newHeadlessService(
 			Name:      svcName,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel:   b.ClusterStatus.ID,
+				models.ServiceRoleLabel: models.HeadlessServiceRoleLabel,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -758,12 +829,12 @@ func newExposePorts(sp []k8scorev1.ServicePort) []k8scorev1.ServicePort {
 	return ports
 }
 
-func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job {
+func newWatchOnPremisesIPsJob(ctx context.Context, kind string, b *onPremisesBootstrap) scheduler.Job {
 	l := log.Log.WithValues("component", fmt.Sprintf("%sOnPremisesIPsCheckerJob", kind))
 
 	return func() error {
 		allNodePods := &k8scorev1.PodList{}
-		err := b.K8sClient.List(context.Background(), allNodePods, &client.ListOptions{
+		err := b.K8sClient.List(ctx, allNodePods, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(map[string]string{
 				models.ClusterIDLabel: b.ClusterStatus.ID,
 				models.NodeLabel:      models.WorkerNode,
@@ -801,7 +872,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 
 		for _, node := range b.ClusterStatus.DataCentres[0].Nodes {
 			nodePods := &k8scorev1.PodList{}
-			err = b.K8sClient.List(context.Background(), nodePods, &client.ListOptions{
+			err = b.K8sClient.List(ctx, nodePods, &client.ListOptions{
 				LabelSelector: labels.SelectorFromSet(map[string]string{
 					models.ClusterIDLabel: b.ClusterStatus.ID,
 					models.NodeIDLabel:    node.ID,
@@ -837,7 +908,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 
 					b.EventRecorder.Eventf(
 						b.K8sObject, models.Warning, models.CreationFailed,
-						"The private IP addresses of the node are not matching. Reason: %v",
+						"The private IP addresses of the node are not matching. Contact Instaclustr support to resolve the issue. Reason: %v",
 						err,
 					)
 					return err
@@ -846,7 +917,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 
 			if !b.PrivateNetworkCluster {
 				nodeSVCs := &k8scorev1.ServiceList{}
-				err = b.K8sClient.List(context.Background(), nodeSVCs, &client.ListOptions{
+				err = b.K8sClient.List(ctx, nodeSVCs, &client.ListOptions{
 					LabelSelector: labels.SelectorFromSet(map[string]string{
 						models.ClusterIDLabel: b.ClusterStatus.ID,
 						models.NodeIDLabel:    node.ID,
@@ -882,7 +953,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 
 							b.EventRecorder.Eventf(
 								b.K8sObject, models.Warning, models.CreationFailed,
-								"The public IP addresses of the node are not matching. Reason: %v",
+								"The public IP addresses of the node are not matching. Contact Instaclustr support to resolve the issue. Reason: %v",
 								err,
 							)
 							return err
@@ -910,8 +981,9 @@ func newClusterIPService(
 			Name:      svcName,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
-				models.NodeIDLabel:    nodeID,
+				models.ClusterIDLabel:   b.ClusterStatus.ID,
+				models.NodeIDLabel:      nodeID,
+				models.ServiceRoleLabel: models.ClusterIPServiceRoleLabel,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -924,4 +996,81 @@ func newClusterIPService(
 			Type: k8scorev1.ServiceTypeClusterIP,
 		},
 	}
+}
+
+func getReplacedNodes(oldNodesDC, newNodesDC *v1beta1.DataCentreStatus) (removedNode, addedNode *v1beta1.Node) {
+	for _, oldNode := range oldNodesDC.Nodes {
+		for _, newNode := range newNodesDC.Nodes {
+			if newNode.PrivateAddress == "" {
+				addedNode = newNode
+			}
+
+			if oldNode.ID == newNode.ID {
+				removedNode = nil
+				continue
+			}
+			removedNode = oldNode
+		}
+	}
+
+	return
+}
+
+// Tries to delete old node resources and returns NotFound error if all resources already deleted
+func deleteReplacedNodeResources(ctx context.Context, k8sClient client.Client, oldID string) (deleteDone bool, err error) {
+	vmList := &virtcorev1.VirtualMachineList{}
+	err = k8sClient.List(ctx, vmList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.NodeIDLabel: oldID,
+		}),
+	})
+	if err != nil {
+		return false, err
+	}
+
+	dvList := &cdiv1beta1.DataVolumeList{}
+	err = k8sClient.List(ctx, dvList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			models.NodeIDLabel: oldID,
+			models.DVRoleLabel: models.OSDVLabel,
+		}),
+	})
+	if err != nil {
+		return false, err
+	}
+
+	if len(vmList.Items) == 0 &&
+		len(dvList.Items) == 0 {
+		return true, nil
+	}
+
+	for _, vm := range vmList.Items {
+		err = k8sClient.Delete(ctx, &vm)
+		if err != nil {
+			return false, err
+		}
+
+		patch := client.MergeFrom(vm.DeepCopy())
+		controllerutil.RemoveFinalizer(&vm, models.DeletionFinalizer)
+		err = k8sClient.Patch(ctx, &vm, patch)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	for _, dv := range dvList.Items {
+		err = k8sClient.Delete(ctx, &dv)
+		if err != nil {
+			return false, err
+		}
+
+		patch := client.MergeFrom(dv.DeepCopy())
+		controllerutil.RemoveFinalizer(&dv, models.DeletionFinalizer)
+		err = k8sClient.Patch(ctx, &dv, patch)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
 }

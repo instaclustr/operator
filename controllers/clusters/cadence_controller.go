@@ -302,7 +302,7 @@ func (r *CadenceReconciler) handleCreateCluster(
 			return reconcile.Result{}, err
 		}
 
-		err = r.startClusterOnPremisesIPsJob(c, bootstrap)
+		err = r.startClusterOnPremisesIPsJob(ctx, c, bootstrap)
 		if err != nil {
 			l.Error(err, "Cannot start on-premises cluster IPs check job",
 				"cluster ID", c.Status.ID,
@@ -882,8 +882,8 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 	}, nil
 }
 
-func (r *CadenceReconciler) startClusterOnPremisesIPsJob(c *v1beta1.Cadence, b *onPremisesBootstrap) error {
-	job := newWatchOnPremisesIPsJob(c.Kind, b)
+func (r *CadenceReconciler) startClusterOnPremisesIPsJob(ctx context.Context, c *v1beta1.Cadence, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(ctx, c.Kind, b)
 
 	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {

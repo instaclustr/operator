@@ -295,7 +295,7 @@ func (r *RedisReconciler) handleCreateCluster(
 				return reconcile.Result{}, err
 			}
 
-			err = r.startClusterOnPremisesIPsJob(redis, bootstrap)
+			err = r.startClusterOnPremisesIPsJob(ctx, redis, bootstrap)
 			if err != nil {
 				l.Error(err, "Cannot start on-premises cluster IPs check job",
 					"cluster ID", redis.Status.ID,
@@ -711,8 +711,8 @@ func (r *RedisReconciler) handleDeleteCluster(
 	return models.ExitReconcile, nil
 }
 
-func (r *RedisReconciler) startClusterOnPremisesIPsJob(redis *v1beta1.Redis, b *onPremisesBootstrap) error {
-	job := newWatchOnPremisesIPsJob(redis.Kind, b)
+func (r *RedisReconciler) startClusterOnPremisesIPsJob(ctx context.Context, redis *v1beta1.Redis, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(ctx, redis.Kind, b)
 
 	err := r.Scheduler.ScheduleJob(redis.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
