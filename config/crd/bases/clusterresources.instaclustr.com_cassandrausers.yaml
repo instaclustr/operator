@@ -36,6 +36,8 @@ spec:
             description: CassandraUserSpec defines the desired state of CassandraUser
             properties:
               secretRef:
+                description: SecretRef references to the secret which stores user's
+                  credentials
                 properties:
                   name:
                     type: string

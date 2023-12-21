@@ -25,6 +25,7 @@ import (
 
 // CassandraUserSpec defines the desired state of CassandraUser
 type CassandraUserSpec struct {
+	// SecretRef references to the secret which stores user's credentials
 	SecretRef *SecretReference `json:"secretRef"`
 }
 

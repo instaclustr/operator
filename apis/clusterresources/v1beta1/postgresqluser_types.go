@@ -25,6 +25,7 @@ import (
 
 // PostgreSQLUserSpec defines the desired state of PostgreSQLUser
 type PostgreSQLUserSpec struct {
+	// SecretRef references to the secret which stores user's credentials
 	SecretRef *SecretReference `json:"secretRef"`
 }
 

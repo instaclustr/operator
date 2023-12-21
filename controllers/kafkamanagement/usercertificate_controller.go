@@ -40,6 +40,7 @@ import (
 
 	clustersv1beta1 "github.com/instaclustr/operator/apis/clusters/v1beta1"
 	kafkamanagementv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
+	"github.com/instaclustr/operator/pkg/apiextensions"
 	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
@@ -311,12 +312,10 @@ func (r *UserCertificateReconciler) createCSR(
 		return err
 	}
 
-	csr.Spec.SecretRef = &kafkamanagementv1beta1.FromSecret{
-		Reference: kafkamanagementv1beta1.Reference{
-			Name:      csrSecret.Name,
-			Namespace: csrSecret.Namespace,
-		},
-		Key: models.CSRSecretKey,
+	csr.Spec.SecretRef = &apiextensions.ObjectFieldReference{
+		Name:      csrSecret.Name,
+		Namespace: csrSecret.Namespace,
+		Key:       models.CSRSecretKey,
 	}
 
 	return r.Update(ctx, csr)

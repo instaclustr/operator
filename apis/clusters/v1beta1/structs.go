@@ -20,9 +20,8 @@ import (
 	"encoding/json"
 	"net"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
+	"github.com/instaclustr/operator/pkg/apiextensions"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
@@ -724,19 +723,10 @@ func (cs *ClusterStatus) PrivateLinkStatusesEqual(iStatus *ClusterStatus) bool {
 	return true
 }
 
-type Reference struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
+// +kubebuilder:object:generate:=false
+type Reference = apiextensions.ObjectReference
 
-func (r *Reference) AsNamespacedName() types.NamespacedName {
-	return types.NamespacedName{
-		Name:      r.Name,
-		Namespace: r.Namespace,
-	}
-}
-
-type References []*Reference
+type References []*apiextensions.ObjectReference
 
 // Diff returns difference between two References.
 // Added stores elements which are presented in new References, but aren't presented in old.
