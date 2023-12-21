@@ -34,6 +34,7 @@ import (
 
 	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
+	"github.com/instaclustr/operator/pkg/apiextensions"
 	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
@@ -81,7 +82,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 			Namespace: defaultNS,
 		},
 		Spec: clusterresource.CassandraUserSpec{
-			SecretRef: &clusterresource.SecretReference{
+			SecretRef: &apiextensions.ObjectReference{
 				Namespace: defaultNS,
 				Name:      secretManifest.ObjectMeta.Name,
 			},
@@ -217,7 +218,7 @@ var _ = Describe("Basic Cassandra User controller + Basic Cassandra cluster cont
 					Namespace: defaultNS,
 				},
 				Spec: clusterresource.CassandraUserSpec{
-					SecretRef: &clusterresource.SecretReference{
+					SecretRef: &apiextensions.ObjectReference{
 						Name:      secretManifest2.Name,
 						Namespace: secretManifest2.Namespace,
 					}},

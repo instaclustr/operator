@@ -25,6 +25,7 @@ import (
 
 // OpenSearchUserSpec defines the desired state of OpenSearchUser
 type OpenSearchUserSpec struct {
+	// SecretRef references to the secret which stores user's credentials
 	SecretRef *SecretReference `json:"secretRef"`
 }
 

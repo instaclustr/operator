@@ -182,6 +182,7 @@ spec:
               onPremisesSpec:
                 properties:
                   cloudInitScriptRef:
+                    description: ObjectReference is namespaced reference to an object
                     properties:
                       name:
                         type: string

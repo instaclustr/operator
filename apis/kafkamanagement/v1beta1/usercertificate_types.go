@@ -20,15 +20,16 @@ import (
 	"crypto/x509/pkix"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/instaclustr/operator/pkg/apiextensions"
 )
 
 // UserCertificateSpec defines the desired state of UserCertificateSpec
 type UserCertificateSpec struct {
 	// SecretRef references to the secret which stores pre-generated certificate request.
 	// +kubebuilder:validation:XValidation:message="Cannot be changed after it is set",rule="self == oldSelf"
-	SecretRef *FromSecret `json:"secretRef,omitempty"`
+	SecretRef *apiextensions.ObjectFieldReference `json:"secretRef,omitempty"`
 
 	// UserRef references to the KafkaUser resource to whom a certificate will be created.
 	// +kubebuilder:validation:XValidation:message="Cannot be changed after it is set",rule="self == oldSelf"
@@ -63,22 +64,8 @@ func (c *CSRTemplate) ToSubject() pkix.Name {
 	}
 }
 
-type FromSecret struct {
-	Reference `json:",inline"`
-	Key       string `json:"key"`
-}
-
-type Reference struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
-
-func (r *Reference) AsNamespacedName() types.NamespacedName {
-	return types.NamespacedName{
-		Name:      r.Name,
-		Namespace: r.Namespace,
-	}
-}
+// +kubebuilder:object:generate:=false
+type Reference = apiextensions.ObjectReference
 
 // UserCertificateStatus defines the observed state of UserCertificateStatus
 type UserCertificateStatus struct {

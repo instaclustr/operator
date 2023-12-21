@@ -25,6 +25,7 @@ import (
 
 // RedisUserSpec defines the desired state of RedisUser
 type RedisUserSpec struct {
+	// SecretRef references to the secret which stores user's credentials
 	SecretRef          *SecretReference `json:"secretRef"`
 	InitialPermissions string           `json:"initialPermissions"`
 }

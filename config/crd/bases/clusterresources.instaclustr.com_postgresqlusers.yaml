@@ -36,6 +36,8 @@ spec:
             description: PostgreSQLUserSpec defines the desired state of PostgreSQLUser
             properties:
               secretRef:
+                description: SecretRef references to the secret which stores user's
+                  credentials
                 properties:
                   name:
                     type: string

@@ -38,6 +38,8 @@ spec:
               initialPermissions:
                 type: string
               secretRef:
+                description: SecretRef references to the secret which stores user's
+                  credentials
                 properties:
                   name:
                     type: string

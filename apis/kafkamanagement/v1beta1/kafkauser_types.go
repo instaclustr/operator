@@ -21,17 +21,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
 // KafkaUserSpec defines the desired state of KafkaUser
 type KafkaUserSpec struct {
-	SecretRef            *v1beta1.SecretReference `json:"secretRef"`
-	InitialPermissions   string                   `json:"initialPermissions"`
-	OverrideExistingUser bool                     `json:"overrideExistingUser,omitempty"`
-	SASLSCRAMMechanism   string                   `json:"saslScramMechanism"`
-	AuthMechanism        string                   `json:"authMechanism"`
+	// SecretRef references to the secret which stores user's credentials
+	SecretRef            *Reference `json:"secretRef"`
+	InitialPermissions   string     `json:"initialPermissions"`
+	OverrideExistingUser bool       `json:"overrideExistingUser,omitempty"`
+	SASLSCRAMMechanism   string     `json:"saslScramMechanism"`
+	AuthMechanism        string     `json:"authMechanism"`
 }
 
 // KafkaUserStatus defines the observed state of KafkaUser

@@ -18,6 +18,8 @@ package v1beta1
 
 import (
 	"encoding/json"
+
+	"github.com/instaclustr/operator/pkg/apiextensions"
 )
 
 type VPCPeeringSpec struct {
@@ -53,7 +55,5 @@ type immutablePeeringFields struct {
 	DataCentreID string
 }
 
-type SecretReference struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
+// +kubebuilder:object:generate:=false
+type SecretReference = apiextensions.ObjectReference

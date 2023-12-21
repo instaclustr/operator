@@ -135,6 +135,7 @@ spec:
               onPremisesSpec:
                 properties:
                   cloudInitScriptRef:
+                    description: ObjectReference is namespaced reference to an object
                     properties:
                       name:
                         type: string
@@ -253,6 +254,7 @@ spec:
                 type: array
               userRefs:
                 items:
+                  description: ObjectReference is namespaced reference to an object
                   properties:
                     name:
                       type: string
