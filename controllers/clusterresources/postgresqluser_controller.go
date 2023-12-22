@@ -35,10 +35,10 @@ import (
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
-	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
+	"github.com/instaclustr/operator/pkg/utils"
 )
 
 // PostgreSQLUserReconciler reconciles a PostgreSQLUser object

@@ -41,10 +41,10 @@ import (
 	clustersv1beta1 "github.com/instaclustr/operator/apis/clusters/v1beta1"
 	kafkamanagementv1beta1 "github.com/instaclustr/operator/apis/kafkamanagement/v1beta1"
 	"github.com/instaclustr/operator/pkg/apiextensions"
-	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
+	"github.com/instaclustr/operator/pkg/utils"
 )
 
 // UserCertificateReconciler reconciles a CertificateSigningRequest object

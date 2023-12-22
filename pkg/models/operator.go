@@ -181,3 +181,8 @@ const (
 	CSRSecretKey               = "csr"
 	PrivateKeySecretKey        = "privateKey"
 )
+
+const (
+	ExternalChangesBaseMessage = "There are external changes on the Instaclustr console. Please reconcile the specification manually."
+	SpecPath                   = "path"
+)

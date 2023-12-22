@@ -33,10 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
-	"github.com/instaclustr/operator/pkg/helpers/utils"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
+	"github.com/instaclustr/operator/pkg/utils"
 )
 
 // OpenSearchUserReconciler reconciles a OpenSearchUser object

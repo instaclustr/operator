@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/go-version"
 	v1 "k8s.io/api/core/v1"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/dcomparison"
 )
 
 // confirmDeletion confirms if resource is deleting and set appropriate annotation.
@@ -202,10 +204,35 @@ func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
 		return "", err
 	}
 
-	msg := "There are external changes on the Instaclustr console. Please reconcile the specification manually. "
-	specDifference := fmt.Sprintf("k8s spec: %s; data from instaclustr: %s", k8sData, iData)
+	var k8sSpecMap map[string]any
+	err = json.Unmarshal(k8sData, &k8sSpecMap)
+	if err != nil {
+		return "", err
+	}
 
-	return msg + specDifference, nil
+	var iSpecMap map[string]any
+	err = json.Unmarshal(iData, &iSpecMap)
+	if err != nil {
+		return "", err
+	}
+
+	diffs := dcomparison.MapsDiff(models.SpecPath, k8sSpecMap, iSpecMap)
+
+	return fmt.Sprintf("%s Diffs: %s", models.ExternalChangesBaseMessage, prepareDiffMessage(diffs)), nil
+}
+
+func prepareDiffMessage(diffs dcomparison.ObjectDiffs) string {
+	var diffMessages []string
+	for _, diff := range diffs {
+		diffMessages = append(diffMessages, fmt.Sprintf(
+			"{field: %s, k8sValue: %v, instaclustrValue: %v}",
+			diff.Field,
+			diff.Value1,
+			diff.Value2,
+		))
+	}
+
+	return strings.Join(diffMessages, ", ")
 }
 
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +
