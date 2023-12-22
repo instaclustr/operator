@@ -139,7 +139,7 @@ func init() {
 }
 
 func (pg *PostgreSQL) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(pg).String() + "/" + jobName
+	return pg.Kind + "/" + client.ObjectKeyFromObject(pg).String() + "/" + jobName
 }
 
 func (pg *PostgreSQL) NewPatch() client.Patch {

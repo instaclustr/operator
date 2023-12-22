@@ -168,7 +168,7 @@ type specificCassandraDC struct {
 }
 
 func (c *Cassandra) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(c).String() + "/" + jobName
+	return c.Kind + "/" + client.ObjectKeyFromObject(c).String() + "/" + jobName
 }
 
 func (c *Cassandra) NewPatch() client.Patch {

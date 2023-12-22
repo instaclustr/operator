@@ -65,7 +65,7 @@ type AWSVPCPeeringList struct {
 }
 
 func (aws *AWSVPCPeering) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(aws).String() + "/" + jobName
+	return aws.Kind + "/" + client.ObjectKeyFromObject(aws).String() + "/" + jobName
 }
 
 func (aws *AWSVPCPeering) NewPatch() client.Patch {

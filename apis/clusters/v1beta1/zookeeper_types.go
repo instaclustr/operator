@@ -78,7 +78,7 @@ func init() {
 }
 
 func (z *Zookeeper) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(z).String() + "/" + jobName
+	return z.Kind + "/" + client.ObjectKeyFromObject(z).String() + "/" + jobName
 }
 
 func (z *Zookeeper) NewPatch() client.Patch {

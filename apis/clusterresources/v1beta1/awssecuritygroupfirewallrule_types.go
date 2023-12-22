@@ -59,7 +59,7 @@ type AWSSecurityGroupFirewallRuleList struct {
 }
 
 func (fr *AWSSecurityGroupFirewallRule) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(fr).String() + "/" + jobName
+	return fr.Kind + "/" + client.ObjectKeyFromObject(fr).String() + "/" + jobName
 }
 
 func (fr *AWSSecurityGroupFirewallRule) NewPatch() client.Patch {

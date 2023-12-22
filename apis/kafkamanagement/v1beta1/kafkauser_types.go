@@ -60,10 +60,6 @@ type KafkaUserList struct {
 	Items           []KafkaUser `json:"items"`
 }
 
-func (ku *KafkaUser) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(ku).String() + "/" + jobName
-}
-
 func (ku *KafkaUser) NewPatch() client.Patch {
 	old := ku.DeepCopy()
 	return client.MergeFrom(old)

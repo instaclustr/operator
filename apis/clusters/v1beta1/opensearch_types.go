@@ -561,7 +561,7 @@ type OpenSearchList struct {
 }
 
 func (os *OpenSearch) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(os).String() + "/" + jobName
+	return os.Kind + "/" + client.ObjectKeyFromObject(os).String() + "/" + jobName
 }
 
 func (os *OpenSearch) NewPatch() client.Patch {

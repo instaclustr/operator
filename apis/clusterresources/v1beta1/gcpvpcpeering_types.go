@@ -63,7 +63,7 @@ type GCPVPCPeeringList struct {
 }
 
 func (gcp *GCPVPCPeering) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(gcp).String() + "/" + jobName
+	return gcp.Kind + "/" + client.ObjectKeyFromObject(gcp).String() + "/" + jobName
 }
 
 func (gcp *GCPVPCPeering) NewPatch() client.Patch {

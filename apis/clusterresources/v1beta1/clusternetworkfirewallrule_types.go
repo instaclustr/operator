@@ -59,7 +59,7 @@ type ClusterNetworkFirewallRuleList struct {
 }
 
 func (fr *ClusterNetworkFirewallRule) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(fr).String() + "/" + jobName
+	return fr.Kind + "/" + client.ObjectKeyFromObject(fr).String() + "/" + jobName
 }
 
 func (fr *ClusterNetworkFirewallRule) NewPatch() client.Patch {

@@ -78,7 +78,7 @@ type MaintenanceEventsList struct {
 }
 
 func (me *MaintenanceEvents) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(me).String() + "/" + jobName
+	return me.Kind + "/" + client.ObjectKeyFromObject(me).String() + "/" + jobName
 }
 
 func (me *MaintenanceEvents) NewPatch() client.Patch {

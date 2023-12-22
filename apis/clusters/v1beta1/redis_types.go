@@ -123,7 +123,7 @@ type immutableRedisDCFields struct {
 }
 
 func (r *Redis) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(r).String() + "/" + jobName
+	return r.Kind + "/" + client.ObjectKeyFromObject(r).String() + "/" + jobName
 }
 
 func (r *Redis) NewPatch() client.Patch {
