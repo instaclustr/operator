@@ -65,7 +65,7 @@ type AzureVNetPeeringList struct {
 }
 
 func (azure *AzureVNetPeering) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(azure).String() + "/" + jobName
+	return azure.Kind + "/" + client.ObjectKeyFromObject(azure).String() + "/" + jobName
 }
 
 func (azure *AzureVNetPeering) NewPatch() client.Patch {

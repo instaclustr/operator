@@ -36,7 +36,6 @@ import (
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
-	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
 // OpenSearchEgressRulesReconciler reconciles a OpenSearchEgressRules object
@@ -44,7 +43,6 @@ type OpenSearchEgressRulesReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	API           instaclustr.API
-	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
 }
 

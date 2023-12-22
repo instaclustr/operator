@@ -150,7 +150,7 @@ func (m *Mirror) NewPatch() client.Patch {
 }
 
 func (m *Mirror) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(m).String() + "/" + jobName
+	return m.Kind + "/" + client.ObjectKeyFromObject(m).String() + "/" + jobName
 }
 
 func (a *MirrorStatus) IsEqual(b *MirrorStatus) bool {

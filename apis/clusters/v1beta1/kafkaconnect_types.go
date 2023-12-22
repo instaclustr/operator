@@ -147,7 +147,7 @@ type KafkaConnectList struct {
 }
 
 func (k *KafkaConnect) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(k).String() + "/" + jobName
+	return k.Kind + "/" + client.ObjectKeyFromObject(k).String() + "/" + jobName
 }
 
 func (k *KafkaConnect) NewPatch() client.Patch {

@@ -63,7 +63,7 @@ type AWSEncryptionKeyList struct {
 }
 
 func (aws *AWSEncryptionKey) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(aws).String() + "/" + jobName
+	return aws.Kind + "/" + client.ObjectKeyFromObject(aws).String() + "/" + jobName
 }
 
 func (aws *AWSEncryptionKey) NewPatch() client.Patch {

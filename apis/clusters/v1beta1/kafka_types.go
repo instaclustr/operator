@@ -140,7 +140,7 @@ func init() {
 }
 
 func (k *Kafka) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(k).String() + "/" + jobName
+	return k.Kind + "/" + client.ObjectKeyFromObject(k).String() + "/" + jobName
 }
 
 func (k *Kafka) NewPatch() client.Patch {

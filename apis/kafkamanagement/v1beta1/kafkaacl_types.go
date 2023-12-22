@@ -68,7 +68,7 @@ type KafkaACLList struct {
 }
 
 func (kacl *KafkaACL) GetJobID(jobName string) string {
-	return client.ObjectKeyFromObject(kacl).String() + "/" + jobName
+	return kacl.Kind + "/" + client.ObjectKeyFromObject(kacl).String() + "/" + jobName
 }
 
 func (kacl *KafkaACL) NewPatch() client.Patch {

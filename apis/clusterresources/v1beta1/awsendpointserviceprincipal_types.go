@@ -60,12 +60,12 @@ type AWSEndpointServicePrincipal struct {
 	Status AWSEndpointServicePrincipalStatus `json:"status,omitempty"`
 }
 
-func (r *AWSEndpointServicePrincipal) NewPatch() client.Patch {
-	return client.MergeFrom(r.DeepCopy())
+func (p *AWSEndpointServicePrincipal) NewPatch() client.Patch {
+	return client.MergeFrom(p.DeepCopy())
 }
 
-func (r *AWSEndpointServicePrincipal) GetJobID(job string) string {
-	return r.Namespace + "/" + r.Name + "/" + job
+func (p *AWSEndpointServicePrincipal) GetJobID(job string) string {
+	return p.Kind + "/" + p.Namespace + "/" + p.Name + "/" + job
 }
 
 //+kubebuilder:object:root=true
