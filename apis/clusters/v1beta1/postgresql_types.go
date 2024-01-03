@@ -453,12 +453,12 @@ func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 
 		err = newDC.validateIntraDCImmutableFields(oldDC.IntraDataCentreReplication)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		err = newDC.validateInterDCImmutableFields(oldDC.InterDataCentreReplication)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		if newDC.NodesNumber != oldDC.NodesNumber {
