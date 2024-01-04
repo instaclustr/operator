@@ -16,6 +16,7 @@
 | pgRestoreFrom         | Object ([PgRestoreFrom](#PgRestoreFromObject))                              | Triggers a restore cluster operation.                                                                                                                                                                                                                                                                                                        |
 | resizeSettings        | Array of objects ([ResizeSettings](#ResizeSettingsObject)) <br /> _mutable_ | Settings to determine how resize requests will be performed for the cluster.                                                                                                                                                                                                                                                                 |
 | onPremisesSpec        | Object ([OnPremisesSpec](#OnPremisesSpecObject))                            | Specifies settings to provision on-premises cluster inside K8s cluster.                                                                                                                                                                                                                                                                      |
+| extensions            | Array of objects ([Extension](#ExtensionObject))                            | List of PostgreSQL extensions.                                                                                                                                                                                                                                                                                                               |
 
 ### ResizeSettingsObject
 | Field                  | Type    | Description                                                                                                           |
@@ -113,6 +114,13 @@
 |-----------|--------|---------------------------------------------------|
 | name      | string | Name of the cloud-init secret.                    |
 | namespace | string | Namespace in which the cloud-init secret located. |
+
+### ExtensionObject
+
+| Field                       | Type   | Description                |
+|-----------------------------|--------|----------------------------|
+| name <br /> **required**    | string | PostgreSQL extension name. |
+| enabled <br /> **required** | bool   | Is enabled?                |
 
 ## Cluster creation example
 
