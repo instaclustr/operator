@@ -47,6 +47,9 @@ spec:
 #      name: postgresqluser-sample
   privateNetworkCluster: false
   synchronousModeStrict: false
+  extensions:
+    - name: PgVector
+      enabled: true
 #  resizeSettings:
 #    - notifySupportContacts: false
 #      concurrency: 1

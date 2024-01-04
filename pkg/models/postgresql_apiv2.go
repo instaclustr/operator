@@ -29,6 +29,7 @@ type PGCluster struct {
 	CurrentClusterOperationStatus string             `json:"currentClusterOperationStatus,omitempty"`
 	Status                        string             `json:"status,omitempty"`
 	Description                   string             `json:"description,omitempty"`
+	Extensions                    []*PGExtension     `json:"extensions,omitempty"`
 }
 
 type PGBouncer struct {
@@ -67,4 +68,9 @@ type ConfigurationProperties struct {
 type PGClusterUpdate struct {
 	DataCentres    []*PGDataCentre   `json:"dataCentres"`
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+}
+
+type PGExtension struct {
+	Name    string `json:"extensionName"`
+	Enabled bool   `json:"extensionEnabled"`
 }

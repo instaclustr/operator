@@ -74,6 +74,7 @@ type PgRestoreFrom struct {
 }
 
 // PgSpec defines the desired state of PostgreSQL
+// +kubebuilder:validation:XValidation:rule="has(self.extensions) == has(oldSelf.extensions)",message="extensions cannot be changed after it is set"
 type PgSpec struct {
 	PgRestoreFrom         *PgRestoreFrom `json:"pgRestoreFrom,omitempty"`
 	Cluster               `json:",inline"`
@@ -84,6 +85,8 @@ type PgSpec struct {
 	UserRefs              []*Reference      `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="extensions cannot be changed after it is set"
+	Extensions PgExtensions `json:"extensions,omitempty"`
 }
 
 // PgStatus defines the observed state of PostgreSQL
@@ -220,6 +223,7 @@ func (pgs *PgSpec) ToInstAPI() *models.PGCluster {
 		PrivateNetworkCluster: pgs.PrivateNetworkCluster,
 		SLATier:               pgs.SLATier,
 		TwoFactorDelete:       pgs.TwoFactorDeletesToInstAPI(),
+		Extensions:            pgs.Extensions.ToInstAPI(),
 	}
 }
 
@@ -696,4 +700,26 @@ func (pg *PostgreSQL) GetHeadlessPorts() []k8scorev1.ServicePort {
 		},
 	}
 	return headlessPorts
+}
+
+// PgExtension defines desired state of an extension
+type PgExtension struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+}
+
+// PgExtensions defines desired state of extensions
+type PgExtensions []PgExtension
+
+func (p PgExtensions) ToInstAPI() []*models.PGExtension {
+	iExtensions := make([]*models.PGExtension, 0, len(p))
+
+	for _, ext := range p {
+		iExtensions = append(iExtensions, &models.PGExtension{
+			Name:    ext.Name,
+			Enabled: ext.Enabled,
+		})
+	}
+
+	return iExtensions
 }

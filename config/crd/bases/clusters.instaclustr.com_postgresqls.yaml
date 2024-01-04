@@ -129,6 +129,23 @@ spec:
                 type: array
               description:
                 type: string
+              extensions:
+                description: PgExtensions defines desired state of extensions
+                items:
+                  description: PgExtension defines desired state of an extension
+                  properties:
+                    enabled:
+                      type: boolean
+                    name:
+                      type: string
+                  required:
+                  - enabled
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-validations:
+                - message: extensions cannot be changed after it is set
+                  rule: self == oldSelf
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
@@ -268,6 +285,9 @@ spec:
               version:
                 type: string
             type: object
+            x-kubernetes-validations:
+            - message: extensions cannot be changed after it is set
+              rule: has(self.extensions) == has(oldSelf.extensions)
           status:
             description: PgStatus defines the observed state of PostgreSQL
             properties:
