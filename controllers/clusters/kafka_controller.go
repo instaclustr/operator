@@ -252,7 +252,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Ka
 				return reconcile.Result{}, err
 			}
 
-			err = r.startClusterOnPremisesIPsJob(k, bootstrap)
+			err = r.startClusterOnPremisesIPsJob(ctx, k, bootstrap)
 			if err != nil {
 				l.Error(err, "Cannot start on-premises cluster IPs check job",
 					"cluster ID", k.Status.ID,
@@ -574,8 +574,8 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, k *v1beta1.Ka
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) startClusterOnPremisesIPsJob(k *v1beta1.Kafka, b *onPremisesBootstrap) error {
-	job := newWatchOnPremisesIPsJob(k.Kind, b)
+func (r *KafkaReconciler) startClusterOnPremisesIPsJob(ctx context.Context, k *v1beta1.Kafka, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(ctx, k.Kind, b)
 
 	err := r.Scheduler.ScheduleJob(k.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {

@@ -73,4 +73,5 @@ var (
 	ErrEmptyName                                  = errors.New("name field is empty")
 	ErrCreateClusterWithMultiDC                   = errors.New("Multiple data center is still not supported. Please create a cluster with one data centre and add a second one when the cluster is in the running state")
 	ErrOnPremicesWithMultiDC                      = errors.New("on-premises cluster can be provisioned with only one data centre")
+	ErrNoNodeToReplace                            = errors.New("no nodes to replace")
 )

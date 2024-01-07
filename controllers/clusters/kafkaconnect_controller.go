@@ -270,7 +270,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 			return reconcile.Result{}, err
 		}
 
-		err = r.startClusterOnPremisesIPsJob(kc, bootstrap)
+		err = r.startClusterOnPremisesIPsJob(ctx, kc, bootstrap)
 		if err != nil {
 			l.Error(err, "Cannot start on-premises cluster IPs check job",
 				"cluster ID", kc.Status.ID,
@@ -603,8 +603,8 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 	return nil
 }
 
-func (r *KafkaConnectReconciler) startClusterOnPremisesIPsJob(k *v1beta1.KafkaConnect, b *onPremisesBootstrap) error {
-	job := newWatchOnPremisesIPsJob(k.Kind, b)
+func (r *KafkaConnectReconciler) startClusterOnPremisesIPsJob(ctx context.Context, k *v1beta1.KafkaConnect, b *onPremisesBootstrap) error {
+	job := newWatchOnPremisesIPsJob(ctx, k.Kind, b)
 
 	err := r.Scheduler.ScheduleJob(k.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {

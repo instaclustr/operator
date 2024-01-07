@@ -1,12 +1,15 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
-  name: cassandra-on-prem-cluster
+  name: cassandra-on-prem-cluster-test
 spec:
-  name: "danylo-on-prem-cassandra"
+  name: "test-on-prem-cassandra"
   version: "4.0.10"
   privateNetworkCluster: false
   onPremisesSpec:
+    cloudInitScriptRef:
+      name: instaclustr-cloud-init-secret
+      namespace: default
     storageClassName: managed-csi-premium
     osDiskSize: 20Gi
     dataDiskSize: 200Gi
@@ -15,9 +18,6 @@ spec:
     nodeCPU: 2
     nodeMemory: 8192Mi
     osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
-    cloudInitScriptRef:
-      namespace: default
-      name: instaclustr-cloud-init-secret
   dataCentres:
     - name: "onPremCassandra"
       region: "CLIENT_DC"
