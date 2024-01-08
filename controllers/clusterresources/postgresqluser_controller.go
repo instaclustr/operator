@@ -304,10 +304,17 @@ func (r *PostgreSQLUserReconciler) createUser(
 		}
 	}
 
-	createUserQuery := fmt.Sprintf(`CREATE USER "%s" WITH PASSWORD '%s'`, newUserName, newPassword)
-	err = r.ExecPostgreSQLQuery(ctx, createUserQuery, defaultCreds, clusterName, defaultUserSecretNamespacedName)
+	userExists, err := r.checkIfPostgreSQLUserExists(ctx, defaultCreds, clusterName, newUserName, defaultUserSecretNamespacedName)
 	if err != nil {
 		return err
+	}
+
+	if !userExists {
+		createUserQuery := fmt.Sprintf(`CREATE USER "%s" WITH PASSWORD '%s'`, newUserName, newPassword)
+		err = r.ExecPostgreSQLQuery(ctx, createUserQuery, defaultCreds, clusterName, defaultUserSecretNamespacedName)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -323,13 +330,54 @@ func (r *PostgreSQLUserReconciler) deleteUser(
 		return err
 	}
 
-	deleteUserQuery := fmt.Sprintf(`DROP USER IF EXISTS "%s"`, newUserName)
-	err = r.ExecPostgreSQLQuery(ctx, deleteUserQuery, defaultCreds, clusterName, defaultUserSecretNamespacedName)
+	userExists, err := r.checkIfPostgreSQLUserExists(ctx, defaultCreds, clusterName, newUserName, defaultUserSecretNamespacedName)
 	if err != nil {
 		return err
 	}
 
+	if userExists {
+		deleteUserQuery := fmt.Sprintf(`DROP USER IF EXISTS "%s"`, newUserName)
+		err = r.ExecPostgreSQLQuery(ctx, deleteUserQuery, defaultCreds, clusterName, defaultUserSecretNamespacedName)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (r *PostgreSQLUserReconciler) checkIfPostgreSQLUserExists(
+	ctx context.Context,
+	defaultCreds *models.Credentials,
+	clusterName string,
+	newUserName string,
+	defaultUserSecretNamespacedName clusterresourcesv1beta1.NamespacedName,
+) (bool, error) {
+	getUserQuery := fmt.Sprintf(`SELECT * FROM user WHERE user='%s'`, newUserName)
+
+	serviceName := fmt.Sprintf(models.ExposeServiceNameTemplate, clusterName)
+	host := fmt.Sprintf("%s.%s", serviceName, defaultUserSecretNamespacedName.Namespace)
+
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?target_session_attrs=read-write",
+		defaultCreds.Username, defaultCreds.Password, host, models.DefaultPgDbPortValue, models.DefaultPgDbNameValue)
+
+	conn, err := pgx.Connect(ctx, dbURL)
+	if err != nil {
+		return false, fmt.Errorf("cannot establish a connection with a PostgreSQL server, err: %w", err)
+	}
+	defer conn.Close(ctx)
+
+	rows, err := conn.Query(ctx, getUserQuery)
+	if err != nil {
+		return false, fmt.Errorf("cannot execute query in PostgreSQL, err: %w", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return false, fmt.Errorf("cannot get user from DB, err: %w", err)
+	}
+
+	return true, nil
 }
 
 func (r *PostgreSQLUserReconciler) ExecPostgreSQLQuery(
