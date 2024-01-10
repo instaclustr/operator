@@ -210,3 +210,160 @@ func (cv *cassandraValidator) ValidateDelete(ctx context.Context, obj runtime.Ob
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
+
+type immutableCassandraFields struct {
+	specificCassandra
+	immutableCluster
+}
+
+type specificCassandra struct {
+	LuceneEnabled       bool
+	PasswordAndUserAuth bool
+}
+
+type immutableCassandraDCFields struct {
+	immutableDC
+	specificCassandraDC
+}
+
+type specificCassandraDC struct {
+	replicationFactor              int
+	continuousBackup               bool
+	privateIpBroadcastForDiscovery bool
+	clientToClusterEncryption      bool
+}
+
+func (cs *CassandraSpec) newImmutableFields() *immutableCassandraFields {
+	return &immutableCassandraFields{
+		specificCassandra: specificCassandra{
+			LuceneEnabled:       cs.LuceneEnabled,
+			PasswordAndUserAuth: cs.PasswordAndUserAuth,
+		},
+		immutableCluster: cs.Cluster.newImmutableFields(),
+	}
+}
+
+func (cs *CassandraSpec) validateUpdate(oldSpec CassandraSpec) error {
+	newImmutableFields := cs.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable fields: old spec: %+v: new spec: %+v", oldImmutableFields, newImmutableFields)
+	}
+
+	err := cs.validateDataCentresUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+	err = validateTwoFactorDelete(cs.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	for _, dc := range cs.DataCentres {
+		err = cs.validateResizeSettings(dc.NodesNumber)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error {
+	if len(cs.DataCentres) < len(oldSpec.DataCentres) {
+		return models.ErrDecreasedDataCentresNumber
+	}
+
+	for _, newDC := range cs.DataCentres {
+		var exists bool
+		for _, oldDC := range oldSpec.DataCentres {
+			if oldDC.Name == newDC.Name {
+				newDCImmutableFields := newDC.newImmutableFields()
+				oldDCImmutableFields := oldDC.newImmutableFields()
+
+				if *newDCImmutableFields != *oldDCImmutableFields {
+					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
+
+				if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+					return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+				}
+
+				if newDC.NodesNumber < oldDC.NodesNumber {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+
+				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				if err != nil {
+					return err
+				}
+
+				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+				if err != nil {
+					return err
+				}
+
+				if !oldDC.DebeziumEquals(newDC) {
+					return models.ErrDebeziumImmutable
+				}
+
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			err := newDC.DataCentre.ValidateCreation()
+			if err != nil {
+				return err
+			}
+
+			if !cs.PrivateNetworkCluster && newDC.PrivateIPBroadcastForDiscovery {
+				return fmt.Errorf("cannot use private ip broadcast for discovery on public network cluster")
+			}
+
+			err = validateReplicationFactor(models.CassandraReplicationFactors, newDC.ReplicationFactor)
+			if err != nil {
+				return err
+			}
+
+			if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+				return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+			}
+
+			return nil
+
+		}
+	}
+
+	return nil
+}
+
+func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields {
+	return &immutableCassandraDCFields{
+		immutableDC{
+			Name:                cdc.Name,
+			Region:              cdc.Region,
+			CloudProvider:       cdc.CloudProvider,
+			ProviderAccountName: cdc.ProviderAccountName,
+			Network:             cdc.Network,
+		},
+		specificCassandraDC{
+			replicationFactor:              cdc.ReplicationFactor,
+			continuousBackup:               cdc.ContinuousBackup,
+			privateIpBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
+			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
+		},
+	}
+}
+
+func (c *CassandraSpec) validateResizeSettings(nodeNumber int) error {
+	for _, rs := range c.ResizeSettings {
+		if rs.Concurrency > nodeNumber {
+			return fmt.Errorf("resizeSettings.concurrency cannot be greater than number of nodes: %v", nodeNumber)
+		}
+	}
+
+	return nil
+}

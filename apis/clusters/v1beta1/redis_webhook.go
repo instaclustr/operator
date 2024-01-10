@@ -217,3 +217,164 @@ func (rv *redisValidator) ValidateDelete(ctx context.Context, obj runtime.Object
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
+
+type immutableRedisFields struct {
+	specificRedisFields
+	immutableCluster
+}
+
+type specificRedisFields struct {
+	ClientEncryption    bool
+	PasswordAndUserAuth bool
+}
+
+type immutableRedisDCFields struct {
+	immutableDC
+}
+
+func (rs *RedisSpec) ValidateUpdate(oldSpec RedisSpec) error {
+	newImmutableFields := rs.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v",
+			oldImmutableFields, newImmutableFields)
+	}
+
+	err := validateTwoFactorDelete(rs.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	err = rs.validateDCsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
+	if len(rs.DataCentres) < len(oldSpec.DataCentres) {
+		return models.ErrDecreasedDataCentresNumber
+	}
+
+	for _, newDC := range rs.DataCentres {
+		for _, oldDC := range oldSpec.DataCentres {
+			if newDC.Name == oldDC.Name {
+				newDCImmutableFields := newDC.newImmutableFields()
+				oldDCImmutableFields := oldDC.newImmutableFields()
+
+				if *newDCImmutableFields != *oldDCImmutableFields {
+					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+				}
+
+				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+				if err != nil {
+					return err
+				}
+
+				if newDC.MasterNodes < oldDC.MasterNodes {
+					return fmt.Errorf("deleting nodes is not supported. Master nodes number must be greater than: %v", oldDC.MasterNodes)
+				}
+
+				if newDC.NodesNumber < oldDC.NodesNumber {
+					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+				}
+
+				err = validatePrivateLinkUpdate(newDC.PrivateLink, oldDC.PrivateLink)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for i := len(oldSpec.DataCentres); i < len(rs.DataCentres); i++ {
+		err := rs.DataCentres[i].ValidateCreate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) newImmutableFields() *immutableRedisFields {
+	return &immutableRedisFields{
+		specificRedisFields: specificRedisFields{
+			ClientEncryption:    rs.ClientEncryption,
+			PasswordAndUserAuth: rs.PasswordAndUserAuth,
+		},
+		immutableCluster: rs.Cluster.newImmutableFields(),
+	}
+}
+
+func (rdc *RedisDataCentre) newImmutableFields() *immutableRedisDCFields {
+	return &immutableRedisDCFields{
+		immutableDC: immutableDC{
+			Name:                rdc.Name,
+			Region:              rdc.Region,
+			CloudProvider:       rdc.CloudProvider,
+			ProviderAccountName: rdc.ProviderAccountName,
+			Network:             rdc.Network,
+		},
+	}
+}
+
+func (rdc *RedisDataCentre) ValidateUpdate() error {
+	err := rdc.ValidateNodesNumber()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rdc *RedisDataCentre) ValidateCreate() error {
+	err := rdc.DataCentre.ValidateCreation()
+	if err != nil {
+		return err
+	}
+
+	err = rdc.ValidateNodesNumber()
+	if err != nil {
+		return err
+	}
+
+	err = rdc.ValidatePrivateLink()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rdc *RedisDataCentre) ValidateNodesNumber() error {
+	if rdc.NodesNumber < 0 || rdc.NodesNumber > 100 {
+		return fmt.Errorf("replica nodes number should not be less than 0 or more than 100")
+	}
+
+	if rdc.MasterNodes < 3 || rdc.MasterNodes > 100 {
+		return fmt.Errorf("master nodes should not be less than 3 or more than 100")
+	}
+
+	return nil
+}
+
+func (rdc *RedisDataCentre) ValidatePrivateLink() error {
+	if rdc.CloudProvider != models.AWSVPC && len(rdc.PrivateLink) > 0 {
+		return models.ErrPrivateLinkSupportedOnlyForAWS
+	}
+
+	return nil
+}
+
+func (rs *RedisSpec) ValidatePrivateLink() error {
+	if len(rs.DataCentres) > 1 &&
+		(rs.DataCentres[0].PrivateLink != nil || rs.DataCentres[1].PrivateLink != nil) {
+		return models.ErrPrivateLinkSupportedOnlyForSingleDC
+	}
+
+	return nil
+}

@@ -17,9 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"fmt"
-	"regexp"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -74,26 +71,4 @@ func (gcp *GCPVPCPeering) NewPatch() client.Patch {
 
 func init() {
 	SchemeBuilder.Register(&GCPVPCPeering{}, &GCPVPCPeeringList{})
-}
-
-func (gcp *GCPVPCPeeringSpec) Validate() error {
-	dataCentreIDMatched, err := regexp.Match(models.UUIDStringRegExp, []byte(gcp.DataCentreID))
-	if err != nil {
-		return err
-	}
-	if !dataCentreIDMatched {
-		return fmt.Errorf("data centre ID is a UUID formated string. It must fit the pattern: %s", models.UUIDStringRegExp)
-	}
-
-	for _, subnet := range gcp.PeerSubnets {
-		peerSubnetMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(subnet))
-		if err != nil {
-			return err
-		}
-		if !peerSubnetMatched {
-			return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28", subnet)
-		}
-	}
-
-	return nil
 }

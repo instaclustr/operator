@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"unicode"
 
 	k8sCore "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -263,4 +264,169 @@ func (pgv *pgValidator) ValidateDelete(ctx context.Context, obj runtime.Object) 
 	postgresqllog.Info("validate delete", "name", pg.Name)
 
 	return nil
+}
+
+type immutablePostgreSQLFields struct {
+	specificPostgreSQLFields
+	immutableCluster
+}
+
+type specificPostgreSQLFields struct {
+	SynchronousModeStrict bool
+}
+
+type immutablePostgreSQLDCFields struct {
+	immutableDC
+	specificPostgreSQLDC
+}
+
+type specificPostgreSQLDC struct {
+	ClientEncryption bool
+}
+
+func (pg *PostgreSQL) ValidateDefaultUserPassword(password string) bool {
+	categories := map[string]bool{}
+	for _, symbol := range password {
+		switch {
+		case unicode.IsNumber(symbol):
+			categories["number"] = true
+		case unicode.IsUpper(symbol):
+			categories["upper"] = true
+		case unicode.IsLower(symbol):
+			categories["lower"] = true
+		case unicode.IsPunct(symbol) || unicode.IsSymbol(symbol):
+			categories["special"] = true
+		}
+	}
+
+	return len(categories) > 2
+}
+
+func (pdc *PgDataCentre) ValidatePGBouncer() error {
+	for _, pgb := range pdc.PGBouncer {
+		if !validation.Contains(pgb.PGBouncerVersion, models.PGBouncerVersions) {
+			return fmt.Errorf("pgBouncerVersion '%s' is unavailable, available versions: %v",
+				pgb.PGBouncerVersion,
+				models.PGBouncerVersions)
+		}
+
+		if !validation.Contains(pgb.PoolMode, models.PoolModes) {
+			return fmt.Errorf("poolMode '%s' is unavailable, available poolModes: %v",
+				pgb.PoolMode,
+				models.PoolModes)
+		}
+	}
+
+	return nil
+}
+
+func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
+	newImmutableFields := pgs.newImmutableFields()
+	oldImmutableFields := oldSpec.newImmutableFields()
+
+	if *newImmutableFields != *oldImmutableFields {
+		return fmt.Errorf("cannot update immutable spec fields: old spec: %+v: new spec: %+v", oldSpec, pgs)
+	}
+
+	err := validateTwoFactorDelete(pgs.TwoFactorDelete, oldSpec.TwoFactorDelete)
+	if err != nil {
+		return err
+	}
+
+	err = pgs.validateImmutableDCsFieldsUpdate(oldSpec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
+	if len(pgs.DataCentres) != len(oldSpec.DataCentres) {
+		return models.ErrImmutableDataCentresNumber
+	}
+
+	for i, newDC := range pgs.DataCentres {
+		oldDC := oldSpec.DataCentres[i]
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+
+		err = newDC.validateIntraDCImmutableFields(oldDC.IntraDataCentreReplication)
+		if err != nil {
+			return err
+		}
+
+		err = newDC.validateInterDCImmutableFields(oldDC.InterDataCentreReplication)
+		if err != nil {
+			return err
+		}
+
+		if newDC.NodesNumber != oldDC.NodesNumber {
+			return models.ErrImmutableNodesNumber
+		}
+
+	}
+
+	return nil
+}
+
+func (pdc *PgDataCentre) validateInterDCImmutableFields(oldInterDC []*InterDataCentreReplication) error {
+	if len(pdc.InterDataCentreReplication) != len(oldInterDC) {
+		return models.ErrImmutableInterDataCentreReplication
+	}
+
+	for i, newInterDC := range pdc.InterDataCentreReplication {
+		if *newInterDC != *oldInterDC[i] {
+			return models.ErrImmutableInterDataCentreReplication
+		}
+	}
+
+	return nil
+}
+
+func (pdc *PgDataCentre) validateIntraDCImmutableFields(oldIntraDC []*IntraDataCentreReplication) error {
+	if len(pdc.IntraDataCentreReplication) != len(oldIntraDC) {
+		return models.ErrImmutableIntraDataCentreReplication
+	}
+
+	for i, newIntraDC := range pdc.IntraDataCentreReplication {
+		if *newIntraDC != *oldIntraDC[i] {
+			return models.ErrImmutableIntraDataCentreReplication
+		}
+	}
+
+	return nil
+}
+
+func (pgs *PgSpec) newImmutableFields() *immutablePostgreSQLFields {
+	return &immutablePostgreSQLFields{
+		specificPostgreSQLFields: specificPostgreSQLFields{
+			SynchronousModeStrict: pgs.SynchronousModeStrict,
+		},
+		immutableCluster: pgs.Cluster.newImmutableFields(),
+	}
+}
+
+func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
+	return &immutablePostgreSQLDCFields{
+		immutableDC: immutableDC{
+			Name:                pdc.Name,
+			Region:              pdc.Region,
+			CloudProvider:       pdc.CloudProvider,
+			ProviderAccountName: pdc.ProviderAccountName,
+			Network:             pdc.Network,
+		},
+		specificPostgreSQLDC: specificPostgreSQLDC{
+			ClientEncryption: pdc.ClientEncryption,
+		},
+	}
 }
