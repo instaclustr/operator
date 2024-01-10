@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	k8scorev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -288,7 +287,7 @@ func (cs *CadenceSpec) ArchivalToInstAPI(ctx context.Context, k8sClient client.C
 
 func getSecret(ctx context.Context, k8sClient client.Client, aws *AWSArchival) (string, string, error) {
 	var err error
-	awsCredsSecret := &v1.Secret{}
+	awsCredsSecret := &k8scorev1.Secret{}
 	awsSecretNamespacedName := types.NamespacedName{
 		Name:      aws.AccessKeySecretName,
 		Namespace: aws.AccessKeySecretNamespace,

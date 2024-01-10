@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	k8scorev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -584,8 +583,8 @@ func (tc *TargetCluster) ManagedClustersToInstAPI() (iClusters []*models.Managed
 	return
 }
 
-func (k *KafkaConnect) NewDefaultUserSecret(username, password string) *v1.Secret {
-	return &v1.Secret{
+func (k *KafkaConnect) NewDefaultUserSecret(username, password string) *k8scorev1.Secret {
+	return &k8scorev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       models.SecretKind,
 			APIVersion: models.K8sAPIVersionV1,
