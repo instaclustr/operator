@@ -255,46 +255,55 @@ func (rs *RedisSpec) ValidateUpdate(oldSpec RedisSpec) error {
 }
 
 func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
-	if len(rs.DataCentres) < len(oldSpec.DataCentres) {
-		return models.ErrDecreasedDataCentresNumber
+	// contains old DCs which should be validated
+	toValidate := map[string]*RedisDataCentre{}
+	for _, dc := range oldSpec.DataCentres {
+		toValidate[dc.Name] = dc
 	}
 
 	for _, newDC := range rs.DataCentres {
-		for _, oldDC := range oldSpec.DataCentres {
-			if newDC.Name == oldDC.Name {
-				newDCImmutableFields := newDC.newImmutableFields()
-				oldDCImmutableFields := oldDC.newImmutableFields()
-
-				if *newDCImmutableFields != *oldDCImmutableFields {
-					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
-				}
-
-				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
-				if err != nil {
-					return err
-				}
-
-				if newDC.MasterNodes < oldDC.MasterNodes {
-					return fmt.Errorf("deleting nodes is not supported. Master nodes number must be greater than: %v", oldDC.MasterNodes)
-				}
-
-				if newDC.NodesNumber < oldDC.NodesNumber {
-					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
-				}
-
-				err = validatePrivateLinkUpdate(newDC.PrivateLink, oldDC.PrivateLink)
-				if err != nil {
-					return err
-				}
+		oldDC, ok := toValidate[newDC.Name]
+		if !ok {
+			// validating creation of the new dc
+			if err := newDC.ValidateCreate(); err != nil {
+				return err
 			}
+			continue
 		}
-	}
 
-	for i := len(oldSpec.DataCentres); i < len(rs.DataCentres); i++ {
-		err := rs.DataCentres[i].ValidateCreate()
+		// validating updating of the DC
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
 		if err != nil {
 			return err
 		}
+
+		if newDC.MasterNodes < oldDC.MasterNodes {
+			return fmt.Errorf("deleting nodes is not supported. Master nodes number must be greater than: %v", oldDC.MasterNodes)
+		}
+
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		}
+
+		err = validatePrivateLinkUpdate(newDC.PrivateLink, oldDC.PrivateLink)
+		if err != nil {
+			return err
+		}
+
+		// deleting validated DCs from the map to ensure if it is validated
+		delete(toValidate, oldDC.Name)
+	}
+
+	// ensuring if all old DCs were validated
+	if len(toValidate) > 0 {
+		return models.ErrUnsupportedDeletingDC
 	}
 
 	return nil

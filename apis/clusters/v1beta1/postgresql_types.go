@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"strconv"
 
-	k8sCore "k8s.io/api/core/v1"
 	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -342,7 +341,7 @@ func (pg *PostgreSQL) GetUserSecretName(ctx context.Context, k8sClient client.Cl
 		return "", err
 	}
 
-	userSecretList := &k8sCore.SecretList{}
+	userSecretList := &k8scorev1.SecretList{}
 	err = k8sClient.List(ctx, userSecretList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return "", err
@@ -355,8 +354,8 @@ func (pg *PostgreSQL) GetUserSecretName(ctx context.Context, k8sClient client.Cl
 	return userSecretList.Items[0].Name, nil
 }
 
-func (pg *PostgreSQL) NewUserSecret(defaultUserPassword string) *k8sCore.Secret {
-	return &k8sCore.Secret{
+func (pg *PostgreSQL) NewUserSecret(defaultUserPassword string) *k8scorev1.Secret {
+	return &k8scorev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       models.SecretKind,
 			APIVersion: models.K8sAPIVersionV1,
@@ -490,8 +489,8 @@ func GetDefaultPgUserSecret(
 	name string,
 	ns string,
 	k8sClient client.Client,
-) (*k8sCore.Secret, error) {
-	userSecret := &k8sCore.Secret{}
+) (*k8scorev1.Secret, error) {
+	userSecret := &k8scorev1.Secret{}
 	userSecretNamespacedName := types.NamespacedName{
 		Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, name),
 		Namespace: ns,
