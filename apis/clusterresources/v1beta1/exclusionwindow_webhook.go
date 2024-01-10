@@ -84,3 +84,17 @@ func (r *ExclusionWindow) ValidateDelete() error {
 	exclusionwindowlog.Info("validate delete", "name", r.Name)
 	return nil
 }
+
+func (e *ExclusionWindowSpec) validateUpdate(old ExclusionWindowSpec) bool {
+	if e.DayOfWeek != old.DayOfWeek ||
+		e.ClusterID != old.ClusterID ||
+		e.DurationInHours != old.DurationInHours ||
+		e.StartHour != old.StartHour ||
+		(e.ClusterRef != nil && old.ClusterRef == nil) ||
+		(e.ClusterRef == nil && old.ClusterRef != nil) ||
+		(e.ClusterRef != nil && *e.ClusterRef != *old.ClusterRef) {
+		return false
+	}
+
+	return true
+}
