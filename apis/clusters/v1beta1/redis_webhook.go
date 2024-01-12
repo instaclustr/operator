@@ -53,6 +53,7 @@ func (r *Redis) Default() {
 
 	if r.Spec.Name == "" {
 		r.Spec.Name = r.Name
+		redislog.Info("default values are set", "name", r.Name)
 	}
 
 	if r.GetAnnotations() == nil {
@@ -64,9 +65,6 @@ func (r *Redis) Default() {
 	for _, dataCentre := range r.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
 	}
-
-	redislog.Info("default values are set", "name", r.Name)
-
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -177,6 +175,7 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	if r.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
+
 	oldRedis, ok := old.(*Redis)
 	if !ok {
 		return models.ErrTypeAssertion
@@ -200,6 +199,11 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		if err != nil {
 			return err
 		}
+	}
+
+	// ensuring if the cluster is ready for the spec updating
+	if (r.Status.CurrentClusterOperationStatus != models.NoOperation || r.Status.State != models.RunningStatus) && r.Generation != oldRedis.Generation {
+		return models.ErrClusterIsNotReadyToUpdate
 	}
 
 	return nil

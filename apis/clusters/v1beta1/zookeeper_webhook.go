@@ -123,11 +123,6 @@ func (zv *zookeeperValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 		return zv.ValidateCreate(ctx, z)
 	}
 
-	// skip validation when we receive cluster specification update from the Instaclustr Console.
-	if z.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return nil
-	}
-
 	return nil
 }
 

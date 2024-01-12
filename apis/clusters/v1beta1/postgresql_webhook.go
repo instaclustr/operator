@@ -225,6 +225,11 @@ func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, 
 		}
 	}
 
+	// ensuring if the cluster is ready for the spec updating
+	if (pg.Status.CurrentClusterOperationStatus != models.NoOperation || pg.Status.State != models.RunningStatus) && pg.Generation != oldCluster.Generation {
+		return models.ErrClusterIsNotReadyToUpdate
+	}
+
 	return nil
 }
 
