@@ -209,6 +209,11 @@ func (kcv *kafkaConnectValidator) ValidateUpdate(ctx context.Context, old runtim
 		return fmt.Errorf("cannot update immutable fields: %v", err)
 	}
 
+	// ensuring if the cluster is ready for the spec updating
+	if (kc.Status.CurrentClusterOperationStatus != models.NoOperation || kc.Status.State != models.RunningStatus) && kc.Generation != oldCluster.Generation {
+		return models.ErrClusterIsNotReadyToUpdate
+	}
+
 	return nil
 }
 

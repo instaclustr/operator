@@ -74,4 +74,5 @@ var (
 	ErrCreateClusterWithMultiDC                   = errors.New("multiple data center is still not supported. Please create a cluster with one data centre and add a second one when the cluster is in the running state")
 	ErrOnPremicesWithMultiDC                      = errors.New("on-premises cluster can be provisioned with only one data centre")
 	ErrUnsupportedDeletingDC                      = errors.New("deleting data centre is not supported")
+	ErrClusterIsNotReadyToUpdate                  = errors.New("cluster is not ready to update")
 )

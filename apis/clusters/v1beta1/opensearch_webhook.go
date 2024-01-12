@@ -233,6 +233,11 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 		return err
 	}
 
+	// ensuring if the cluster is ready for the spec updating
+	if (os.Status.CurrentClusterOperationStatus != models.NoOperation || os.Status.State != models.RunningStatus) && os.Generation != oldCluster.Generation {
+		return models.ErrClusterIsNotReadyToUpdate
+	}
+
 	return nil
 }
 

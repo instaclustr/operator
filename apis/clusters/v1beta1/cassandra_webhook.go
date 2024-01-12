@@ -178,7 +178,7 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 		return models.ErrTypeAssertion
 	}
 
-	if oldCluster.Spec.BundledUseOnly && !oldCluster.Spec.IsEqual(c.Spec) {
+	if oldCluster.Spec.BundledUseOnly && c.Generation != oldCluster.Generation {
 		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
 	}
 
@@ -193,6 +193,11 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 	err := c.Spec.validateUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("cannot update immutable fields: %v", err)
+	}
+
+	// ensuring if the cluster is ready for the spec updating
+	if (c.Status.CurrentClusterOperationStatus != models.NoOperation || c.Status.State != models.RunningStatus) && c.Generation != oldCluster.Generation {
+		return models.ErrClusterIsNotReadyToUpdate
 	}
 
 	return nil

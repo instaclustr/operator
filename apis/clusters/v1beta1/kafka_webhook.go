@@ -202,7 +202,7 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return fmt.Errorf("cannot assert object %v to Kafka", old.GetObjectKind())
 	}
 
-	if oldKafka.Spec.BundledUseOnly && !oldKafka.Spec.IsEqual(k.Spec) {
+	if oldKafka.Spec.BundledUseOnly && k.Generation != oldKafka.Generation {
 		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
 	}
 
@@ -218,8 +218,9 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		}
 	}
 
-	if k.Status.ID == "" {
-		return kv.ValidateCreate(ctx, k)
+	// ensuring if the cluster is ready for the spec updating
+	if (k.Status.CurrentClusterOperationStatus != models.NoOperation || k.Status.State != models.RunningStatus) && k.Generation != oldKafka.Generation {
+		return models.ErrClusterIsNotReadyToUpdate
 	}
 
 	return nil
