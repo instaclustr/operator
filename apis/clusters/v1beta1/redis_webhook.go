@@ -141,7 +141,7 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 				return err
 			}
 		} else {
-			err := dc.DataCentre.ValidateCreation()
+			err := dc.ValidateCreate()
 			if err != nil {
 				return err
 			}
