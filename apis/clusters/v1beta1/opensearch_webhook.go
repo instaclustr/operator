@@ -125,6 +125,11 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		if err != nil {
 			return err
 		}
+
+		err = dc.ValidatePrivateLink()
+		if err != nil {
+			return err
+		}
 	}
 
 	appVersions, err := osv.API.ListAppVersions(models.OpenSearchAppKind)
@@ -413,6 +418,14 @@ func validateDataNode(newNodes, oldNodes []*OpenSearchDataNodes) error {
 		if oldNodes[i].NodesNumber > newNodes[i].NodesNumber {
 			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldNodes[i].NodesNumber)
 		}
+	}
+
+	return nil
+}
+
+func (dc *OpenSearchDataCentre) ValidatePrivateLink() error {
+	if dc.CloudProvider != models.AWSVPC && dc.PrivateLink {
+		return models.ErrPrivateLinkSupportedOnlyForAWS
 	}
 
 	return nil
