@@ -19,9 +19,9 @@ package v1beta1
 import (
 	"context"
 	"fmt"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -32,13 +32,15 @@ import (
 var kafkalog = logf.Log.WithName("kafka-resource")
 
 type kafkaValidator struct {
-	API validation.Validation
+	API    validation.Validation
+	Client client.Client
 }
 
 func (r *Kafka) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).WithValidator(webhook.CustomValidator(&kafkaValidator{
-		API: api,
+		API:    api,
+		Client: mgr.GetClient(),
 	})).
 		Complete()
 }
@@ -85,7 +87,15 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
-	if k.Spec.OnPremisesSpec != nil {
+	contains, err := ContainsKubeVirtAddon(ctx, kv.Client)
+	if err != nil {
+		return err
+	}
+
+	if k.Spec.OnPremisesSpec != nil && k.Spec.OnPremisesSpec.EnableAutomation {
+		if !contains {
+			return models.ErrKubeVirtAddonNotFound
+		}
 		err = k.Spec.OnPremisesSpec.ValidateCreation()
 		if err != nil {
 			return err
@@ -120,12 +130,12 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	for _, dc := range k.Spec.DataCentres {
 		if k.Spec.OnPremisesSpec != nil {
-			err := dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.DataCentre.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err := dc.DataCentre.ValidateCreation()
+			err = dc.DataCentre.ValidateCreation()
 			if err != nil {
 				return err
 			}
@@ -170,7 +180,7 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 	}
 
 	for _, rs := range k.Spec.ResizeSettings {
-		err := validateSingleConcurrentResize(rs.Concurrency)
+		err = validateSingleConcurrentResize(rs.Concurrency)
 		if err != nil {
 			return err
 		}

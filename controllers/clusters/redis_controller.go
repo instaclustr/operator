@@ -242,7 +242,7 @@ func (r *RedisReconciler) handleCreateCluster(
 			"Cluster status check job is started",
 		)
 
-		if redis.Spec.OnPremisesSpec != nil {
+		if redis.Spec.OnPremisesSpec != nil && redis.Spec.OnPremisesSpec.EnableAutomation {
 			iData, err := r.API.GetRedis(redis.Status.ID)
 			if err != nil {
 				l.Error(err, "Cannot get cluster from the Instaclustr API",
@@ -599,7 +599,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 
 			return models.ExitReconcile, nil
 		}
-		if redis.Spec.OnPremisesSpec != nil {
+		if redis.Spec.OnPremisesSpec != nil && redis.Spec.OnPremisesSpec.EnableAutomation {
 			err = deleteOnPremResources(ctx, r.Client, redis.Status.ID, redis.Namespace)
 			if err != nil {
 				l.Error(err, "Cannot delete cluster on-premises resources",

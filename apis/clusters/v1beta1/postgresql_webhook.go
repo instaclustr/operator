@@ -96,7 +96,15 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		return err
 	}
 
-	if pg.Spec.OnPremisesSpec != nil {
+	contains, err := ContainsKubeVirtAddon(ctx, pgv.K8sClient)
+	if err != nil {
+		return err
+	}
+
+	if pg.Spec.OnPremisesSpec != nil && pg.Spec.OnPremisesSpec.EnableAutomation {
+		if !contains {
+			return models.ErrKubeVirtAddonNotFound
+		}
 		err = pg.Spec.OnPremisesSpec.ValidateCreation()
 		if err != nil {
 			return err
@@ -138,12 +146,12 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 
 	for _, dc := range pg.Spec.DataCentres {
 		if pg.Spec.OnPremisesSpec != nil {
-			err := dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.DataCentre.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err := dc.DataCentre.ValidateCreation()
+			err = dc.DataCentre.ValidateCreation()
 			if err != nil {
 				return err
 			}
@@ -170,7 +178,7 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 	}
 
 	for _, rs := range pg.Spec.ResizeSettings {
-		err := validateSingleConcurrentResize(rs.Concurrency)
+		err = validateSingleConcurrentResize(rs.Concurrency)
 		if err != nil {
 			return err
 		}

@@ -17,8 +17,14 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"fmt"
 	"regexp"
+	"strings"
+
+	k8sappsv1 "k8s.io/api/apps/v1"
+	k8scorev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/validation"
@@ -95,6 +101,12 @@ func (dc *DataCentre) ValidateCreation() error {
 }
 
 func (ops *OnPremisesSpec) ValidateCreation() error {
+	if ops.StorageClassName == "" || ops.DataDiskSize == "" || ops.OSDiskSize == "" || ops.NodeCPU == 0 ||
+		ops.NodeMemory == "" || ops.OSImageURL == "" || ops.CloudInitScriptRef == nil {
+		return fmt.Errorf("all on-premises spec fields except sshGatewayCPU and sshGatewayMemory if " +
+			"it is not private cluster must not be empty")
+	}
+
 	osDiskSizeMatched, err := regexp.Match(models.StorageRegExp, []byte(ops.OSDiskSize))
 	if !osDiskSizeMatched || err != nil {
 		return fmt.Errorf("disk size field for node OS must fit pattern: %s",
@@ -252,4 +264,42 @@ func (dc *DataCentre) ValidateOnPremisesCreation() error {
 	}
 
 	return nil
+}
+
+func ContainsKubeVirtAddon(ctx context.Context, client client.Client) (bool, error) {
+	namespaces := &k8scorev1.NamespaceList{}
+	err := client.List(ctx, namespaces)
+	if err != nil {
+		return false, err
+	}
+
+	for _, namespace := range namespaces.Items {
+		if strings.Contains(namespace.Name, models.KubeVirt) {
+			return true, nil
+		}
+	}
+
+	deployments := &k8sappsv1.DeploymentList{}
+	err = client.List(ctx, deployments)
+	if err != nil {
+		return false, err
+	}
+
+	for _, deployment := range deployments.Items {
+		if containsKubeVirtLabels(deployment.Labels) || containsKubeVirtLabels(deployment.Annotations) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func containsKubeVirtLabels(l map[string]string) bool {
+	for key, value := range l {
+		if strings.Contains(key, models.KubeVirt) || strings.Contains(value, models.KubeVirt) {
+			return true
+		}
+	}
+
+	return false
 }

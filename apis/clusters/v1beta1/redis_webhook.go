@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -32,13 +33,15 @@ import (
 var redislog = logf.Log.WithName("redis-resource")
 
 type redisValidator struct {
-	API validation.Validation
+	API    validation.Validation
+	Client client.Client
 }
 
 func (r *Redis) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).WithValidator(webhook.CustomValidator(&redisValidator{
-		API: api,
+		API:    api,
+		Client: mgr.GetClient(),
 	})).
 		Complete()
 }
@@ -94,7 +97,15 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
-	if r.Spec.OnPremisesSpec != nil {
+	contains, err := ContainsKubeVirtAddon(ctx, rv.Client)
+	if err != nil {
+		return err
+	}
+
+	if r.Spec.OnPremisesSpec != nil && r.Spec.OnPremisesSpec.EnableAutomation {
+		if !contains {
+			return models.ErrKubeVirtAddonNotFound
+		}
 		err = r.Spec.OnPremisesSpec.ValidateCreation()
 		if err != nil {
 			return err
@@ -136,12 +147,12 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	for _, dc := range r.Spec.DataCentres {
 		if r.Spec.OnPremisesSpec != nil {
-			err := dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.DataCentre.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err := dc.ValidateCreate()
+			err = dc.DataCentre.ValidateCreation()
 			if err != nil {
 				return err
 			}
@@ -153,7 +164,7 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 	}
 
 	for _, rs := range r.Spec.ResizeSettings {
-		err := validateSingleConcurrentResize(rs.Concurrency)
+		err = validateSingleConcurrentResize(rs.Concurrency)
 		if err != nil {
 			return err
 		}

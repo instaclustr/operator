@@ -4,6 +4,7 @@ const (
 	ONPREMISES = "ONPREMISES"
 	CLIENTDC   = "CLIENT_DC"
 
+	KubeVirt                     = "kubevirt"
 	VirtualMachineKind           = "VirtualMachine"
 	DVKind                       = "DataVolume"
 	ServiceKind                  = "Service"

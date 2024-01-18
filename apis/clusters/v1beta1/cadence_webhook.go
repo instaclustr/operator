@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -33,13 +34,15 @@ import (
 var cadencelog = logf.Log.WithName("cadence-resource")
 
 type cadenceValidator struct {
-	API validation.Validation
+	API    validation.Validation
+	Client client.Client
 }
 
 func (c *Cadence) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(c).WithValidator(webhook.CustomValidator(&cadenceValidator{
-		API: api,
+		API:    api,
+		Client: mgr.GetClient(),
 	})).
 		Complete()
 }
@@ -86,7 +89,15 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		return err
 	}
 
-	if c.Spec.OnPremisesSpec != nil {
+	contains, err := ContainsKubeVirtAddon(ctx, cv.Client)
+	if err != nil {
+		return err
+	}
+
+	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
+		if !contains {
+			return models.ErrKubeVirtAddonNotFound
+		}
 		err = c.Spec.OnPremisesSpec.ValidateCreation()
 		if err != nil {
 			return err
@@ -135,7 +146,7 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 	}
 
 	for _, awsArchival := range c.Spec.AWSArchival {
-		err := awsArchival.validate()
+		err = awsArchival.validate()
 		if err != nil {
 			return err
 		}
@@ -146,7 +157,7 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 			return fmt.Errorf("AdvancedVisibility array size must be between 0 and 1")
 		}
 
-		err := sp.validate()
+		err = sp.validate()
 		if err != nil {
 			return err
 		}
@@ -158,7 +169,7 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		}
 
 		if pp.BundledKafkaSpec != nil {
-			err := pp.BundledKafkaSpec.validate()
+			err = pp.BundledKafkaSpec.validate()
 			if err != nil {
 				return err
 			}
@@ -194,12 +205,12 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 
 	for _, dc := range c.Spec.DataCentres {
 		if c.Spec.OnPremisesSpec != nil {
-			err := dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.DataCentre.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err := dc.DataCentre.ValidateCreation()
+			err = dc.DataCentre.ValidateCreation()
 			if err != nil {
 				return err
 			}
@@ -215,7 +226,7 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 	}
 
 	for _, rs := range c.Spec.ResizeSettings {
-		err := validateSingleConcurrentResize(rs.Concurrency)
+		err = validateSingleConcurrentResize(rs.Concurrency)
 		if err != nil {
 			return err
 		}

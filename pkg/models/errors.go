@@ -21,8 +21,6 @@ import (
 )
 
 var (
-	ErrNotEmptyCSRs                               = errors.New("certificate creation allowed only if the user is created on the specific cluster")
-	ErrEmptyCertGeneratingFields                  = errors.New("the fields for generating certificate signing request are empty")
 	ErrZeroDataCentres                            = errors.New("cluster spec doesn't have data centres")
 	ErrMoreThanOneKraft                           = errors.New("cluster spec does not support more than one kraft")
 	ErrMoreThanThreeControllerNodeCount           = errors.New("kraft does not support more than three controller nodes")
@@ -75,4 +73,5 @@ var (
 	ErrOnPremicesWithMultiDC                      = errors.New("on-premises cluster can be provisioned with only one data centre")
 	ErrUnsupportedDeletingDC                      = errors.New("deleting data centre is not supported")
 	ErrClusterIsNotReadyToUpdate                  = errors.New("cluster is not ready to update")
+	ErrKubeVirtAddonNotFound                      = errors.New("cannot create KubeVirt based resources automatially without KubeVirt operator installed. Please install KubeVirt add-on")
 )

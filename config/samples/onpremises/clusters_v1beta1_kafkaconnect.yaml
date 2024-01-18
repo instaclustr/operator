@@ -4,8 +4,9 @@ metadata:
   name: kafkaconnect-sample
 spec:
   name: "kafkaconnect-onprem"
-  version: "3.1.2"
+  version: "3.5.1"
   onPremisesSpec:
+    enableAutomation: true
     storageClassName: managed-csi-premium
     osDiskSize: 20Gi
     dataDiskSize: 200Gi
