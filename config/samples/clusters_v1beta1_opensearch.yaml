@@ -46,7 +46,7 @@ spec:
 #    - nodeSize: SRH-DEV-t4g.small-5
 #      oidcProvider: ''
 #      version: opensearch-dashboards:2.5.0
-  version: 2.9.0
+  version: 2.11.1
   pciCompliance: false
   privateNetworkCluster: false
   reportingPlugin: false

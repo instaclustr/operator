@@ -18,7 +18,6 @@ package clusters
 
 import (
 	"context"
-	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -30,6 +29,7 @@ import (
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/controllers/tests"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"github.com/instaclustr/operator/pkg/models"
 )
 
