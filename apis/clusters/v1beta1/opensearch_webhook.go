@@ -363,31 +363,37 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSear
 		return models.ErrImmutableDataCentresNumber
 	}
 
+	toValidate := map[string]*OpenSearchDataCentre{}
+	for _, dc := range oldDCs {
+		toValidate[dc.Name] = dc
+	}
+
 	for _, newDC := range newDCs {
-		for _, oldDC := range oldDCs {
-			if oldDC.Name == newDC.Name {
-				newDCImmutableFields := newDC.newImmutableFields()
-				oldDCImmutableFields := oldDC.newImmutableFields()
+		oldDC, ok := toValidate[newDC.Name]
+		if !ok {
+			return fmt.Errorf("cannot change datacentre name: %v", newDC.Name)
+		}
 
-				if *newDCImmutableFields != *oldDCImmutableFields {
-					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
-				}
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
 
-				err := validateImmutableCloudProviderSettingsUpdate(newDC.CloudProviderSettings, oldDC.CloudProviderSettings)
-				if err != nil {
-					return err
-				}
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
 
-				err = newDC.validateDataNode(oss.DataNodes)
-				if err != nil {
-					return err
-				}
+		err := validateImmutableCloudProviderSettingsUpdate(newDC.CloudProviderSettings, oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
 
-				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
-				if err != nil {
-					return err
-				}
-			}
+		err = newDC.validateDataNode(oss.DataNodes)
+		if err != nil {
+			return err
+		}
+
+		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
 		}
 	}
 

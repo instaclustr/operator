@@ -186,11 +186,11 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return fmt.Errorf("cannot assert object %v to kafka", new.GetObjectKind())
 	}
 
-	kafkalog.Info("validate update", "name", k.Name)
-
 	if k.Status.ID == "" {
 		return kv.ValidateCreate(ctx, k)
 	}
+
+	kafkalog.Info("validate update", "name", k.Name)
 
 	// skip validation when handle external changes from Instaclustr
 	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -347,34 +347,40 @@ func (ks *KafkaSpec) validateImmutableDataCentresFieldsUpdate(oldSpec *KafkaSpec
 		return models.ErrDecreasedDataCentresNumber
 	}
 
+	toValidate := map[string]*KafkaDataCentre{}
+	for _, dc := range oldSpec.DataCentres {
+		toValidate[dc.Name] = dc
+	}
+
 	for _, newDC := range ks.DataCentres {
-		for _, oldDC := range oldSpec.DataCentres {
-			if oldDC.Name == newDC.Name {
-				newDCImmutableFields := newDC.newImmutableFields()
-				oldDCImmutableFields := oldDC.newImmutableFields()
+		oldDC, ok := toValidate[newDC.Name]
+		if !ok {
+			return fmt.Errorf("cannot change datacentre name: %v", newDC.Name)
+		}
 
-				if *newDCImmutableFields != *oldDCImmutableFields {
-					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
-				}
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
 
-				if newDC.NodesNumber < oldDC.NodesNumber {
-					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
-				}
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
 
-				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
-				if err != nil {
-					return err
-				}
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		}
 
-				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
-				if err != nil {
-					return err
-				}
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
 
-				if ok := isPrivateLinkValid(newDC.PrivateLink, oldDC.PrivateLink); !ok {
-					return fmt.Errorf("advertisedHostname field cannot be changed")
-				}
-			}
+		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
+		}
+
+		if ok = isPrivateLinkValid(newDC.PrivateLink, oldDC.PrivateLink); !ok {
+			return fmt.Errorf("advertisedHostname field cannot be changed")
 		}
 	}
 

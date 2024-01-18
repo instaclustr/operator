@@ -280,47 +280,19 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 		return models.ErrDecreasedDataCentresNumber
 	}
 
+	toValidate := map[string]*CassandraDataCentre{}
+	for _, dc := range oldSpec.DataCentres {
+		toValidate[dc.Name] = dc
+	}
+
 	for _, newDC := range cs.DataCentres {
-		var exists bool
-		for _, oldDC := range oldSpec.DataCentres {
-			if oldDC.Name == newDC.Name {
-				newDCImmutableFields := newDC.newImmutableFields()
-				oldDCImmutableFields := oldDC.newImmutableFields()
-
-				if *newDCImmutableFields != *oldDCImmutableFields {
-					return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
-				}
-
-				if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
-					return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
-				}
-
-				if newDC.NodesNumber < oldDC.NodesNumber {
-					return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
-				}
-
-				err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
-				if err != nil {
-					return err
-				}
-
-				err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
-				if err != nil {
-					return err
-				}
-
-				if !oldDC.DebeziumEquals(newDC) {
-					return models.ErrDebeziumImmutable
-				}
-
-				exists = true
-				break
+		oldDC, ok := toValidate[newDC.Name]
+		if !ok {
+			if len(cs.DataCentres) == len(oldSpec.DataCentres) {
+				return fmt.Errorf("cannot change datacentre name: %v", newDC.Name)
 			}
-		}
 
-		if !exists {
-			err := newDC.DataCentre.ValidateCreation()
-			if err != nil {
+			if err := newDC.ValidateCreation(); err != nil {
 				return err
 			}
 
@@ -328,7 +300,7 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 				return fmt.Errorf("cannot use private ip broadcast for discovery on public network cluster")
 			}
 
-			err = validateReplicationFactor(models.CassandraReplicationFactors, newDC.ReplicationFactor)
+			err := validateReplicationFactor(models.CassandraReplicationFactors, newDC.ReplicationFactor)
 			if err != nil {
 				return err
 			}
@@ -337,9 +309,37 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 				return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
 			}
 
-			return nil
-
 		}
+
+		newDCImmutableFields := newDC.newImmutableFields()
+		oldDCImmutableFields := oldDC.newImmutableFields()
+
+		if *newDCImmutableFields != *oldDCImmutableFields {
+			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
+		}
+
+		if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
+		}
+
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		}
+
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		if err != nil {
+			return err
+		}
+
+		err = validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
+		}
+
+		if !oldDC.DebeziumEquals(newDC) {
+			return models.ErrDebeziumImmutable
+		}
+
 	}
 
 	return nil
