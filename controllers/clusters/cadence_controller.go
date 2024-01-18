@@ -247,7 +247,7 @@ func (r *CadenceReconciler) handleCreateCluster(
 		r.EventRecorder.Event(c, models.Normal, models.Created,
 			"Cluster status check job is started")
 	}
-	if c.Spec.OnPremisesSpec != nil {
+	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
 		iData, err := r.API.GetCadence(c.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get cluster from the Instaclustr API",
@@ -549,7 +549,7 @@ func (r *CadenceReconciler) handleDeleteCluster(
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 			return ctrl.Result{}, nil
 		}
-		if c.Spec.OnPremisesSpec != nil {
+		if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
 			err = deleteOnPremResources(ctx, r.Client, c.Status.ID, c.Namespace)
 			if err != nil {
 				l.Error(err, "Cannot delete cluster on-premises resources",

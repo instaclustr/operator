@@ -256,7 +256,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 			"Cluster status check job is started",
 		)
 
-		if pg.Spec.OnPremisesSpec != nil {
+		if pg.Spec.OnPremisesSpec != nil && pg.Spec.OnPremisesSpec.EnableAutomation {
 			iData, err := r.API.GetPostgreSQL(pg.Status.ID)
 			if err != nil {
 				l.Error(err, "Cannot get cluster from the Instaclustr API",
@@ -942,7 +942,7 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 			return models.ExitReconcile, nil
 		}
 
-		if pg.Spec.OnPremisesSpec != nil {
+		if pg.Spec.OnPremisesSpec != nil && pg.Spec.OnPremisesSpec.EnableAutomation {
 			err = deleteOnPremResources(ctx, r.Client, pg.Status.ID, pg.Namespace)
 			if err != nil {
 				l.Error(err, "Cannot delete cluster on-premises resources",

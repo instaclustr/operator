@@ -7,6 +7,7 @@ spec:
   version: "4.0.10"
   privateNetworkCluster: false
   onPremisesSpec:
+    enableAutomation: true
     storageClassName: managed-csi-premium
     osDiskSize: 20Gi
     dataDiskSize: 200Gi

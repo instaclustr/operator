@@ -215,7 +215,7 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 			"Cluster status check job is started",
 		)
 	}
-	if kc.Spec.OnPremisesSpec != nil {
+	if kc.Spec.OnPremisesSpec != nil && kc.Spec.OnPremisesSpec.EnableAutomation {
 		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get cluster from the Instaclustr API",
@@ -505,7 +505,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 			return models.ExitReconcile, nil
 		}
 
-		if kc.Spec.OnPremisesSpec != nil {
+		if kc.Spec.OnPremisesSpec != nil && kc.Spec.OnPremisesSpec.EnableAutomation {
 			err = deleteOnPremResources(ctx, r.Client, kc.Status.ID, kc.Namespace)
 			if err != nil {
 				l.Error(err, "Cannot delete cluster on-premises resources",

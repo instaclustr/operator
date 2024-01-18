@@ -121,6 +121,7 @@ type ClusteredMaintenanceEvent struct {
 }
 
 type OnPremisesSpec struct {
+	EnableAutomation   bool       `json:"enableAutomation"`
 	StorageClassName   string     `json:"storageClassName"`
 	OSDiskSize         string     `json:"osDiskSize"`
 	DataDiskSize       string     `json:"dataDiskSize"`

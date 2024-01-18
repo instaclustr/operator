@@ -140,6 +140,8 @@ spec:
                     type: object
                   dataDiskSize:
                     type: string
+                  enableAutomation:
+                    type: boolean
                   nodeCPU:
                     format: int64
                     type: integer
@@ -159,6 +161,7 @@ spec:
                 required:
                 - cloudInitScriptRef
                 - dataDiskSize
+                - enableAutomation
                 - nodeCPU
                 - nodeMemory
                 - osDiskSize

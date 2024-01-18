@@ -261,7 +261,8 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"Cluster status check job is started",
 		)
 	}
-	if c.Spec.OnPremisesSpec != nil {
+
+	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
 		iData, err := r.API.GetCassandra(c.Status.ID)
 		if err != nil {
 			l.Error(err, "Cannot get cluster from the Instaclustr API",
@@ -638,7 +639,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
 
-	if c.Spec.OnPremisesSpec != nil {
+	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
 		err = deleteOnPremResources(ctx, r.Client, c.Status.ID, c.Namespace)
 		if err != nil {
 			l.Error(err, "Cannot delete cluster on-premises resources",

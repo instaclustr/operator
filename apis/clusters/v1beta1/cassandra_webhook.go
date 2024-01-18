@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -32,13 +33,15 @@ import (
 var cassandralog = logf.Log.WithName("cassandra-resource")
 
 type cassandraValidator struct {
-	API validation.Validation
+	Client client.Client
+	API    validation.Validation
 }
 
 func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).WithValidator(webhook.CustomValidator(&cassandraValidator{
-		API: api,
+		Client: mgr.GetClient(),
+		API:    api,
 	})).
 		Complete()
 }
@@ -46,6 +49,8 @@ func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Val
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1beta1-cassandra,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=mcassandra.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1beta1-cassandra,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=vcassandra.kb.io,admissionReviewVersions=v1
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch
 
 var _ webhook.CustomValidator = &cassandraValidator{}
 var _ webhook.Defaulter = &Cassandra{}
@@ -91,7 +96,16 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return err
 	}
 
-	if c.Spec.OnPremisesSpec != nil {
+	contains, err := ContainsKubeVirtAddon(ctx, cv.Client)
+	if err != nil {
+		return err
+	}
+
+	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
+		if !contains {
+			return models.ErrKubeVirtAddonNotFound
+		}
+
 		err = c.Spec.OnPremisesSpec.ValidateCreation()
 		if err != nil {
 			return err
@@ -126,12 +140,12 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 
 	for _, dc := range c.Spec.DataCentres {
 		if c.Spec.OnPremisesSpec != nil {
-			err := dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.DataCentre.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err := dc.DataCentre.ValidateCreation()
+			err = dc.DataCentre.ValidateCreation()
 			if err != nil {
 				return err
 			}

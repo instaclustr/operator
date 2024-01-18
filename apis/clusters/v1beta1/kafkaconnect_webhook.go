@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -33,13 +34,15 @@ import (
 var kafkaconnectlog = logf.Log.WithName("kafkaconnect-resource")
 
 type kafkaConnectValidator struct {
-	API validation.Validation
+	API    validation.Validation
+	Client client.Client
 }
 
 func (r *KafkaConnect) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Validation) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).WithValidator(webhook.CustomValidator(&kafkaConnectValidator{
-		API: api,
+		API:    api,
+		Client: mgr.GetClient(),
 	})).
 		Complete()
 }
@@ -86,7 +89,15 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 		return err
 	}
 
-	if kc.Spec.OnPremisesSpec != nil {
+	contains, err := ContainsKubeVirtAddon(ctx, kcv.Client)
+	if err != nil {
+		return err
+	}
+
+	if kc.Spec.OnPremisesSpec != nil && kc.Spec.OnPremisesSpec.EnableAutomation {
+		if !contains {
+			return models.ErrKubeVirtAddonNotFound
+		}
 		err = kc.Spec.OnPremisesSpec.ValidateCreation()
 		if err != nil {
 			return err
@@ -157,12 +168,12 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 
 	for _, dc := range kc.Spec.DataCentres {
 		if kc.Spec.OnPremisesSpec != nil {
-			err := dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.DataCentre.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err := dc.DataCentre.ValidateCreation()
+			err = dc.DataCentre.ValidateCreation()
 			if err != nil {
 				return err
 			}

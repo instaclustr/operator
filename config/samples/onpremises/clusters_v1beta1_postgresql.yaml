@@ -6,6 +6,7 @@ spec:
   name: "postgresql-sample"
   version: "15.4.0"
   onPremisesSpec:
+    enableAutomation: true
     storageClassName: managed-csi-premium
     osDiskSize: 20Gi
     dataDiskSize: 200Gi

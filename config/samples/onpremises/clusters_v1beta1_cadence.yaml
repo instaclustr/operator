@@ -6,6 +6,7 @@ spec:
   name: "cadence-test"
   version: "1.0.0"
   onPremisesSpec:
+    enableAutomation: true
     storageClassName: managed-csi-premium
     osDiskSize: 20Gi
     dataDiskSize: 200Gi

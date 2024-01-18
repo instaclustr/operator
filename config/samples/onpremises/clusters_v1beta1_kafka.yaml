@@ -14,6 +14,7 @@ spec:
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
   onPremisesSpec:
+    enableAutomation: true
     storageClassName: managed-csi-premium
     osDiskSize: 20Gi
     dataDiskSize: 200Gi
