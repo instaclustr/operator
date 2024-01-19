@@ -243,8 +243,6 @@ var msgExternalChanges = "The k8s specification is different from Instaclustr Co
 	"Update operations are blocked. Please check operator logs and edit the cluster spec manually, " +
 	"so that it would corresponds to the data from Instaclustr."
 
-var msgSpecStillNoMatch = "k8s resource specification still doesn't match with data on the Instaclustr Console. Double check the difference."
-
 // deleteDefaultUserSecret deletes the secret with default user credentials.
 // It ignores NotFound error.
 func deleteDefaultUserSecret(

@@ -40,6 +40,7 @@ import (
 	clusterscontrollers "github.com/instaclustr/operator/controllers/clusters"
 	kafkamanagementcontrollers "github.com/instaclustr/operator/controllers/kafkamanagement"
 	"github.com/instaclustr/operator/pkg/instaclustr"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
@@ -158,6 +159,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)

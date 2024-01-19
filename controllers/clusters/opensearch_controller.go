@@ -404,7 +404,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 
 func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) (reconcile.Result, error) {
 	if !o.Spec.IsEqual(iO.Spec) {
-		l.Info(msgSpecStillNoMatch,
+		l.Info(msgExternalChanges,
 			"specification of k8s resource", o.Spec,
 			"data from Instaclustr ", iO.Spec)
 

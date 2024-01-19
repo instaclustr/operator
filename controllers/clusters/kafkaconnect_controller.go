@@ -408,7 +408,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 
 func (r *KafkaConnectReconciler) handleExternalChanges(kc, ik *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
 	if !kc.Spec.IsEqual(ik.Spec) {
-		l.Info(msgSpecStillNoMatch,
+		l.Info(msgExternalChanges,
 			"specification of k8s resource", kc.Spec,
 			"data from Instaclustr ", ik.Spec)
 

@@ -522,7 +522,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 
 func (r *CassandraReconciler) handleExternalChanges(c, iCassandra *v1beta1.Cassandra, l logr.Logger) (reconcile.Result, error) {
 	if !c.Spec.IsEqual(iCassandra.Spec) {
-		l.Info(msgSpecStillNoMatch,
+		l.Info(msgExternalChanges,
 			"specification of k8s resource", c.Spec,
 			"data from Instaclustr ", iCassandra.Spec)
 
