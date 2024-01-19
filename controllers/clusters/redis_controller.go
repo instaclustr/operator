@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
@@ -41,7 +42,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -52,6 +53,7 @@ type RedisReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=redis,verbs=get;list;watch;create;update;patch;delete
@@ -95,7 +97,7 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, redis, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, redis, l)
+		return r.handleUpdateCluster(ctx, redis, req, l)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, redis, l)
 	case models.GenericEvent:
@@ -379,6 +381,7 @@ func (r *RedisReconciler) startUsersCreationJob(cluster *v1beta1.Redis) error {
 func (r *RedisReconciler) handleUpdateCluster(
 	ctx context.Context,
 	redis *v1beta1.Redis,
+	req ctrl.Request,
 	l logr.Logger,
 ) (reconcile.Result, error) {
 	iData, err := r.API.GetRedis(redis.Status.ID)
@@ -413,7 +416,8 @@ func (r *RedisReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	if redis.Annotations[models.ExternalChangesAnnotation] == models.True {
+	if redis.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
 		return r.handleExternalChanges(redis, iRedis, l)
 	}
 
@@ -444,30 +448,11 @@ func (r *RedisReconciler) handleUpdateCluster(
 			l.Error(err, "Cannot update Redis cluster data centres",
 				"cluster name", redis.Spec.Name,
 				"cluster status", redis.Status,
-				"data centres", redis.Spec.DataCentres,
-			)
+				"data centres", redis.Spec.DataCentres)
 
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.UpdateFailed,
-				"Cluster update on the Instaclustr API is failed. Reason: %v",
-				err,
-			)
+			r.EventRecorder.Eventf(redis, models.Warning, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
-			patch := redis.NewPatch()
-			redis.Annotations[models.UpdateQueuedAnnotation] = models.True
-			if err := r.Patch(ctx, redis, patch); err != nil {
-				l.Error(err, "Cannot patch metadata",
-					"cluster name", redis.Spec.Name,
-					"cluster metadata", redis.ObjectMeta,
-				)
-
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
 			return reconcile.Result{}, err
 		}
 	}
@@ -483,7 +468,6 @@ func (r *RedisReconciler) handleUpdateCluster(
 
 	patch := redis.NewPatch()
 	redis.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	redis.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, redis, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch Redis cluster after update",
@@ -510,8 +494,12 @@ func (r *RedisReconciler) handleUpdateCluster(
 }
 
 func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l logr.Logger) (reconcile.Result, error) {
+	patch := redis.NewPatch()
+
 	if !redis.Spec.IsEqual(iRedis.Spec) {
-		l.Info(msgSpecStillNoMatch,
+		redis.Annotations[models.ExternalChangesAnnotation] = models.True
+
+		l.Info(msgExternalChanges,
 			"specification of k8s resource", redis.Spec,
 			"data from Instaclustr ", iRedis.Spec)
 
@@ -521,13 +509,13 @@ func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l 
 				"instaclustr data", iRedis.Spec, "k8s resource spec", redis.Spec)
 			return models.ExitReconcile, nil
 		}
+
 		r.EventRecorder.Eventf(redis, models.Warning, models.ExternalChanges, msgDiffSpecs)
-		return models.ExitReconcile, nil
+	} else {
+		redis.Annotations[models.ExternalChangesAnnotation] = ""
+		l.Info("External changes have been reconciled", "resource ID", redis.Status.ID)
+		r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 	}
-
-	patch := redis.NewPatch()
-
-	redis.Annotations[models.ExternalChangesAnnotation] = ""
 
 	err := r.Patch(context.Background(), redis, patch)
 	if err != nil {
@@ -539,9 +527,6 @@ func (r *RedisReconciler) handleExternalChanges(redis, iRedis *v1beta1.Redis, l 
 
 		return reconcile.Result{}, err
 	}
-
-	l.Info("External changes have been reconciled", "resource ID", redis.Status.ID)
-	r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -870,7 +855,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 		}
 
 		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			redis.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			redis.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!redis.Spec.IsEqual(iRedis.Spec) {
 
 			k8sData, err := removeRedundantFieldsFromSpec(redis.Spec, "userRefs")
@@ -1103,8 +1088,7 @@ func (r *RedisReconciler) NewUserResource() userObject {
 // SetupWithManager sets up the controller with the Manager.
 func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+		WithOptions(controller.Options{RateLimiter: r.RateLimiter}).
 		For(&v1beta1.Redis{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {

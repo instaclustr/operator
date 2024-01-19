@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	DefaultBaseDelay = 1 * time.Minute
-	DefaultMaxDelay  = 10 * time.Minute
-	defaultMaxTries  = 3
+	DefaultBaseDelay = 10 * time.Second
+	DefaultMaxDelay  = 1 * time.Minute
+	DefaultMaxTries  = 3
 )
 
 type ItemExponentialFailureRateLimiterWithMaxTries struct {
@@ -29,7 +29,7 @@ func NewItemExponentialFailureRateLimiterWithMaxTries(baseDelay time.Duration, m
 		failures:  map[interface{}]int{},
 		baseDelay: baseDelay,
 		maxDelay:  maxDelay,
-		maxTries:  defaultMaxTries,
+		maxTries:  DefaultMaxTries,
 	}
 }
 
@@ -44,7 +44,7 @@ func (r *ItemExponentialFailureRateLimiterWithMaxTries) When(item interface{}) t
 
 	if r.failures[item] > r.maxTries {
 		// reminder
-		return 60 * time.Minute
+		return 3 * time.Minute
 	}
 
 	if durationBackoff > r.maxDelay {

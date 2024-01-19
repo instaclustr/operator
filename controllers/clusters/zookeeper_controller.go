@@ -280,7 +280,7 @@ func (r *ZookeeperReconciler) handleExternalChanges(zook *v1beta1.Zookeeper, l l
 	}
 
 	if !zook.Spec.IsEqual(iZook.Spec) {
-		l.Info(msgSpecStillNoMatch,
+		l.Info(msgExternalChanges,
 			"specification of k8s resource", zook.Spec,
 			"data from Instaclustr ", iZook.Spec)
 

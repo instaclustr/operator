@@ -837,7 +837,7 @@ func (r *PostgreSQLReconciler) handleUserEvent(
 
 func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *v1beta1.PostgreSQL, l logr.Logger) (reconcile.Result, error) {
 	if !pg.Spec.IsEqual(iPg.Spec) {
-		l.Info(msgSpecStillNoMatch,
+		l.Info(msgExternalChanges,
 			"specification of k8s resource", pg.Spec,
 			"data from Instaclustr ", iPg.Spec)
 		msgDiffSpecs, err := createSpecDifferenceMessage(pg.Spec, iPg.Spec)
