@@ -64,6 +64,14 @@ func (r *Redis) Default() {
 
 	for _, dataCentre := range r.Spec.DataCentres {
 		dataCentre.SetDefaultValues()
+
+		if dataCentre.MasterNodes != 0 {
+			if dataCentre.ReplicationFactor > 0 {
+				dataCentre.NodesNumber = dataCentre.MasterNodes * dataCentre.ReplicationFactor
+			} else {
+				dataCentre.ReplicationFactor = dataCentre.NodesNumber / dataCentre.MasterNodes
+			}
+		}
 	}
 }
 
@@ -234,6 +242,7 @@ type specificRedisFields struct {
 
 type immutableRedisDCFields struct {
 	immutableDC
+	ReplicationFactor int
 }
 
 func (rs *RedisSpec) ValidateUpdate(oldSpec RedisSpec) error {
@@ -332,6 +341,7 @@ func (rdc *RedisDataCentre) newImmutableFields() *immutableRedisDCFields {
 			ProviderAccountName: rdc.ProviderAccountName,
 			Network:             rdc.Network,
 		},
+		ReplicationFactor: rdc.ReplicationFactor,
 	}
 }
 

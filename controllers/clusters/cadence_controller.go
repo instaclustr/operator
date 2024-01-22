@@ -987,10 +987,22 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 			}
 		}
 
-		if iCadence.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
+		equals := c.Spec.IsEqual(iCadence.Spec)
+
+		if equals && c.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := c.NewPatch()
+			delete(c.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), c, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(c, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if c.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			c.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!c.Spec.AreDCsEqual(iCadence.Spec.DataCentres) {
+			!equals {
 			l.Info(msgExternalChanges,
 				"instaclustr data", iCadence.Spec.DataCentres,
 				"k8s resource spec", c.Spec.DataCentres)

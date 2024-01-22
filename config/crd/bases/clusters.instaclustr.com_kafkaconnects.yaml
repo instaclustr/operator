@@ -323,8 +323,6 @@ spec:
                       type: string
                     name:
                       type: string
-                    nodeNumber:
-                      type: integer
                     nodes:
                       items:
                         properties:
@@ -346,6 +344,8 @@ spec:
                             type: string
                         type: object
                       type: array
+                    nodesNumber:
+                      type: integer
                     privateLink:
                       items:
                         properties:

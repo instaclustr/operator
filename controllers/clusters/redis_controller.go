@@ -854,10 +854,22 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			}
 		}
 
-		if iRedis.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			redis.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
-			!redis.Spec.IsEqual(iRedis.Spec) {
+		equals := redis.Spec.IsEqual(iRedis.Spec)
 
+		if equals && redis.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := redis.NewPatch()
+			delete(redis.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), redis, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if redis.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			redis.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
+			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(redis.Spec, "userRefs")
 			if err != nil {
 				l.Error(err, "Cannot remove redundant fields from k8s Spec")

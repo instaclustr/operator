@@ -849,10 +849,22 @@ func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.
 			}
 		}
 
-		if iCassandra.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
+		equals := c.Spec.IsEqual(iCassandra.Spec)
+
+		if equals && c.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := c.NewPatch()
+			delete(c.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), c, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(c, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if c.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			c.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!c.Spec.IsEqual(iCassandra.Spec) {
+			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(c.Spec, "userRefs")
 			if err != nil {
 				l.Error(err, "Cannot remove redundant fields from k8s Spec")

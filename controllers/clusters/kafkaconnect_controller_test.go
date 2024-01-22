@@ -18,8 +18,9 @@ package clusters
 
 import (
 	"context"
-	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 	"os"
+
+	openapi "github.com/instaclustr/operator/pkg/instaclustr/mock/server/go"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -103,7 +104,7 @@ var _ = Describe("Kafka Connect Controller", func() {
 					return false
 				}
 
-				return kafkaConnect.Status.DataCentres[0].NodeNumber == newKafkaConnectNodeNumbers
+				return kafkaConnect.Status.DataCentres[0].NodesNumber == newKafkaConnectNodeNumbers
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

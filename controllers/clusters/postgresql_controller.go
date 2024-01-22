@@ -1284,9 +1284,22 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			}
 		}
 
-		if iPg.Status.CurrentClusterOperationStatus == models.NoOperation &&
+		equals := pg.Spec.IsEqual(iPg.Spec)
+
+		if equals && pg.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := pg.NewPatch()
+			delete(pg.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), pg, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(pg, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if pg.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			pg.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!pg.Spec.IsEqual(iPg.Spec) {
+			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(pg.Spec, "userRefs")
 			if err != nil {
 				l.Error(err, "Cannot remove redundant fields from k8s Spec")

@@ -700,9 +700,22 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 			}
 		}
 
-		if iKC.Status.CurrentClusterOperationStatus == models.NoOperation &&
+		equals := kc.Spec.IsEqual(iKC.Spec)
+
+		if equals && kc.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := kc.NewPatch()
+			delete(kc.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), kc, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(kc, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if kc.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			kc.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!kc.Spec.IsEqual(iKC.Spec) {
+			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(kc.Spec, "userRefs")
 			if err != nil {
 				l.Error(err, "Cannot remove redundant fields from k8s Spec")
