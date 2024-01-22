@@ -516,8 +516,22 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 			}
 		}
 
-		if iZook.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			!zook.Spec.IsEqual(iZook.Spec) {
+		equals := zook.Spec.IsEqual(iZook.Spec)
+
+		if equals && zook.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := zook.NewPatch()
+			delete(zook.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), zook, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(zook, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if zook.Status.CurrentClusterOperationStatus == models.NoOperation &&
+			zook.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(zook.Spec, "userRefs")
 			if err != nil {
 				l.Error(err, "Cannot remove redundant fields from k8s Spec")

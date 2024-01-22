@@ -31,11 +31,14 @@ import (
 )
 
 type RedisDataCentre struct {
-	DataCentre  `json:",inline"`
+	DataCentre `json:",inline"`
+
 	MasterNodes int `json:"masterNodes"`
 
 	//+kubebuilder:validation:Minimum:=0
 	//+kubebuilder:validation:Maximum:=5
+	// ReplicationFactor defines how many replica nodes (aka nodesNumber) should be created for each master node
+	// (e.a. if there are 3 masterNodes and replicationFactor 1 then it creates 1 replicaNode for each accordingly).
 	ReplicationFactor int `json:"replicationFactor,omitempty"`
 
 	//+kubebuilder:validation:MaxItems:=1
@@ -303,7 +306,7 @@ func (rs *RedisStatus) DCsFromInstAPI(iDCs []*models.RedisDataCentre) (dcs []*Da
 	for _, iDC := range iDCs {
 		dc := rs.ClusterStatus.DCFromInstAPI(iDC.DataCentre)
 		dc.PrivateLink = privateLinkStatusesFromInstAPI(iDC.PrivateLink)
-
+		dc.NodesNumber += iDC.MasterNodes
 		dcs = append(dcs, dc)
 	}
 	return

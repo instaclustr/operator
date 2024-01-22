@@ -690,9 +690,22 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 			}
 		}
 
-		if iO.Status.CurrentClusterOperationStatus == models.NoOperation &&
+		equals := o.Spec.IsEqual(iO.Spec)
+
+		if equals && o.Annotations[models.ExternalChangesAnnotation] == models.True {
+			patch := o.NewPatch()
+			delete(o.Annotations, models.ExternalChangesAnnotation)
+			err := r.Patch(context.Background(), o, patch)
+			if err != nil {
+				return err
+			}
+
+			r.EventRecorder.Event(o, models.Normal, models.ExternalChanges,
+				"External changes were automatically reconciled",
+			)
+		} else if o.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			o.Annotations[models.UpdateQueuedAnnotation] != models.True &&
-			!o.Spec.IsEqual(iO.Spec) {
+			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(o.Spec, "userRefs")
 			if err != nil {
 				l.Error(err, "Cannot remove redundant fields from k8s Spec")

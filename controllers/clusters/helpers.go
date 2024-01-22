@@ -102,7 +102,7 @@ func areDataCentresEqual(a, b []*v1beta1.DataCentreStatus) bool {
 		}
 
 		if a[i].Status != b[i].Status ||
-			a[i].NodeNumber != b[i].NodeNumber ||
+			a[i].NodesNumber != b[i].NodesNumber ||
 			a[i].EncryptionKeyID != b[i].EncryptionKeyID {
 			return false
 		}

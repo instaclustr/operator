@@ -93,6 +93,10 @@ spec:
                     region:
                       type: string
                     replicationFactor:
+                      description: ReplicationFactor defines how many replica nodes
+                        (aka nodesNumber) should be created for each master node (e.a.
+                        if there are 3 masterNodes and replicationFactor 1 then it
+                        creates 1 replicaNode for each accordingly).
                       maximum: 5
                       minimum: 0
                       type: integer
@@ -288,8 +292,6 @@ spec:
                       type: string
                     name:
                       type: string
-                    nodeNumber:
-                      type: integer
                     nodes:
                       items:
                         properties:
@@ -311,6 +313,8 @@ spec:
                             type: string
                         type: object
                       type: array
+                    nodesNumber:
+                      type: integer
                     privateLink:
                       items:
                         properties:
