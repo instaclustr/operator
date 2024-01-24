@@ -114,10 +114,21 @@ spec:
                       type: integer
                     privateIpBroadcastForDiscovery:
                       type: boolean
+                    privateLink:
+                      type: boolean
                     region:
                       type: string
                     replicationFactor:
                       type: integer
+                    shotoverProxy:
+                      items:
+                        properties:
+                          nodeSize:
+                            type: string
+                        required:
+                        - nodeSize
+                        type: object
+                      type: array
                     tags:
                       additionalProperties:
                         type: string

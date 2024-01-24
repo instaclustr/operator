@@ -234,6 +234,7 @@ type immutableCassandraDCFields struct {
 type specificCassandraDC struct {
 	replicationFactor              int
 	continuousBackup               bool
+	privateLink                    bool
 	privateIpBroadcastForDiscovery bool
 	clientToClusterEncryption      bool
 }
@@ -340,6 +341,10 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 			return models.ErrDebeziumImmutable
 		}
 
+		if !oldDC.ShotoverProxyEquals(newDC) {
+			return models.ErrShotoverProxyImmutable
+		}
+
 	}
 
 	return nil
@@ -357,6 +362,7 @@ func (cdc *CassandraDataCentre) newImmutableFields() *immutableCassandraDCFields
 		specificCassandraDC{
 			replicationFactor:              cdc.ReplicationFactor,
 			continuousBackup:               cdc.ContinuousBackup,
+			privateLink:                    cdc.PrivateLink,
 			privateIpBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
 			clientToClusterEncryption:      cdc.ClientToClusterEncryption,
 		},
