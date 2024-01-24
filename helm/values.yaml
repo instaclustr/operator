@@ -4,7 +4,7 @@ replicaCount: 1
 image:
   repository: icoperator/instaclustr-operator
   pullPolicy: IfNotPresent
-  tag: v0.1.4
+  tag: v0.1.5
 
 port: 8080
 
@@ -65,6 +65,14 @@ rbac:
     - apiGroups:
         - ""
       resources:
+        - namespaces
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
         - nodes
       verbs:
         - get
@@ -120,6 +128,14 @@ rbac:
         - list
         - patch
         - update
+        - watch
+    - apiGroups:
+        - apps
+      resources:
+        - deployments
+      verbs:
+        - get
+        - list
         - watch
     - apiGroups:
         - cdi.kubevirt.io
