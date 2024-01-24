@@ -79,7 +79,13 @@ type CassandraDataCentre struct {
 
 	// Adds the specified version of Debezium Connector Cassandra to the Cassandra cluster
 	// +kubebuilder:validation:MaxItems=1
-	Debezium []DebeziumCassandraSpec `json:"debezium,omitempty"`
+	Debezium      []DebeziumCassandraSpec `json:"debezium,omitempty"`
+	PrivateLink   bool                    `json:"privateLink,omitempty"`
+	ShotoverProxy []ShotoverProxySpec     `json:"shotoverProxy,omitempty"`
+}
+
+type ShotoverProxySpec struct {
+	NodeSize string `json:"nodeSize"`
 }
 
 type DebeziumCassandraSpec struct {
@@ -104,6 +110,16 @@ func (d *CassandraDataCentre) DebeziumToInstAPI() []*models.Debezium {
 	return instDebezium
 }
 
+func (d *CassandraDataCentre) ShotoverProxyToInstaAPI() []*models.ShotoverProxy {
+	var instaShotoverProxy []*models.ShotoverProxy
+	for _, k8sShotoverProxy := range d.ShotoverProxy {
+		instaShotoverProxy = append(instaShotoverProxy, &models.ShotoverProxy{
+			NodeSize: k8sShotoverProxy.NodeSize,
+		})
+	}
+	return instaShotoverProxy
+}
+
 func (d *CassandraDataCentre) DebeziumEquals(new *CassandraDataCentre) bool {
 	if len(d.Debezium) != len(new.Debezium) {
 		return false
@@ -119,6 +135,21 @@ func (d *CassandraDataCentre) DebeziumEquals(new *CassandraDataCentre) bool {
 		}
 	}
 
+	return true
+}
+
+func (d *CassandraDataCentre) ShotoverProxyEquals(new *CassandraDataCentre) bool {
+	if len(d.ShotoverProxy) != len(new.ShotoverProxy) {
+		return false
+	}
+
+	for _, oldSP := range d.ShotoverProxy {
+		for _, newSP := range new.ShotoverProxy {
+			if newSP.NodeSize != oldSP.NodeSize {
+				return false
+			}
+		}
+	}
 	return true
 }
 
@@ -242,6 +273,15 @@ func (cs *CassandraSpec) DebeziumFromInstAPI(iDebeziums []*models.Debezium) (dcs
 	return debeziums
 }
 
+func (cs *CassandraSpec) ShotoverProxyFromInstAPI(iShotoverProxys []*models.ShotoverProxy) (sps []ShotoverProxySpec) {
+	for _, iShotoverProxy := range iShotoverProxys {
+		sps = append(sps, ShotoverProxySpec{
+			NodeSize: iShotoverProxy.NodeSize,
+		})
+	}
+	return sps
+}
+
 func (cs *CassandraSpec) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs []*CassandraDataCentre) {
 	for _, iDC := range iDCs {
 		dcs = append(dcs, &CassandraDataCentre{
@@ -250,7 +290,9 @@ func (cs *CassandraSpec) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs
 			PrivateIPBroadcastForDiscovery: iDC.PrivateIPBroadcastForDiscovery,
 			ClientToClusterEncryption:      iDC.ClientToClusterEncryption,
 			ReplicationFactor:              iDC.ReplicationFactor,
+			PrivateLink:                    iDC.PrivateLink,
 			Debezium:                       cs.DebeziumFromInstAPI(iDC.Debezium),
+			ShotoverProxy:                  cs.ShotoverProxyFromInstAPI(iDC.ShotoverProxy),
 		})
 	}
 	return
@@ -323,9 +365,11 @@ func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 		if !dataCentre.IsEqual(iDC.DataCentre) ||
 			iDC.ClientToClusterEncryption != dataCentre.ClientToClusterEncryption ||
 			iDC.PrivateIPBroadcastForDiscovery != dataCentre.PrivateIPBroadcastForDiscovery ||
+			iDC.PrivateLink != dataCentre.PrivateLink ||
 			iDC.ContinuousBackup != dataCentre.ContinuousBackup ||
 			iDC.ReplicationFactor != dataCentre.ReplicationFactor ||
-			!dataCentre.DebeziumEquals(iDC) {
+			!dataCentre.DebeziumEquals(iDC) ||
+			!dataCentre.ShotoverProxyEquals(iDC) {
 			return false
 		}
 	}
@@ -356,10 +400,12 @@ func (cdc *CassandraDataCentre) ToInstAPI() *models.CassandraDataCentre {
 	return &models.CassandraDataCentre{
 		DataCentre:                     cdc.DataCentre.ToInstAPI(),
 		ClientToClusterEncryption:      cdc.ClientToClusterEncryption,
+		PrivateLink:                    cdc.PrivateLink,
 		ContinuousBackup:               cdc.ContinuousBackup,
 		PrivateIPBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
 		ReplicationFactor:              cdc.ReplicationFactor,
 		Debezium:                       cdc.DebeziumToInstAPI(),
+		ShotoverProxy:                  cdc.ShotoverProxyToInstaAPI(),
 	}
 }
 

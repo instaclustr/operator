@@ -34,11 +34,13 @@ type CassandraCluster struct {
 
 type CassandraDataCentre struct {
 	DataCentre                     `json:",inline"`
-	ReplicationFactor              int         `json:"replicationFactor"`
-	ContinuousBackup               bool        `json:"continuousBackup"`
-	PrivateIPBroadcastForDiscovery bool        `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool        `json:"clientToClusterEncryption"`
-	Debezium                       []*Debezium `json:"debezium,omitempty"`
+	ReplicationFactor              int              `json:"replicationFactor"`
+	ContinuousBackup               bool             `json:"continuousBackup"`
+	PrivateLink                    bool             `json:"privateLink,omitempty"`
+	PrivateIPBroadcastForDiscovery bool             `json:"privateIpBroadcastForDiscovery"`
+	ClientToClusterEncryption      bool             `json:"clientToClusterEncryption"`
+	Debezium                       []*Debezium      `json:"debezium,omitempty"`
+	ShotoverProxy                  []*ShotoverProxy `json:"shotoverProxy,omitempty"`
 }
 
 type Debezium struct {
@@ -46,6 +48,10 @@ type Debezium struct {
 	KafkaTopicPrefix  string `json:"kafkaTopicPrefix"`
 	KafkaDataCentreID string `json:"kafkaCdcId"`
 	Version           string `json:"version"`
+}
+
+type ShotoverProxy struct {
+	NodeSize string `json:"nodeSize"`
 }
 
 type CassandraClusterAPIUpdate struct {

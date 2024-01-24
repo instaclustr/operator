@@ -3,49 +3,54 @@ kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
-  name: "username-Cassandra"
-  version: "4.0.10"
-  privateNetworkCluster: false
+  name: "example-cassandra" #(immutable)
+  version: "4.0.10" #(immutable)
+  privateNetworkCluster: true #(immutable)
   dataCentres:
-    - name: "AWS_cassandra"
-      region: "US_EAST_1"
-      debezium:
-#        - kafkaVpcType: "VPC_PEERED"
-#          kafkaTopicPrefix: "test"
-#          kafkaCdcId: "5134aed3-7b98-4ebd-95d0-2e181bdb073b"
-#          clusterRef:
-#            name: kafka
-#            namespace: default
-#            clusterKind: Kafka
-#          version: "2.0.1"
-      cloudProvider: "AWS_VPC"
-      continuousBackup: false
-      nodesNumber: 2
+    - name: "AWS_cassandra" #(mutable)
+      region: "US_EAST_1" #(immutable)
+#      debezium:
+#        - kafkaVpcType: "VPC_PEERED" #(immutable)
+#          kafkaTopicPrefix: "test" #(immutable)
+#          kafkaCdcId: "556b283e-d094-4bcf-a068-14fa68c2a43a" #(mutable)
+##          clusterRef:1
+##            name: kafka
+##            namespace: default
+##            clusterKind: Kafka
+#          version: "2.0.1" #(immutable)
+      cloudProvider: "AWS_VPC" #(immutable)
+      continuousBackup: false #(immutable)
+      nodesNumber: 4 #(mutable)
       replicationFactor: 2
-      privateIpBroadcastForDiscovery: false
-      network: "172.16.0.0/19"
+      privateIpBroadcastForDiscovery: false #(immutable)
+      network: "172.16.0.0/19" #(immutable)
       tags:
-        "tag": "testTag"
-      clientToClusterEncryption: false
-      # cloudProviderSettings:
-      #   - customVirtualNetworkId: "vpc-0b69c781969e980a9"
-      nodeSize: "CAS-DEV-t4g.small-5"
-      # accountName: "InstaclustrRIYOA"
-  #    - name: "AWS_cassandra2"
-  #      region: "US_EAST_1"
-  #      cloudProvider: "AWS_VPC"
-  #      continuousBackup: false
-  #      nodesNumber: 2
-  #      replicationFactor: 2
-  #      privateIpBroadcastForDiscovery: false
-  #      network: "172.17.0.0/19"
-  #      tags:
-  #        "tag": "testTag"
-  #      clientToClusterEncryption: false
-  #      nodeSize: "CAS-DEV-t4g.small-30"
-  pciCompliance: false
-  luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
-  passwordAndUserAuth: true
+        "tag": "testTag" #(immutable)
+      clientToClusterEncryption: true #(immutable)
+#      cloudProviderSettings:
+#        - customVirtualNetworkId: "vpc-0b69c781969e980a9"
+#      nodeSize: "CAS-DEV-t4g.small-5" #(mutable)
+#      nodeSize: "CAS-PRD-r6g.medium-80" #(mutable) # (production node size)
+      nodeSize: "CAS-PRD-r6g.medium-120" #(mutable) # (production node size)
+      privateLink: true
+      shotoverProxy:
+        - nodeSize: "CSO-PRD-c6g.xlarge-20"
+  #      accountName: "InstaclustrRIYOA"
+#    - name: "AWS_cassandra2"
+#      region: "US_EAST_1"
+#      cloudProvider: "AWS_VPC"
+#      continuousBackup: false
+#      nodesNumber: 2
+#      replicationFactor: 2
+#      privateIpBroadcastForDiscovery: false
+#      network: "172.17.0.0/19"
+#      tags:
+#        "tag": "testTag"
+#      clientToClusterEncryption: false
+#      nodeSize: "CAS-DEV-t4g.small-30"
+  pciCompliance: false #(immutable)
+  luceneEnabled: false   #(immutable)     # can be enabled only on 3.11.13 version of Cassandra (currently it could be enabled on 4.0.10 version as well)
+  passwordAndUserAuth: true #(immutable)
   #  userRefs:
   #    - namespace: default
   #      name: cassandrauser-sample
@@ -53,12 +58,10 @@ spec:
   #      name: cassandrauser-sample2
   #    - namespace: default
   #      name: cassandrauser-sample3
-  slaTier: "NON_PRODUCTION"
+  slaTier: "NON_PRODUCTION" #(immutable)
     #  resizeSettings:
     #    - notifySupportContacts: false
     #      concurrency: 2
     #  description: "this is a sample of description"
     #  twoFactorDelete:
     #    - email: "rostyslp@netapp.com"
-  #spark:
-  # - version: "2.3.2"         # 3.0.1 for 4.0.4 version of Cassandra | 2.3.2 for 3.11.13 version of Cassandra

@@ -67,6 +67,7 @@ var (
 	ErrOnlySingleConcurrentResizeAvailable        = errors.New("only single concurrent resize is allowed")
 	ErrBundledUseOnlyResourceUpdateIsNotSupported = errors.New("updating of bundled use resource is not supported")
 	ErrDebeziumImmutable                          = errors.New("debezium array is immutable")
+	ErrShotoverProxyImmutable                     = errors.New("shotoverProxy array is immutable")
 	ErrEmptyNamespace                             = errors.New("namespace field is empty")
 	ErrEmptyName                                  = errors.New("name field is empty")
 	ErrCreateClusterWithMultiDC                   = errors.New("multiple data center is still not supported. Please create a cluster with one data centre and add a second one when the cluster is in the running state")
