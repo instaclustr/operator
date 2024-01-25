@@ -106,7 +106,7 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 	return creationResponse.ID, nil
 }
 
-func (c *Client) GetOpenSearch(id string) ([]byte, error) {
+func (c *Client) GetOpenSearch(id string) (*models.OpenSearchCluster, error) {
 	url := c.serverHostname + OpenSearchEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -124,7 +124,13 @@ func (c *Client) GetOpenSearch(id string) ([]byte, error) {
 		return nil, NotFound
 	}
 
-	return body, nil
+	var model models.OpenSearchCluster
+	err = json.Unmarshal(body, &model)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal to model, err: %w", err)
+	}
+
+	return &model, nil
 }
 
 func (c *Client) UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdateRequest) error {
@@ -1531,6 +1537,10 @@ func (c *Client) FetchMaintenanceEventStatuses(
 	upcomingMEStatus, err := c.GetMaintenanceEvents(clusterID, models.UpcomingME)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(inProgressMEStatus) == 0 && len(pastMEStatus) == 0 && len(upcomingMEStatus) == 0 {
+		return nil, nil
 	}
 
 	iMEStatuses := []*clusterresourcesv1beta1.ClusteredMaintenanceEventStatus{

@@ -58,6 +58,7 @@ func convertAPIv2ConfigToMap(instConfigs []*models.ConfigurationProperties) map[
 	}
 	return newConfigs
 }
+
 func areStatusesEqual(a, b *v1beta1.ClusterStatus) bool {
 	if a == nil && b == nil {
 		return true

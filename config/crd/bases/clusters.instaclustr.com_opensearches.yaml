@@ -90,14 +90,12 @@ spec:
                       type: string
                     network:
                       type: string
+                    numberOfRacks:
+                      type: integer
                     privateLink:
                       type: boolean
                     region:
                       type: string
-                    replicationFactor:
-                      description: ReplicationFactor is a number of racks to use when
-                        allocating data nodes.
-                      type: integer
                     tags:
                       additionalProperties:
                         type: string
@@ -106,7 +104,6 @@ spec:
                   - cloudProvider
                   - network
                   - region
-                  - replicationFactor
                   type: object
                 type: array
               dataNodes:
@@ -280,15 +277,11 @@ spec:
                   - namespace
                   type: object
                 type: array
-              cdcid:
-                type: string
               currentClusterOperationStatus:
                 type: string
               dataCentres:
                 items:
                   properties:
-                    encryptionKeyId:
-                      type: string
                     id:
                       type: string
                     name:
@@ -300,7 +293,13 @@ spec:
                             type: string
                           privateAddress:
                             type: string
+                          privateEndpoint:
+                            type: string
+                          privateLinkConnectionUrl:
+                            type: string
                           publicAddress:
+                            type: string
+                          publicEndpoint:
                             type: string
                           rack:
                             type: string
@@ -314,21 +313,10 @@ spec:
                             type: string
                         type: object
                       type: array
-                    nodesNumber:
-                      type: integer
-                    privateLink:
-                      items:
-                        properties:
-                          advertisedHostname:
-                            type: string
-                          endPointServiceId:
-                            type: string
-                          endPointServiceName:
-                            type: string
-                        required:
-                        - advertisedHostname
-                        type: object
-                      type: array
+                    privateLinkEndpointServiceName:
+                      type: string
+                    privateLinkRestApiUrl:
+                      type: string
                     resizeOperations:
                       items:
                         properties:
@@ -388,6 +376,10 @@ spec:
                   type: object
                 type: array
               id:
+                type: string
+              ingestNodesLoadBalancerConnectionURL:
+                type: string
+              loadBalancerConnectionURL:
                 type: string
               maintenanceEvents:
                 items:
@@ -475,19 +467,12 @@ spec:
                       type: array
                   type: object
                 type: array
-              options:
-                properties:
-                  dataNodeSize:
-                    type: string
-                  masterNodeSize:
-                    type: string
-                  openSearchDashboardsNodeSize:
-                    type: string
-                type: object
+              privateEndpoint:
+                type: string
+              publicEndpoint:
+                type: string
               state:
                 type: string
-              twoFactorDeleteEnabled:
-                type: boolean
             type: object
         type: object
     served: true

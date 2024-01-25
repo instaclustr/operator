@@ -625,7 +625,7 @@ func (o *BundledOpenSearchSpec) validate() error {
 		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", o.Network, err)
 	}
 
-	err = validateReplicationFactor(models.OpenSearchReplicationFactors, o.ReplicationFactor)
+	err = validateOpenSearchNumberOfRacks(o.NumberOfRacks)
 	if err != nil {
 		return err
 	}

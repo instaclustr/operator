@@ -204,7 +204,7 @@ func (c *OpenSearchProvisioningV2APIController) ClusterManagementV2ResourcesAppl
 func (c *OpenSearchProvisioningV2APIController) ClusterManagementV2ResourcesApplicationsOpensearchClustersV2Post(w http.ResponseWriter, r *http.Request) {
 	openSearchClusterV2Param := OpenSearchClusterV2{}
 	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
+	//d.DisallowUnknownFields()
 	if err := d.Decode(&openSearchClusterV2Param); err != nil {
 		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
 		return

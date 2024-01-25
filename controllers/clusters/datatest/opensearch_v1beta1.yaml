@@ -19,7 +19,7 @@ spec:
     - cloudProvider: AWS_VPC
       name: AWS_VPC_US_EAST_1
       network: 10.0.0.0/16
-      replicationFactor: 3
+      numberOfRacks: 3
       privateLink: false
       region: US_EAST_1
 #  dataNodes:
