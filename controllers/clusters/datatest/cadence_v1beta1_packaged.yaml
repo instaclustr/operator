@@ -37,7 +37,7 @@ spec:
         partitionsNumber: 3
       bundledOpenSearchSpec:
         nodeSize: "SRH-DEV-t4g.small-5"
-        replicationFactor: 3
+        numberOfRacks: 3
         network: "10.4.0.0/16"
   #  twoFactorDelete:
   #    - email: "example@netapp.com"

@@ -17,31 +17,31 @@ limitations under the License.
 package models
 
 type OpenSearchCluster struct {
-	ClusterStatus            `json:",inline"`
-	DataNodes                []*OpenSearchDataNodes   `json:"dataNodes,omitempty"`
-	PCIComplianceMode        bool                     `json:"pciComplianceMode"`
-	ICUPlugin                bool                     `json:"icuPlugin"`
+	GenericClusterFields `json:",inline"`
+
 	OpenSearchVersion        string                   `json:"opensearchVersion"`
+	ICUPlugin                bool                     `json:"icuPlugin"`
 	AsynchronousSearchPlugin bool                     `json:"asynchronousSearchPlugin"`
-	TwoFactorDelete          []*TwoFactorDelete       `json:"twoFactorDelete,omitempty"`
 	KNNPlugin                bool                     `json:"knnPlugin"`
-	OpenSearchDashboards     []*OpenSearchDashboards  `json:"opensearchDashboards,omitempty"`
 	ReportingPlugin          bool                     `json:"reportingPlugin"`
 	SQLPlugin                bool                     `json:"sqlPlugin"`
 	NotificationsPlugin      bool                     `json:"notificationsPlugin"`
-	DataCentres              []*OpenSearchDataCentre  `json:"dataCentres"`
 	AnomalyDetectionPlugin   bool                     `json:"anomalyDetectionPlugin"`
 	LoadBalancer             bool                     `json:"loadBalancer"`
-	PrivateNetworkCluster    bool                     `json:"privateNetworkCluster"`
-	Name                     string                   `json:"name"`
 	BundledUseOnly           bool                     `json:"bundledUseOnly"`
-	ClusterManagerNodes      []*ClusterManagerNodes   `json:"clusterManagerNodes"`
 	IndexManagementPlugin    bool                     `json:"indexManagementPlugin"`
-	SLATier                  string                   `json:"slaTier,omitempty"`
 	AlertingPlugin           bool                     `json:"alertingPlugin"`
-	ResizeSettings           []*ResizeSettings        `json:"resizeSettings,omitempty"`
-	Description              string                   `json:"description,omitempty"`
+	DataCentres              []*OpenSearchDataCentre  `json:"dataCentres"`
+	DataNodes                []*OpenSearchDataNodes   `json:"dataNodes,omitempty"`
+	OpenSearchDashboards     []*OpenSearchDashboards  `json:"opensearchDashboards,omitempty"`
+	ClusterManagerNodes      []*ClusterManagerNodes   `json:"clusterManagerNodes"`
 	IngestNodes              []*OpenSearchIngestNodes `json:"ingestNodes,omitempty"`
+	ResizeSettings           []*ResizeSettings        `json:"resizeSettings,omitempty"`
+
+	LoadBalancerConnectionURL            string `json:"loadBalancerConnectionURL,omitempty"`
+	PrivateEndpoint                      string `json:"privateEndpoint,omitempty"`
+	PublicEndpoint                       string `json:"publicEndpoint,omitempty"`
+	IngestNodesLoadBalancerConnectionURL string `json:"ingestNodesLoadBalancerConnectionURL,omitempty"`
 }
 
 type OpenSearchIngestNodes struct {
@@ -61,9 +61,22 @@ type OpenSearchDashboards struct {
 }
 
 type OpenSearchDataCentre struct {
-	DataCentre    `json:",inline"`
+	GenericDataCentreFields `json:",inline"`
+
 	PrivateLink   bool `json:"privateLink"`
 	NumberOfRacks int  `json:"numberOfRacks"`
+
+	PrivateLinkEndpointServiceName string           `json:"privateLinkEndpointServiceName,omitempty"`
+	PrivateLinkRestAPIURL          string           `json:"privateLinkRestApiUrl,omitempty"`
+	Nodes                          []OpenSearchNode `json:"nodes,omitempty"`
+}
+
+type OpenSearchNode struct {
+	Node `json:",inline"`
+
+	PublicEndpoint           string `json:"publicEndpoint,omitempty"`
+	PrivateEndpoint          string `json:"privateEndpoint,omitempty"`
+	PrivateLinkConnectionURL string `json:"privateLinkConnectionUrl,omitempty"`
 }
 
 type ClusterManagerNodes struct {

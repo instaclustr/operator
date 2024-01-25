@@ -47,7 +47,7 @@ func (c *mockClient) DoRequest(url string, method string, data []byte) (*http.Re
 	panic("DoRequest: is not implemented")
 }
 
-func (c *mockClient) GetOpenSearch(id string) ([]byte, error) {
+func (c *mockClient) GetOpenSearch(id string) (*models.OpenSearchCluster, error) {
 	panic("GetOpenSearch: is not implemented")
 }
 

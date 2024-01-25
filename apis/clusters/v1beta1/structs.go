@@ -65,16 +65,6 @@ type RestoreCustomVPCSettings struct {
 	Network string `json:"network"`
 }
 
-type Node struct {
-	ID             string   `json:"id,omitempty"`
-	Size           string   `json:"size,omitempty"`
-	PublicAddress  string   `json:"publicAddress,omitempty"`
-	PrivateAddress string   `json:"privateAddress,omitempty"`
-	Status         string   `json:"status,omitempty"`
-	Roles          []string `json:"roles,omitempty"`
-	Rack           string   `json:"rack,omitempty"`
-}
-
 type Options struct {
 	DataNodeSize                 string `json:"dataNodeSize,omitempty"`
 	MasterNodeSize               string `json:"masterNodeSize,omitempty"`
@@ -101,6 +91,25 @@ type Cluster struct {
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 
 	Description string `json:"description,omitempty"`
+}
+
+func (c *Cluster) FromInstAPI(model *models.GenericClusterFields) {
+	c.Name = model.Name
+	c.PCICompliance = model.PCIComplianceMode
+	c.PrivateNetworkCluster = model.PrivateNetworkCluster
+	c.SLATier = model.SLATier
+	c.Description = model.Description
+}
+
+func (c *Cluster) ToInstAPI() models.GenericClusterFields {
+	return models.GenericClusterFields{
+		Name:                  c.Name,
+		Description:           c.Description,
+		PCIComplianceMode:     c.PCICompliance,
+		PrivateNetworkCluster: c.PrivateNetworkCluster,
+		SLATier:               c.SLATier,
+		TwoFactorDelete:       c.TwoFactorDeletesToInstAPI(),
+	}
 }
 
 type ClusterStatus struct {

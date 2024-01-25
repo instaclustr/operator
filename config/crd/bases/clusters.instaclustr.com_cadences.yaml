@@ -218,12 +218,12 @@ spec:
                           type: string
                         nodeSize:
                           type: string
-                        replicationFactor:
+                        numberOfRacks:
                           type: integer
                       required:
                       - network
                       - nodeSize
-                      - replicationFactor
+                      - numberOfRacks
                       type: object
                     useAdvancedVisibility:
                       type: boolean

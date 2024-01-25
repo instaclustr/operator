@@ -54,9 +54,9 @@ type BundledKafkaSpec struct {
 }
 
 type BundledOpenSearchSpec struct {
-	NodeSize          string `json:"nodeSize"`
-	ReplicationFactor int    `json:"replicationFactor"`
-	Network           string `json:"network"`
+	NodeSize      string `json:"nodeSize"`
+	NumberOfRacks int    `json:"numberOfRacks"`
+	Network       string `json:"network"`
 }
 
 // CadenceSpec defines the desired state of Cadence

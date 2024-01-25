@@ -173,7 +173,6 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 		err = r.Status().Patch(ctx, o, patch)
 		if err != nil {
 			logger.Error(err, "Cannot patch OpenSearch cluster status",
-				"original cluster ID", o.Spec.RestoreFrom.ClusterID,
 				"cluster ID", id)
 
 			r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
@@ -256,7 +255,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 ) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch update event")
 
-	iData, err := r.API.GetOpenSearch(o.Status.ID)
+	instaModel, err := r.API.GetOpenSearch(o.Status.ID)
 	if err != nil {
 		logger.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
 			"cluster name", o.Spec.Name,
@@ -269,18 +268,8 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	iOpenSearch, err := o.FromInstAPI(iData)
-	if err != nil {
-		logger.Error(err, "Cannot get OpenSearch cluster from the Instaclustr API",
-			"cluster name", o.Spec.Name,
-			"cluster ID", o.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(o, models.Warning, models.ConversionFailed,
-			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
+	iOpenSearch := &v1beta1.OpenSearch{}
+	iOpenSearch.FromInstAPI(instaModel)
 
 	if iOpenSearch.Status.State != models.RunningStatus {
 		logger.Info("OpenSearch cluster is not ready to update",
@@ -607,7 +596,7 @@ func (r *OpenSearchReconciler) startUsersCreationJob(cluster *v1beta1.OpenSearch
 }
 
 func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) scheduler.Job {
-	l := log.Log.WithValues("component", "openSearchStatusClusterJob")
+	l := log.Log.WithValues("statusJob", o.GetJobID(scheduler.StatusChecker))
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(o)
 		err := r.Get(context.Background(), namespacedName, o)
@@ -626,7 +615,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 			return err
 		}
 
-		iData, err := r.API.GetOpenSearch(o.Status.ID)
+		instaModel, err := r.API.GetOpenSearch(o.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
 				if o.DeletionTimestamp != nil {
@@ -643,24 +632,14 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 			return err
 		}
 
-		iO, err := o.FromInstAPI(iData)
-		if err != nil {
-			l.Error(err, "Cannot convert OpenSearch cluster from the Instaclustr API",
-				"cluster ID", o.Status.ID)
+		iO := &v1beta1.OpenSearch{}
+		iO.FromInstAPI(instaModel)
 
-			return err
-		}
-
-		if !areStatusesEqual(&iO.Status.ClusterStatus, &o.Status.ClusterStatus) {
-			l.Info("Updating OpenSearch cluster status",
-				"new status", iO.Status.ClusterStatus,
-				"old status", o.Status.ClusterStatus,
-			)
-
-			areDCsEqual := areDataCentresEqual(iO.Status.ClusterStatus.DataCentres, o.Status.ClusterStatus.DataCentres)
+		if !iO.Status.Equals(&o.Status) {
+			l.Info("Updating OpenSearch cluster status", "old", o.Status, "new", iO.Status)
 
 			patch := o.NewPatch()
-			o.Status.ClusterStatus = iO.Status.ClusterStatus
+			o.Status.FromInstAPI(instaModel)
 			err = r.Status().Patch(context.Background(), o, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch OpenSearch cluster",
@@ -671,11 +650,14 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 				return err
 			}
 
-			if !areDCsEqual {
+			if !o.Status.DataCentreEquals(&iO.Status) {
 				var nodes []*v1beta1.Node
 
-				for _, dc := range iO.Status.ClusterStatus.DataCentres {
-					nodes = append(nodes, dc.Nodes...)
+				for _, dc := range iO.Status.DataCentres {
+					for _, node := range dc.Nodes {
+						n := node.Node
+						nodes = append(nodes, &n)
+					}
 				}
 
 				err = exposeservice.Create(r.Client,
@@ -1032,7 +1014,7 @@ func (r *OpenSearchReconciler) reconcileMaintenanceEvents(ctx context.Context, o
 		return err
 	}
 
-	if !o.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+	if !o.Status.MaintenanceEventsEqual(iMEStatuses) {
 		patch := o.NewPatch()
 		o.Status.MaintenanceEvents = iMEStatuses
 		err = r.Status().Patch(ctx, o, patch)

@@ -489,6 +489,7 @@ func (r *CadenceReconciler) handleExternalChanges(c, iCadence *v1beta1.Cadence, 
 func (r *CadenceReconciler) handleDeleteCluster(
 	ctx context.Context,
 	c *v1beta1.Cadence,
+
 	l logr.Logger,
 ) (ctrl.Result, error) {
 	_, err := r.API.GetCadence(c.Status.ID)
@@ -1181,7 +1182,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSear
 		DedicatedManager: false,
 	}}
 
-	osReplicationFactor := bundledOpenSearchSpec.ReplicationFactor
+	oNumberOfRacks := bundledOpenSearchSpec.NumberOfRacks
 	slaTier := c.Spec.SLATier
 	privateClusterNetwork := c.Spec.PrivateNetworkCluster
 	pciCompliance := c.Spec.PCICompliance
@@ -1217,7 +1218,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSear
 			CloudProvider:       cloudProvider,
 			ProviderAccountName: providerAccountName,
 			Network:             osNetwork,
-			ReplicationFactor:   osReplicationFactor,
+			NumberOfRacks:       oNumberOfRacks,
 		},
 	}
 	spec := v1beta1.OpenSearchSpec{

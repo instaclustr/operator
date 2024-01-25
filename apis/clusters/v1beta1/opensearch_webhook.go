@@ -121,7 +121,7 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 			return err
 		}
 
-		err = validateReplicationFactor(models.OpenSearchReplicationFactors, dc.ReplicationFactor)
+		err = validateOpenSearchNumberOfRacks(dc.NumberOfRacks)
 		if err != nil {
 			return err
 		}
@@ -153,6 +153,14 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func validateOpenSearchNumberOfRacks(numberOfRacks int) error {
+	if numberOfRacks < 2 || numberOfRacks > 5 {
+		return models.ErrOpenSearchNumberOfRacksInvalid
 	}
 
 	return nil
@@ -318,7 +326,7 @@ func (oss *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFiel
 		},
 		specificOpenSearchDC{
 			PrivateLink:       oss.PrivateLink,
-			ReplicationFactor: oss.ReplicationFactor,
+			ReplicationFactor: oss.NumberOfRacks,
 		},
 	}
 }
@@ -402,8 +410,8 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSear
 
 func (dc *OpenSearchDataCentre) validateDataNode(nodes []*OpenSearchDataNodes) error {
 	for _, node := range nodes {
-		if node.NodesNumber%dc.ReplicationFactor != 0 {
-			return fmt.Errorf("number of data nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
+		if node.NodesNumber%dc.NumberOfRacks != 0 {
+			return fmt.Errorf("number of data nodes must be a multiple of number of racks: %v", dc.NumberOfRacks)
 		}
 	}
 

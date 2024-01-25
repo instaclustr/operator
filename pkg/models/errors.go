@@ -75,4 +75,5 @@ var (
 	ErrUnsupportedDeletingDC                      = errors.New("deleting data centre is not supported")
 	ErrClusterIsNotReadyToUpdate                  = errors.New("cluster is not ready to update")
 	ErrKubeVirtAddonNotFound                      = errors.New("cannot create KubeVirt based resources automatially without KubeVirt operator installed. Please install KubeVirt add-on")
+	ErrOpenSearchNumberOfRacksInvalid             = errors.New("number of racks should be between 2 and 5")
 )
