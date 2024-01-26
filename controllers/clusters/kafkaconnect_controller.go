@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
@@ -39,7 +40,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -50,6 +51,7 @@ type KafkaConnectReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkaconnects,verbs=get;list;watch;create;update;patch;delete
@@ -89,7 +91,7 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, kc, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, kc, l)
+		return r.handleUpdateCluster(ctx, kc, req, l)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, kc, l)
 	default:
@@ -296,7 +298,12 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
+func (r *KafkaConnectReconciler) handleUpdateCluster(
+	ctx context.Context,
+	kc *v1beta1.KafkaConnect,
+	req ctrl.Request,
+	l logr.Logger,
+) (reconcile.Result, error) {
 	l = l.WithName("Update Event")
 
 	iData, err := r.API.GetKafkaConnect(kc.Status.ID)
@@ -323,8 +330,9 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		return reconcile.Result{}, err
 	}
 
-	if kc.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(kc, iKC, l)
+	if kc.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.KafkaConnectSpec](r.EventRecorder, r.Client, kc, iKC, l)
 	}
 
 	if kc.Spec.ClusterSettingsNeedUpdate(iKC.Spec.Cluster) {
@@ -345,54 +353,32 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 
 	if !kc.Spec.IsEqual(iKC.Spec) {
 		l.Info("Update request to Instaclustr API has been sent",
-			"spec data centres", kc.Spec.DataCentres,
-		)
+			"spec data centres", kc.Spec.DataCentres)
 
 		err = r.API.UpdateKafkaConnect(kc.Status.ID, kc.Spec.NewDCsUpdate())
 		if err != nil {
 			l.Error(err, "Unable to update Kafka Connect cluster",
 				"cluster name", kc.Spec.Name,
-				"cluster status", kc.Status,
-			)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.UpdateFailed,
-				"Cluster update on the Instaclustr API is failed. Reason: %v",
-				err,
-			)
+				"cluster status", kc.Status)
 
-			patch := kc.NewPatch()
-			kc.Annotations[models.UpdateQueuedAnnotation] = models.True
-			kc.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-			err = r.Patch(ctx, kc, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch cluster resource",
-					"cluster name", kc.Spec.Name, "cluster ID", kc.Status.ID)
+			r.EventRecorder.Eventf(kc, models.Warning, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
-				r.EventRecorder.Eventf(
-					kc, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
 			return reconcile.Result{}, err
 		}
 	}
 
 	patch := kc.NewPatch()
 	kc.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	kc.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, kc, patch)
 	if err != nil {
 		l.Error(err, "Unable to patch Kafka Connect cluster",
 			"cluster name", kc.Spec.Name,
-			"cluster status", kc.Status,
-		)
-		r.EventRecorder.Eventf(
-			kc, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
-			err,
-		)
+			"cluster status", kc.Status)
+
+		r.EventRecorder.Eventf(kc, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
 		return reconcile.Result{}, err
 	}
 
@@ -402,43 +388,6 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(ctx context.Context, kc *v1
 		"cluster ID", kc.Status.ID,
 		"data centres", kc.Spec.DataCentres,
 	)
-
-	return models.ExitReconcile, nil
-}
-
-func (r *KafkaConnectReconciler) handleExternalChanges(kc, ik *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
-	if !kc.Spec.IsEqual(ik.Spec) {
-		l.Info(msgExternalChanges,
-			"specification of k8s resource", kc.Spec,
-			"data from Instaclustr ", ik.Spec)
-
-		msgDiffSpecs, err := createSpecDifferenceMessage(kc.Spec, ik.Spec)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", ik.Spec, "k8s resource spec", kc.Spec)
-			return models.ExitReconcile, nil
-		}
-		r.EventRecorder.Eventf(kc, models.Warning, models.ExternalChanges, msgDiffSpecs)
-		return models.ExitReconcile, nil
-	}
-
-	patch := kc.NewPatch()
-
-	kc.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err := r.Patch(context.Background(), kc, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", kc.Spec.Name, "cluster ID", kc.Status.ID)
-
-		r.EventRecorder.Eventf(kc, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "resource ID", kc.Status.ID)
-	r.EventRecorder.Event(kc, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -714,7 +663,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 				"External changes were automatically reconciled",
 			)
 		} else if kc.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			kc.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			kc.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(kc.Spec, "userRefs")
 			if err != nil {
@@ -760,8 +709,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 // SetupWithManager sets up the controller with the Manager.
 func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+		WithOptions(controller.Options{RateLimiter: r.RateLimiter}).
 		For(&v1beta1.KafkaConnect{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.SetAnnotations(map[string]string{models.ResourceStateAnnotation: models.CreatingEvent})

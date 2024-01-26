@@ -259,6 +259,12 @@ func (pdc *PgDataCentre) PGBouncerToInstAPI() (iPgB []*models.PGBouncer) {
 	return
 }
 
+func (c *PostgreSQL) GetSpec() PgSpec { return c.Spec }
+
+func (c *PostgreSQL) IsSpecEqual(spec PgSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (pgs *PgSpec) IsEqual(iPG PgSpec) bool {
 	return pgs.Cluster.IsEqual(iPG.Cluster) &&
 		pgs.SynchronousModeStrict == iPG.SynchronousModeStrict &&

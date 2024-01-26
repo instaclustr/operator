@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
@@ -42,7 +43,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -53,6 +54,7 @@ type CassandraReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cassandras,verbs=get;list;watch;create;update;patch;delete
@@ -95,7 +97,7 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, l, c)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, l, c)
+		return r.handleUpdateCluster(ctx, l, req, c)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, l, c)
 	case models.GenericEvent:
@@ -378,6 +380,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 func (r *CassandraReconciler) handleUpdateCluster(
 	ctx context.Context,
 	l logr.Logger,
+	req ctrl.Request,
 	c *v1beta1.Cassandra,
 ) (reconcile.Result, error) {
 	l = l.WithName("Cassandra update event")
@@ -413,8 +416,9 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(c, iCassandra, l)
+	if c.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.CassandraSpec](r.EventRecorder, r.Client, c, iCassandra, l)
 	}
 
 	patch := c.NewPatch()
@@ -445,38 +449,11 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		if err != nil {
 			l.Error(err, "Cannot update cluster",
 				"cluster ID", c.Status.ID,
-				"cluster name", c.Spec.Name,
 				"cluster spec", c.Spec,
-				"cluster state", c.Status.State,
-			)
+				"cluster state", c.Status.State)
 
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.UpdateFailed,
-				"Cluster update on the Instaclustr API is failed. Reason: %v",
-				err,
-			)
-
-			if errors.Is(err, instaclustr.ClusterIsNotReadyToResize) {
-				patch := c.NewPatch()
-				c.Annotations[models.UpdateQueuedAnnotation] = models.True
-				err = r.Patch(ctx, c, patch)
-				if err != nil {
-					l.Error(err, "Cannot patch cluster resource",
-						"cluster name", c.Spec.Name,
-						"cluster ID", c.Status.ID,
-						"kind", c.Kind,
-						"api Version", c.APIVersion,
-						"namespace", c.Namespace,
-						"cluster metadata", c.ObjectMeta,
-					)
-					r.EventRecorder.Eventf(
-						c, models.Warning, models.PatchFailed,
-						"Cluster resource patch is failed. Reason: %v",
-						err,
-					)
-					return reconcile.Result{}, err
-				}
-			}
+			r.EventRecorder.Eventf(c, models.Warning, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
 			return reconcile.Result{}, err
 		}
@@ -492,22 +469,14 @@ func (r *CassandraReconciler) handleUpdateCluster(
 	}
 
 	c.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	c.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, c, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", c.Spec.Name,
-			"cluster ID", c.Status.ID,
-			"kind", c.Kind,
-			"api Version", c.APIVersion,
-			"namespace", c.Namespace,
-			"cluster metadata", c.ObjectMeta,
-		)
-		r.EventRecorder.Eventf(
-			c, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
-			err,
-		)
+			"cluster ID", c.Status.ID)
+
+		r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
 		return reconcile.Result{}, err
 	}
 
@@ -517,45 +486,6 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		"cluster ID", c.Status.ID,
 		"data centres", c.Spec.DataCentres,
 	)
-
-	return models.ExitReconcile, nil
-}
-
-func (r *CassandraReconciler) handleExternalChanges(c, iCassandra *v1beta1.Cassandra, l logr.Logger) (reconcile.Result, error) {
-	if !c.Spec.IsEqual(iCassandra.Spec) {
-		l.Info(msgExternalChanges,
-			"specification of k8s resource", c.Spec,
-			"data from Instaclustr ", iCassandra.Spec)
-
-		msgDiffSpecs, err := createSpecDifferenceMessage(c.Spec, iCassandra.Spec)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", iCassandra.Spec, "k8s resource spec", c.Spec)
-			return models.ExitReconcile, nil
-		}
-
-		r.EventRecorder.Eventf(c, models.Warning, models.ExternalChanges, msgDiffSpecs)
-
-		return models.ExitReconcile, nil
-	}
-
-	patch := c.NewPatch()
-
-	c.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err := r.Patch(context.Background(), c, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-
-		r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "resource ID", c.Status.ID)
-	r.EventRecorder.Event(c, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -864,7 +794,7 @@ func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.
 				"External changes were automatically reconciled",
 			)
 		} else if c.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			c.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(c.Spec, "userRefs")
 			if err != nil {
@@ -1184,8 +1114,7 @@ func (r *CassandraReconciler) NewUserResource() userObject {
 // SetupWithManager sets up the controller with the Manager.
 func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+		WithOptions(controller.Options{RateLimiter: r.RateLimiter}).
 		For(&v1beta1.Cassandra{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {

@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
@@ -41,7 +42,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -52,6 +53,7 @@ type OpenSearchReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=opensearches,verbs=get;list;watch;create;update;patch;delete
@@ -87,7 +89,7 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	case models.CreatingEvent:
 		return r.HandleCreateCluster(ctx, openSearch, logger)
 	case models.UpdatingEvent:
-		return r.HandleUpdateCluster(ctx, openSearch, logger)
+		return r.HandleUpdateCluster(ctx, openSearch, req, logger)
 	case models.DeletingEvent:
 		return r.HandleDeleteCluster(ctx, openSearch, logger)
 	case models.GenericEvent:
@@ -252,6 +254,7 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 func (r *OpenSearchReconciler) HandleUpdateCluster(
 	ctx context.Context,
 	o *v1beta1.OpenSearch,
+	req ctrl.Request,
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch update event")
@@ -282,33 +285,9 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	if iOpenSearch.Status.State != models.RunningStatus {
-		logger.Info("OpenSearch cluster is not ready to update",
-			"cluster Name", o.Spec.Name,
-			"reason", instaclustr.ClusterNotRunning,
-		)
-
-		patch := o.NewPatch()
-		o.Annotations[models.UpdateQueuedAnnotation] = models.True
-		err = r.Patch(ctx, o, patch)
-		if err != nil {
-			logger.Error(err, "Cannot patch OpenSearch metadata",
-				"cluster name", o.Spec.Name,
-				"cluster metadata", o.ObjectMeta,
-			)
-
-			r.EventRecorder.Eventf(
-				o, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, err
-	}
-
-	if o.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(o, iOpenSearch, logger)
+	if o.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.OpenSearchSpec](r.EventRecorder, r.Client, o, iOpenSearch, logger)
 	}
 
 	if o.Spec.ClusterSettingsNeedUpdate(iOpenSearch.Spec.Cluster) {
@@ -343,22 +322,6 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 			r.EventRecorder.Eventf(o, models.Warning, models.UpdateFailed,
 				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
-			patch := o.NewPatch()
-			o.Annotations[models.UpdateQueuedAnnotation] = models.True
-			err = r.Patch(ctx, o, patch)
-			if err != nil {
-				logger.Error(err, "Cannot patch OpenSearch metadata",
-					"cluster name", o.Spec.Name,
-					"cluster metadata", o.ObjectMeta,
-				)
-
-				r.EventRecorder.Eventf(
-					o, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
 			return reconcile.Result{}, err
 		}
 
@@ -381,7 +344,6 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 
 	patch := o.NewPatch()
 	o.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	o.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, o, patch)
 	if err != nil {
 		logger.Error(err, "Cannot patch OpenSearch metadata",
@@ -398,44 +360,6 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 	logger.Info("OpenSearch cluster was updated",
 		"cluster name", o.Spec.Name,
 		"cluster ID", o.Status.ID)
-
-	return models.ExitReconcile, nil
-}
-
-func (r *OpenSearchReconciler) handleExternalChanges(o, iO *v1beta1.OpenSearch, l logr.Logger) (reconcile.Result, error) {
-	if !o.Spec.IsEqual(iO.Spec) {
-		l.Info(msgExternalChanges,
-			"specification of k8s resource", o.Spec,
-			"data from Instaclustr ", iO.Spec)
-
-		msgDiffSpecs, err := createSpecDifferenceMessage(o.Spec, iO.Spec)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", iO.Spec, "k8s resource spec", o.Spec)
-			return models.ExitReconcile, nil
-		}
-		r.EventRecorder.Eventf(o, models.Warning, models.ExternalChanges, msgDiffSpecs)
-
-		return models.ExitReconcile, nil
-	}
-
-	patch := o.NewPatch()
-
-	o.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err := r.Patch(context.Background(), o, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", o.Spec.Name, "cluster ID", o.Status.ID)
-
-		r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "resource ID", o.Status.ID)
-	r.EventRecorder.Event(o, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -704,7 +628,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 				"External changes were automatically reconciled",
 			)
 		} else if o.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			o.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			o.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(o.Spec, "userRefs")
 			if err != nil {
@@ -981,7 +905,7 @@ func (r *OpenSearchReconciler) NewUserResource() userObject {
 func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+			RateLimiter: r.RateLimiter}).
 		For(&v1beta1.OpenSearch{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {

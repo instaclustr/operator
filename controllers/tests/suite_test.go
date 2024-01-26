@@ -39,6 +39,7 @@ import (
 	"github.com/instaclustr/operator/controllers/clusters"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 	//+kubebuilder:scaffold:imports
 )
@@ -109,6 +110,7 @@ var _ = BeforeSuite(func() {
 		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -126,6 +128,7 @@ var _ = BeforeSuite(func() {
 		API:           instaClient,
 		Scheduler:     scheduler.NewScheduler(logf.Log),
 		EventRecorder: eRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

@@ -32,13 +32,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -49,6 +50,7 @@ type ZookeeperReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=zookeepers,verbs=get;list;watch;create;update;patch;delete
@@ -82,7 +84,7 @@ func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, zook, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(zook, l)
+		return r.handleUpdateCluster(zook, req, l)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, zook, l)
 	case models.GenericEvent:
@@ -227,13 +229,10 @@ func (r *ZookeeperReconciler) createDefaultSecret(ctx context.Context, zk *v1bet
 
 func (r *ZookeeperReconciler) handleUpdateCluster(
 	zook *v1beta1.Zookeeper,
+	req ctrl.Request,
 	l logr.Logger,
 ) (reconcile.Result, error) {
 	l = l.WithName("Update Event")
-
-	if zook.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(zook, l)
-	}
 
 	iData, err := r.API.GetZookeeper(zook.Status.ID)
 	if err != nil {
@@ -245,6 +244,11 @@ func (r *ZookeeperReconciler) handleUpdateCluster(
 	if err != nil {
 		l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", zook.Status.ID)
 		return reconcile.Result{}, err
+	}
+
+	if zook.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.ZookeeperSpec](r.EventRecorder, r.Client, zook, iZook, l)
 	}
 
 	if zook.Spec.ClusterSettingsNeedUpdate(iZook.Spec.Cluster) {
@@ -262,56 +266,6 @@ func (r *ZookeeperReconciler) handleUpdateCluster(
 			return reconcile.Result{}, err
 		}
 	}
-
-	return models.ExitReconcile, nil
-}
-
-func (r *ZookeeperReconciler) handleExternalChanges(zook *v1beta1.Zookeeper, l logr.Logger) (reconcile.Result, error) {
-	iData, err := r.API.GetZookeeper(zook.Status.ID)
-	if err != nil {
-		l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", zook.Status.ID)
-		return reconcile.Result{}, err
-	}
-
-	iZook, err := zook.FromInstAPI(iData)
-	if err != nil {
-		l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", zook.Status.ID)
-		return reconcile.Result{}, err
-	}
-
-	if !zook.Spec.IsEqual(iZook.Spec) {
-		l.Info(msgExternalChanges,
-			"specification of k8s resource", zook.Spec,
-			"data from Instaclustr ", iZook.Spec)
-
-		msgDiffSpecs, err := createSpecDifferenceMessage(zook.Spec, iZook.Spec)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", iZook.Spec, "k8s resource spec", zook.Spec)
-			return models.ExitReconcile, nil
-		}
-		r.EventRecorder.Eventf(zook, models.Warning, models.ExternalChanges, msgDiffSpecs)
-
-		return models.ExitReconcile, nil
-	}
-
-	patch := zook.NewPatch()
-
-	zook.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err = r.Patch(context.Background(), zook, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", zook.Spec.Name, "cluster ID", zook.Status.ID)
-
-		r.EventRecorder.Eventf(zook, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "resource ID", zook.Status.ID)
-	r.EventRecorder.Event(zook, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -530,7 +484,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 				"External changes were automatically reconciled",
 			)
 		} else if zook.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			zook.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			zook.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(zook.Spec, "userRefs")
 			if err != nil {
@@ -594,8 +548,7 @@ func (r *ZookeeperReconciler) handleExternalDelete(ctx context.Context, zook *v1
 // SetupWithManager sets up the controller with the Manager.
 func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+		WithOptions(controller.Options{RateLimiter: r.RateLimiter}).
 		For(&v1beta1.Zookeeper{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				event.Object.GetAnnotations()[models.ResourceStateAnnotation] = models.CreatingEvent

@@ -444,6 +444,12 @@ func (a *KafkaSpec) IsEqual(b KafkaSpec) bool {
 		a.IsTwoFactorDeleteEqual(b.TwoFactorDelete)
 }
 
+func (c *Kafka) GetSpec() KafkaSpec { return c.Spec }
+
+func (c *Kafka) IsSpecEqual(spec KafkaSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (rs *KafkaSpec) areDCsEqual(b []*KafkaDataCentre) bool {
 	a := rs.DataCentres
 	if len(a) != len(b) {

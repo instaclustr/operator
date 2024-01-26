@@ -23,13 +23,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
@@ -279,4 +282,56 @@ func deleteDefaultUserSecret(
 type Object interface {
 	client.Object
 	NewPatch() client.Patch
+}
+
+type ExternalChanger[T any] interface {
+	Object
+	GetSpec() T
+	IsSpecEqual(T) bool
+	GetClusterID() string
+}
+
+func handleExternalChanges[T any](
+	r record.EventRecorder,
+	c client.Client,
+	resource, iResource ExternalChanger[T],
+	l logr.Logger,
+) (reconcile.Result, error) {
+	patch := resource.NewPatch()
+
+	if !resource.IsSpecEqual(iResource.GetSpec()) {
+		resource.GetAnnotations()[models.ExternalChangesAnnotation] = models.True
+
+		l.Info(msgExternalChanges,
+			"specification of k8s resource", resource.GetSpec(),
+			"data from Instaclustr ", iResource.GetSpec())
+
+		msgDiffSpecs, err := createSpecDifferenceMessage(resource.GetSpec(), iResource.GetSpec())
+		if err != nil {
+			l.Error(err, "Cannot create specification difference message",
+				"instaclustr data", iResource.GetSpec(), "k8s resource spec", resource.GetSpec())
+			return models.ExitReconcile, nil
+		}
+
+		r.Eventf(resource, models.Warning, models.ExternalChanges, msgDiffSpecs)
+	} else {
+		resource.GetAnnotations()[models.ExternalChangesAnnotation] = ""
+		resource.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatedEvent
+
+		l.Info("External changes have been reconciled", "cluster ID", resource.GetClusterID())
+		r.Event(resource, models.Normal, models.ExternalChanges, "External changes have been reconciled")
+	}
+
+	err := c.Patch(context.Background(), resource, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch cluster resource",
+			"cluster name", resource.GetName(), "cluster ID", resource.GetClusterID())
+
+		r.Eventf(resource, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return reconcile.Result{}, err
+	}
+
+	return models.ExitReconcile, nil
 }
