@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
@@ -40,7 +41,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -51,6 +52,7 @@ type KafkaReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=kafkas,verbs=get;list;watch;create;update;patch;delete
@@ -90,7 +92,7 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, &k, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, &k, l)
+		return r.handleUpdateCluster(ctx, &k, req, l)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, &k, l)
 	case models.GenericEvent:
@@ -282,6 +284,7 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Ka
 func (r *KafkaReconciler) handleUpdateCluster(
 	ctx context.Context,
 	k *v1beta1.Kafka,
+	req ctrl.Request,
 	l logr.Logger,
 ) (reconcile.Result, error) {
 	l = l.WithName("Kafka update Event")
@@ -298,30 +301,9 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	if iKafka.Status.ClusterStatus.State != models.RunningStatus {
-		l.Error(instaclustr.ClusterNotRunning, "Unable to update cluster, cluster still not running",
-			"cluster name", k.Spec.Name,
-			"cluster state", iKafka.Status.ClusterStatus.State)
-
-		patch := k.NewPatch()
-		k.Annotations[models.UpdateQueuedAnnotation] = models.True
-		err = r.Patch(ctx, k, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
-
-			r.EventRecorder.Eventf(
-				k, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, err
-	}
-
-	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(k, iKafka, l)
+	if k.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.KafkaSpec](r.EventRecorder, r.Client, k, iKafka, l)
 	}
 
 	if k.Spec.ClusterSettingsNeedUpdate(iKafka.Spec.Cluster) {
@@ -366,27 +348,11 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		r.EventRecorder.Eventf(k, models.Warning, models.UpdateFailed,
 			"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
-		patch := k.NewPatch()
-		k.Annotations[models.UpdateQueuedAnnotation] = models.True
-		err = r.Patch(ctx, k, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
-
-			r.EventRecorder.Eventf(
-				k, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
 		return reconcile.Result{}, err
 	}
 
 	patch := k.NewPatch()
 	k.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	k.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, k, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch cluster resource",
@@ -404,43 +370,6 @@ func (r *KafkaReconciler) handleUpdateCluster(
 		"cluster ID", k.Status.ID,
 		"data centres", k.Spec.DataCentres,
 	)
-
-	return models.ExitReconcile, nil
-}
-
-func (r *KafkaReconciler) handleExternalChanges(k, ik *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
-	if !k.Spec.IsEqual(ik.Spec) {
-		l.Info("The k8s specification is different from Instaclustr Console. Update operations are blocked.",
-			"specification of k8s resource", k.Spec,
-			"data from Instaclustr ", ik.Spec)
-
-		msgDiffSpecs, err := createSpecDifferenceMessage(k.Spec, ik.Spec)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", ik.Spec, "k8s resource spec", k.Spec)
-			return models.ExitReconcile, nil
-		}
-		r.EventRecorder.Eventf(k, models.Warning, models.ExternalChanges, msgDiffSpecs)
-		return models.ExitReconcile, nil
-	}
-
-	patch := k.NewPatch()
-
-	k.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err := r.Patch(context.Background(), k, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", k.Spec.Name, "cluster ID", k.Status.ID)
-
-		r.EventRecorder.Eventf(k, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "kafka ID", k.Status.ID)
-	r.EventRecorder.Event(k, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return models.ExitReconcile, nil
 }
@@ -674,7 +603,7 @@ func (r *KafkaReconciler) newWatchStatusJob(k *v1beta1.Kafka) scheduler.Job {
 		}
 
 		if iKafka.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			k.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			k.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!k.Spec.IsEqual(iKafka.Spec) {
 
 			patch := k.NewPatch()
@@ -825,7 +754,7 @@ func (r *KafkaReconciler) NewUserResource() userObject {
 func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+			RateLimiter: r.RateLimiter}).
 		For(&v1beta1.Kafka{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				annots := event.Object.GetAnnotations()

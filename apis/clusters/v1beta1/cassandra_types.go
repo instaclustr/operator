@@ -350,6 +350,12 @@ func (cs *CassandraSpec) IsEqual(spec CassandraSpec) bool {
 		cs.BundledUseOnly == spec.BundledUseOnly
 }
 
+func (c *Cassandra) GetSpec() CassandraSpec { return c.Spec }
+
+func (c *Cassandra) IsSpecEqual(spec CassandraSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 	if len(cs.DataCentres) != len(dcs) {
 		return false

@@ -191,6 +191,10 @@ func (zdc *ZookeeperDataCentre) ToInstAPI() *models.ZookeeperDataCentre {
 	}
 }
 
+func (z *Zookeeper) GetSpec() ZookeeperSpec { return z.Spec }
+
+func (z *Zookeeper) IsSpecEqual(spec ZookeeperSpec) bool { return z.Spec.IsEqual(spec) }
+
 func (a *ZookeeperSpec) IsEqual(b ZookeeperSpec) bool {
 	return a.Cluster.IsEqual(b.Cluster) &&
 		a.areDCsEqual(b.DataCentres)

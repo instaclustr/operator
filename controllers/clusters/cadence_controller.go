@@ -35,13 +35,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -52,6 +53,7 @@ type CadenceReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=cadences,verbs=get;list;watch;create;update;patch;delete
@@ -95,7 +97,7 @@ func (r *CadenceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, c, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, c, l)
+		return r.handleUpdateCluster(ctx, c, req, l)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, c, l)
 	case models.GenericEvent:
@@ -331,6 +333,7 @@ func (r *CadenceReconciler) handleCreateCluster(
 func (r *CadenceReconciler) handleUpdateCluster(
 	ctx context.Context,
 	c *v1beta1.Cadence,
+	req ctrl.Request,
 	l logr.Logger,
 ) (ctrl.Result, error) {
 	iData, err := r.API.GetCadence(c.Status.ID)
@@ -361,33 +364,9 @@ func (r *CadenceReconciler) handleUpdateCluster(
 		return ctrl.Result{}, err
 	}
 
-	if iCadence.Status.CurrentClusterOperationStatus != models.NoOperation {
-		l.Info("Cadence cluster is not ready to update",
-			"cluster name", iCadence.Spec.Name,
-			"cluster state", iCadence.Status.State,
-			"current operation status", iCadence.Status.CurrentClusterOperationStatus,
-		)
-
-		patch := c.NewPatch()
-		c.Annotations[models.ResourceStateAnnotation] = models.UpdatingEvent
-		c.Annotations[models.UpdateQueuedAnnotation] = models.True
-		err = r.Patch(ctx, c, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Cadence cluster",
-				"cluster name", c.Spec.Name,
-				"patch", patch)
-
-			r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return ctrl.Result{}, err
-		}
-
-		return models.ReconcileRequeue, nil
-	}
-
-	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(c, iCadence, l)
+	if c.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.CadenceSpec](r.EventRecorder, r.Client, c, iCadence, l)
 	}
 
 	if c.Spec.ClusterSettingsNeedUpdate(iCadence.Spec.Cluster) {
@@ -425,7 +404,6 @@ func (r *CadenceReconciler) handleUpdateCluster(
 
 	patch := c.NewPatch()
 	c.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	c.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.Patch(ctx, c, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch Cadence cluster",
@@ -444,44 +422,6 @@ func (r *CadenceReconciler) handleUpdateCluster(
 		"cluster ID", c.Status.ID,
 		"data centres", c.Spec.DataCentres,
 	)
-
-	return ctrl.Result{}, nil
-}
-
-func (r *CadenceReconciler) handleExternalChanges(c, iCadence *v1beta1.Cadence, l logr.Logger) (ctrl.Result, error) {
-	if !c.Spec.AreDCsEqual(iCadence.Spec.DataCentres) {
-		l.Info(msgExternalChanges,
-			"instaclustr data", iCadence.Spec.DataCentres,
-			"k8s resource spec", c.Spec.DataCentres)
-
-		msgDiffSpecs, err := createSpecDifferenceMessage(c.Spec.DataCentres, iCadence.Spec.DataCentres)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", iCadence.Spec, "k8s resource spec", c.Spec)
-			return ctrl.Result{}, err
-		}
-		r.EventRecorder.Eventf(c, models.Warning, models.ExternalChanges, msgDiffSpecs)
-
-		return ctrl.Result{}, nil
-	}
-
-	patch := c.NewPatch()
-
-	c.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err := r.Patch(context.Background(), c, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-
-		r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return ctrl.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "resource ID", c.Status.ID)
-	r.EventRecorder.Event(c, models.Normal, models.ExternalChanges, "External changes have been reconciled")
 
 	return ctrl.Result{}, nil
 }
@@ -1001,7 +941,7 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 				"External changes were automatically reconciled",
 			)
 		} else if c.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			c.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
 			l.Info(msgExternalChanges,
 				"instaclustr data", iCadence.Spec.DataCentres,
@@ -1313,12 +1253,7 @@ func areSecondaryCadenceTargetsEqual(k8sTargets, iTargets []*v1beta1.TargetCaden
 // SetupWithManager sets up the controller with the Manager.
 func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(
-				ratelimiter.DefaultBaseDelay,
-				ratelimiter.DefaultMaxDelay,
-			),
-		}).
+		WithOptions(controller.Options{RateLimiter: r.RateLimiter}).
 		For(&v1beta1.Cadence{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {

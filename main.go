@@ -129,6 +129,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cassandra")
 		os.Exit(1)
@@ -139,6 +140,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQL")
 		os.Exit(1)
@@ -149,6 +151,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OpenSearch")
 		os.Exit(1)
@@ -170,6 +173,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cadence")
 		os.Exit(1)
@@ -180,6 +184,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Kafka")
 		os.Exit(1)
@@ -220,6 +225,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KafkaConnect")
 		os.Exit(1)
@@ -268,6 +274,7 @@ func main() {
 		API:           instaClient,
 		Scheduler:     s,
 		EventRecorder: eventRecorder,
+		RateLimiter:   ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Zookeeper")
 		os.Exit(1)

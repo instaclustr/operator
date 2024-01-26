@@ -403,6 +403,12 @@ func (cs *CadenceSpec) PrivateLinkFromInstAPI(iPLs []*models.PrivateLink) (pls [
 	return
 }
 
+func (c *Cadence) GetSpec() CadenceSpec { return c.Spec }
+
+func (c *Cadence) IsSpecEqual(spec CadenceSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (cs *CadenceSpec) IsEqual(spec CadenceSpec) bool {
 	return cs.AreDCsEqual(spec.DataCentres)
 }

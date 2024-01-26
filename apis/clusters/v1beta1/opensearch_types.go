@@ -409,6 +409,12 @@ func (oss *OpenSearchStatus) DCsFromInstAPI(iDCs []*models.OpenSearchDataCentre)
 	return
 }
 
+func (c *OpenSearch) GetSpec() OpenSearchSpec { return c.Spec }
+
+func (c *OpenSearch) IsSpecEqual(spec OpenSearchSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (a *OpenSearchSpec) IsEqual(b OpenSearchSpec) bool {
 	return a.Cluster.IsEqual(b.Cluster) &&
 		a.IsTwoFactorDeleteEqual(b.TwoFactorDelete) &&

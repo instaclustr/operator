@@ -321,6 +321,12 @@ func (ks *KafkaConnectStatus) DCsFromInstAPI(iDCs []*models.KafkaConnectDataCent
 	return
 }
 
+func (c *KafkaConnect) GetSpec() KafkaConnectSpec { return c.Spec }
+
+func (c *KafkaConnect) IsSpecEqual(spec KafkaConnectSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (ks *KafkaConnectSpec) IsEqual(kc KafkaConnectSpec) bool {
 	return ks.Cluster.IsEqual(kc.Cluster) &&
 		ks.AreDataCentresEqual(kc.DataCentres) &&

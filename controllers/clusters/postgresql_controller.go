@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -45,7 +46,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	"github.com/instaclustr/operator/pkg/ratelimiter"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -56,6 +57,7 @@ type PostgreSQLReconciler struct {
 	API           instaclustr.API
 	Scheduler     scheduler.Interface
 	EventRecorder record.EventRecorder
+	RateLimiter   ratelimiter.RateLimiter
 }
 
 //+kubebuilder:rbac:groups=clusters.instaclustr.com,resources=postgresqls,verbs=get;list;watch;create;update;patch;delete
@@ -102,7 +104,7 @@ func (r *PostgreSQLReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	case models.CreatingEvent:
 		return r.handleCreateCluster(ctx, pg, l)
 	case models.UpdatingEvent:
-		return r.handleUpdateCluster(ctx, pg, l)
+		return r.handleUpdateCluster(ctx, pg, req, l)
 	case models.DeletingEvent:
 		return r.handleDeleteCluster(ctx, pg, l)
 	case models.SecretEvent:
@@ -386,11 +388,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 	return models.ExitReconcile, nil
 }
 
-func (r *PostgreSQLReconciler) handleUpdateCluster(
-	ctx context.Context,
-	pg *v1beta1.PostgreSQL,
-	l logr.Logger,
-) (reconcile.Result, error) {
+func (r *PostgreSQLReconciler) handleUpdateCluster(ctx context.Context, pg *v1beta1.PostgreSQL, req ctrl.Request, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("PostgreSQL update event")
 
 	iData, err := r.API.GetPostgreSQL(pg.Status.ID)
@@ -425,31 +423,9 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	if iPg.Status.CurrentClusterOperationStatus != models.NoOperation {
-		l.Info("PostgreSQL cluster is not ready to update",
-			"cluster name", pg.Spec.Name,
-			"cluster status", iPg.Status.State,
-			"current operation status", iPg.Status.CurrentClusterOperationStatus,
-		)
-		patch := pg.NewPatch()
-		pg.Annotations[models.UpdateQueuedAnnotation] = models.True
-		err = r.Patch(ctx, pg, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster resource",
-				"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
-
-			r.EventRecorder.Eventf(
-				pg, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, err
-	}
-
-	if pg.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return r.handleExternalChanges(pg, iPg, l)
+	if pg.Annotations[models.ExternalChangesAnnotation] == models.True ||
+		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
+		return handleExternalChanges[v1beta1.PgSpec](r.EventRecorder, r.Client, pg, iPg, l)
 	}
 
 	if pg.Spec.ClusterSettingsNeedUpdate(iPg.Spec.Cluster) {
@@ -477,31 +453,11 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 		err = r.updateCluster(pg)
 		if err != nil {
 			l.Error(err, "Cannot update Data Centres",
-				"cluster name", pg.Spec.Name,
-			)
+				"cluster DC", pg.Spec.DataCentres)
 
-			r.EventRecorder.Eventf(
-				pg, models.Warning, models.UpdateFailed,
-				"Cluster update on the Instaclustr API is failed. Reason: %v",
-				err,
-			)
+			r.EventRecorder.Eventf(pg, models.Warning, models.UpdateFailed,
+				"Cluster update on the Instaclustr API is failed. Reason: %v", err)
 
-			patch := pg.NewPatch()
-			pg.Annotations[models.UpdateQueuedAnnotation] = models.True
-			err = r.Patch(ctx, pg, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch PostgreSQL metadata",
-					"cluster name", pg.Spec.Name,
-					"cluster metadata", pg.ObjectMeta,
-				)
-
-				r.EventRecorder.Eventf(
-					pg, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
 			return reconcile.Result{}, err
 		}
 
@@ -555,7 +511,6 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(
 	}
 
 	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	pg.Annotations[models.UpdateQueuedAnnotation] = ""
 	err = r.patchClusterMetadata(ctx, pg, l)
 	if err != nil {
 		l.Error(err, "Cannot patch PostgreSQL resource metadata",
@@ -833,43 +788,6 @@ func (r *PostgreSQLReconciler) handleUserEvent(
 				"Cannot delete user from cluster. Reason: %v", err)
 		}
 	}
-}
-
-func (r *PostgreSQLReconciler) handleExternalChanges(pg, iPg *v1beta1.PostgreSQL, l logr.Logger) (reconcile.Result, error) {
-	if !pg.Spec.IsEqual(iPg.Spec) {
-		l.Info(msgExternalChanges,
-			"specification of k8s resource", pg.Spec,
-			"data from Instaclustr ", iPg.Spec)
-		msgDiffSpecs, err := createSpecDifferenceMessage(pg.Spec, iPg.Spec)
-		if err != nil {
-			l.Error(err, "Cannot create specification difference message",
-				"instaclustr data", iPg.Spec, "k8s resource spec", pg.Spec)
-			return models.ExitReconcile, nil
-		}
-		r.EventRecorder.Eventf(pg, models.Warning, models.ExternalChanges, msgDiffSpecs)
-
-		return models.ExitReconcile, nil
-	}
-
-	patch := pg.NewPatch()
-
-	pg.Annotations[models.ExternalChangesAnnotation] = ""
-
-	err := r.Patch(context.Background(), pg, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch cluster resource",
-			"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
-
-		r.EventRecorder.Eventf(pg, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v", err)
-
-		return reconcile.Result{}, err
-	}
-
-	l.Info("External changes have been reconciled", "resource ID", pg.Status.ID)
-	r.EventRecorder.Event(pg, models.Normal, models.ExternalChanges, "External changes have been reconciled")
-
-	return models.ExitReconcile, nil
 }
 
 func (r *PostgreSQLReconciler) handleDeleteCluster(
@@ -1298,7 +1216,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 				"External changes were automatically reconciled",
 			)
 		} else if pg.Status.CurrentClusterOperationStatus == models.NoOperation &&
-			pg.Annotations[models.UpdateQueuedAnnotation] != models.True &&
+			pg.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
 			k8sData, err := removeRedundantFieldsFromSpec(pg.Spec, "userRefs")
 			if err != nil {
@@ -1785,7 +1703,7 @@ func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcil
 func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		WithOptions(controller.Options{
-			RateLimiter: ratelimiter.NewItemExponentialFailureRateLimiterWithMaxTries(ratelimiter.DefaultBaseDelay, ratelimiter.DefaultMaxDelay)}).
+			RateLimiter: r.RateLimiter}).
 		For(&v1beta1.PostgreSQL{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
 				if deleting := confirmDeletion(event.Object); deleting {

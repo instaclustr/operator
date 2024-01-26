@@ -143,6 +143,12 @@ func (r *Redis) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.Clust
 	}
 }
 
+func (c *Redis) GetSpec() RedisSpec { return c.Spec }
+
+func (c *Redis) IsSpecEqual(spec RedisSpec) bool {
+	return c.Spec.IsEqual(spec)
+}
+
 func (rs *RedisSpec) ToInstAPI() *models.RedisCluster {
 	return &models.RedisCluster{
 		Name:                   rs.Name,

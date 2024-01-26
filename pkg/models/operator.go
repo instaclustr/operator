@@ -28,7 +28,6 @@ const (
 	ExternalChangesAnnotation = "instaclustr.com/externalChanges"
 	DeletionFinalizer         = "instaclustr.com/deletionFinalizer"
 	StartTimestampAnnotation  = "instaclustr.com/startTimestamp"
-	UpdateQueuedAnnotation    = "instaclustr.com/updateQueued"
 
 	DefaultSecretLabel                = "instaclustr.com/defaultSecret"
 	ControlledByLabel                 = "instaclustr.com/controlledBy"
