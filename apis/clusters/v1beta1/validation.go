@@ -60,20 +60,25 @@ func (dc *DataCentre) ValidateCreation() error {
 	}
 
 	switch dc.CloudProvider {
-	case "AWS_VPC":
+	case models.AWSVPC:
 		if !validation.Contains(dc.Region, models.AWSRegions) {
 			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
 				dc.Region, models.AWSRegions)
 		}
-	case "AZURE_AZ":
+	case models.AZUREAZ:
 		if !validation.Contains(dc.Region, models.AzureRegions) {
 			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
 				dc.Region, models.AzureRegions)
 		}
-	case "GCP":
+	case models.GCP:
 		if !validation.Contains(dc.Region, models.GCPRegions) {
 			return fmt.Errorf("GCP Region: %s is unavailable, available regions: %v",
 				dc.Region, models.GCPRegions)
+		}
+	case models.ONPREMISES:
+		if dc.Region != models.CLIENTDC {
+			return fmt.Errorf("ONPREMISES Region: %s is unavailable, available regions: %v",
+				dc.Region, models.CLIENTDC)
 		}
 	}
 

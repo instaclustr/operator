@@ -53,7 +53,6 @@ type CassandraRestoreFrom struct {
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
 	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
-	OnPremisesSpec      *OnPremisesSpec       `json:"onPremisesSpec,omitempty"`
 	Cluster             `json:",inline"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`

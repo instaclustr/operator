@@ -65,7 +65,6 @@ type KarapaceSchemaRegistry struct {
 // KafkaSpec defines the desired state of Kafka
 type KafkaSpec struct {
 	Cluster        `json:",inline"`
-	OnPremisesSpec *OnPremisesSpec   `json:"onPremisesSpec,omitempty"`
 	SchemaRegistry []*SchemaRegistry `json:"schemaRegistry,omitempty"`
 
 	// ReplicationFactor to use for new topic.

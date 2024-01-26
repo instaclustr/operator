@@ -242,81 +242,7 @@ func (r *RedisReconciler) handleCreateCluster(
 			"Cluster status check job is started",
 		)
 
-		if redis.Spec.OnPremisesSpec != nil && redis.Spec.OnPremisesSpec.EnableAutomation {
-			iData, err := r.API.GetRedis(redis.Status.ID)
-			if err != nil {
-				l.Error(err, "Cannot get cluster from the Instaclustr API",
-					"cluster name", redis.Spec.Name,
-					"data centres", redis.Spec.DataCentres,
-					"cluster ID", redis.Status.ID,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.FetchFailed,
-					"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-			iRedis, err := redis.FromInstAPI(iData)
-			if err != nil {
-				l.Error(
-					err, "Cannot convert cluster from the Instaclustr API",
-					"cluster name", redis.Spec.Name,
-					"cluster ID", redis.Status.ID,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.ConversionFailed,
-					"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			bootstrap := newOnPremisesBootstrap(
-				r.Client,
-				redis,
-				r.EventRecorder,
-				iRedis.Status.ClusterStatus,
-				redis.Spec.OnPremisesSpec,
-				newExposePorts(redis.GetExposePorts()),
-				redis.GetHeadlessPorts(),
-				redis.Spec.PrivateNetworkCluster,
-			)
-
-			err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-			if err != nil {
-				l.Error(
-					err, "Cannot create resources for on-premises cluster",
-					"cluster spec", redis.Spec.OnPremisesSpec,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.CreationFailed,
-					"Resources creation for on-premises cluster is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			err = r.startClusterOnPremisesIPsJob(redis, bootstrap)
-			if err != nil {
-				l.Error(err, "Cannot start on-premises cluster IPs check job",
-					"cluster ID", redis.Status.ID,
-				)
-
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.CreationFailed,
-					"On-premises cluster IPs check job is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			l.Info(
-				"On-premises resources have been created",
-				"cluster name", redis.Spec.Name,
-				"on-premises Spec", redis.Spec.OnPremisesSpec,
-				"cluster ID", redis.Status.ID,
-			)
+		if redis.Spec.DataCentres[0].CloudProvider == models.ONPREMISES {
 			return models.ExitReconcile, nil
 		}
 
@@ -561,22 +487,6 @@ func (r *RedisReconciler) handleDeleteCluster(
 
 			return models.ExitReconcile, nil
 		}
-		if redis.Spec.OnPremisesSpec != nil && redis.Spec.OnPremisesSpec.EnableAutomation {
-			err = deleteOnPremResources(ctx, r.Client, redis.Status.ID, redis.Namespace)
-			if err != nil {
-				l.Error(err, "Cannot delete cluster on-premises resources",
-					"cluster ID", redis.Status.ID)
-				r.EventRecorder.Eventf(redis, models.Warning, models.DeletionFailed,
-					"Cluster on-premises resources deletion is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			l.Info("Cluster on-premises resources are deleted",
-				"cluster ID", redis.Status.ID)
-			r.EventRecorder.Eventf(redis, models.Normal, models.Deleted,
-				"Cluster on-premises resources are deleted")
-			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.OnPremisesIPsChecker))
-		}
 	}
 
 	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
@@ -658,6 +568,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 	return models.ExitReconcile, nil
 }
 
+//nolint:unused,deadcode
 func (r *RedisReconciler) startClusterOnPremisesIPsJob(redis *v1beta1.Redis, b *onPremisesBootstrap) error {
 	job := newWatchOnPremisesIPsJob(redis.Kind, b)
 

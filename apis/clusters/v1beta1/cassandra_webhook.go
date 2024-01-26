@@ -49,8 +49,6 @@ func (r *Cassandra) SetupWebhookWithManager(mgr ctrl.Manager, api validation.Val
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/mutate-clusters-instaclustr-com-v1beta1-cassandra,mutating=true,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=mcassandra.kb.io,admissionReviewVersions=v1
 //+kubebuilder:webhook:path=/validate-clusters-instaclustr-com-v1beta1-cassandra,mutating=false,failurePolicy=fail,sideEffects=None,groups=clusters.instaclustr.com,resources=cassandras,verbs=create;update,versions=v1beta1,name=vcassandra.kb.io,admissionReviewVersions=v1
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch
 
 var _ webhook.CustomValidator = &cassandraValidator{}
 var _ webhook.Defaulter = &Cassandra{}
@@ -96,28 +94,6 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return err
 	}
 
-	contains, err := ContainsKubeVirtAddon(ctx, cv.Client)
-	if err != nil {
-		return err
-	}
-
-	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
-		if !contains {
-			return models.ErrKubeVirtAddonNotFound
-		}
-
-		err = c.Spec.OnPremisesSpec.ValidateCreation()
-		if err != nil {
-			return err
-		}
-		if c.Spec.PrivateNetworkCluster {
-			err = c.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	appVersions, err := cv.API.ListAppVersions(models.CassandraAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -133,22 +109,15 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return fmt.Errorf("data centres field is empty")
 	}
 
-	//TODO: add support of multiple DCs for OnPrem clusters
-	if len(c.Spec.DataCentres) > 1 && c.Spec.OnPremisesSpec != nil {
-		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
-	}
-
 	for _, dc := range c.Spec.DataCentres {
-		if c.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
-			if err != nil {
-				return err
-			}
-		} else {
-			err = dc.DataCentre.ValidateCreation()
-			if err != nil {
-				return err
-			}
+		//TODO: add support of multiple DCs for OnPrem clusters
+		if len(c.Spec.DataCentres) > 1 && dc.CloudProvider == models.ONPREMISES {
+			return models.ErrOnPremicesWithMultiDC
+		}
+
+		err = dc.DataCentre.ValidateCreation()
+		if err != nil {
+			return err
 		}
 
 		if !c.Spec.PrivateNetworkCluster && dc.PrivateIPBroadcastForDiscovery {

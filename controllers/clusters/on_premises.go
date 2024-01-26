@@ -40,6 +40,7 @@ import (
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
+//nolint:unused,deadcode
 type onPremisesBootstrap struct {
 	K8sClient             client.Client
 	K8sObject             client.Object
@@ -51,6 +52,7 @@ type onPremisesBootstrap struct {
 	PrivateNetworkCluster bool
 }
 
+//nolint:unused,deadcode
 func newOnPremisesBootstrap(
 	k8sClient client.Client,
 	o client.Object,
@@ -73,6 +75,7 @@ func newOnPremisesBootstrap(
 	}
 }
 
+//nolint:unused,deadcode
 func handleCreateOnPremisesClusterResources(ctx context.Context, b *onPremisesBootstrap) error {
 	if len(b.ClusterStatus.DataCentres) < 1 {
 		return fmt.Errorf("datacenter ID is empty")
@@ -93,6 +96,7 @@ func handleCreateOnPremisesClusterResources(ctx context.Context, b *onPremisesBo
 	return nil
 }
 
+//nolint:unused,deadcode
 func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) error {
 	gatewayDVSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
 	if err != nil {
@@ -197,6 +201,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 	return nil
 }
 
+//nolint:unused,deadcode
 func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error {
 	for i, node := range b.ClusterStatus.DataCentres[0].Nodes {
 		nodeOSDiskSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
@@ -345,6 +350,7 @@ func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error 
 	return nil
 }
 
+//nolint:unused,deadcode
 func createDV(
 	ctx context.Context,
 	b *onPremisesBootstrap,
@@ -377,6 +383,7 @@ func createDV(
 	return dv, nil
 }
 
+//nolint:unused,deadcode
 func newDataDiskDV(
 	b *onPremisesBootstrap,
 	name,
@@ -423,6 +430,7 @@ func newDataDiskDV(
 	}
 }
 
+//nolint:unused,deadcode
 func newVM(
 	ctx context.Context,
 	b *onPremisesBootstrap,
@@ -578,6 +586,7 @@ func newVM(
 	return vm, nil
 }
 
+//nolint:unused,deadcode
 func newExposeService(
 	b *onPremisesBootstrap,
 	svcName,
@@ -609,6 +618,7 @@ func newExposeService(
 	}
 }
 
+//nolint:unused,deadcode
 func newHeadlessService(
 	b *onPremisesBootstrap,
 	svcName string,
@@ -637,6 +647,7 @@ func newHeadlessService(
 	}
 }
 
+//nolint:unused,deadcode
 func deleteOnPremResources(ctx context.Context, K8sClient client.Client, clusterID, ns string) error {
 	vms := &virtcorev1.VirtualMachineList{}
 	err := K8sClient.List(ctx, vms, &client.ListOptions{
@@ -741,6 +752,7 @@ func deleteOnPremResources(ctx context.Context, K8sClient client.Client, cluster
 	return nil
 }
 
+//nolint:unused,deadcode
 func newExposePorts(sp []k8scorev1.ServicePort) []k8scorev1.ServicePort {
 	var ports []k8scorev1.ServicePort
 	ports = []k8scorev1.ServicePort{{
@@ -758,6 +770,7 @@ func newExposePorts(sp []k8scorev1.ServicePort) []k8scorev1.ServicePort {
 	return ports
 }
 
+//nolint:unused,deadcode
 func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job {
 	l := log.Log.WithValues("component", fmt.Sprintf("%sOnPremisesIPsCheckerJob", kind))
 
@@ -895,6 +908,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 	}
 }
 
+//nolint:unused,deadcode
 func newClusterIPService(
 	b *onPremisesBootstrap,
 	svcName,

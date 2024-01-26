@@ -89,27 +89,6 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 		return err
 	}
 
-	contains, err := ContainsKubeVirtAddon(ctx, kcv.Client)
-	if err != nil {
-		return err
-	}
-
-	if kc.Spec.OnPremisesSpec != nil && kc.Spec.OnPremisesSpec.EnableAutomation {
-		if !contains {
-			return models.ErrKubeVirtAddonNotFound
-		}
-		err = kc.Spec.OnPremisesSpec.ValidateCreation()
-		if err != nil {
-			return err
-		}
-		if kc.Spec.PrivateNetworkCluster {
-			err = kc.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	appVersions, err := kcv.API.ListAppVersions(models.KafkaConnectAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -161,22 +140,15 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 		return fmt.Errorf("data centres field is empty")
 	}
 
-	//TODO: add support of multiple DCs for OnPrem clusters
-	if len(kc.Spec.DataCentres) > 1 && kc.Spec.OnPremisesSpec != nil {
-		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
-	}
-
 	for _, dc := range kc.Spec.DataCentres {
-		if kc.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
-			if err != nil {
-				return err
-			}
-		} else {
-			err = dc.DataCentre.ValidateCreation()
-			if err != nil {
-				return err
-			}
+		//TODO: add support of multiple DCs for OnPrem clusters
+		if len(kc.Spec.DataCentres) > 1 && dc.CloudProvider == models.ONPREMISES {
+			return models.ErrOnPremicesWithMultiDC
+		}
+
+		err = dc.DataCentre.ValidateCreation()
+		if err != nil {
+			return err
 		}
 
 		err = validateReplicationFactor(models.KafkaConnectReplicationFactors, dc.ReplicationFactor)

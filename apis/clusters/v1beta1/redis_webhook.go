@@ -105,27 +105,6 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
-	contains, err := ContainsKubeVirtAddon(ctx, rv.Client)
-	if err != nil {
-		return err
-	}
-
-	if r.Spec.OnPremisesSpec != nil && r.Spec.OnPremisesSpec.EnableAutomation {
-		if !contains {
-			return models.ErrKubeVirtAddonNotFound
-		}
-		err = r.Spec.OnPremisesSpec.ValidateCreation()
-		if err != nil {
-			return err
-		}
-		if r.Spec.PrivateNetworkCluster {
-			err = r.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	err = r.Spec.ValidatePrivateLink()
 	if err != nil {
 		return err
@@ -146,24 +125,15 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return fmt.Errorf("data centres field is empty")
 	}
 
-	if len(r.Spec.DataCentres) > 1 {
-		if r.Spec.OnPremisesSpec != nil {
+	for _, dc := range r.Spec.DataCentres {
+		//TODO: add support of multiple DCs for OnPrem clusters
+		if len(r.Spec.DataCentres) > 1 && dc.CloudProvider == models.ONPREMISES {
 			return models.ErrOnPremicesWithMultiDC
 		}
-		return models.ErrCreateClusterWithMultiDC
-	}
 
-	for _, dc := range r.Spec.DataCentres {
-		if r.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
-			if err != nil {
-				return err
-			}
-		} else {
-			err = dc.DataCentre.ValidateCreation()
-			if err != nil {
-				return err
-			}
+		err = dc.DataCentre.ValidateCreation()
+		if err != nil {
+			return err
 		}
 
 		if !r.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {

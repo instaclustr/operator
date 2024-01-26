@@ -108,10 +108,9 @@ type KafkaConnectDataCentre struct {
 
 // KafkaConnectSpec defines the desired state of KafkaConnect
 type KafkaConnectSpec struct {
-	Cluster        `json:",inline"`
-	OnPremisesSpec *OnPremisesSpec           `json:"onPremisesSpec,omitempty"`
-	DataCentres    []*KafkaConnectDataCentre `json:"dataCentres"`
-	TargetCluster  []*TargetCluster          `json:"targetCluster"`
+	Cluster       `json:",inline"`
+	DataCentres   []*KafkaConnectDataCentre `json:"dataCentres"`
+	TargetCluster []*TargetCluster          `json:"targetCluster"`
 
 	// CustomConnectors defines the location for custom connector storage and access info.
 	CustomConnectors []*CustomConnectors `json:"customConnectors,omitempty"`

@@ -264,81 +264,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 		)
 	}
 
-	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
-		iData, err := r.API.GetCassandra(c.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"data centres", c.Spec.DataCentres,
-				"cluster ID", c.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.FetchFailed,
-				"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		iCassandra, err := c.FromInstAPI(iData)
-		if err != nil {
-			l.Error(
-				err, "Cannot convert cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.ConversionFailed,
-				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		bootstrap := newOnPremisesBootstrap(
-			r.Client,
-			c,
-			r.EventRecorder,
-			iCassandra.Status.ClusterStatus,
-			c.Spec.OnPremisesSpec,
-			newExposePorts(c.GetExposePorts()),
-			c.GetHeadlessPorts(),
-			c.Spec.PrivateNetworkCluster,
-		)
-
-		err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-		if err != nil {
-			l.Error(
-				err, "Cannot create resources for on-premises cluster",
-				"cluster spec", c.Spec.OnPremisesSpec,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"Resources creation for on-premises cluster is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		err = r.startClusterOnPremisesIPsJob(c, bootstrap)
-		if err != nil {
-			l.Error(err, "Cannot start on-premises cluster IPs check job",
-				"cluster ID", c.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"On-premises cluster IPs check job is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		l.Info(
-			"On-premises resources have been created",
-			"cluster name", c.Spec.Name,
-			"on-premises Spec", c.Spec.OnPremisesSpec,
-			"cluster ID", c.Status.ID,
-		)
+	if c.Spec.DataCentres[0].CloudProvider == models.ONPREMISES {
 		return models.ExitReconcile, nil
 	}
 
@@ -569,23 +495,6 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
 
-	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
-		err = deleteOnPremResources(ctx, r.Client, c.Status.ID, c.Namespace)
-		if err != nil {
-			l.Error(err, "Cannot delete cluster on-premises resources",
-				"cluster ID", c.Status.ID)
-			r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-				"Cluster on-premises resources deletion is failed. Reason: %v", err)
-			return reconcile.Result{}, err
-		}
-
-		l.Info("Cluster on-premises resources are deleted",
-			"cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Normal, models.Deleted,
-			"Cluster on-premises resources are deleted")
-		r.Scheduler.RemoveJob(c.GetJobID(scheduler.OnPremisesIPsChecker))
-	}
-
 	l.Info("Deleting cluster backup resources", "cluster ID", c.Status.ID)
 
 	err = r.deleteBackups(ctx, c.Status.ID, c.Namespace)
@@ -697,6 +606,7 @@ func (r *CassandraReconciler) startUsersCreationJob(cluster *v1beta1.Cassandra) 
 	return nil
 }
 
+//nolint:unused,deadcode
 func (r *CassandraReconciler) startClusterOnPremisesIPsJob(c *v1beta1.Cassandra, b *onPremisesBootstrap) error {
 	job := newWatchOnPremisesIPsJob(c.Kind, b)
 

@@ -1,24 +1,11 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
-  name: cassandra-on-prem-cluster
+  name: cassandra-on-prem-sample
 spec:
-  name: "danylo-on-prem-cassandra"
-  version: "4.0.10"
-  privateNetworkCluster: false
-  onPremisesSpec:
-    enableAutomation: true
-    storageClassName: managed-csi-premium
-    osDiskSize: 20Gi
-    dataDiskSize: 200Gi
-    sshGatewayCPU: 2
-    sshGatewayMemory: 4096Mi
-    nodeCPU: 2
-    nodeMemory: 8192Mi
-    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
-    cloudInitScriptRef:
-      namespace: default
-      name: instaclustr-cloud-init-secret
+  name: "cassandra-on-prem-sample"
+  version: "4.1.3"
+  privateNetworkCluster: true
   dataCentres:
     - name: "onPremCassandra"
       region: "CLIENT_DC"
@@ -26,13 +13,10 @@ spec:
       continuousBackup: false
       nodesNumber: 2
       replicationFactor: 2
-      privateIpBroadcastForDiscovery: false
+      privateIpBroadcastForDiscovery: true
       network: "192.168.0.0/16"
       tags:
         "onprem": "test"
-      clientToClusterEncryption: false
       nodeSize: "CAS-PRD-OP.4.8-200"
-  pciCompliance: false
-  luceneEnabled: false        # can be enabled only on 3.11.13 version of Cassandra
-  passwordAndUserAuth: false
+  passwordAndUserAuth: true
   slaTier: "NON_PRODUCTION"
