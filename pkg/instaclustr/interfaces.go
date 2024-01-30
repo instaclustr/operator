@@ -28,6 +28,7 @@ import (
 type API interface {
 	DoRequest(url string, method string, data []byte) (*http.Response, error)
 	CreateCluster(url string, clusterSpec any) (string, error)
+	CreateClusterRaw(url string, clusterSpec any) ([]byte, error)
 	GetOpenSearch(id string) (*models.OpenSearchCluster, error)
 	UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdateRequest) error
 	UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1beta1.TwoFactorDelete) error

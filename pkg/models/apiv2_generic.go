@@ -17,13 +17,12 @@ type GenericDataCentreFields struct {
 	ID     string `json:"id,omitempty"`
 	Status string `json:"status,omitempty"`
 
-	Name                string          `json:"name"`
-	Network             string          `json:"network"`
-	CloudProvider       string          `json:"cloudProvider"`
-	Region              string          `json:"region"`
-	ProviderAccountName string          `json:"providerAccountName,omitempty"`
-	AWSSettings         []*AWSSetting   `json:"awsSettings,omitempty"`
-	GCPSettings         []*GCPSetting   `json:"gcpSettings,omitempty"`
-	AzureSettings       []*AzureSetting `json:"azureSettings,omitempty"`
-	Tags                []*Tag          `json:"tags,omitempty"`
+	Name                string `json:"name"`
+	Network             string `json:"network"`
+	CloudProvider       string `json:"cloudProvider"`
+	Region              string `json:"region"`
+	ProviderAccountName string `json:"providerAccountName,omitempty"`
+	Tags                []*Tag `json:"tags,omitempty"`
+
+	CloudProviderSettings `json:",inline"`
 }

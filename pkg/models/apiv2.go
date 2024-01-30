@@ -66,10 +66,12 @@ type CloudProviderSettings struct {
 type AWSSetting struct {
 	EBSEncryptionKey       string `json:"ebsEncryptionKey,omitempty"`
 	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
+	BackupBucket           string `json:"backupBucket,omitempty"`
 }
 
 type GCPSetting struct {
-	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
+	CustomVirtualNetworkID    string `json:"customVirtualNetworkId,omitempty"`
+	DisableSnapshotAutoExpiry string `json:"disableSnapshotAutoExpiry,omitempty"`
 }
 
 type AzureSetting struct {

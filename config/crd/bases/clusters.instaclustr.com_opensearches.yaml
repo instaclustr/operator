@@ -78,7 +78,11 @@ spec:
                     cloudProviderSettings:
                       items:
                         properties:
+                          backupBucket:
+                            type: string
                           customVirtualNetworkId:
+                            type: string
+                          disableSnapshotAutoExpiry:
                             type: string
                           diskEncryptionKey:
                             type: string
@@ -165,7 +169,7 @@ spec:
                   provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
                   and Redis.
                 type: boolean
-              privateNetworkCluster:
+              privateNetwork:
                 type: boolean
               reportingPlugin:
                 type: boolean
