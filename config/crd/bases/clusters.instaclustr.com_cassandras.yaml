@@ -62,7 +62,11 @@ spec:
                     cloudProviderSettings:
                       items:
                         properties:
+                          backupBucket:
+                            type: string
                           customVirtualNetworkId:
+                            type: string
+                          disableSnapshotAutoExpiry:
                             type: string
                           diskEncryptionKey:
                             type: string

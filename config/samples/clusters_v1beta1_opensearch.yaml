@@ -11,7 +11,7 @@ metadata:
   annotations:
     test.annotation/first: testAnnotation
 spec:
-  name: opensearch-test
+  name: bohdan-test
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
@@ -48,7 +48,7 @@ spec:
 #      version: opensearch-dashboards:2.5.0
   version: 2.11.1
   pciCompliance: false
-  privateNetworkCluster: false
+  privateNetwork: false
   reportingPlugin: false
   slaTier: NON_PRODUCTION
   sqlPlugin: false

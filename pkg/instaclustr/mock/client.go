@@ -453,3 +453,7 @@ func (c *mockClient) GetOpenSearchEgressRule(id string) (*clusterresourcesv1beta
 func (c *mockClient) DeleteOpenSearchEgressRule(id string) error {
 	panic("DeleteOpenSearchEgressRule: is not implemented")
 }
+
+func (c *mockClient) CreateClusterRaw(url string, clusterSpec any) ([]byte, error) {
+	panic("CreateClusterRaw: is not implemented")
+}

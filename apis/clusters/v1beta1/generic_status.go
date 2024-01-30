@@ -49,6 +49,12 @@ type GenericDataCentreStatus struct {
 	ResizeOperations []*ResizeOperation `json:"resizeOperations,omitempty"`
 }
 
+func (s *GenericDataCentreStatus) FromInstAPI(instaModel *models.GenericDataCentreFields) {
+	s.ID = instaModel.ID
+	s.Name = instaModel.Name
+	s.Status = instaModel.Status
+}
+
 func (s *GenericDataCentreStatus) Equals(o *GenericDataCentreStatus) bool {
 	return s.Name == o.Name &&
 		s.Status == o.Status &&

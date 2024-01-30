@@ -303,3 +303,92 @@ func containsKubeVirtLabels(l map[string]string) bool {
 
 	return false
 }
+
+func (s *GenericClusterSpec) immutableFields() immutableCluster {
+	return immutableCluster{
+		Name:                  s.Name,
+		Version:               s.Version,
+		PCICompliance:         s.PCICompliance,
+		PrivateNetworkCluster: s.PrivateNetwork,
+		SLATier:               s.SLATier,
+	}
+}
+
+var (
+	clusterNameRegExp = regexp.MustCompile(models.ClusterNameRegExp)
+	peerSubnetsRegExp = regexp.MustCompile(models.PeerSubnetsRegExp)
+)
+
+func (s *GenericClusterSpec) ValidateCreation() error {
+	if !clusterNameRegExp.Match([]byte(s.Name)) {
+		return fmt.Errorf("cluster name should have lenght from 3 to 32 symbols and fit pattern: %s",
+			models.ClusterNameRegExp)
+	}
+
+	if len(s.TwoFactorDelete) > 1 {
+		return fmt.Errorf("two factor delete should not have more than 1 item")
+	}
+
+	if !validation.Contains(s.SLATier, models.SLATiers) {
+		return fmt.Errorf("cluster SLATier %s is unavailable, available values: %v",
+			s.SLATier, models.SLATiers)
+	}
+
+	return nil
+}
+
+func (s *GenericDataCentreSpec) immutableFields() immutableDC {
+	return immutableDC{
+		Name:                s.Name,
+		Region:              s.Region,
+		CloudProvider:       s.CloudProvider,
+		ProviderAccountName: s.ProviderAccountName,
+		Network:             s.Network,
+	}
+}
+
+func (s *GenericDataCentreSpec) validateCreation() error {
+	if !validation.Contains(s.CloudProvider, models.CloudProviders) {
+		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
+			s.CloudProvider, s.Name, models.CloudProviders)
+	}
+
+	switch s.CloudProvider {
+	case models.AWSVPC:
+		if !validation.Contains(s.Region, models.AWSRegions) {
+			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
+				s.Region, models.AWSRegions)
+		}
+	case models.AZUREAZ:
+		if !validation.Contains(s.Region, models.AzureRegions) {
+			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
+				s.Region, models.AzureRegions)
+		}
+	case models.GCP:
+		if !validation.Contains(s.Region, models.GCPRegions) {
+			return fmt.Errorf("GCP Region: %s is unavailable, available regions: %v",
+				s.Region, models.GCPRegions)
+		}
+	}
+
+	if s.ProviderAccountName == models.DefaultAccountName && len(s.CloudProviderSettings) != 0 {
+		return fmt.Errorf("cloud provider settings can be used only with RIYOA accounts")
+	}
+
+	if len(s.CloudProviderSettings) > 1 {
+		return fmt.Errorf("cloud provider settings should not have more than 1 item")
+	}
+
+	for _, cp := range s.CloudProviderSettings {
+		err := cp.ValidateCreation()
+		if err != nil {
+			return err
+		}
+	}
+
+	if !peerSubnetsRegExp.Match([]byte(s.Network)) {
+		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28", s.Network)
+	}
+
+	return nil
+}

@@ -19,7 +19,6 @@ package v1beta1
 import (
 	"context"
 	"fmt"
-	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -111,7 +110,7 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 	}
 
 	for _, dc := range os.Spec.DataCentres {
-		err = validateCreation(dc)
+		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
 			return err
 		}
@@ -166,53 +165,6 @@ func validateOpenSearchNumberOfRacks(numberOfRacks int) error {
 	return nil
 }
 
-func validateCreation(dc *OpenSearchDataCentre) error {
-	if !validation.Contains(dc.CloudProvider, models.CloudProviders) {
-		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
-			dc.CloudProvider, dc.Name, models.CloudProviders)
-	}
-
-	switch dc.CloudProvider {
-	case "AWS_VPC":
-		if !validation.Contains(dc.Region, models.AWSRegions) {
-			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
-				dc.Region, models.AWSRegions)
-		}
-	case "AZURE_AZ":
-		if !validation.Contains(dc.Region, models.AzureRegions) {
-			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
-				dc.Region, models.AzureRegions)
-		}
-	case "GCP":
-		if !validation.Contains(dc.Region, models.GCPRegions) {
-			return fmt.Errorf("GCP Region: %s is unavailable, available regions: %v",
-				dc.Region, models.GCPRegions)
-		}
-	}
-
-	if dc.ProviderAccountName == models.DefaultAccountName && len(dc.CloudProviderSettings) != 0 {
-		return fmt.Errorf("cloud provider settings can be used only with RIYOA accounts")
-	}
-
-	if len(dc.CloudProviderSettings) > 1 {
-		return fmt.Errorf("cloud provider settings should not have more than 1 item")
-	}
-
-	for _, cp := range dc.CloudProviderSettings {
-		err := cp.ValidateCreation()
-		if err != nil {
-			return err
-		}
-	}
-
-	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
-	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", dc.Network, err)
-	}
-
-	return nil
-}
-
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
 	os, ok := new.(*OpenSearch)
@@ -222,12 +174,20 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 
 	opensearchlog.Info("validate update", "name", os.Name)
 
-	// skip validation when we receive cluster specification update from the Instaclustr Console.
-	if os.Annotations[models.ExternalChangesAnnotation] == models.True {
+	oldCluster := old.(*OpenSearch)
+
+	if os.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
 		return nil
 	}
 
-	oldCluster := old.(*OpenSearch)
+	// skip validation when we receive cluster specification update from the Instaclustr Console.
+	if os.Status.ID == "" {
+		return osv.ValidateCreate(ctx, os)
+	}
+
+	if os.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
 
 	if oldCluster.Spec.BundledUseOnly && !oldCluster.Spec.IsEqual(os.Spec) {
 		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
@@ -235,10 +195,6 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 
 	if oldCluster.Spec.RestoreFrom != nil {
 		return nil
-	}
-
-	if os.Status.ID == "" {
-		return osv.ValidateCreate(ctx, os)
 	}
 
 	err := os.Spec.validateUpdate(oldCluster.Spec)
@@ -301,7 +257,7 @@ func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
 			AlertingPlugin:           oss.AlertingPlugin,
 			BundledUseOnly:           oss.BundledUseOnly,
 		},
-		cluster: oss.Cluster.newImmutableFields(),
+		cluster: oss.GenericClusterSpec.immutableFields(),
 	}
 }
 
@@ -317,14 +273,8 @@ type specificOpenSearchDC struct {
 
 func (oss *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFields {
 	return &immutableOpenSearchDCFields{
-		immutableDC{
-			Name:                oss.Name,
-			Region:              oss.Region,
-			CloudProvider:       oss.CloudProvider,
-			ProviderAccountName: oss.ProviderAccountName,
-			Network:             oss.Network,
-		},
-		specificOpenSearchDC{
+		immutableDC: oss.GenericDataCentreSpec.immutableFields(),
+		specificOpenSearchDC: specificOpenSearchDC{
 			PrivateLink:       oss.PrivateLink,
 			ReplicationFactor: oss.NumberOfRacks,
 		},

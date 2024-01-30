@@ -19,12 +19,14 @@ package clusters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -109,141 +111,164 @@ func (r *OpenSearchReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 }
 
+func (r *OpenSearchReconciler) createOpenSearchFromRestore(o *v1beta1.OpenSearch, logger logr.Logger) (*models.OpenSearchCluster, error) {
+	logger.Info(
+		"Creating OpenSearch cluster from backup",
+		"original cluster ID", o.Spec.RestoreFrom.ClusterID,
+	)
+
+	id, err := r.API.RestoreCluster(o.RestoreInfoToInstAPI(o.Spec.RestoreFrom), models.OpenSearchAppKind)
+	if err != nil {
+		logger.Error(err, "Cannot restore OpenSearch cluster from backup",
+			"original cluster ID", o.Spec.RestoreFrom.ClusterID)
+
+		r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+			"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
+			err)
+
+		return nil, err
+	}
+
+	instaModel, err := r.API.GetOpenSearch(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get opensearch cluster details, err: %w", err)
+	}
+
+	logger.Info("OpenSearch cluster was created from backup",
+		"cluster ID", instaModel.ID,
+		"original cluster ID", o.Spec.RestoreFrom.ClusterID)
+
+	r.EventRecorder.Eventf(o, models.Normal, models.Created,
+		"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
+		o.Spec.RestoreFrom.ClusterID, instaModel.ID)
+
+	return instaModel, nil
+}
+
+func (r *OpenSearchReconciler) createOpenSearch(o *v1beta1.OpenSearch, logger logr.Logger) (*models.OpenSearchCluster, error) {
+	logger.Info(
+		"Creating OpenSearch cluster",
+		"cluster name", o.Spec.Name,
+		"data centres", o.Spec.DataCentres,
+	)
+
+	b, err := r.API.CreateClusterRaw(instaclustr.OpenSearchEndpoint, o.Spec.ToInstAPI())
+	if err != nil {
+		logger.Error(err, "Cannot create OpenSearch cluster",
+			"cluster name", o.Spec.Name,
+			"cluster spec", o.Spec)
+
+		r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+			"Cluster creation on the Instaclustr is failed. Reason: %v", err)
+
+		return nil, err
+	}
+
+	var instaModel models.OpenSearchCluster
+
+	err = json.Unmarshal(b, &instaModel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal json to model")
+	}
+
+	logger.Info("OpenSearch cluster was created",
+		"cluster ID", instaModel.ID,
+		"cluster name", o.Spec.Name)
+
+	r.EventRecorder.Eventf(o, models.Normal, models.Created,
+		"Cluster creation request is sent. Cluster ID: %s", instaModel.ID)
+
+	return &instaModel, nil
+}
+
+func (r *OpenSearchReconciler) createCluster(ctx context.Context, o *v1beta1.OpenSearch, logger logr.Logger) error {
+	var instaModel *models.OpenSearchCluster
+	var err error
+
+	if o.Spec.HasRestore() {
+		instaModel, err = r.createOpenSearchFromRestore(o, logger)
+	} else {
+		instaModel, err = r.createOpenSearch(o, logger)
+	}
+	if err != nil {
+		return err
+	}
+
+	o.Spec.FromInstAPI(instaModel)
+	err = r.Update(ctx, o)
+	if err != nil {
+		return fmt.Errorf("failed to update cluster spec, err: %w", err)
+	}
+
+	o.Status.FromInstAPI(instaModel)
+	err = r.Status().Update(ctx, o)
+	if err != nil {
+		return fmt.Errorf("failed to update cluster status, err : %w", err)
+	}
+
+	controllerutil.AddFinalizer(o, models.DeletionFinalizer)
+	o.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+	err = r.Update(ctx, o)
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"OpenSearch resource has been created",
+		"cluster name", o.Spec.Name, "cluster ID", o.Status.ID,
+	)
+
+	return nil
+}
+
+func (r *OpenSearchReconciler) startClusterJobs(o *v1beta1.OpenSearch) error {
+	err := r.startClusterSyncJob(o)
+	if err != nil {
+		return fmt.Errorf("failed to start cluster status job, err: %w", err)
+	}
+
+	r.EventRecorder.Event(o, models.Normal, models.Created,
+		"Cluster status check job is started")
+
+	err = r.startClusterBackupsJob(o)
+	if err != nil {
+		return fmt.Errorf("failed to start cluster backups job, err: %w", err)
+	}
+
+	r.EventRecorder.Event(o, models.Normal, models.Created,
+		"Cluster backups check job is started")
+
+	if o.Spec.UserRefs != nil && o.Status.AvailableUsers == nil {
+		err = r.startUsersCreationJob(o)
+		if err != nil {
+			return fmt.Errorf("failed to start user creation job, err: %w", err)
+		}
+
+		r.EventRecorder.Event(o, models.Normal, models.Created,
+			"Cluster user creation job is started")
+	}
+
+	return nil
+}
+
 func (r *OpenSearchReconciler) HandleCreateCluster(
 	ctx context.Context,
 	o *v1beta1.OpenSearch,
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch creation event")
-	var id string
 	var err error
 	if o.Status.ID == "" {
-		if o.Spec.HasRestore() {
-			logger.Info(
-				"Creating OpenSearch cluster from backup",
-				"original cluster ID", o.Spec.RestoreFrom.ClusterID,
-			)
-
-			id, err = r.API.RestoreCluster(o.RestoreInfoToInstAPI(o.Spec.RestoreFrom), models.OpenSearchAppKind)
-			if err != nil {
-				logger.Error(err, "Cannot restore OpenSearch cluster from backup",
-					"original cluster ID", o.Spec.RestoreFrom.ClusterID)
-
-				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
-					err)
-
-				return reconcile.Result{}, err
-			}
-
-			logger.Info("OpenSearch cluster was created from backup",
-				"cluster ID", id,
-				"original cluster ID", o.Spec.RestoreFrom.ClusterID)
-
-			r.EventRecorder.Eventf(o, models.Normal, models.Created,
-				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
-				o.Spec.RestoreFrom.ClusterID, id)
-		} else {
-			logger.Info(
-				"Creating OpenSearch cluster",
-				"cluster name", o.Spec.Name,
-				"data centres", o.Spec.DataCentres,
-			)
-
-			id, err = r.API.CreateCluster(instaclustr.OpenSearchEndpoint, o.Spec.ToInstAPI())
-			if err != nil {
-				logger.Error(err, "Cannot create OpenSearch cluster",
-					"cluster name", o.Spec.Name,
-					"cluster spec", o.Spec)
-
-				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-					"Cluster creation on the Instaclustr is failed. Reason: %v", err)
-
-				return reconcile.Result{}, err
-			}
-
-			logger.Info("OpenSearch cluster was created",
-				"cluster ID", id,
-				"cluster name", o.Spec.Name)
-
-			r.EventRecorder.Eventf(o, models.Normal, models.Created,
-				"Cluster creation request is sent. Cluster ID: %s", id)
-		}
-
-		patch := o.NewPatch()
-		o.Status.ID = id
-		err = r.Status().Patch(ctx, o, patch)
+		err = r.createCluster(ctx, o, logger)
 		if err != nil {
-			logger.Error(err, "Cannot patch OpenSearch cluster status",
-				"cluster ID", id)
-
-			r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v", err)
-
-			return reconcile.Result{}, err
+			return reconcile.Result{}, fmt.Errorf("failed to create cluster, err: %w", err)
 		}
-		o.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		controllerutil.AddFinalizer(o, models.DeletionFinalizer)
-		err = r.Patch(ctx, o, patch)
-		if err != nil {
-			logger.Error(err, "Cannot patch OpenSearch cluster spec",
-				"cluster ID", o.Status.ID,
-				"spec", o.Spec)
-
-			r.EventRecorder.Eventf(o, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v", err)
-
-			return reconcile.Result{}, err
-		}
-
-		logger.Info(
-			"OpenSearch resource has been created",
-			"cluster name", o.Name, "cluster ID", o.Status.ID,
-			"api version", o.APIVersion, "namespace", o.Namespace,
-		)
 	}
 
 	if o.Status.State != models.DeletedStatus {
-		err = r.startClusterStatusJob(o)
+		err = r.startClusterJobs(o)
 		if err != nil {
-			logger.Error(err, "Cannot start OpenSearch cluster status job",
-				"cluster ID", o.Status.ID)
-
-			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-				"Cluster status check job is failed. Reason: %v", err)
-
-			return reconcile.Result{}, err
-		}
-
-		r.EventRecorder.Event(o, models.Normal, models.Created,
-			"Cluster status check job is started")
-
-		err = r.startClusterBackupsJob(o)
-		if err != nil {
-			logger.Error(err, "Cannot start OpenSearch cluster backups check job",
-				"cluster ID", o.Status.ID)
-
-			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-				"Cluster backups check job is failed. Reason: %v", err)
-
-			return reconcile.Result{}, err
-		}
-
-		r.EventRecorder.Event(o, models.Normal, models.Created,
-			"Cluster backups check job is started")
-
-		if o.Spec.UserRefs != nil {
-			err = r.startUsersCreationJob(o)
-			if err != nil {
-				logger.Error(err, "Failed to start user creation job")
-				r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
-					"User creation job is failed. Reason: %v", err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			r.EventRecorder.Event(o, models.Normal, models.Created,
-				"Cluster user creation job is started")
+			return reconcile.Result{}, fmt.Errorf("failed to run cluster jobs, err: %w", err)
 		}
 	}
 
@@ -279,7 +304,7 @@ func (r *OpenSearchReconciler) HandleUpdateCluster(
 		return handleExternalChanges[v1beta1.OpenSearchSpec](r.EventRecorder, r.Client, o, iOpenSearch, logger)
 	}
 
-	if o.Spec.ClusterSettingsNeedUpdate(iOpenSearch.Spec.Cluster) {
+	if o.Spec.ClusterSettingsNeedUpdate(&iOpenSearch.Spec.GenericClusterSpec) {
 		logger.Info("Updating cluster settings",
 			"instaclustr description", iOpenSearch.Spec.Description,
 			"instaclustr two factor delete", iOpenSearch.Spec.TwoFactorDelete)
@@ -486,7 +511,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 	return models.ExitReconcile, nil
 }
 
-func (r *OpenSearchReconciler) startClusterStatusJob(cluster *v1beta1.OpenSearch) error {
+func (r *OpenSearchReconciler) startClusterSyncJob(cluster *v1beta1.OpenSearch) error {
 	job := r.newWatchStatusJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -587,7 +612,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 				err = exposeservice.Create(r.Client,
 					o.Name,
 					o.Namespace,
-					o.Spec.PrivateNetworkCluster,
+					o.Spec.PrivateNetwork,
 					nodes,
 					models.OpenSearchConnectionPort)
 				if err != nil {
@@ -906,6 +931,10 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				newObj := event.ObjectNew.(*v1beta1.OpenSearch)
+
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+					return false
+				}
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

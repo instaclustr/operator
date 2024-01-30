@@ -106,6 +106,31 @@ func (c *Client) CreateCluster(url string, cluster any) (string, error) {
 	return creationResponse.ID, nil
 }
 
+func (c *Client) CreateClusterRaw(url string, cluster any) ([]byte, error) {
+	jsonDataCreate, err := json.Marshal(cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	url = c.serverHostname + url
+	resp, err := c.DoRequest(url, http.MethodPost, jsonDataCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
+	}
+
+	return body, nil
+}
+
 func (c *Client) GetOpenSearch(id string) (*models.OpenSearchCluster, error) {
 	url := c.serverHostname + OpenSearchEndpoint + id
 

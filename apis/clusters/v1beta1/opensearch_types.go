@@ -35,8 +35,9 @@ type OpenSearchNodeTypes interface {
 
 // OpenSearchSpec defines the desired state of OpenSearch
 type OpenSearchSpec struct {
-	RestoreFrom              *OpenSearchRestoreFrom `json:"restoreFrom,omitempty"`
-	Cluster                  `json:",inline"`
+	GenericClusterSpec `json:",inline"`
+
+	RestoreFrom              *OpenSearchRestoreFrom  `json:"restoreFrom,omitempty"`
 	DataCentres              []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
 	DataNodes                []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
 	Dashboards               []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
@@ -60,7 +61,7 @@ type OpenSearchSpec struct {
 }
 
 func (s *OpenSearchSpec) FromInstAPI(instaModel *models.OpenSearchCluster) {
-	s.Cluster.FromInstAPI(&instaModel.GenericClusterFields)
+	s.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields)
 
 	s.Version = instaModel.OpenSearchVersion
 	s.ICUPlugin = instaModel.ICUPlugin
@@ -92,15 +93,10 @@ func (s *OpenSearchSpec) dcsFromInstAPI(dcModels []*models.OpenSearchDataCentre)
 }
 
 func (dc *OpenSearchDataCentre) FromInstAPI(instaModel *models.OpenSearchDataCentre) {
+	dc.GenericDataCentreSpec.FromInstAPI(&instaModel.GenericDataCentreFields)
+
 	dc.PrivateLink = instaModel.PrivateLink
-	dc.Name = instaModel.Name
-	dc.Region = instaModel.Region
-	dc.CloudProvider = instaModel.CloudProvider
-	dc.ProviderAccountName = instaModel.ProviderAccountName
-	dc.Network = instaModel.Network
 	dc.NumberOfRacks = instaModel.NumberOfRacks
-	dc.Tags = tagsFromInstAPI(instaModel.Tags)
-	dc.CloudProviderSettings = cloudProviderSettingsFromInstAPI(&instaModel.GenericDataCentreFields)
 }
 
 func (s *OpenSearchSpec) dataNodesFromInstAPI(instaModels []*models.OpenSearchDataNodes) {
@@ -145,15 +141,16 @@ func (s *OpenSearchSpec) clusterManagerNodesFromInstAPI(instaModels []*models.Cl
 }
 
 type OpenSearchDataCentre struct {
-	PrivateLink           bool                     `json:"privateLink,omitempty"`
-	Name                  string                   `json:"name,omitempty"`
-	Region                string                   `json:"region"`
-	CloudProvider         string                   `json:"cloudProvider"`
-	ProviderAccountName   string                   `json:"accountName,omitempty"`
-	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
-	Network               string                   `json:"network"`
-	Tags                  map[string]string        `json:"tags,omitempty"`
-	NumberOfRacks         int                      `json:"numberOfRacks,omitempty"`
+	GenericDataCentreSpec `json:",inline"`
+
+	PrivateLink   bool `json:"privateLink,omitempty"`
+	NumberOfRacks int  `json:"numberOfRacks,omitempty"`
+}
+
+func (dc *OpenSearchDataCentre) Equals(o *OpenSearchDataCentre) bool {
+	return dc.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
+		dc.PrivateLink == o.PrivateLink &&
+		dc.NumberOfRacks == o.NumberOfRacks
 }
 
 type OpenSearchDataNodes struct {
@@ -179,7 +176,7 @@ type OpenSearchIngestNodes struct {
 
 func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 	return &models.OpenSearchCluster{
-		GenericClusterFields:     oss.Cluster.ToInstAPI(),
+		GenericClusterFields:     oss.GenericClusterSpec.ToInstAPI(),
 		ResizeSettings:           resizeSettingsToInstAPI(oss.ResizeSettings),
 		DataNodes:                oss.dataNodesToInstAPI(),
 		ICUPlugin:                oss.ICUPlugin,
@@ -203,52 +200,14 @@ func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 
 func (oss *OpenSearchSpec) dcsToInstAPI() (iDCs []*models.OpenSearchDataCentre) {
 	for _, dc := range oss.DataCentres {
-		providerSettings := cloudProviderSettingsToInstAPI(dc)
-
 		iDCs = append(iDCs, &models.OpenSearchDataCentre{
-			GenericDataCentreFields: models.GenericDataCentreFields{
-				Name:                dc.Name,
-				Network:             dc.Network,
-				AWSSettings:         providerSettings.AWSSettings,
-				GCPSettings:         providerSettings.GCPSettings,
-				AzureSettings:       providerSettings.AzureSettings,
-				Tags:                tagsToInstAPI(dc.Tags),
-				CloudProvider:       dc.CloudProvider,
-				Region:              dc.Region,
-				ProviderAccountName: dc.ProviderAccountName,
-			},
-			PrivateLink:   dc.PrivateLink,
-			NumberOfRacks: dc.NumberOfRacks,
+			GenericDataCentreFields: dc.GenericDataCentreSpec.ToInstAPI(),
+			PrivateLink:             dc.PrivateLink,
+			NumberOfRacks:           dc.NumberOfRacks,
 		})
 	}
 
 	return
-}
-
-func cloudProviderSettingsToInstAPI(dc *OpenSearchDataCentre) *models.CloudProviderSettings {
-	iSettings := &models.CloudProviderSettings{}
-	switch dc.CloudProvider {
-	case models.AWSVPC:
-		awsSettings := []*models.AWSSetting{}
-		for _, providerSettings := range dc.CloudProviderSettings {
-			awsSettings = append(awsSettings, providerSettings.AWSToInstAPI())
-		}
-		iSettings.AWSSettings = awsSettings
-	case models.AZUREAZ:
-		azureSettings := []*models.AzureSetting{}
-		for _, providerSettings := range dc.CloudProviderSettings {
-			azureSettings = append(azureSettings, providerSettings.AzureToInstAPI())
-		}
-		iSettings.AzureSettings = azureSettings
-	case models.GCP:
-		gcpSettings := []*models.GCPSetting{}
-		for _, providerSettings := range dc.CloudProviderSettings {
-			gcpSettings = append(gcpSettings, providerSettings.GCPToInstAPI())
-		}
-		iSettings.GCPSettings = gcpSettings
-	}
-
-	return iSettings
 }
 
 func tagsToInstAPI(k8sTags map[string]string) (iTags []*models.Tag) {
@@ -345,12 +304,14 @@ func cloudProviderSettingsFromInstAPI(iDC *models.GenericDataCentreFields) (sett
 			settings = append(settings, &CloudProviderSettings{
 				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
 				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
+				BackupBucket:           awsSetting.BackupBucket,
 			})
 		}
 	case models.GCP:
 		for _, gcpSetting := range iDC.GCPSettings {
 			settings = append(settings, &CloudProviderSettings{
-				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
+				CustomVirtualNetworkID:    gcpSetting.CustomVirtualNetworkID,
+				DisableSnapshotAutoExpiry: gcpSetting.DisableSnapshotAutoExpiry,
 			})
 		}
 	case models.AZUREAZ:
@@ -371,24 +332,23 @@ func (c *OpenSearch) IsSpecEqual(spec OpenSearchSpec) bool {
 }
 
 func (a *OpenSearchSpec) IsEqual(b OpenSearchSpec) bool {
-	return a.Cluster.IsEqual(b.Cluster) &&
-		a.IsTwoFactorDeleteEqual(b.TwoFactorDelete) &&
-		areOpenSearchSettingsEqual[OpenSearchDataNodes](a.DataNodes, b.DataNodes) &&
+	return a.GenericClusterSpec.Equals(&b.GenericClusterSpec) &&
+		areOpenSearchSettingsEqual(a.DataNodes, b.DataNodes) &&
 		a.ICUPlugin == b.ICUPlugin &&
 		a.AsynchronousSearchPlugin == b.AsynchronousSearchPlugin &&
 		a.KNNPlugin == b.KNNPlugin &&
-		areOpenSearchSettingsEqual[OpenSearchDashboards](a.Dashboards, b.Dashboards) &&
+		areOpenSearchSettingsEqual(a.Dashboards, b.Dashboards) &&
 		a.ReportingPlugin == b.ReportingPlugin &&
 		a.SQLPlugin == b.SQLPlugin &&
 		a.NotificationsPlugin == b.NotificationsPlugin &&
 		a.AnomalyDetectionPlugin == b.AnomalyDetectionPlugin &&
 		a.LoadBalancer == b.LoadBalancer &&
-		areOpenSearchSettingsEqual[ClusterManagerNodes](a.ClusterManagerNodes, b.ClusterManagerNodes) &&
+		areOpenSearchSettingsEqual(a.ClusterManagerNodes, b.ClusterManagerNodes) &&
 		a.IndexManagementPlugin == b.IndexManagementPlugin &&
 		a.AlertingPlugin == b.AlertingPlugin &&
 		a.BundledUseOnly == b.BundledUseOnly &&
 		a.areDCsEqual(b.DataCentres) &&
-		areOpenSearchSettingsEqual[OpenSearchIngestNodes](a.IngestNodes, b.IngestNodes)
+		areOpenSearchSettingsEqual(a.IngestNodes, b.IngestNodes)
 }
 
 func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
@@ -402,14 +362,7 @@ func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
 			continue
 		}
 
-		if a[i].Region != b[i].Region &&
-			a[i].CloudProvider != b[i].CloudProvider &&
-			a[i].ProviderAccountName != b[i].ProviderAccountName &&
-			areCloudProviderSettingsEqual(a[i].CloudProviderSettings, b[i].CloudProviderSettings) &&
-			a[i].Network != b[i].Network &&
-			areTagsEqual(a[i].Tags, b[i].Tags) &&
-			a[i].PrivateLink != b[i].PrivateLink ||
-			a[i].NumberOfRacks != b[i].NumberOfRacks {
+		if !a[i].Equals(b[i]) {
 			return false
 		}
 	}
@@ -530,10 +483,10 @@ type OpenSearchDataCentreStatus struct {
 }
 
 func (s *OpenSearchDataCentreStatus) FromInstAPI(instaModel *models.OpenSearchDataCentre) {
-	s.ID = instaModel.ID
+	s.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
+
 	s.PrivateLinkRestAPIURL = instaModel.PrivateLinkRestAPIURL
 	s.PrivateLinkEndpointServiceName = instaModel.PrivateLinkEndpointServiceName
-	s.Status = instaModel.Status
 
 	s.Nodes = make([]OpenSearchNodeStatus, 0, len(instaModel.Nodes))
 	for _, node := range instaModel.Nodes {

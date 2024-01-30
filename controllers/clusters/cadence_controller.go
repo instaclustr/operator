@@ -1153,22 +1153,24 @@ func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSear
 
 	osDataCentres := []*v1beta1.OpenSearchDataCentre{
 		{
-			Name:                dcName,
-			Region:              dcRegion,
-			CloudProvider:       cloudProvider,
-			ProviderAccountName: providerAccountName,
-			Network:             osNetwork,
-			NumberOfRacks:       oNumberOfRacks,
+			GenericDataCentreSpec: v1beta1.GenericDataCentreSpec{
+				Name:                dcName,
+				Region:              dcRegion,
+				CloudProvider:       cloudProvider,
+				ProviderAccountName: providerAccountName,
+				Network:             osNetwork,
+			},
+			NumberOfRacks: oNumberOfRacks,
 		},
 	}
 	spec := v1beta1.OpenSearchSpec{
-		Cluster: v1beta1.Cluster{
-			Name:                  models.OpenSearchChildPrefix + c.Name,
-			Version:               oldestOpenSearchVersion,
-			SLATier:               slaTier,
-			PrivateNetworkCluster: privateClusterNetwork,
-			TwoFactorDelete:       twoFactorDelete,
-			PCICompliance:         pciCompliance,
+		GenericClusterSpec: v1beta1.GenericClusterSpec{
+			Name:            models.OpenSearchChildPrefix + c.Name,
+			Version:         oldestOpenSearchVersion,
+			SLATier:         slaTier,
+			PrivateNetwork:  privateClusterNetwork,
+			TwoFactorDelete: twoFactorDelete,
+			PCICompliance:   pciCompliance,
 		},
 		DataCentres:         osDataCentres,
 		ClusterManagerNodes: managerNodes,

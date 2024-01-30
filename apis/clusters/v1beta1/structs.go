@@ -26,9 +26,11 @@ import (
 )
 
 type CloudProviderSettings struct {
-	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
-	ResourceGroup          string `json:"resourceGroup,omitempty"`
-	DiskEncryptionKey      string `json:"diskEncryptionKey,omitempty"`
+	CustomVirtualNetworkID    string `json:"customVirtualNetworkId,omitempty"`
+	ResourceGroup             string `json:"resourceGroup,omitempty"`
+	DiskEncryptionKey         string `json:"diskEncryptionKey,omitempty"`
+	BackupBucket              string `json:"backupBucket,omitempty"`
+	DisableSnapshotAutoExpiry string `json:"disableSnapshotAutoExpiry,omitempty"`
 }
 
 type DataCentre struct {
@@ -91,25 +93,6 @@ type Cluster struct {
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 
 	Description string `json:"description,omitempty"`
-}
-
-func (c *Cluster) FromInstAPI(model *models.GenericClusterFields) {
-	c.Name = model.Name
-	c.PCICompliance = model.PCIComplianceMode
-	c.PrivateNetworkCluster = model.PrivateNetworkCluster
-	c.SLATier = model.SLATier
-	c.Description = model.Description
-}
-
-func (c *Cluster) ToInstAPI() models.GenericClusterFields {
-	return models.GenericClusterFields{
-		Name:                  c.Name,
-		Description:           c.Description,
-		PCIComplianceMode:     c.PCICompliance,
-		PrivateNetworkCluster: c.PrivateNetworkCluster,
-		SLATier:               c.SLATier,
-		TwoFactorDelete:       c.TwoFactorDeletesToInstAPI(),
-	}
 }
 
 type ClusterStatus struct {
@@ -432,6 +415,7 @@ func (cps *CloudProviderSettings) AWSToInstAPI() *models.AWSSetting {
 	return &models.AWSSetting{
 		EBSEncryptionKey:       cps.DiskEncryptionKey,
 		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
+		BackupBucket:           cps.BackupBucket,
 	}
 }
 
@@ -443,7 +427,8 @@ func (cps *CloudProviderSettings) AzureToInstAPI() *models.AzureSetting {
 
 func (cps *CloudProviderSettings) GCPToInstAPI() *models.GCPSetting {
 	return &models.GCPSetting{
-		CustomVirtualNetworkID: cps.CustomVirtualNetworkID,
+		CustomVirtualNetworkID:    cps.CustomVirtualNetworkID,
+		DisableSnapshotAutoExpiry: cps.DisableSnapshotAutoExpiry,
 	}
 }
 
@@ -635,12 +620,14 @@ func (c *Cluster) CloudProviderSettingsFromInstAPI(iDC models.DataCentre) (setti
 			settings = append(settings, &CloudProviderSettings{
 				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
 				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
+				BackupBucket:           awsSetting.BackupBucket,
 			})
 		}
 	case models.GCP:
 		for _, gcpSetting := range iDC.GCPSettings {
 			settings = append(settings, &CloudProviderSettings{
-				CustomVirtualNetworkID: gcpSetting.CustomVirtualNetworkID,
+				CustomVirtualNetworkID:    gcpSetting.CustomVirtualNetworkID,
+				DisableSnapshotAutoExpiry: gcpSetting.DisableSnapshotAutoExpiry,
 			})
 		}
 	case models.AZUREAZ:
