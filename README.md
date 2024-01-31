@@ -29,7 +29,7 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
 ### Running on the cluster
-1. Create the .env file, copy all content from the .env.tmpl and fill variables. When the operator deploys, it will create the secret from these variables to access the Instaclustr API.
+1. Create the .env file inside your home folder (~/.env), copy all content from the .env.tmpl and fill variables. When the operator deploys, it will create the secret from these variables to access the Instaclustr API.
 Create the config/manager/kustomization.yaml file and copy all content from the config/manager/kustomization.yaml.tmpl.
 
 2. Deploy the cert-manager:
