@@ -24,10 +24,4 @@ testbin/*
 *.swo
 *~
 
-# environment file
-.env
-
-# personal developer's secret
-config/manager/creds_secret.yaml
-
 config/manager/kustomization.yaml

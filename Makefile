@@ -143,6 +143,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	cd scripts && ./make_creds_secret.sh
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	kubectl apply -f ~/creds_secret.yaml
 
 .PHONY: helm-deploy
 helm-deploy:
@@ -228,3 +229,8 @@ install-virtctl: ## Install virtctl tool
 	chmod +x virtctl
 	sudo install virtctl /usr/local/bin
 	rm virtctl
+
+.PHONY: install-pre-commit
+install-pre-commit:
+	pip install pre-commit
+	pre-commit install
