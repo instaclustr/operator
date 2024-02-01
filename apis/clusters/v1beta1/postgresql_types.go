@@ -88,7 +88,8 @@ type PgSpec struct {
 
 // PgStatus defines the observed state of PostgreSQL
 type PgStatus struct {
-	ClusterStatus `json:",inline"`
+	ClusterStatus        `json:",inline"`
+	DefaultUserSecretRef *Reference `json:"userRefs,omitempty"`
 }
 
 //+kubebuilder:object:root=true
