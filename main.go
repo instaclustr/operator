@@ -431,14 +431,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "OpenSearchUser")
 		os.Exit(1)
 	}
-	if err = (&clusterresourcescontrollers.PostgreSQLUserReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		EventRecorder: eventRecorder,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PostgreSQLUser")
-		os.Exit(1)
-	}
 	if err = (&clusterresourcesv1beta1.OpenSearchUser{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "OpenSearchUser")
 		os.Exit(1)
@@ -491,10 +483,6 @@ func main() {
 	}
 	if err = (&clusterresourcesv1beta1.ClusterBackup{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ClusterBackup")
-		os.Exit(1)
-	}
-	if err = (&clusterresourcesv1beta1.PostgreSQLUser{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "PostgreSQLUser")
 		os.Exit(1)
 	}
 	if err = (&clusterresourcescontrollers.OpenSearchEgressRulesReconciler{

@@ -354,19 +354,6 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 			pg, models.Normal, models.Created,
 			"Cluster backups check job is started",
 		)
-
-		if pg.Spec.UserRefs != nil {
-			err = r.startUsersCreationJob(pg)
-			if err != nil {
-				l.Error(err, "Failed to start user PostreSQL creation job")
-				r.EventRecorder.Eventf(pg, models.Warning, models.CreationFailed,
-					"User creation job is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			r.EventRecorder.Event(pg, models.Normal, models.Created,
-				"Cluster user creation job is started")
-		}
 	}
 
 	err = r.createDefaultPassword(ctx, pg, l)
@@ -534,262 +521,6 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(ctx context.Context, pg *v1be
 	return models.ExitReconcile, nil
 }
 
-func (r *PostgreSQLReconciler) createUser(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.PostgreSQL,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.PostgreSQLUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot create a PostgreSQL user. The resource is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"User is not found, create a new one PostgreSQL User or provide correct userRef."+
-					"Current provided reference: %v", uRef)
-			return err
-		}
-
-		l.Error(err, "Cannot get PostgreSQL user", "user", u.Spec)
-		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot get PostgreSQL user. User reference: %v", uRef)
-		return err
-	}
-
-	secret, err := v1beta1.GetDefaultPgUserSecret(ctx, c.Name, c.Namespace, r.Client)
-	if err != nil && !k8serrors.IsNotFound(err) {
-		r.EventRecorder.Eventf(
-			c, models.Warning, models.FetchFailed,
-			"Default user secret fetch is failed. Reason: %v",
-			err,
-		)
-
-		return err
-	}
-
-	defaultSecretNamespacedName := types.NamespacedName{
-		Namespace: secret.Namespace,
-		Name:      secret.Name,
-	}
-
-	if _, exist := u.Status.ClustersInfo[c.Status.ID]; exist {
-		l.Info("User is already existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.CreationFailed,
-			"User is already existing on the cluster. User reference: %v", uRef)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	if u.Status.ClustersInfo == nil {
-		u.Status.ClustersInfo = make(map[string]clusterresourcesv1beta1.ClusterInfo)
-	}
-
-	u.Status.ClustersInfo[c.Status.ID] = clusterresourcesv1beta1.ClusterInfo{
-		DefaultSecretNamespacedName: clusterresourcesv1beta1.NamespacedName{
-			Namespace: defaultSecretNamespacedName.Namespace,
-			Name:      defaultSecretNamespacedName.Name,
-		},
-		Event: models.CreatingEvent,
-	}
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the PostgreSQL User status with the CreatingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-			"Cannot add PostgreSQL User to the cluster. Reason: %v", err)
-		return err
-	}
-
-	return nil
-}
-
-func (r *PostgreSQLReconciler) handleUsersDelete(
-	ctx context.Context,
-	l logr.Logger,
-	pg *v1beta1.PostgreSQL,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.PostgreSQLUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot delete a PostgreSQL user, the user is not found", "request", req)
-			r.EventRecorder.Eventf(pg, models.Warning, models.NotFound,
-				"Cannot delete a PostgreSQL user, the user %v is not found", req)
-			return nil
-		}
-
-		l.Error(err, "Cannot get PostgreSQL user", "user", req)
-		r.EventRecorder.Eventf(pg, models.Warning, models.DeletionFailed,
-			"Cannot get PostgreSQL user. user reference: %v", req)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersInfo[pg.Status.ID]; !exist {
-		l.Info("User is not existing on the cluster",
-			"user reference", uRef)
-		r.EventRecorder.Eventf(pg, models.Normal, models.DeletionFailed,
-			"User is not existing on the cluster. User reference: %v", req)
-
-		return nil
-	}
-
-	patch := u.NewPatch()
-
-	defaultSecretNamespacedName := u.Status.ClustersInfo[pg.Status.ID].DefaultSecretNamespacedName
-
-	u.Status.ClustersInfo[pg.Status.ID] = clusterresourcesv1beta1.ClusterInfo{
-		DefaultSecretNamespacedName: clusterresourcesv1beta1.NamespacedName{
-			Namespace: defaultSecretNamespacedName.Namespace,
-			Name:      defaultSecretNamespacedName.Name,
-		},
-		Event: models.DeletingEvent,
-	}
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the PostgreSQL User status with the DeletingEvent",
-			"cluster name", pg.Spec.Name, "cluster ID", pg.Status.ID)
-		r.EventRecorder.Eventf(pg, models.Warning, models.DeletionFailed,
-			"Cannot patch the PostgreSQL User status with the DeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for deletion",
-		"User resource", u.Namespace+"/"+u.Name,
-		"PostgreSQL resource", pg.Namespace+"/"+pg.Name)
-
-	return nil
-}
-
-func (r *PostgreSQLReconciler) handleUsersDetach(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.PostgreSQL,
-	uRef *v1beta1.Reference,
-) error {
-	req := types.NamespacedName{
-		Namespace: uRef.Namespace,
-		Name:      uRef.Name,
-	}
-
-	u := &clusterresourcesv1beta1.PostgreSQLUser{}
-	err := r.Get(ctx, req, u)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Error(err, "Cannot detach a PostgreSQL user, the user is not found", "request", req)
-			r.EventRecorder.Eventf(c, models.Warning, models.NotFound,
-				"Cannot detach a PostgreSQL user, the user %v is not found", req)
-			return nil
-		}
-
-		l.Error(err, "Cannot get PostgreSQL user", "user", req)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot get PostgreSQL user. user reference: %v", req)
-		return err
-	}
-
-	if _, exist := u.Status.ClustersInfo[c.Status.ID]; !exist {
-		l.Info("User is not existing in the cluster", "user reference", uRef)
-		r.EventRecorder.Eventf(c, models.Normal, models.DeletionFailed,
-			"User is not existing in the cluster. User reference: %v", uRef)
-		return nil
-	}
-
-	defaultSecretNamespacedName := u.Status.ClustersInfo[c.Status.ID].DefaultSecretNamespacedName
-
-	patch := u.NewPatch()
-	u.Status.ClustersInfo[c.Status.ID] = clusterresourcesv1beta1.ClusterInfo{
-		DefaultSecretNamespacedName: clusterresourcesv1beta1.NamespacedName{
-			Namespace: defaultSecretNamespacedName.Namespace,
-			Name:      defaultSecretNamespacedName.Name,
-		},
-		Event: models.DeletingEvent,
-	}
-
-	err = r.Status().Patch(ctx, u, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch the PostgreSQL user status with the ClusterDeletingEvent",
-			"cluster name", c.Spec.Name, "cluster ID", c.Status.ID)
-		r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-			"Cannot patch the PostgreSQL user status with the ClusterDeletingEvent. Reason: %v", err)
-		return err
-	}
-
-	l.Info("User has been added to the queue for detaching", "username", u.Name)
-
-	return nil
-}
-
-func (r *PostgreSQLReconciler) handleUserEvent(
-	newObj *v1beta1.PostgreSQL,
-	oldUsers []*v1beta1.Reference,
-) {
-	ctx := context.TODO()
-	l := log.FromContext(ctx)
-
-	for _, newUser := range newObj.Spec.UserRefs {
-		var exist bool
-
-		for _, oldUser := range oldUsers {
-			if *newUser == *oldUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.createUser(ctx, l, newObj, newUser)
-		if err != nil {
-			l.Error(err, "Cannot create PostgreSQL user in predicate", "user", newUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot create user. Reason: %v", err)
-		}
-
-		oldUsers = append(oldUsers, newUser)
-	}
-
-	for _, oldUser := range oldUsers {
-		var exist bool
-
-		for _, newUser := range newObj.Spec.UserRefs {
-			if *oldUser == *newUser {
-				exist = true
-				break
-			}
-		}
-
-		if exist {
-			continue
-		}
-
-		err := r.handleUsersDelete(ctx, l, newObj, oldUser)
-		if err != nil {
-			l.Error(err, "Cannot delete Cassandra user", "user", oldUser)
-			r.EventRecorder.Eventf(newObj, models.Warning, models.CreatingEvent,
-				"Cannot delete user from cluster. Reason: %v", err)
-		}
-	}
-}
-
 func (r *PostgreSQLReconciler) handleDeleteCluster(
 	ctx context.Context,
 	pg *v1beta1.PostgreSQL,
@@ -908,16 +639,8 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 		"Cluster backup resources are deleted",
 	)
 
-	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
-
-	for _, ref := range pg.Spec.UserRefs {
-		err = r.handleUsersDetach(ctx, l, pg, ref)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	}
 
 	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
 	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -1102,17 +825,6 @@ func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *v1beta1.PostgreSQL) er
 	return nil
 }
 
-func (r *PostgreSQLReconciler) startUsersCreationJob(cluster *v1beta1.PostgreSQL) error {
-	job := r.newUsersCreationJob(cluster)
-
-	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.UserCreator), scheduler.UserCreationInterval, job)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) scheduler.Job {
 	l := log.Log.WithValues("component", "postgreSQLStatusClusterJob")
 
@@ -1288,6 +1000,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 }
 
 func (r *PostgreSQLReconciler) createDefaultPassword(ctx context.Context, pg *v1beta1.PostgreSQL, l logr.Logger) error {
+	patch := pg.NewPatch()
 	iData, err := r.API.GetPostgreSQL(pg.Status.ID)
 	if err != nil {
 		l.Error(
@@ -1356,6 +1069,24 @@ func (r *PostgreSQLReconciler) createDefaultPassword(ctx context.Context, pg *v1
 		"Default user secret is created. Secret name: %s",
 		secret.Name,
 	)
+
+	pg.Status.DefaultUserSecretRef = &v1beta1.Reference{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+	}
+
+	err = r.Status().Patch(ctx, pg, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch PostgreSQL resource",
+			"cluster name", pg.Spec.Name,
+			"status", pg.Status)
+
+		r.EventRecorder.Eventf(
+			pg, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return err
+	}
 
 	return nil
 }
@@ -1471,49 +1202,6 @@ func (r *PostgreSQLReconciler) newWatchBackupsJob(pg *v1beta1.PostgreSQL) schedu
 				"backup resource name", backupSpec.Name,
 			)
 		}
-
-		return nil
-	}
-}
-
-func (r *PostgreSQLReconciler) newUsersCreationJob(c *v1beta1.PostgreSQL) scheduler.Job {
-	l := log.Log.WithValues("component", "postgresqlUsersCreationJob")
-
-	return func() error {
-		ctx := context.Background()
-
-		err := r.Get(ctx, types.NamespacedName{
-			Namespace: c.Namespace,
-			Name:      c.Name,
-		}, c)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-
-		if c.Status.State != models.RunningStatus {
-			l.Info("User creation job is scheduled")
-			r.EventRecorder.Event(c, models.Normal, models.CreationFailed,
-				"User creation job is scheduled, cluster is not in the running state")
-			return nil
-		}
-
-		for _, ref := range c.Spec.UserRefs {
-			err = r.createUser(ctx, l, c, ref)
-			if err != nil {
-				l.Error(err, "Failed to create a user for the cluster", "user ref", ref)
-				r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
-					"Failed to create a user for the cluster. Reason: %v", err)
-				return err
-			}
-		}
-
-		l.Info("User creation job successfully finished", "resource name", c.Name)
-		r.EventRecorder.Eventf(c, models.Normal, models.Created, "User creation job successfully finished")
-
-		r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
 
 		return nil
 	}
@@ -1731,10 +1419,6 @@ func (r *PostgreSQLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if event.ObjectNew.GetGeneration() == event.ObjectOld.GetGeneration() {
 					return false
 				}
-
-				oldObj := event.ObjectOld.(*v1beta1.PostgreSQL)
-
-				r.handleUserEvent(newObj, oldObj.Spec.UserRefs)
 
 				event.ObjectNew.GetAnnotations()[models.ResourceStateAnnotation] = models.UpdatingEvent
 				return true
