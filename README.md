@@ -30,7 +30,7 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 
 ### Running on the cluster
 1. Create the .env file inside your home folder (~/.env), copy all content from the .env.tmpl and fill variables. When the operator deploys, it will create the secret from these variables to access the Instaclustr API.
-Create the config/manager/kustomization.yaml file and copy all content from the config/manager/kustomization.yaml.tmpl.
+Create the config/manager/kustomization.yaml file and copy all content from the config/manager/kustomization.yaml.tmpl. Also, be sure that you've already installed the pre-commit hook. Use `make install-pre-commit` to accomplish. It will prevent you from pushing secret data to the public repository.
 
 2. Deploy the cert-manager:
 
