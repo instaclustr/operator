@@ -17,30 +17,31 @@ limitations under the License.
 package models
 
 type CassandraCluster struct {
-	ClusterStatus
-	CassandraVersion      string                 `json:"cassandraVersion"`
-	LuceneEnabled         bool                   `json:"luceneEnabled"`
-	PasswordAndUserAuth   bool                   `json:"passwordAndUserAuth"`
-	DataCentres           []*CassandraDataCentre `json:"dataCentres"`
-	Name                  string                 `json:"name"`
-	SLATier               string                 `json:"slaTier"`
-	PrivateNetworkCluster bool                   `json:"privateNetworkCluster"`
-	PCIComplianceMode     bool                   `json:"pciComplianceMode"`
-	TwoFactorDelete       []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
-	BundledUseOnly        bool                   `json:"bundledUseOnly,omitempty"`
-	ResizeSettings        []*ResizeSettings      `json:"resizeSettings"`
-	Description           string                 `json:"description,omitempty"`
+	GenericClusterFields `json:",inline"`
+
+	CassandraVersion    string `json:"cassandraVersion"`
+	LuceneEnabled       bool   `json:"luceneEnabled"`
+	PasswordAndUserAuth bool   `json:"passwordAndUserAuth"`
+	BundledUseOnly      bool   `json:"bundledUseOnly,omitempty"`
+
+	DataCentres    []*CassandraDataCentre `json:"dataCentres"`
+	ResizeSettings []*ResizeSettings      `json:"resizeSettings"`
 }
 
 type CassandraDataCentre struct {
-	DataCentre                     `json:",inline"`
-	ReplicationFactor              int              `json:"replicationFactor"`
-	ContinuousBackup               bool             `json:"continuousBackup"`
-	PrivateLink                    bool             `json:"privateLink,omitempty"`
-	PrivateIPBroadcastForDiscovery bool             `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool             `json:"clientToClusterEncryption"`
-	Debezium                       []*Debezium      `json:"debezium,omitempty"`
-	ShotoverProxy                  []*ShotoverProxy `json:"shotoverProxy,omitempty"`
+	GenericDataCentreFields `json:",inline"`
+
+	ContinuousBackup               bool   `json:"continuousBackup"`
+	PrivateLink                    bool   `json:"privateLink,omitempty"`
+	PrivateIPBroadcastForDiscovery bool   `json:"privateIpBroadcastForDiscovery"`
+	ClientToClusterEncryption      bool   `json:"clientToClusterEncryption"`
+	ReplicationFactor              int    `json:"replicationFactor"`
+	NumberOfNodes                  int    `json:"numberOfNodes"`
+	NodeSize                       string `json:"nodeSize"`
+
+	Nodes         []*Node          `json:"nodes,omitempty"`
+	Debezium      []*Debezium      `json:"debezium,omitempty"`
+	ShotoverProxy []*ShotoverProxy `json:"shotoverProxy,omitempty"`
 }
 
 type Debezium struct {

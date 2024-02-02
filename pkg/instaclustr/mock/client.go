@@ -294,7 +294,7 @@ func (c *mockClient) RestoreCluster(restoreData any, clusterKind string) (string
 	panic("RestoreCluster: is not implemented")
 }
 
-func (c *mockClient) GetCassandra(id string) ([]byte, error) {
+func (c *mockClient) GetCassandra(id string) (*models.CassandraCluster, error) {
 	panic("GetCassandra: is not implemented")
 }
 

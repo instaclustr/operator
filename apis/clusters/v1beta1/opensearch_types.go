@@ -26,12 +26,8 @@ import (
 
 	clusterresourcesv1beta1 "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 )
-
-// +kubebuilder:object:generate:=false
-type OpenSearchNodeTypes interface {
-	OpenSearchDataNodes | OpenSearchDashboards | ClusterManagerNodes | OpenSearchIngestNodes
-}
 
 // OpenSearchSpec defines the desired state of OpenSearch
 type OpenSearchSpec struct {
@@ -333,22 +329,22 @@ func (c *OpenSearch) IsSpecEqual(spec OpenSearchSpec) bool {
 
 func (a *OpenSearchSpec) IsEqual(b OpenSearchSpec) bool {
 	return a.GenericClusterSpec.Equals(&b.GenericClusterSpec) &&
-		areOpenSearchSettingsEqual(a.DataNodes, b.DataNodes) &&
+		slices.EqualsPtr(a.DataNodes, b.DataNodes) &&
+		slices.EqualsPtr(a.Dashboards, b.Dashboards) &&
+		slices.EqualsPtr(a.ClusterManagerNodes, b.ClusterManagerNodes) &&
+		slices.EqualsPtr(a.IngestNodes, b.IngestNodes) &&
 		a.ICUPlugin == b.ICUPlugin &&
 		a.AsynchronousSearchPlugin == b.AsynchronousSearchPlugin &&
 		a.KNNPlugin == b.KNNPlugin &&
-		areOpenSearchSettingsEqual(a.Dashboards, b.Dashboards) &&
 		a.ReportingPlugin == b.ReportingPlugin &&
 		a.SQLPlugin == b.SQLPlugin &&
 		a.NotificationsPlugin == b.NotificationsPlugin &&
 		a.AnomalyDetectionPlugin == b.AnomalyDetectionPlugin &&
 		a.LoadBalancer == b.LoadBalancer &&
-		areOpenSearchSettingsEqual(a.ClusterManagerNodes, b.ClusterManagerNodes) &&
 		a.IndexManagementPlugin == b.IndexManagementPlugin &&
 		a.AlertingPlugin == b.AlertingPlugin &&
 		a.BundledUseOnly == b.BundledUseOnly &&
-		a.areDCsEqual(b.DataCentres) &&
-		areOpenSearchSettingsEqual(a.IngestNodes, b.IngestNodes)
+		a.areDCsEqual(b.DataCentres)
 }
 
 func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
@@ -370,20 +366,6 @@ func (oss *OpenSearchSpec) areDCsEqual(b []*OpenSearchDataCentre) bool {
 	return true
 }
 
-func areCloudProviderSettingsEqual(a, b []*CloudProviderSettings) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range b {
-		if *a[i] != *b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func areTagsEqual(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false
@@ -391,24 +373,6 @@ func areTagsEqual(a, b map[string]string) bool {
 
 	for bKey, bValue := range b {
 		if aValue, exists := a[bKey]; !exists || aValue != bValue {
-			return false
-		}
-	}
-
-	return true
-}
-
-func areOpenSearchSettingsEqual[T OpenSearchNodeTypes](a, b []*T) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if *a[i] != *b[i] {
 			return false
 		}
 	}

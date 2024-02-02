@@ -18,7 +18,9 @@ package clusters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -115,232 +117,161 @@ func (r *CassandraReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 }
 
-func (r *CassandraReconciler) handleCreateCluster(
-	ctx context.Context,
-	l logr.Logger,
-	c *v1beta1.Cassandra,
-) (reconcile.Result, error) {
-	l = l.WithName("Cassandra creation event")
-	var err error
-	patch := c.NewPatch()
-	if c.Status.ID == "" {
-		var id string
-		if c.Spec.HasRestore() {
-			l.Info(
-				"Creating cluster from backup",
-				"original cluster ID", c.Spec.RestoreFrom.ClusterID,
-			)
+func (r *CassandraReconciler) createCassandraFromRestore(c *v1beta1.Cassandra, l logr.Logger) (*models.CassandraCluster, error) {
+	l.Info(
+		"Creating cluster from backup",
+		"original cluster ID", c.Spec.RestoreFrom.ClusterID,
+	)
 
-			id, err = r.API.RestoreCluster(c.RestoreInfoToInstAPI(c.Spec.RestoreFrom), models.CassandraAppKind)
-			if err != nil {
-				l.Error(err, "Cannot restore cluster from backup",
-					"original cluster ID", c.Spec.RestoreFrom.ClusterID,
-				)
-
-				r.EventRecorder.Eventf(
-					c, models.Warning, models.CreationFailed,
-					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
-					err,
-				)
-
-				return reconcile.Result{}, err
-			}
-
-			r.EventRecorder.Eventf(
-				c, models.Normal, models.Created,
-				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
-				c.Spec.RestoreFrom.ClusterID,
-				id,
-			)
-		} else {
-			l.Info(
-				"Creating cluster",
-				"cluster name", c.Spec.Name,
-				"data centres", c.Spec.DataCentres,
-			)
-			iCassandraSpec := c.Spec.ToInstAPI()
-			for i, dc := range c.Spec.DataCentres {
-				for j, debezium := range dc.Debezium {
-					if debezium.ClusterRef != nil {
-						cdcID, err := clusterresources.GetDataCentreID(r.Client, ctx, debezium.ClusterRef)
-						if err != nil {
-							l.Error(err, "Cannot get cluster ID",
-								"Cluster reference", debezium.ClusterRef,
-							)
-							return ctrl.Result{}, err
-						}
-						iCassandraSpec.DataCentres[i].Debezium[j].KafkaDataCentreID = cdcID
-					}
-				}
-			}
-
-			id, err = r.API.CreateCluster(instaclustr.CassandraEndpoint, iCassandraSpec)
-			if err != nil {
-				l.Error(
-					err, "Cannot create cluster",
-					"cluster spec", c.Spec,
-				)
-				r.EventRecorder.Eventf(
-					c, models.Warning, models.CreationFailed,
-					"Cluster creation on the Instaclustr is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			r.EventRecorder.Eventf(
-				c, models.Normal, models.Created,
-				"Cluster creation request is sent. Cluster ID: %s",
-				id,
-			)
-		}
-
-		c.Status.ID = id
-		err = r.Status().Patch(ctx, c, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster status",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-				"kind", c.Kind,
-				"api Version", c.APIVersion,
-				"namespace", c.Namespace,
-				"cluster metadata", c.ObjectMeta,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		controllerutil.AddFinalizer(c, models.DeletionFinalizer)
-		c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		err = r.Patch(ctx, c, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch cluster",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-				"kind", c.Kind,
-				"api Version", c.APIVersion,
-				"namespace", c.Namespace,
-				"cluster metadata", c.ObjectMeta,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		l.Info(
-			"Cluster has been created",
-			"cluster name", c.Spec.Name,
-			"cluster ID", c.Status.ID,
-			"kind", c.Kind,
-			"api Version", c.APIVersion,
-			"namespace", c.Namespace,
+	id, err := r.API.RestoreCluster(c.RestoreInfoToInstAPI(c.Spec.RestoreFrom), models.CassandraAppKind)
+	if err != nil {
+		l.Error(err, "Cannot restore cluster from backup",
+			"original cluster ID", c.Spec.RestoreFrom.ClusterID,
 		)
-	}
-
-	if c.Status.State != models.DeletedStatus {
-		err = r.startClusterStatusJob(c)
-		if err != nil {
-			l.Error(err, "Cannot start cluster status job",
-				"c cluster ID", c.Status.ID)
-
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"Cluster status check job is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
 
 		r.EventRecorder.Eventf(
-			c, models.Normal, models.Created,
-			"Cluster status check job is started",
+			c, models.Warning, models.CreationFailed,
+			"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
+			err,
 		)
+
+		return nil, err
 	}
 
-	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
-		iData, err := r.API.GetCassandra(c.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"data centres", c.Spec.DataCentres,
-				"cluster ID", c.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.FetchFailed,
-				"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		iCassandra, err := c.FromInstAPI(iData)
-		if err != nil {
-			l.Error(
-				err, "Cannot convert cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.ConversionFailed,
-				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		bootstrap := newOnPremisesBootstrap(
-			r.Client,
-			c,
-			r.EventRecorder,
-			iCassandra.Status.ClusterStatus,
-			c.Spec.OnPremisesSpec,
-			newExposePorts(c.GetExposePorts()),
-			c.GetHeadlessPorts(),
-			c.Spec.PrivateNetworkCluster,
-		)
-
-		err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-		if err != nil {
-			l.Error(
-				err, "Cannot create resources for on-premises cluster",
-				"cluster spec", c.Spec.OnPremisesSpec,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"Resources creation for on-premises cluster is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		err = r.startClusterOnPremisesIPsJob(c, bootstrap)
-		if err != nil {
-			l.Error(err, "Cannot start on-premises cluster IPs check job",
-				"cluster ID", c.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"On-premises cluster IPs check job is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		l.Info(
-			"On-premises resources have been created",
-			"cluster name", c.Spec.Name,
-			"on-premises Spec", c.Spec.OnPremisesSpec,
-			"cluster ID", c.Status.ID,
-		)
-		return models.ExitReconcile, nil
+	instaModel, err := r.API.GetCassandra(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cassandra cluster details, err: %w", err)
 	}
+
+	r.EventRecorder.Eventf(
+		c, models.Normal, models.Created,
+		"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
+		c.Spec.RestoreFrom.ClusterID,
+		instaModel.ID,
+	)
+
+	return instaModel, nil
+}
+
+func (r *CassandraReconciler) mergeDebezium(c *v1beta1.Cassandra, spec *models.CassandraCluster) error {
+	for i, dc := range c.Spec.DataCentres {
+		for j, debezium := range dc.Debezium {
+			if debezium.ClusterRef != nil {
+				cdcID, err := clusterresources.GetDataCentreID(r.Client, context.Background(), debezium.ClusterRef)
+				if err != nil {
+					return fmt.Errorf("failed to get kafka data centre id, err: %w", err)
+				}
+				spec.DataCentres[i].Debezium[j].KafkaDataCentreID = cdcID
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *CassandraReconciler) createCassandra(c *v1beta1.Cassandra, l logr.Logger) (*models.CassandraCluster, error) {
+	l.Info(
+		"Creating cluster",
+		"cluster name", c.Spec.Name,
+		"data centres", c.Spec.DataCentres,
+	)
+
+	iCassandraSpec := c.Spec.ToInstAPI()
+
+	err := r.mergeDebezium(c, iCassandraSpec)
+	if err != nil {
+		l.Error(err, "Cannot get debezium dependencies for Cassandra cluster")
+		return nil, err
+	}
+
+	b, err := r.API.CreateClusterRaw(instaclustr.CassandraEndpoint, iCassandraSpec)
+	if err != nil {
+		l.Error(
+			err, "Cannot create cluster",
+			"cluster spec", c.Spec,
+		)
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"Cluster creation on the Instaclustr is failed. Reason: %v",
+			err,
+		)
+		return nil, err
+	}
+
+	var instModel models.CassandraCluster
+	err = json.Unmarshal(b, &instModel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal json to model, err: %w", err)
+	}
+
+	r.EventRecorder.Eventf(
+		c, models.Normal, models.Created,
+		"Cluster creation request is sent. Cluster ID: %s",
+		instModel.ID,
+	)
+
+	return &instModel, nil
+}
+
+func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cassandra, l logr.Logger) error {
+	var instModel *models.CassandraCluster
+	var err error
+
+	if c.Spec.HasRestore() {
+		instModel, err = r.createCassandraFromRestore(c, l)
+	} else {
+		instModel, err = r.createCassandra(c, l)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create cluster, err: %w", err)
+	}
+
+	c.Spec.FromInstAPI(instModel)
+	err = r.Update(ctx, c)
+	if err != nil {
+		return fmt.Errorf("failed to update cassandra spec, err: %w", err)
+	}
+
+	c.Status.FromInstAPI(instModel)
+	err = r.Status().Update(ctx, c)
+	if err != nil {
+		return fmt.Errorf("failed to update cassandra status, err: %w", err)
+	}
+
+	controllerutil.AddFinalizer(c, models.DeletionFinalizer)
+	c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+	err = r.Update(ctx, c)
+	if err != nil {
+		return err
+	}
+
+	l.Info(
+		"Cluster has been created",
+		"cluster name", c.Spec.Name,
+		"cluster ID", c.Status.ID,
+	)
+
+	return nil
+}
+
+func (r *CassandraReconciler) startClusterJobs(c *v1beta1.Cassandra, l logr.Logger) error {
+	err := r.startSyncJob(c)
+	if err != nil {
+		l.Error(err, "Cannot start cluster synchronizer",
+			"c cluster ID", c.Status.ID)
+
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"Cluster status check job is failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	r.EventRecorder.Eventf(
+		c, models.Normal, models.Created,
+		"Cluster status check job is started",
+	)
 
 	err = r.startClusterBackupsJob(c)
 	if err != nil {
@@ -353,7 +284,7 @@ func (r *CassandraReconciler) handleCreateCluster(
 			"Cluster backups check job is failed. Reason: %v",
 			err,
 		)
-		return reconcile.Result{}, err
+		return err
 	}
 
 	r.EventRecorder.Eventf(
@@ -367,11 +298,107 @@ func (r *CassandraReconciler) handleCreateCluster(
 			l.Error(err, "Failed to start user creation job")
 			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
 				"User creation job is failed. Reason: %v", err)
-			return reconcile.Result{}, err
+			return err
 		}
 
 		r.EventRecorder.Event(c, models.Normal, models.Created,
 			"Cluster user creation job is started")
+	}
+
+	return nil
+}
+
+func (r *CassandraReconciler) handleOnPremises(c *v1beta1.Cassandra, l logr.Logger) (reconcile.Result, error) {
+	instaModel, err := r.API.GetCassandra(c.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get cluster from the Instaclustr API",
+			"cluster name", c.Spec.Name,
+			"data centres", c.Spec.DataCentres,
+			"cluster ID", c.Status.ID,
+		)
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+		return reconcile.Result{}, err
+	}
+
+	iCassandra := v1beta1.Cassandra{}
+	iCassandra.FromInstAPI(instaModel)
+
+	bootstrap := newOnPremisesBootstrap(
+		r.Client,
+		c,
+		r.EventRecorder,
+		iCassandra.Status.ToOnPremises(),
+		c.Spec.OnPremisesSpec,
+		newExposePorts(c.GetExposePorts()),
+		c.GetHeadlessPorts(),
+		c.Spec.PrivateNetwork,
+	)
+
+	err = handleCreateOnPremisesClusterResources(context.Background(), bootstrap)
+	if err != nil {
+		l.Error(
+			err, "Cannot create resources for on-premises cluster",
+			"cluster spec", c.Spec.OnPremisesSpec,
+		)
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"Resources creation for on-premises cluster is failed. Reason: %v",
+			err,
+		)
+		return reconcile.Result{}, err
+	}
+
+	err = r.startClusterOnPremisesIPsJob(c, bootstrap)
+	if err != nil {
+		l.Error(err, "Cannot start on-premises cluster IPs check job",
+			"cluster ID", c.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"On-premises cluster IPs check job is failed. Reason: %v",
+			err,
+		)
+		return reconcile.Result{}, err
+	}
+
+	l.Info(
+		"On-premises resources have been created",
+		"cluster name", c.Spec.Name,
+		"on-premises Spec", c.Spec.OnPremisesSpec,
+		"cluster ID", c.Status.ID,
+	)
+
+	return models.ExitReconcile, nil
+}
+
+func (r *CassandraReconciler) handleCreateCluster(
+	ctx context.Context,
+	l logr.Logger,
+	c *v1beta1.Cassandra,
+) (reconcile.Result, error) {
+	l = l.WithName("Cassandra creation event")
+	if c.Status.ID == "" {
+		err := r.createCluster(ctx, c, l)
+		if err != nil {
+			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed, "Failed to create cluster. Reason: %v", err)
+			return reconcile.Result{}, err
+		}
+	}
+
+	if c.Status.State != models.DeletedStatus {
+		err := r.startClusterJobs(c, l)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to start cluster jobs, err: %w", err)
+		}
+
+		if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
+			return r.handleOnPremises(c, l)
+		}
 	}
 
 	return models.ExitReconcile, nil
@@ -385,7 +412,7 @@ func (r *CassandraReconciler) handleUpdateCluster(
 ) (reconcile.Result, error) {
 	l = l.WithName("Cassandra update event")
 
-	iData, err := r.API.GetCassandra(c.Status.ID)
+	instaModel, err := r.API.GetCassandra(c.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get cluster from the Instaclustr API",
 			"cluster name", c.Spec.Name,
@@ -400,30 +427,17 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	iCassandra, err := c.FromInstAPI(iData)
-	if err != nil {
-		l.Error(
-			err, "Cannot convert cluster from the Instaclustr API",
-			"cluster name", c.Spec.Name,
-			"cluster ID", c.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			c, models.Warning, models.ConversionFailed,
-			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-			err,
-		)
-		return reconcile.Result{}, err
-	}
+	iCassandra := v1beta1.Cassandra{}
+	iCassandra.FromInstAPI(instaModel)
 
 	if c.Annotations[models.ExternalChangesAnnotation] == models.True ||
 		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
-		return handleExternalChanges[v1beta1.CassandraSpec](r.EventRecorder, r.Client, c, iCassandra, l)
+		return handleExternalChanges[v1beta1.CassandraSpec](r.EventRecorder, r.Client, c, &iCassandra, l)
 	}
 
 	patch := c.NewPatch()
 
-	if c.Spec.ClusterSettingsNeedUpdate(iCassandra.Spec.Cluster) {
+	if c.Spec.ClusterSettingsNeedUpdate(&iCassandra.Spec.GenericClusterSpec) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iCassandra.Spec.Description,
 			"instaclustr two factor delete", iCassandra.Spec.TwoFactorDelete)
@@ -664,7 +678,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 	return models.ExitReconcile, nil
 }
 
-func (r *CassandraReconciler) startClusterStatusJob(c *v1beta1.Cassandra) error {
+func (r *CassandraReconciler) startSyncJob(c *v1beta1.Cassandra) error {
 	job := r.newWatchStatusJob(c)
 
 	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
@@ -722,7 +736,7 @@ func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.
 			return nil
 		}
 
-		iData, err := r.API.GetCassandra(c.Status.ID)
+		instaModel, err := r.API.GetCassandra(c.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
 				if c.DeletionTimestamp != nil {
@@ -738,40 +752,32 @@ func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.
 			return err
 		}
 
-		iCassandra, err := c.FromInstAPI(iData)
-		if err != nil {
-			l.Error(err, "Cannot convert cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-			)
-			return err
-		}
+		iCassandra := v1beta1.Cassandra{}
+		iCassandra.FromInstAPI(instaModel)
 
-		if !areStatusesEqual(&iCassandra.Status.ClusterStatus, &c.Status.ClusterStatus) {
-			l.Info("Updating cluster status",
-				"status from Instaclustr", iCassandra.Status.ClusterStatus,
-				"status from k8s", c.Status.ClusterStatus)
+		if !c.Status.Equals(&iCassandra.Status) {
+			l.Info("Updating cluster status")
 
-			areDCsEqual := areDataCentresEqual(iCassandra.Status.ClusterStatus.DataCentres, c.Status.ClusterStatus.DataCentres)
+			dcEqual := c.Status.DataCentresEqual(&iCassandra.Status)
 
 			patch := c.NewPatch()
-			c.Status.ClusterStatus = iCassandra.Status.ClusterStatus
+			c.Status.FromInstAPI(instaModel)
 			err = r.Status().Patch(context.Background(), c, patch)
 			if err != nil {
 				return err
 			}
 
-			if !areDCsEqual {
+			if !dcEqual {
 				var nodes []*v1beta1.Node
 
-				for _, dc := range iCassandra.Status.ClusterStatus.DataCentres {
+				for _, dc := range iCassandra.Status.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
 				}
 
 				err = exposeservice.Create(r.Client,
 					c.Name,
 					c.Namespace,
-					c.Spec.PrivateNetworkCluster,
+					c.Spec.PrivateNetwork,
 					nodes,
 					models.CassandraConnectionPort)
 				if err != nil {
@@ -780,7 +786,7 @@ func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.
 			}
 		}
 
-		equals := c.Spec.IsEqual(iCassandra.Spec)
+		equals := c.Spec.IsEqual(&iCassandra.Spec)
 
 		if equals && c.Annotations[models.ExternalChangesAnnotation] == models.True {
 			patch := c.NewPatch()
@@ -1069,7 +1075,7 @@ func (r *CassandraReconciler) reconcileMaintenanceEvents(ctx context.Context, c 
 		return err
 	}
 
-	if !c.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+	if !c.Status.MaintenanceEventsEqual(iMEStatuses) {
 		patch := c.NewPatch()
 		c.Status.MaintenanceEvents = iMEStatuses
 		err = r.Status().Patch(ctx, c, patch)
@@ -1133,6 +1139,10 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 
 				newObj := event.ObjectNew.(*v1beta1.Cassandra)
+
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+					return false
+				}
 
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent

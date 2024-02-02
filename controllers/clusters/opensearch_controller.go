@@ -224,11 +224,11 @@ func (r *OpenSearchReconciler) createCluster(ctx context.Context, o *v1beta1.Ope
 func (r *OpenSearchReconciler) startClusterJobs(o *v1beta1.OpenSearch) error {
 	err := r.startClusterSyncJob(o)
 	if err != nil {
-		return fmt.Errorf("failed to start cluster status job, err: %w", err)
+		return fmt.Errorf("failed to start cluster sync job, err: %w", err)
 	}
 
 	r.EventRecorder.Event(o, models.Normal, models.Created,
-		"Cluster status check job is started")
+		"Cluster sync job is started")
 
 	err = r.startClusterBackupsJob(o)
 	if err != nil {
@@ -587,6 +587,8 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 		if !iO.Status.Equals(&o.Status) {
 			l.Info("Updating OpenSearch cluster status", "old", o.Status, "new", iO.Status)
 
+			dcEqual := o.Status.DataCentreEquals(&iO.Status)
+
 			patch := o.NewPatch()
 			o.Status.FromInstAPI(instaModel)
 			err = r.Status().Patch(context.Background(), o, patch)
@@ -599,7 +601,7 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 				return err
 			}
 
-			if !o.Status.DataCentreEquals(&iO.Status) {
+			if !dcEqual {
 				var nodes []*v1beta1.Node
 
 				for _, dc := range iO.Status.DataCentres {
