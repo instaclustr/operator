@@ -3,16 +3,17 @@ kind: Zookeeper
 metadata:
   name: zookeeper-sample
 spec:
+  name: "username-zookeeper"
+#  description: "some description"
   dataCentres:
     - clientToServerEncryption: false
       cloudProvider: "AWS_VPC"
       name: "MyTestDataCentre1"
       network: "10.0.0.0/16"
-#      nodeSize: "zookeeper-developer-t3.small-20"
-      nodeSize: "zookeeper-production-m5.large-60"
+      nodeSize: "zookeeper-developer-t3.small-20"
+#      nodeSize: "zookeeper-production-m5.large-60"
       nodesNumber: 3
       region: "US_EAST_1"
-  name: "Username-zookeeper"
   privateNetworkCluster: false
   slaTier: "NON_PRODUCTION"
   version: "3.8.2"
