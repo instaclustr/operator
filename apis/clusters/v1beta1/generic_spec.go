@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 )
 
 type GenericClusterSpec struct {
@@ -33,19 +34,7 @@ func (s *GenericClusterSpec) Equals(o *GenericClusterSpec) bool {
 		s.PrivateNetwork == o.PrivateNetwork &&
 		s.SLATier == o.SLATier &&
 		s.Description == o.Description &&
-		s.TwoFactorDeleteEquals(o)
-}
-
-func (s *GenericClusterSpec) TwoFactorDeleteEquals(o *GenericClusterSpec) bool {
-	if len(s.TwoFactorDelete) != len(o.TwoFactorDelete) {
-		return false
-	}
-
-	if len(s.TwoFactorDelete) > 0 {
-		return *s.TwoFactorDelete[0] == *o.TwoFactorDelete[0]
-	}
-
-	return true
+		slices.EqualsPtr(s.TwoFactorDelete, o.TwoFactorDelete)
 }
 
 func (s *GenericClusterSpec) FromInstAPI(model *models.GenericClusterFields) {
@@ -126,7 +115,7 @@ func (s *GenericDataCentreSpec) Equals(o *GenericDataCentreSpec) bool {
 		s.ProviderAccountName == o.ProviderAccountName &&
 		s.Network == o.Network &&
 		areTagsEqual(s.Tags, o.Tags) &&
-		areCloudProviderSettingsEqual(s.CloudProviderSettings, o.CloudProviderSettings)
+		slices.EqualsPtr(s.CloudProviderSettings, o.CloudProviderSettings)
 }
 
 func (s *GenericDataCentreSpec) FromInstAPI(model *models.GenericDataCentreFields) {

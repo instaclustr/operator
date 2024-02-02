@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -388,6 +389,28 @@ func (s *GenericDataCentreSpec) validateCreation() error {
 
 	if !peerSubnetsRegExp.Match([]byte(s.Network)) {
 		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28", s.Network)
+	}
+
+	return nil
+}
+
+func (s *GenericDataCentreSpec) ValidateOnPremisesCreation() error {
+	if s.CloudProvider != models.ONPREMISES {
+		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available value: %s",
+			s.CloudProvider, s.Name, models.ONPREMISES)
+	}
+
+	if s.Region != models.CLIENTDC {
+		return fmt.Errorf("region %s is unavailable for data centre: %s, available value: %s",
+			s.Region, s.Name, models.CLIENTDC)
+	}
+
+	return nil
+}
+
+func (s *GenericDataCentreSpec) validateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
+	if !slices.EqualsPtr(s.CloudProviderSettings, oldSettings) {
+		return models.ErrImmutableCloudProviderSettings
 	}
 
 	return nil

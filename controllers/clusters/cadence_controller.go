@@ -748,7 +748,7 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 	}
 
 	slaTier := c.Spec.SLATier
-	privateClusterNetwork := c.Spec.PrivateNetworkCluster
+	privateNetwork := c.Spec.PrivateNetworkCluster
 	pciCompliance := c.Spec.PCICompliance
 
 	var twoFactorDelete []*v1beta1.TwoFactorDelete
@@ -789,27 +789,27 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 
 	cassandraDataCentres := []*v1beta1.CassandraDataCentre{
 		{
-			DataCentre: v1beta1.DataCentre{
+			GenericDataCentreSpec: v1beta1.GenericDataCentreSpec{
 				Name:                dcName,
 				Region:              dcRegion,
 				CloudProvider:       cloudProvider,
 				ProviderAccountName: providerAccountName,
-				NodeSize:            cassNodeSize,
-				NodesNumber:         cassNodesNumber,
 				Network:             network,
 			},
+			NodeSize:                       cassNodeSize,
+			NodesNumber:                    cassNodesNumber,
 			ReplicationFactor:              cassReplicationFactor,
 			PrivateIPBroadcastForDiscovery: cassPrivateIPBroadcastForDiscovery,
 		},
 	}
 	spec := v1beta1.CassandraSpec{
-		Cluster: v1beta1.Cluster{
-			Name:                  models.CassandraChildPrefix + c.Name,
-			Version:               latestCassandraVersion,
-			SLATier:               slaTier,
-			PrivateNetworkCluster: privateClusterNetwork,
-			TwoFactorDelete:       twoFactorDelete,
-			PCICompliance:         pciCompliance,
+		GenericClusterSpec: v1beta1.GenericClusterSpec{
+			Name:            models.CassandraChildPrefix + c.Name,
+			Version:         latestCassandraVersion,
+			SLATier:         slaTier,
+			PrivateNetwork:  privateNetwork,
+			TwoFactorDelete: twoFactorDelete,
+			PCICompliance:   pciCompliance,
 		},
 		DataCentres:         cassandraDataCentres,
 		PasswordAndUserAuth: cassPasswordAndUserAuth,

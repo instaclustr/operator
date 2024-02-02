@@ -17,7 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"encoding/json"
 	"strconv"
 
 	k8scorev1 "k8s.io/api/core/v1"
@@ -52,36 +51,140 @@ type CassandraRestoreFrom struct {
 
 // CassandraSpec defines the desired state of Cassandra
 type CassandraSpec struct {
-	RestoreFrom         *CassandraRestoreFrom `json:"restoreFrom,omitempty"`
-	OnPremisesSpec      *OnPremisesSpec       `json:"onPremisesSpec,omitempty"`
-	Cluster             `json:",inline"`
+	GenericClusterSpec `json:",inline"`
+
+	RestoreFrom         *CassandraRestoreFrom  `json:"restoreFrom,omitempty"`
+	OnPremisesSpec      *OnPremisesSpec        `json:"onPremisesSpec,omitempty"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 	UserRefs            References             `json:"userRefs,omitempty"`
 	//+kubebuilder:validate:MaxItems:=1
-	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	ClusterStatus  `json:",inline"`
+	GenericStatus `json:",inline"`
+	DataCentres   []*CassandraDataCentreStatus `json:"dataCentres,omitempty"`
+
 	AvailableUsers References `json:"availableUsers,omitempty"`
 }
 
-type CassandraDataCentre struct {
-	DataCentre                     `json:",inline"`
-	ContinuousBackup               bool `json:"continuousBackup"`
-	PrivateIPBroadcastForDiscovery bool `json:"privateIpBroadcastForDiscovery"`
-	ClientToClusterEncryption      bool `json:"clientToClusterEncryption"`
-	ReplicationFactor              int  `json:"replicationFactor"`
+func (s *CassandraStatus) ToOnPremises() ClusterStatus {
+	dc := &DataCentreStatus{
+		ID:    s.DataCentres[0].ID,
+		Nodes: s.DataCentres[0].Nodes,
+	}
 
+	return ClusterStatus{
+		ID:          s.ID,
+		DataCentres: []*DataCentreStatus{dc},
+	}
+}
+
+func (s *CassandraStatus) Equals(o *CassandraStatus) bool {
+	return s.GenericStatus.Equals(&o.GenericStatus) &&
+		s.DataCentresEqual(o)
+}
+
+func (s *CassandraStatus) DataCentresEqual(o *CassandraStatus) bool {
+	if len(s.DataCentres) != len(o.DataCentres) {
+		return false
+	}
+
+	sMap := map[string]*CassandraDataCentreStatus{}
+	for _, dc := range s.DataCentres {
+		sMap[dc.Name] = dc
+	}
+
+	for _, oDC := range o.DataCentres {
+		sDC, ok := sMap[oDC.Name]
+		if !ok {
+			return false
+		}
+
+		if !sDC.Equals(oDC) {
+			return false
+		}
+	}
+
+	return true
+}
+
+type CassandraDataCentre struct {
+	GenericDataCentreSpec `json:",inline"`
+
+	ContinuousBackup               bool   `json:"continuousBackup"`
+	PrivateIPBroadcastForDiscovery bool   `json:"privateIpBroadcastForDiscovery"`
+	PrivateLink                    bool   `json:"privateLink,omitempty"`
+	ClientToClusterEncryption      bool   `json:"clientToClusterEncryption"`
+	ReplicationFactor              int    `json:"replicationFactor"`
+	NodesNumber                    int    `json:"nodesNumber"`
+	NodeSize                       string `json:"nodeSize"`
 	// Adds the specified version of Debezium Connector Cassandra to the Cassandra cluster
 	// +kubebuilder:validation:MaxItems=1
-	Debezium      []DebeziumCassandraSpec `json:"debezium,omitempty"`
-	PrivateLink   bool                    `json:"privateLink,omitempty"`
-	ShotoverProxy []ShotoverProxySpec     `json:"shotoverProxy,omitempty"`
+	Debezium      []*DebeziumCassandraSpec `json:"debezium,omitempty"`
+	ShotoverProxy []*ShotoverProxySpec     `json:"shotoverProxy,omitempty"`
+}
+
+func (dc *CassandraDataCentre) Equals(o *CassandraDataCentre) bool {
+	return dc.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
+		dc.ContinuousBackup == o.ContinuousBackup &&
+		dc.PrivateIPBroadcastForDiscovery == o.PrivateIPBroadcastForDiscovery &&
+		dc.PrivateLink == o.PrivateLink &&
+		dc.ClientToClusterEncryption == o.ClientToClusterEncryption &&
+		dc.ReplicationFactor == o.ReplicationFactor &&
+		dc.NodesNumber == o.NodesNumber &&
+		dc.NodeSize == o.NodeSize &&
+		dc.DebeziumEquals(o) &&
+		dc.ShotoverProxyEquals(o)
+}
+
+type CassandraDataCentreStatus struct {
+	GenericDataCentreStatus `json:",inline"`
+	Nodes                   []*Node `json:"nodes"`
+}
+
+func (s *CassandraDataCentreStatus) Equals(o *CassandraDataCentreStatus) bool {
+	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
+		s.nodesEqual(o.Nodes)
+}
+
+func (s *CassandraDataCentreStatus) nodesEqual(nodes []*Node) bool {
+	if len(s.Nodes) != len(nodes) {
+		return false
+	}
+
+	sNodes := map[string]*Node{}
+	for _, node := range s.Nodes {
+		sNodes[node.ID] = node
+	}
+
+	for _, node := range nodes {
+		sNode, ok := sNodes[node.ID]
+		if !ok {
+			return false
+		}
+
+		if !sNode.Equals(node) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *CassandraDataCentreStatus) FromInstAPI(instModel *models.CassandraDataCentre) {
+	s.GenericDataCentreStatus.FromInstAPI(&instModel.GenericDataCentreFields)
+
+	s.Nodes = make([]*Node, len(instModel.Nodes))
+	for i, instNode := range instModel.Nodes {
+		node := &Node{}
+		node.FromInstAPI(instNode)
+		s.Nodes[i] = node
+	}
 }
 
 type ShotoverProxySpec struct {
@@ -153,6 +256,14 @@ func (d *CassandraDataCentre) ShotoverProxyEquals(new *CassandraDataCentre) bool
 	return true
 }
 
+func (c *CassandraSpec) IsEqual(o *CassandraSpec) bool {
+	return c.GenericClusterSpec.Equals(&o.GenericClusterSpec) &&
+		c.AreDCsEqual(o.DataCentres) &&
+		c.LuceneEnabled == o.LuceneEnabled &&
+		c.PasswordAndUserAuth == o.PasswordAndUserAuth &&
+		c.BundledUseOnly == o.BundledUseOnly
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
@@ -211,19 +322,9 @@ func (c *Cassandra) NewBackupSpec(startTimestamp int) *clusterresourcesv1beta1.C
 	}
 }
 
-func (c *Cassandra) FromInstAPI(iData []byte) (*Cassandra, error) {
-	iCass := &models.CassandraCluster{}
-	err := json.Unmarshal(iData, iCass)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Cassandra{
-		TypeMeta:   c.TypeMeta,
-		ObjectMeta: c.ObjectMeta,
-		Spec:       c.Spec.FromInstAPI(iCass),
-		Status:     c.Status.FromInstAPI(iCass),
-	}, nil
+func (c *Cassandra) FromInstAPI(instModel *models.CassandraCluster) {
+	c.Spec.FromInstAPI(instModel)
+	c.Status.FromInstAPI(instModel)
 }
 
 func (cs *CassandraSpec) HasRestore() bool {
@@ -237,88 +338,83 @@ func (cs *CassandraSpec) HasRestore() bool {
 func (cs *CassandraSpec) DCsUpdateToInstAPI() models.CassandraClusterAPIUpdate {
 	return models.CassandraClusterAPIUpdate{
 		DataCentres:    cs.DCsToInstAPI(),
-		ResizeSettings: resizeSettingsToInstAPI(cs.ResizeSettings),
+		ResizeSettings: cs.ResizeSettings.ToInstAPI(),
 	}
 }
 
-func (cs *CassandraSpec) FromInstAPI(iCass *models.CassandraCluster) CassandraSpec {
-	return CassandraSpec{
-		Cluster: Cluster{
-			Name:                  iCass.Name,
-			Version:               iCass.CassandraVersion,
-			PCICompliance:         iCass.PCIComplianceMode,
-			PrivateNetworkCluster: iCass.PrivateNetworkCluster,
-			SLATier:               iCass.SLATier,
-			TwoFactorDelete:       cs.Cluster.TwoFactorDeleteFromInstAPI(iCass.TwoFactorDelete),
-			Description:           iCass.Description,
-		},
-		DataCentres:         cs.DCsFromInstAPI(iCass.DataCentres),
-		LuceneEnabled:       iCass.LuceneEnabled,
-		PasswordAndUserAuth: iCass.PasswordAndUserAuth,
-		BundledUseOnly:      iCass.BundledUseOnly,
-		ResizeSettings:      resizeSettingsFromInstAPI(iCass.ResizeSettings),
+func (cs *CassandraSpec) FromInstAPI(instModel *models.CassandraCluster) {
+	cs.GenericClusterSpec.FromInstAPI(&instModel.GenericClusterFields)
+
+	cs.LuceneEnabled = instModel.LuceneEnabled
+	cs.PasswordAndUserAuth = instModel.PasswordAndUserAuth
+	cs.BundledUseOnly = instModel.BundledUseOnly
+	cs.Version = instModel.CassandraVersion
+	cs.ResizeSettings.FromInstAPI(instModel.ResizeSettings)
+
+	cs.dcsFromInstAPI(instModel.DataCentres)
+}
+
+func (cs *CassandraSpec) dcsFromInstAPI(instModels []*models.CassandraDataCentre) {
+	cs.DataCentres = make([]*CassandraDataCentre, len(instModels))
+	for i, instModel := range instModels {
+		dc := &CassandraDataCentre{}
+		dc.FromInstAPI(instModel)
+		cs.DataCentres[i] = dc
 	}
 }
 
-func (cs *CassandraSpec) DebeziumFromInstAPI(iDebeziums []*models.Debezium) (dcs []DebeziumCassandraSpec) {
-	var debeziums []DebeziumCassandraSpec
-	for _, iDebezium := range iDebeziums {
-		debeziums = append(debeziums, DebeziumCassandraSpec{
-			KafkaVPCType:      iDebezium.KafkaVPCType,
-			KafkaTopicPrefix:  iDebezium.KafkaTopicPrefix,
-			KafkaDataCentreID: iDebezium.KafkaDataCentreID,
-			Version:           iDebezium.Version,
-		})
-	}
-	return debeziums
+func (d *CassandraDataCentre) FromInstAPI(instModel *models.CassandraDataCentre) {
+	d.GenericDataCentreSpec.FromInstAPI(&instModel.GenericDataCentreFields)
+
+	d.ContinuousBackup = instModel.ContinuousBackup
+	d.PrivateIPBroadcastForDiscovery = instModel.PrivateIPBroadcastForDiscovery
+	d.PrivateLink = instModel.PrivateLink
+	d.ClientToClusterEncryption = instModel.ClientToClusterEncryption
+	d.ReplicationFactor = instModel.ReplicationFactor
+	d.NodesNumber = instModel.NumberOfNodes
+	d.NodeSize = instModel.NodeSize
+
+	d.debeziumFromInstAPI(instModel.Debezium)
+	d.shotoverProxyFromInstAPI(instModel.ShotoverProxy)
 }
 
-func (cs *CassandraSpec) ShotoverProxyFromInstAPI(iShotoverProxys []*models.ShotoverProxy) (sps []ShotoverProxySpec) {
-	for _, iShotoverProxy := range iShotoverProxys {
-		sps = append(sps, ShotoverProxySpec{
-			NodeSize: iShotoverProxy.NodeSize,
-		})
+func (cs *CassandraDataCentre) debeziumFromInstAPI(instModels []*models.Debezium) {
+	cs.Debezium = make([]*DebeziumCassandraSpec, len(instModels))
+	for i, instModel := range instModels {
+		cs.Debezium[i] = &DebeziumCassandraSpec{
+			KafkaVPCType:      instModel.KafkaVPCType,
+			KafkaTopicPrefix:  instModel.KafkaTopicPrefix,
+			KafkaDataCentreID: instModel.KafkaDataCentreID,
+			Version:           instModel.Version,
+		}
 	}
-	return sps
 }
 
-func (cs *CassandraSpec) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs []*CassandraDataCentre) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, &CassandraDataCentre{
-			DataCentre:                     cs.Cluster.DCFromInstAPI(iDC.DataCentre),
-			ContinuousBackup:               iDC.ContinuousBackup,
-			PrivateIPBroadcastForDiscovery: iDC.PrivateIPBroadcastForDiscovery,
-			ClientToClusterEncryption:      iDC.ClientToClusterEncryption,
-			ReplicationFactor:              iDC.ReplicationFactor,
-			PrivateLink:                    iDC.PrivateLink,
-			Debezium:                       cs.DebeziumFromInstAPI(iDC.Debezium),
-			ShotoverProxy:                  cs.ShotoverProxyFromInstAPI(iDC.ShotoverProxy),
-		})
+func (cs *CassandraDataCentre) shotoverProxyFromInstAPI(instModels []*models.ShotoverProxy) {
+	cs.ShotoverProxy = make([]*ShotoverProxySpec, len(instModels))
+	for i, instModel := range instModels {
+		cs.ShotoverProxy[i] = &ShotoverProxySpec{
+			NodeSize: instModel.NodeSize,
+		}
 	}
-	return
 }
 
-func (cs *CassandraSpec) DCsToInstAPI() (iDCs []*models.CassandraDataCentre) {
+func (cs *CassandraSpec) DCsToInstAPI() (instaModels []*models.CassandraDataCentre) {
 	for _, dc := range cs.DataCentres {
-		iDCs = append(iDCs, dc.ToInstAPI())
+		instaModels = append(instaModels, dc.ToInstAPI())
 	}
 	return
 }
 
 func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 	return &models.CassandraCluster{
-		Name:                  cs.Name,
-		CassandraVersion:      cs.Version,
-		LuceneEnabled:         cs.LuceneEnabled,
-		PasswordAndUserAuth:   cs.PasswordAndUserAuth,
-		DataCentres:           cs.DCsToInstAPI(),
-		SLATier:               cs.SLATier,
-		PrivateNetworkCluster: cs.PrivateNetworkCluster,
-		PCIComplianceMode:     cs.PCICompliance,
-		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
-		BundledUseOnly:        cs.BundledUseOnly,
-		Description:           cs.Description,
-		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
+		GenericClusterFields: cs.GenericClusterSpec.ToInstAPI(),
+		CassandraVersion:     cs.Version,
+		LuceneEnabled:        cs.LuceneEnabled,
+		PasswordAndUserAuth:  cs.PasswordAndUserAuth,
+		BundledUseOnly:       cs.BundledUseOnly,
+		DataCentres:          cs.DCsToInstAPI(),
+		ResizeSettings:       cs.ResizeSettings.ToInstAPI(),
 	}
 }
 
@@ -342,18 +438,10 @@ func (c *Cassandra) RestoreInfoToInstAPI(restoreData *CassandraRestoreFrom) any 
 	return iRestore
 }
 
-func (cs *CassandraSpec) IsEqual(spec CassandraSpec) bool {
-	return cs.Cluster.IsEqual(spec.Cluster) &&
-		cs.AreDCsEqual(spec.DataCentres) &&
-		cs.LuceneEnabled == spec.LuceneEnabled &&
-		cs.PasswordAndUserAuth == spec.PasswordAndUserAuth &&
-		cs.BundledUseOnly == spec.BundledUseOnly
-}
-
 func (c *Cassandra) GetSpec() CassandraSpec { return c.Spec }
 
 func (c *Cassandra) IsSpecEqual(spec CassandraSpec) bool {
-	return c.Spec.IsEqual(spec)
+	return c.Spec.IsEqual(&spec)
 }
 
 func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
@@ -361,21 +449,18 @@ func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 		return false
 	}
 
-	for i, iDC := range dcs {
-		dataCentre := cs.DataCentres[i]
+	k8sDCs := map[string]*CassandraDataCentre{}
+	for _, dc := range cs.DataCentres {
+		k8sDCs[dc.Name] = dc
+	}
 
-		if iDC.Name != dataCentre.Name {
-			continue
+	for _, instDC := range dcs {
+		k8sDC, ok := k8sDCs[instDC.Name]
+		if !ok {
+			return false
 		}
 
-		if !dataCentre.IsEqual(iDC.DataCentre) ||
-			iDC.ClientToClusterEncryption != dataCentre.ClientToClusterEncryption ||
-			iDC.PrivateIPBroadcastForDiscovery != dataCentre.PrivateIPBroadcastForDiscovery ||
-			iDC.PrivateLink != dataCentre.PrivateLink ||
-			iDC.ContinuousBackup != dataCentre.ContinuousBackup ||
-			iDC.ReplicationFactor != dataCentre.ReplicationFactor ||
-			!dataCentre.DebeziumEquals(iDC) ||
-			!dataCentre.ShotoverProxyEquals(iDC) {
+		if !k8sDC.Equals(instDC) {
 			return false
 		}
 	}
@@ -383,33 +468,30 @@ func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 	return true
 }
 
-func (cs *CassandraStatus) FromInstAPI(iCass *models.CassandraCluster) CassandraStatus {
-	return CassandraStatus{
-		ClusterStatus: ClusterStatus{
-			ID:                            iCass.ID,
-			State:                         iCass.Status,
-			DataCentres:                   cs.DCsFromInstAPI(iCass.DataCentres),
-			CurrentClusterOperationStatus: iCass.CurrentClusterOperationStatus,
-			MaintenanceEvents:             cs.MaintenanceEvents,
-		},
-	}
+func (cs *CassandraStatus) FromInstAPI(instModel *models.CassandraCluster) {
+	cs.GenericStatus.FromInstAPI(&instModel.GenericClusterFields)
+	cs.dcsFromInstAPI(instModel.DataCentres)
 }
 
-func (cs *CassandraStatus) DCsFromInstAPI(iDCs []*models.CassandraDataCentre) (dcs []*DataCentreStatus) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+func (cs *CassandraStatus) dcsFromInstAPI(instModels []*models.CassandraDataCentre) {
+	cs.DataCentres = make([]*CassandraDataCentreStatus, len(instModels))
+	for i, instModel := range instModels {
+		dc := &CassandraDataCentreStatus{}
+		dc.FromInstAPI(instModel)
+		cs.DataCentres[i] = dc
 	}
-	return
 }
 
 func (cdc *CassandraDataCentre) ToInstAPI() *models.CassandraDataCentre {
 	return &models.CassandraDataCentre{
-		DataCentre:                     cdc.DataCentre.ToInstAPI(),
+		GenericDataCentreFields:        cdc.GenericDataCentreSpec.ToInstAPI(),
 		ClientToClusterEncryption:      cdc.ClientToClusterEncryption,
 		PrivateLink:                    cdc.PrivateLink,
 		ContinuousBackup:               cdc.ContinuousBackup,
 		PrivateIPBroadcastForDiscovery: cdc.PrivateIPBroadcastForDiscovery,
 		ReplicationFactor:              cdc.ReplicationFactor,
+		NodeSize:                       cdc.NodeSize,
+		NumberOfNodes:                  cdc.NodesNumber,
 		Debezium:                       cdc.DebeziumToInstAPI(),
 		ShotoverProxy:                  cdc.ShotoverProxyToInstaAPI(),
 	}
@@ -457,7 +539,7 @@ func init() {
 
 func (c *Cassandra) GetExposePorts() []k8scorev1.ServicePort {
 	var exposePorts []k8scorev1.ServicePort
-	if !c.Spec.PrivateNetworkCluster {
+	if !c.Spec.PrivateNetwork {
 		exposePorts = []k8scorev1.ServicePort{
 			{
 				Name: models.CassandraInterNode,

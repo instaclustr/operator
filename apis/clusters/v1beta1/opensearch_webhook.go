@@ -339,7 +339,7 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSear
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		err := validateImmutableCloudProviderSettingsUpdate(newDC.CloudProviderSettings, oldDC.CloudProviderSettings)
+		err := oldDC.validateImmutableCloudProviderSettingsUpdate(newDC.CloudProviderSettings)
 		if err != nil {
 			return err
 		}
@@ -362,20 +362,6 @@ func (dc *OpenSearchDataCentre) validateDataNode(nodes []*OpenSearchDataNodes) e
 	for _, node := range nodes {
 		if node.NodesNumber%dc.NumberOfRacks != 0 {
 			return fmt.Errorf("number of data nodes must be a multiple of number of racks: %v", dc.NumberOfRacks)
-		}
-	}
-
-	return nil
-}
-
-func validateImmutableCloudProviderSettingsUpdate(newSettings, oldSettings []*CloudProviderSettings) error {
-	if len(oldSettings) != len(newSettings) {
-		return models.ErrImmutableCloudProviderSettings
-	}
-
-	for i := range newSettings {
-		if *newSettings[i] != *oldSettings[i] {
-			return models.ErrImmutableCloudProviderSettings
 		}
 	}
 

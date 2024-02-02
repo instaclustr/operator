@@ -761,3 +761,39 @@ func (old References) Diff(new References) (added, deleted References) {
 
 	return added, deleted
 }
+
+type GenericResizeSettings []*ResizeSettings
+
+func (g *GenericResizeSettings) FromInstAPI(instModels []*models.ResizeSettings) {
+	*g = make(GenericResizeSettings, len(instModels))
+	for i, instModel := range instModels {
+		(*g)[i] = &ResizeSettings{
+			NotifySupportContacts: instModel.NotifySupportContacts,
+			Concurrency:           instModel.Concurrency,
+		}
+	}
+}
+
+func (g *GenericResizeSettings) ToInstAPI() []*models.ResizeSettings {
+	instaModels := make([]*models.ResizeSettings, len(*g))
+	for i, setting := range *g {
+		instaModels[i] = &models.ResizeSettings{
+			NotifySupportContacts: setting.NotifySupportContacts,
+			Concurrency:           setting.Concurrency,
+		}
+	}
+
+	return instaModels
+}
+
+func (g GenericResizeSettings) Equal(o GenericResizeSettings) bool {
+	if len(g) != len(o) {
+		return false
+	}
+
+	if len(g) > 0 {
+		return *g[0] == *o[0]
+	}
+
+	return true
+}

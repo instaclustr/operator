@@ -351,7 +351,7 @@ func (c *Client) DeleteRedisUser(id string) error {
 	return nil
 }
 
-func (c *Client) GetCassandra(id string) ([]byte, error) {
+func (c *Client) GetCassandra(id string) (*models.CassandraCluster, error) {
 	url := c.serverHostname + CassandraEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -373,7 +373,13 @@ func (c *Client) GetCassandra(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var instModel models.CassandraCluster
+	err = json.Unmarshal(body, &instModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &instModel, nil
 }
 
 func (c *Client) UpdateCassandra(id string, cassandra models.CassandraClusterAPIUpdate) error {

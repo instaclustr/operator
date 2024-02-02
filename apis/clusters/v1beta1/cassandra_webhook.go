@@ -68,10 +68,6 @@ func (c *Cassandra) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
-
-	for _, dataCentre := range c.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
-	}
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
@@ -91,7 +87,7 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		}
 	}
 
-	err := c.Spec.Cluster.ValidateCreation()
+	err := c.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -110,7 +106,7 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		if err != nil {
 			return err
 		}
-		if c.Spec.PrivateNetworkCluster {
+		if c.Spec.PrivateNetwork {
 			err = c.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
 			if err != nil {
 				return err
@@ -140,18 +136,18 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 
 	for _, dc := range c.Spec.DataCentres {
 		if c.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.GenericDataCentreSpec.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err = dc.DataCentre.ValidateCreation()
+			err = dc.GenericDataCentreSpec.validateCreation()
 			if err != nil {
 				return err
 			}
 		}
 
-		if !c.Spec.PrivateNetworkCluster && dc.PrivateIPBroadcastForDiscovery {
+		if !c.Spec.PrivateNetwork && dc.PrivateIPBroadcastForDiscovery {
 			return fmt.Errorf("cannot use private ip broadcast for discovery on public network cluster")
 		}
 
@@ -181,6 +177,10 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 	}
 
 	cassandralog.Info("validate update", "name", c.Name)
+
+	if c.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+		return nil
+	}
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
 	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -259,7 +259,7 @@ func (cs *CassandraSpec) newImmutableFields() *immutableCassandraFields {
 			LuceneEnabled:       cs.LuceneEnabled,
 			PasswordAndUserAuth: cs.PasswordAndUserAuth,
 		},
-		immutableCluster: cs.Cluster.newImmutableFields(),
+		immutableCluster: cs.GenericClusterSpec.immutableFields(),
 	}
 }
 
@@ -307,11 +307,11 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 				return fmt.Errorf("cannot change datacentre name: %v", newDC.Name)
 			}
 
-			if err := newDC.ValidateCreation(); err != nil {
+			if err := newDC.validateCreation(); err != nil {
 				return err
 			}
 
-			if !cs.PrivateNetworkCluster && newDC.PrivateIPBroadcastForDiscovery {
+			if !cs.PrivateNetwork && newDC.PrivateIPBroadcastForDiscovery {
 				return fmt.Errorf("cannot use private ip broadcast for discovery on public network cluster")
 			}
 
