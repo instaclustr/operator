@@ -21,6 +21,9 @@ spec:
         - replicationMode: "SYNCHRONOUS"
       interDataCentreReplication:
         - isPrimaryDataCentre: true
+#      tags:
+#        tag: "oneTag"
+#        tag2: "twoTags"
   #    - region: "US_WEST_2"
   #      network: "10.2.0.0/16"
   #      cloudProvider: "AWS_VPC"

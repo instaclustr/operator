@@ -303,7 +303,12 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err := validateTagsUpdate(newDC.Tags, oldDC.Tags)
+		if err != nil {
+			return err
+		}
+
+		err = newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
 		if err != nil {
 			return err
 		}

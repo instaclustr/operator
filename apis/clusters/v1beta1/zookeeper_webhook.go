@@ -112,15 +112,27 @@ func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (zv *zookeeperValidator) ValidateUpdate(ctx context.Context, old runtime.Object, new runtime.Object) error {
-	z, ok := new.(*Zookeeper)
+	newZookeeper, ok := new.(*Zookeeper)
+	if !ok {
+		return fmt.Errorf("cannot assert object %v to zookeeper", new.GetObjectKind())
+	}
+	oldZookeeper, ok := old.(*Zookeeper)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to zookeeper", new.GetObjectKind())
 	}
 
-	zookeeperlog.Info("validate update", "name", z.Name)
+	zookeeperlog.Info("validate update", "name", newZookeeper.Name)
 
-	if z.Status.ID == "" {
-		return zv.ValidateCreate(ctx, z)
+	if newZookeeper.Status.ID == "" {
+		return zv.ValidateCreate(ctx, newZookeeper)
+	}
+
+	if newZookeeper.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
+	if newZookeeper.Generation != oldZookeeper.Generation && !oldZookeeper.Spec.ClusterSettingsNeedUpdate(newZookeeper.Spec.Cluster) {
+		return fmt.Errorf("update is not allowed")
 	}
 
 	return nil
