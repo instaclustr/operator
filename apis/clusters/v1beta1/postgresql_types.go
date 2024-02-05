@@ -24,7 +24,6 @@ import (
 
 	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -337,28 +336,6 @@ func (pdc *PgDataCentre) ArePGBouncersEqual(iPGBs []*PgBouncer) bool {
 	}
 
 	return true
-}
-
-func (pg *PostgreSQL) GetUserSecretName(ctx context.Context, k8sClient client.Client) (string, error) {
-	var err error
-
-	labelsToQuery := fmt.Sprintf("%s=%s", models.ClusterIDLabel, pg.Status.ID)
-	selector, err := labels.Parse(labelsToQuery)
-	if err != nil {
-		return "", err
-	}
-
-	userSecretList := &k8scorev1.SecretList{}
-	err = k8sClient.List(ctx, userSecretList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return "", err
-	}
-
-	if len(userSecretList.Items) == 0 {
-		return "", nil
-	}
-
-	return userSecretList.Items[0].Name, nil
 }
 
 func (pg *PostgreSQL) NewUserSecret(defaultUserPassword string) *k8scorev1.Secret {

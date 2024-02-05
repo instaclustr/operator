@@ -98,6 +98,8 @@ rules:
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - cdi.kubevirt.io
