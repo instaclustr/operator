@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"time"
@@ -42,6 +43,7 @@ import (
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
+	"github.com/instaclustr/operator/pkg/upgradecheck"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -120,6 +122,17 @@ func main() {
 	)
 
 	s := scheduler.NewScheduler(log.Log.WithValues("component", "scheduler"))
+
+	// TODO: take this variable from helm env
+	autoUpgradeEnabled := false
+	if autoUpgradeEnabled {
+		setupLog.Info("auto upgrade operator is enabled")
+
+		err = upgradecheck.StartUpgradeCheckJob(context.TODO(), mgr.GetClient(), s)
+		if err != nil {
+			setupLog.Error(err, "unable to start operator upgrade check job")
+		}
+	}
 
 	eventRecorder := mgr.GetEventRecorderFor("instaclustr-operator")
 

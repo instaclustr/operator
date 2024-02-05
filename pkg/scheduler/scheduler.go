@@ -33,6 +33,8 @@ const (
 	BackupsChecker       = "backupsChecker"
 	UserCreator          = "userCreator"
 	OnPremisesIPsChecker = "onPremisesIPsChecker"
+
+	AutoUpgradeCheckInterval = 24 * time.Hour
 )
 
 type Job func() error

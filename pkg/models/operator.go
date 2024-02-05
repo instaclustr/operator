@@ -23,6 +23,9 @@ import (
 )
 
 const (
+	InstOperatorDeploymentLabel = "instaclustr-k8s-operator"
+	InstOperatorContainerName   = "manager"
+
 	ResourceStateAnnotation   = "instaclustr.com/resourceState"
 	ClusterDeletionAnnotation = "instaclustr.com/clusterDeletion"
 	ExternalChangesAnnotation = "instaclustr.com/externalChanges"
