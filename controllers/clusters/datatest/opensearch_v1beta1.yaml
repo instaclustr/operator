@@ -7,13 +7,17 @@ metadata:
     defaulter: webhook
 spec:
   alertingPlugin: false
+  bundledUseOnly: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false
+#  twoFactorDelete:
+#    - email: "emailTEST"
+#      phone: "phoneTEST"
 #  userRef:
 #    name: test-user
 #    namespace: default
   clusterManagerNodes:
-    - dedicatedManager: false
+    - dedicatedManager: true
       nodeSize: SRH-DEV-t4g.small-5
   dataCentres:
     - cloudProvider: AWS_VPC
@@ -22,9 +26,20 @@ spec:
       numberOfRacks: 3
       privateLink: false
       region: US_EAST_1
-#  dataNodes:
-#    - nodeNumber: 3
-#      nodeSize: SRH-DEV-t4g.small-5
+      accountName: "Custom"
+      cloudProviderSettings:
+        - diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
+      tags:
+        tag: "oneTag"
+        tag2: "twoTags"
+  resizeSettings:
+    - concurrency: 1
+  ingestNodes:
+     - nodeSize: SRH-DI-PRD-m6g.large-10
+       nodeCount: 3
+  dataNodes:
+    - nodesNumber: 3
+      nodeSize: SRH-DEV-t4g.small-5
   icuPlugin: false
   indexManagementPlugin: true
   knnPlugin: false
@@ -35,9 +50,9 @@ spec:
 #    - nodeSize: SRH-DEV-t4g.small-5
 #      oidcProvider: ''
 #      version: opensearch-dashboards:2.5.0
-  version: 2.5.0
+  version: 1.0.0
   pciCompliance: false
-  privateNetworkCluster: false
+  privateNetwork: true
   reportingPlugin: false
   slaTier: NON_PRODUCTION
   sqlPlugin: false

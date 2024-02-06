@@ -37,7 +37,7 @@ type OpenSearchSpec struct {
 	DataCentres              []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
 	DataNodes                []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
 	Dashboards               []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
-	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes,omitempty"`
+	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes"`
 	ICUPlugin                bool                    `json:"icuPlugin,omitempty"`
 	AsynchronousSearchPlugin bool                    `json:"asynchronousSearchPlugin,omitempty"`
 	KNNPlugin                bool                    `json:"knnPlugin,omitempty"`

@@ -217,6 +217,30 @@ func validateTwoFactorDelete(new, old []*TwoFactorDelete) error {
 	return nil
 }
 
+func validateIngestNodes(new, old []*OpenSearchIngestNodes) error {
+	if len(old) != len(new) {
+		return models.ErrImmutableIngestNodes
+	}
+
+	if *old[0] != *new[0] {
+		return models.ErrImmutableIngestNodes
+	}
+
+	return nil
+}
+
+func validateClusterManagedNodes(new, old []*ClusterManagerNodes) error {
+	if len(old) != len(new) {
+		return models.ErrImmutableClusterManagedNodes
+	}
+
+	if *old[0] != *new[0] {
+		return models.ErrImmutableClusterManagedNodes
+	}
+
+	return nil
+}
+
 func validateTagsUpdate(new, old map[string]string) error {
 	if len(old) != len(new) {
 		return models.ErrImmutableTags
