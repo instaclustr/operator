@@ -264,6 +264,8 @@ spec:
                 type: array
               version:
                 type: string
+            required:
+            - clusterManagerNodes
             type: object
           status:
             description: OpenSearchStatus defines the observed state of OpenSearch

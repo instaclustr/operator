@@ -27,6 +27,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	k8sappsv1 "k8s.io/api/apps/v1"
+	k8scorev1 "k8s.io/api/core/v1"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	//+kubebuilder:scaffold:imports
@@ -79,6 +81,12 @@ var _ = BeforeSuite(func() {
 	err = AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = k8scorev1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = k8sappsv1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	err = admissionv1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -110,7 +118,7 @@ var _ = BeforeSuite(func() {
 	err = (&Redis{}).SetupWebhookWithManager(mgr, nil)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&OpenSearch{}).SetupWebhookWithManager(mgr, nil)
+	err = (&OpenSearch{}).SetupWebhookWithManager(mgr, api)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = (&Kafka{}).SetupWebhookWithManager(mgr, api)

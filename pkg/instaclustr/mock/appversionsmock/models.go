@@ -15,5 +15,14 @@ func NewInstAPI() *mockClient {
 }
 
 func (c *mockClient) ListAppVersions(app string) ([]*models.AppVersions, error) {
-	return []*models.AppVersions{{Application: app, Versions: []string{"1.0.0"}}}, nil
+	versions := []string{"1.0.0"}
+
+	switch app {
+	case models.OpenSearchAppKind:
+		return []*models.AppVersions{{Application: models.OpenSearchAppType, Versions: versions}}, nil
+	case models.KafkaAppKind:
+		return []*models.AppVersions{{Application: models.KafkaAppType, Versions: versions}}, nil
+	}
+
+	return []*models.AppVersions{{Application: app, Versions: versions}}, nil
 }

@@ -125,7 +125,7 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 			return err
 		}
 
-		err = dc.ValidatePrivateLink()
+		err = dc.ValidatePrivateLink(os.Spec.PrivateNetwork)
 		if err != nil {
 			return err
 		}
@@ -170,6 +170,10 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 	os, ok := new.(*OpenSearch)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to openSearch", new.GetObjectKind())
+	}
+
+	if os.Status.ID == "" {
+		return osv.ValidateCreate(ctx, os)
 	}
 
 	opensearchlog.Info("validate update", "name", os.Name)
@@ -271,12 +275,12 @@ type specificOpenSearchDC struct {
 	ReplicationFactor int
 }
 
-func (oss *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFields {
+func (osdc *OpenSearchDataCentre) newImmutableFields() *immutableOpenSearchDCFields {
 	return &immutableOpenSearchDCFields{
-		immutableDC: oss.GenericDataCentreSpec.immutableFields(),
+		immutableDC: osdc.GenericDataCentreSpec.immutableFields(),
 		specificOpenSearchDC: specificOpenSearchDC{
-			PrivateLink:       oss.PrivateLink,
-			ReplicationFactor: oss.NumberOfRacks,
+			PrivateLink:       osdc.PrivateLink,
+			ReplicationFactor: osdc.NumberOfRacks,
 		},
 	}
 }
@@ -308,6 +312,14 @@ func (oss *OpenSearchSpec) validateUpdate(oldSpec OpenSearchSpec) error {
 		return err
 	}
 	err = validateDataNode(oss.DataNodes, oldSpec.DataNodes)
+	if err != nil {
+		return err
+	}
+	err = validateIngestNodes(oss.IngestNodes, oldSpec.IngestNodes)
+	if err != nil {
+		return err
+	}
+	err = validateClusterManagedNodes(oss.ClusterManagerNodes, oldSpec.ClusterManagerNodes)
 	if err != nil {
 		return err
 	}
@@ -392,9 +404,12 @@ func validateDataNode(newNodes, oldNodes []*OpenSearchDataNodes) error {
 	return nil
 }
 
-func (dc *OpenSearchDataCentre) ValidatePrivateLink() error {
+func (dc *OpenSearchDataCentre) ValidatePrivateLink(privateNetworkCluster bool) error {
 	if dc.CloudProvider != models.AWSVPC && dc.PrivateLink {
 		return models.ErrPrivateLinkSupportedOnlyForAWS
+	}
+	if dc.PrivateLink && !privateNetworkCluster {
+		return models.ErrPrivateLinkAllowedOnlyWithPrivateNetworkCluster
 	}
 
 	return nil

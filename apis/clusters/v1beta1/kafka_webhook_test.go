@@ -48,6 +48,10 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 			testKafkaManifest.Spec.Kraft[0].ControllerNodeCount = 4
 			Expect(k8sClient.Create(ctx, &testKafkaManifest)).ShouldNot(Succeed())
 			testKafkaManifest.Spec.Kraft[0].ControllerNodeCount = 3
+
+			testKafkaManifest.Spec.Version += ".1"
+			Expect(k8sClient.Create(ctx, &testKafkaManifest)).ShouldNot(Succeed())
+			testKafkaManifest.Spec.Version = kafkaManifest.Spec.Version
 		})
 	})
 
