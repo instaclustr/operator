@@ -217,6 +217,7 @@ spec:
                     notifySupportContacts:
                       type: boolean
                   type: object
+                maxItems: 1
                 type: array
               restoreFrom:
                 properties:

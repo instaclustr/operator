@@ -306,7 +306,7 @@ func (c *mockClient) UpdateRedis(id string, r *models.RedisDataCentreUpdate) err
 	panic("UpdateRedis: is not implemented")
 }
 
-func (c *mockClient) GetKafka(id string) ([]byte, error) {
+func (c *mockClient) GetKafka(id string) (*models.KafkaCluster, error) {
 	panic("GetKafka: is not implemented")
 }
 

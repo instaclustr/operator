@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -62,10 +64,6 @@ func (k *Kafka) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
-
-	for _, dataCentre := range k.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
-	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -82,7 +80,7 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	kafkalog.Info("validate create", "name", k.Name)
 
-	err := k.Spec.Cluster.ValidateCreation()
+	err := k.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -100,7 +98,7 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		if err != nil {
 			return err
 		}
-		if k.Spec.PrivateNetworkCluster {
+		if k.Spec.PrivateNetwork {
 			err = k.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
 			if err != nil {
 				return err
@@ -130,12 +128,12 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	for _, dc := range k.Spec.DataCentres {
 		if k.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.GenericDataCentreSpec.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err = dc.DataCentre.ValidateCreation()
+			err = dc.GenericDataCentreSpec.validateCreation()
 			if err != nil {
 				return err
 			}
@@ -160,7 +158,7 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", k.Spec.ReplicationFactor)
 		}
 
-		if !k.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {
+		if !k.Spec.PrivateNetwork && dc.PrivateLink != nil {
 			return models.ErrPrivateLinkOnlyWithPrivateNetworkCluster
 		}
 
@@ -194,6 +192,10 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	k, ok := new.(*Kafka)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to kafka", new.GetObjectKind())
+	}
+
+	if k.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+		return nil
 	}
 
 	if k.Status.ID == "" {
@@ -277,19 +279,19 @@ func (ks *KafkaSpec) validateUpdate(old *KafkaSpec) error {
 		return err
 	}
 
-	if !isKafkaAddonsEqual[SchemaRegistry](ks.SchemaRegistry, old.SchemaRegistry) {
+	if !slices.EqualsPtr(ks.SchemaRegistry, old.SchemaRegistry) {
 		return models.ErrImmutableSchemaRegistry
 	}
-	if !isKafkaAddonsEqual[KarapaceSchemaRegistry](ks.KarapaceSchemaRegistry, old.KarapaceSchemaRegistry) {
+	if !slices.EqualsPtr(ks.KarapaceSchemaRegistry, old.KarapaceSchemaRegistry) {
 		return models.ErrImmutableKarapaceSchemaRegistry
 	}
-	if !isKafkaAddonsEqual[RestProxy](ks.RestProxy, old.RestProxy) {
+	if !slices.EqualsPtr(ks.RestProxy, old.RestProxy) {
 		return models.ErrImmutableRestProxy
 	}
-	if !isKafkaAddonsEqual[Kraft](ks.Kraft, old.Kraft) {
+	if !slices.EqualsPtr(ks.Kraft, old.Kraft) {
 		return models.ErrImmutableKraft
 	}
-	if !isKafkaAddonsEqual[KarapaceRestProxy](ks.KarapaceRestProxy, old.KarapaceRestProxy) {
+	if !slices.EqualsPtr(ks.KarapaceRestProxy, old.KarapaceRestProxy) {
 		return models.ErrImmutableKarapaceRestProxy
 	}
 	if ok := validateZookeeperUpdate(ks.DedicatedZookeeper, old.DedicatedZookeeper); !ok {
@@ -297,24 +299,6 @@ func (ks *KafkaSpec) validateUpdate(old *KafkaSpec) error {
 	}
 
 	return nil
-}
-
-func isKafkaAddonsEqual[T KafkaAddons](new, old []*T) bool {
-	if new == nil && old == nil {
-		return true
-	}
-
-	if len(new) != len(old) {
-		return false
-	}
-
-	for i := range new {
-		if *new[i] != *old[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func validateZookeeperUpdate(new, old []*DedicatedZookeeper) bool {
@@ -422,10 +406,10 @@ func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
 			autoCreateTopics:          ks.AutoCreateTopics,
 			clientToClusterEncryption: ks.ClientToClusterEncryption,
 			bundledUseOnly:            ks.BundledUseOnly,
-			privateNetworkCluster:     ks.PrivateNetworkCluster,
+			privateNetworkCluster:     ks.PrivateNetwork,
 			clientBrokerAuthWithMtls:  ks.ClientBrokerAuthWithMTLS,
 		},
-		cluster: ks.Cluster.newImmutableFields(),
+		cluster: ks.GenericClusterSpec.immutableFields(),
 	}
 }
 

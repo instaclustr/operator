@@ -1057,15 +1057,15 @@ func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion 
 	providerAccountName := c.Spec.DataCentres[0].ProviderAccountName
 	kafkaDataCentres := []*v1beta1.KafkaDataCentre{
 		{
-			DataCentre: v1beta1.DataCentre{
+			GenericDataCentreSpec: v1beta1.GenericDataCentreSpec{
 				Name:                dcName,
 				Region:              dcRegion,
 				CloudProvider:       cloudProvider,
 				ProviderAccountName: providerAccountName,
-				NodeSize:            kafkaNodeSize,
-				NodesNumber:         kafkaNodesNumber,
 				Network:             kafkaNetwork,
 			},
+			NodeSize:    kafkaNodeSize,
+			NodesNumber: kafkaNodesNumber,
 		},
 	}
 
@@ -1074,13 +1074,13 @@ func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion 
 	pciCompliance := c.Spec.PCICompliance
 	clientEncryption := c.Spec.DataCentres[0].ClientEncryption
 	spec := v1beta1.KafkaSpec{
-		Cluster: v1beta1.Cluster{
-			Name:                  models.KafkaChildPrefix + c.Name,
-			Version:               latestKafkaVersion,
-			SLATier:               slaTier,
-			PrivateNetworkCluster: privateClusterNetwork,
-			TwoFactorDelete:       kafkaTFD,
-			PCICompliance:         pciCompliance,
+		GenericClusterSpec: v1beta1.GenericClusterSpec{
+			Name:            models.KafkaChildPrefix + c.Name,
+			Version:         latestKafkaVersion,
+			SLATier:         slaTier,
+			PrivateNetwork:  privateClusterNetwork,
+			TwoFactorDelete: kafkaTFD,
+			PCICompliance:   pciCompliance,
 		},
 		DataCentres:               kafkaDataCentres,
 		ReplicationFactor:         bundledKafkaSpec.ReplicationFactor,

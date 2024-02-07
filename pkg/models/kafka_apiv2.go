@@ -17,34 +17,35 @@ limitations under the License.
 package models
 
 type KafkaCluster struct {
-	ClusterStatus             `json:",inline"`
-	Name                      string                    `json:"name"`
-	KafkaVersion              string                    `json:"kafkaVersion"`
-	PrivateNetworkCluster     bool                      `json:"privateNetworkCluster"`
-	SLATier                   string                    `json:"slaTier"`
-	TwoFactorDelete           []*TwoFactorDelete        `json:"twoFactorDelete"`
-	AllowDeleteTopics         bool                      `json:"allowDeleteTopics"`
-	AutoCreateTopics          bool                      `json:"autoCreateTopics"`
-	BundledUseOnly            bool                      `json:"bundledUseOnly"`
-	ClientBrokerAuthWithMtls  bool                      `json:"clientBrokerAuthWithMtls"`
-	ClientToClusterEncryption bool                      `json:"clientToClusterEncryption"`
-	DataCentres               []*KafkaDataCentre        `json:"dataCentres"`
-	DedicatedZookeeper        []*DedicatedZookeeper     `json:"dedicatedZookeeper"`
-	DefaultNumberOfPartitions int                       `json:"defaultNumberOfPartitions"`
-	DefaultReplicationFactor  int                       `json:"defaultReplicationFactor"`
-	Kraft                     []*Kraft                  `json:"kraft,omitempty"`
-	KarapaceRestProxy         []*KarapaceRestProxy      `json:"karapaceRestProxy"`
-	KarapaceSchemaRegistry    []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry"`
-	PCIComplianceMode         bool                      `json:"pciComplianceMode"`
-	RestProxy                 []*RestProxy              `json:"restProxy"`
-	SchemaRegistry            []*SchemaRegistry         `json:"schemaRegistry"`
-	ResizeSettings            []*ResizeSettings         `json:"resizeSettings,omitempty"`
-	Description               string                    `json:"description,omitempty"`
+	GenericClusterFields `json:",inline"`
+
+	KafkaVersion              string `json:"kafkaVersion"`
+	AllowDeleteTopics         bool   `json:"allowDeleteTopics"`
+	AutoCreateTopics          bool   `json:"autoCreateTopics"`
+	BundledUseOnly            bool   `json:"bundledUseOnly"`
+	ClientBrokerAuthWithMtls  bool   `json:"clientBrokerAuthWithMtls"`
+	ClientToClusterEncryption bool   `json:"clientToClusterEncryption"`
+	DefaultNumberOfPartitions int    `json:"defaultNumberOfPartitions"`
+	DefaultReplicationFactor  int    `json:"defaultReplicationFactor"`
+
+	DataCentres            []*KafkaDataCentre        `json:"dataCentres"`
+	DedicatedZookeeper     []*DedicatedZookeeper     `json:"dedicatedZookeeper"`
+	Kraft                  []*Kraft                  `json:"kraft,omitempty"`
+	KarapaceRestProxy      []*KarapaceRestProxy      `json:"karapaceRestProxy"`
+	KarapaceSchemaRegistry []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry"`
+	RestProxy              []*RestProxy              `json:"restProxy"`
+	SchemaRegistry         []*SchemaRegistry         `json:"schemaRegistry"`
+	ResizeSettings         []*ResizeSettings         `json:"resizeSettings,omitempty"`
 }
 
 type KafkaDataCentre struct {
-	DataCentre  `json:",inline"`
+	GenericDataCentreFields `json:",inline"`
+
+	NumberOfNodes int    `json:"numberOfNodes"`
+	NodeSize      string `json:"nodeSize"`
+
 	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
+	Nodes       []*Node        `json:"nodes"`
 }
 
 type SchemaRegistry struct {
