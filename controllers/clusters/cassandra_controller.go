@@ -238,13 +238,6 @@ func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cass
 		return fmt.Errorf("failed to update cassandra status, err: %w", err)
 	}
 
-	controllerutil.AddFinalizer(c, models.DeletionFinalizer)
-	c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-	err = r.Update(ctx, c)
-	if err != nil {
-		return err
-	}
-
 	l.Info(
 		"Cluster has been created",
 		"cluster name", c.Spec.Name,
@@ -391,7 +384,17 @@ func (r *CassandraReconciler) handleCreateCluster(
 	}
 
 	if c.Status.State != models.DeletedStatus {
-		err := r.startClusterJobs(c, l)
+		c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		controllerutil.AddFinalizer(c, models.DeletionFinalizer)
+		err := r.Update(ctx, c)
+		if err != nil {
+			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
+				"Failed to update resource metadata. Reason: %v", err,
+			)
+			return reconcile.Result{}, err
+		}
+
+		err = r.startClusterJobs(c, l)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("failed to start cluster jobs, err: %w", err)
 		}
@@ -500,6 +503,8 @@ func (r *CassandraReconciler) handleUpdateCluster(
 		"cluster ID", c.Status.ID,
 		"data centres", c.Spec.DataCentres,
 	)
+
+	r.EventRecorder.Event(c, models.Normal, models.UpdatedEvent, "Cluster has been updated")
 
 	return models.ExitReconcile, nil
 }
@@ -679,7 +684,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 }
 
 func (r *CassandraReconciler) startSyncJob(c *v1beta1.Cassandra) error {
-	job := r.newWatchStatusJob(c)
+	job := r.newSyncJob(c)
 
 	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
@@ -722,8 +727,9 @@ func (r *CassandraReconciler) startClusterOnPremisesIPsJob(c *v1beta1.Cassandra,
 	return nil
 }
 
-func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.Job {
-	l := log.Log.WithValues("component", "CassandraStatusClusterJob")
+func (r *CassandraReconciler) newSyncJob(c *v1beta1.Cassandra) scheduler.Job {
+	l := log.Log.WithValues("syncJob", c.GetJobID(scheduler.StatusChecker), "clusterID", c.Status.ID)
+
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(c)
 		err := r.Get(context.Background(), namespacedName, c)
@@ -789,16 +795,10 @@ func (r *CassandraReconciler) newWatchStatusJob(c *v1beta1.Cassandra) scheduler.
 		equals := c.Spec.IsEqual(&iCassandra.Spec)
 
 		if equals && c.Annotations[models.ExternalChangesAnnotation] == models.True {
-			patch := c.NewPatch()
-			delete(c.Annotations, models.ExternalChangesAnnotation)
-			err := r.Patch(context.Background(), c, patch)
+			err = reconcileExternalChanges(r.Client, r.EventRecorder, c)
 			if err != nil {
 				return err
 			}
-
-			r.EventRecorder.Event(c, models.Normal, models.ExternalChanges,
-				"External changes were automatically reconciled",
-			)
 		} else if c.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {

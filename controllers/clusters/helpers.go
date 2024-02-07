@@ -336,3 +336,18 @@ func handleExternalChanges[T any](
 
 	return models.ExitReconcile, nil
 }
+
+func reconcileExternalChanges(c client.Client, r record.EventRecorder, obj Object) error {
+	patch := obj.NewPatch()
+	obj.GetAnnotations()[models.ResourceStateAnnotation] = ""
+	err := c.Patch(context.Background(), obj, patch)
+	if err != nil {
+		return fmt.Errorf("failed to automaticly handle external changes, err: %w", err)
+	}
+
+	r.Event(obj, models.Normal, models.ExternalChanges,
+		"External changes were automatically reconciled",
+	)
+
+	return nil
+}

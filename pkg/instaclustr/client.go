@@ -411,7 +411,7 @@ func (c *Client) UpdateCassandra(id string, cassandra models.CassandraClusterAPI
 	return nil
 }
 
-func (c *Client) GetKafka(id string) ([]byte, error) {
+func (c *Client) GetKafka(id string) (*models.KafkaCluster, error) {
 	url := c.serverHostname + KafkaEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -433,7 +433,13 @@ func (c *Client) GetKafka(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var instaModel models.KafkaCluster
+	err = json.Unmarshal(body, &instaModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &instaModel, nil
 }
 
 func (c *Client) GetKafkaConnect(id string) ([]byte, error) {

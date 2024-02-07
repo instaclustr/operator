@@ -14,7 +14,7 @@ spec:
   allowDeleteTopics: true
   autoCreateTopics: true
   clientToClusterEncryption: true
-  privateNetworkCluster: true
+  privateNetwork: true
   slaTier: "NON_PRODUCTION"
 #  bundledUseOnly: true
 #  clientBrokerAuthWithMtls: true

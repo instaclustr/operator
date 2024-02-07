@@ -11,7 +11,7 @@ spec:
   allowDeleteTopics: true
   autoCreateTopics: true
   clientToClusterEncryption: false
-  privateNetworkCluster: false
+  privateNetwork: false
   slaTier: "NON_PRODUCTION"
   #  bundledUseOnly: true
 #  clientBrokerAuthWithMtls: true
@@ -21,13 +21,13 @@ spec:
   #  twoFactorDelete:
   #    - email: "asdfadfsdsf"
   #      phone: "ddsafasdf"
-  #  karapaceSchemaRegistry:
-  #    - version: "3.2.0"
-  #  schemaRegistry:
-  #    - version: "5.0.0"
-  #  karapaceRestProxy:
-  #    - integrateRestProxyWithSchemaRegistry: true
-  #      version: "3.2.0"
+#  karapaceSchemaRegistry:
+#    - version: "3.6.2"
+#  schemaRegistry:
+#    - version: "3.0.0"
+#  karapaceRestProxy:
+#    - integrateRestProxyWithSchemaRegistry: true
+#      version: "3.6.2"
   #  kraft:
   #    - controllerNodeCount: 3
   #  restProxy:
@@ -44,7 +44,7 @@ spec:
         tag: "oneTag"
         tag2: "twoTags"
       nodeSize: "KFK-DEV-t4g.medium-80"
-#      nodeSize: "KFK-PRD-r6g.large-250"
+#      nodeSize: "KFK-PRD-r6g.large-400"
 #      nodeSize: "KFK-DEV-t4g.medium-80"
       network: "10.0.0.0/16"
       region: "US_EAST_1"

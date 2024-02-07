@@ -32,7 +32,7 @@ type CassandraDataCentre struct {
 	GenericDataCentreFields `json:",inline"`
 
 	ContinuousBackup               bool   `json:"continuousBackup"`
-	PrivateLink                    bool   `json:"privateLink,omitempty"`
+	PrivateLink                    bool   `json:"privateLink"`
 	PrivateIPBroadcastForDiscovery bool   `json:"privateIpBroadcastForDiscovery"`
 	ClientToClusterEncryption      bool   `json:"clientToClusterEncryption"`
 	ReplicationFactor              int    `json:"replicationFactor"`

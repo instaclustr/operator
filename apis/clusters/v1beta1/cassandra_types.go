@@ -60,8 +60,7 @@ type CassandraSpec struct {
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 	UserRefs            References             `json:"userRefs,omitempty"`
-	//+kubebuilder:validate:MaxItems:=1
-	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty"`
+	ResizeSettings      GenericResizeSettings  `json:"resizeSettings,omitempty"`
 }
 
 // CassandraStatus defines the observed state of Cassandra

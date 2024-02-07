@@ -206,13 +206,6 @@ func (r *OpenSearchReconciler) createCluster(ctx context.Context, o *v1beta1.Ope
 		return fmt.Errorf("failed to update cluster status, err : %w", err)
 	}
 
-	controllerutil.AddFinalizer(o, models.DeletionFinalizer)
-	o.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-	err = r.Update(ctx, o)
-	if err != nil {
-		return err
-	}
-
 	logger.Info(
 		"OpenSearch resource has been created",
 		"cluster name", o.Spec.Name, "cluster ID", o.Status.ID,
@@ -266,6 +259,16 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	}
 
 	if o.Status.State != models.DeletedStatus {
+		o.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		controllerutil.AddFinalizer(o, models.DeletionFinalizer)
+		err := r.Update(ctx, o)
+		if err != nil {
+			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
+				"Failed to update resource metadata. Reason: %v", err,
+			)
+			return reconcile.Result{}, err
+		}
+
 		err = r.startClusterJobs(o)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("failed to run cluster jobs, err: %w", err)
@@ -512,7 +515,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 }
 
 func (r *OpenSearchReconciler) startClusterSyncJob(cluster *v1beta1.OpenSearch) error {
-	job := r.newWatchStatusJob(cluster)
+	job := r.newSyncJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
@@ -544,8 +547,9 @@ func (r *OpenSearchReconciler) startUsersCreationJob(cluster *v1beta1.OpenSearch
 	return nil
 }
 
-func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) scheduler.Job {
-	l := log.Log.WithValues("statusJob", o.GetJobID(scheduler.StatusChecker))
+func (r *OpenSearchReconciler) newSyncJob(o *v1beta1.OpenSearch) scheduler.Job {
+	l := log.Log.WithValues("syncJob", o.GetJobID(scheduler.StatusChecker), "clusterID", o.Status.ID)
+
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(o)
 		err := r.Get(context.Background(), namespacedName, o)
@@ -626,16 +630,10 @@ func (r *OpenSearchReconciler) newWatchStatusJob(o *v1beta1.OpenSearch) schedule
 		equals := o.Spec.IsEqual(iO.Spec)
 
 		if equals && o.Annotations[models.ExternalChangesAnnotation] == models.True {
-			patch := o.NewPatch()
-			delete(o.Annotations, models.ExternalChangesAnnotation)
-			err := r.Patch(context.Background(), o, patch)
+			err = reconcileExternalChanges(r.Client, r.EventRecorder, o)
 			if err != nil {
 				return err
 			}
-
-			r.EventRecorder.Event(o, models.Normal, models.ExternalChanges,
-				"External changes were automatically reconciled",
-			)
 		} else if o.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			o.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {

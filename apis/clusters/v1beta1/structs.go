@@ -167,6 +167,28 @@ func (p1 PrivateLinkStatuses) Equal(p2 PrivateLinkStatuses) bool {
 	return true
 }
 
+func (s PrivateLinkStatuses) ToInstAPI() []*models.PrivateLink {
+	instaModels := make([]*models.PrivateLink, len(s))
+	for i, link := range s {
+		instaModels[i] = &models.PrivateLink{
+			AdvertisedHostname: link.AdvertisedHostname,
+		}
+	}
+
+	return instaModels
+}
+
+func (p *PrivateLinkStatuses) FromInstAPI(instaModels []*models.PrivateLink) {
+	*p = make(PrivateLinkStatuses, len(instaModels))
+	for i, instaModel := range instaModels {
+		(*p)[i] = &privateLinkStatus{
+			AdvertisedHostname:  instaModel.AdvertisedHostname,
+			EndPointServiceID:   instaModel.EndPointServiceID,
+			EndPointServiceName: instaModel.EndPointServiceName,
+		}
+	}
+}
+
 func privateLinksToInstAPI(p []*PrivateLink) []*models.PrivateLink {
 	links := make([]*models.PrivateLink, 0, len(p))
 	for _, link := range p {
@@ -762,6 +784,7 @@ func (old References) Diff(new References) (added, deleted References) {
 	return added, deleted
 }
 
+// +kubebuilder:validation:MaxItems:=1
 type GenericResizeSettings []*ResizeSettings
 
 func (g *GenericResizeSettings) FromInstAPI(instModels []*models.ResizeSettings) {

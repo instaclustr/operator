@@ -72,9 +72,9 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
 			testKafkaManifest.Spec.PCICompliance = kafkaManifest.Spec.PCICompliance
 
-			testKafkaManifest.Spec.PrivateNetworkCluster = !kafkaManifest.Spec.PrivateNetworkCluster
+			testKafkaManifest.Spec.PrivateNetwork = !kafkaManifest.Spec.PrivateNetwork
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
-			testKafkaManifest.Spec.PrivateNetworkCluster = kafkaManifest.Spec.PrivateNetworkCluster
+			testKafkaManifest.Spec.PrivateNetwork = kafkaManifest.Spec.PrivateNetwork
 
 			testKafkaManifest.Spec.PartitionsNumber++
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
@@ -96,9 +96,9 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
 			testKafkaManifest.Spec.BundledUseOnly = kafkaManifest.Spec.BundledUseOnly
 
-			testKafkaManifest.Spec.PrivateNetworkCluster = !kafkaManifest.Spec.PrivateNetworkCluster
+			testKafkaManifest.Spec.PrivateNetwork = !kafkaManifest.Spec.PrivateNetwork
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
-			testKafkaManifest.Spec.PrivateNetworkCluster = kafkaManifest.Spec.PrivateNetworkCluster
+			testKafkaManifest.Spec.PrivateNetwork = kafkaManifest.Spec.PrivateNetwork
 
 			testKafkaManifest.Spec.ClientBrokerAuthWithMTLS = !kafkaManifest.Spec.ClientBrokerAuthWithMTLS
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
