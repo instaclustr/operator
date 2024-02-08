@@ -17,25 +17,25 @@ limitations under the License.
 package models
 
 type RedisCluster struct {
-	ClusterStatus          `json:",inline"`
-	Name                   string             `json:"name"`
-	RedisVersion           string             `json:"redisVersion"`
-	ClientToNodeEncryption bool               `json:"clientToNodeEncryption"`
-	PCIComplianceMode      bool               `json:"pciComplianceMode"`
-	DataCentres            []*RedisDataCentre `json:"dataCentres,omitempty"`
-	PrivateNetworkCluster  bool               `json:"privateNetworkCluster"`
-	PasswordAndUserAuth    bool               `json:"passwordAndUserAuth"`
-	TwoFactorDelete        []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	SLATier                string             `json:"slaTier"`
-	Description            string             `json:"description,omitempty"`
+	GenericClusterFields `json:",inline"`
+
+	RedisVersion           string `json:"redisVersion"`
+	ClientToNodeEncryption bool   `json:"clientToNodeEncryption"`
+	PasswordAndUserAuth    bool   `json:"passwordAndUserAuth"`
+
+	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
 }
 
 type RedisDataCentre struct {
-	DataCentre        `json:",inline"`
-	MasterNodes       int            `json:"masterNodes"`
-	ReplicaNodes      int            `json:"replicaNodes"`
-	ReplicationFactor int            `json:"replicationFactor,omitempty"`
-	PrivateLink       []*PrivateLink `json:"privateLink,omitempty"`
+	GenericDataCentreFields `json:",inline"`
+
+	NodeSize          string `json:"nodeSize"`
+	MasterNodes       int    `json:"masterNodes"`
+	ReplicaNodes      int    `json:"replicaNodes,omitempty"`
+	ReplicationFactor int    `json:"replicationFactor,omitempty"`
+
+	Nodes       []*Node        `json:"nodes,omitempty"`
+	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
 }
 
 type RedisDataCentreUpdate struct {
