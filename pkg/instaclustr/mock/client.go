@@ -298,7 +298,7 @@ func (c *mockClient) GetCassandra(id string) (*models.CassandraCluster, error) {
 	panic("GetCassandra: is not implemented")
 }
 
-func (c *mockClient) GetRedis(id string) ([]byte, error) {
+func (c *mockClient) GetRedis(id string) (*models.RedisCluster, error) {
 	panic("GetRedis: is not implemented")
 }
 

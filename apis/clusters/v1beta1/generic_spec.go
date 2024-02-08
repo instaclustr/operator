@@ -99,9 +99,10 @@ func (s *GenericClusterSpec) ClusterSettingsUpdateToInstAPI() *models.ClusterSet
 }
 
 type GenericDataCentreSpec struct {
-	Name                  string                   `json:"name,omitempty"`
-	Region                string                   `json:"region"`
-	CloudProvider         string                   `json:"cloudProvider"`
+	Name          string `json:"name,omitempty"`
+	Region        string `json:"region"`
+	CloudProvider string `json:"cloudProvider"`
+	//+kubebuilder:default:=INSTACLUSTR
 	ProviderAccountName   string                   `json:"accountName,omitempty"`
 	Network               string                   `json:"network"`
 	Tags                  map[string]string        `json:"tags,omitempty"`

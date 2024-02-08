@@ -66,13 +66,11 @@ func (r *Redis) Default() {
 	}
 
 	for _, dataCentre := range r.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
-
 		if dataCentre.MasterNodes != 0 {
 			if dataCentre.ReplicationFactor > 0 {
-				dataCentre.NodesNumber = dataCentre.MasterNodes * dataCentre.ReplicationFactor
+				dataCentre.ReplicaNodes = dataCentre.MasterNodes * dataCentre.ReplicationFactor
 			} else {
-				dataCentre.ReplicationFactor = dataCentre.NodesNumber / dataCentre.MasterNodes
+				dataCentre.ReplicationFactor = dataCentre.ReplicaNodes / dataCentre.MasterNodes
 			}
 		}
 	}
@@ -100,7 +98,7 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		}
 	}
 
-	err := r.Spec.Cluster.ValidateCreation()
+	err := r.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -118,7 +116,7 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		if err != nil {
 			return err
 		}
-		if r.Spec.PrivateNetworkCluster {
+		if r.Spec.PrivateNetwork {
 			err = r.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
 			if err != nil {
 				return err
@@ -155,19 +153,15 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	for _, dc := range r.Spec.DataCentres {
 		if r.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
+			err = dc.GenericDataCentreSpec.ValidateOnPremisesCreation()
 			if err != nil {
 				return err
 			}
 		} else {
-			err = dc.DataCentre.ValidateCreation()
+			err = dc.ValidateCreate()
 			if err != nil {
 				return err
 			}
-		}
-
-		if !r.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {
-			return models.ErrPrivateLinkOnlyWithPrivateNetworkCluster
 		}
 	}
 
@@ -189,6 +183,10 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	}
 
 	redislog.Info("validate update", "name", r.Name)
+
+	if r.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+		return nil
+	}
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
 	if r.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -317,8 +315,8 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 			return fmt.Errorf("deleting nodes is not supported. Master nodes number must be greater than: %v", oldDC.MasterNodes)
 		}
 
-		if newDC.NodesNumber < oldDC.NodesNumber {
-			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		if newDC.ReplicaNodes < oldDC.ReplicaNodes {
+			return fmt.Errorf("deleting nodes is not supported. Number of replica nodes must be greater than: %v", oldDC.ReplicaNodes)
 		}
 
 		err = validatePrivateLinkUpdate(newDC.PrivateLink, oldDC.PrivateLink)
@@ -344,7 +342,7 @@ func (rs *RedisSpec) newImmutableFields() *immutableRedisFields {
 			ClientEncryption:    rs.ClientEncryption,
 			PasswordAndUserAuth: rs.PasswordAndUserAuth,
 		},
-		immutableCluster: rs.Cluster.newImmutableFields(),
+		immutableCluster: rs.GenericClusterSpec.immutableFields(),
 	}
 }
 
@@ -371,7 +369,7 @@ func (rdc *RedisDataCentre) ValidateUpdate() error {
 }
 
 func (rdc *RedisDataCentre) ValidateCreate() error {
-	err := rdc.DataCentre.ValidateCreation()
+	err := rdc.GenericDataCentreSpec.validateCreation()
 	if err != nil {
 		return err
 	}
@@ -390,7 +388,7 @@ func (rdc *RedisDataCentre) ValidateCreate() error {
 }
 
 func (rdc *RedisDataCentre) ValidateNodesNumber() error {
-	if rdc.NodesNumber < 0 || rdc.NodesNumber > 100 {
+	if rdc.ReplicaNodes < 0 || rdc.ReplicaNodes > 100 {
 		return fmt.Errorf("replica nodes number should not be less than 0 or more than 100")
 	}
 

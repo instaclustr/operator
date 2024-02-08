@@ -55,6 +55,7 @@ spec:
                 items:
                   properties:
                     accountName:
+                      default: INSTACLUSTR
                       type: string
                     cloudProvider:
                       type: string
@@ -81,8 +82,6 @@ spec:
                       type: string
                     nodeSize:
                       type: string
-                    nodesNumber:
-                      type: integer
                     privateLink:
                       items:
                         properties:
@@ -96,11 +95,13 @@ spec:
                       type: array
                     region:
                       type: string
+                    replicaNodes:
+                      type: integer
                     replicationFactor:
                       description: ReplicationFactor defines how many replica nodes
-                        (aka nodesNumber) should be created for each master node (e.a.
-                        if there are 3 masterNodes and replicationFactor 1 then it
-                        creates 1 replicaNode for each accordingly).
+                        should be created for each master node (e.a. if there are
+                        3 masterNodes and replicationFactor 1 then it creates 1 replicaNode
+                        for each accordingly).
                       maximum: 5
                       minimum: 0
                       type: integer
@@ -113,7 +114,6 @@ spec:
                   - masterNodes
                   - network
                   - nodeSize
-                  - nodesNumber
                   - region
                   type: object
                 maxItems: 2
@@ -167,6 +167,7 @@ spec:
                 - storageClassName
                 type: object
               passwordAndUserAuth:
+                description: Enables Password Authentication and User Authorization
                 type: boolean
               pciCompliance:
                 description: The PCI compliance standards relate to the security of
@@ -174,7 +175,7 @@ spec:
                   provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
                   and Redis.
                 type: boolean
-              privateNetworkCluster:
+              privateNetwork:
                 type: boolean
               resizeSettings:
                 items:
@@ -266,6 +267,10 @@ spec:
                 type: array
               version:
                 type: string
+            required:
+            - clientEncryption
+            - dataCentres
+            - passwordAndUserAuth
             type: object
           status:
             description: RedisStatus defines the observed state of Redis
@@ -283,15 +288,11 @@ spec:
                   - namespace
                   type: object
                 type: array
-              cdcid:
-                type: string
               currentClusterOperationStatus:
                 type: string
               dataCentres:
                 items:
                   properties:
-                    encryptionKeyId:
-                      type: string
                     id:
                       type: string
                     name:
@@ -317,8 +318,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    nodesNumber:
-                      type: integer
                     privateLink:
                       items:
                         properties:
@@ -388,6 +387,9 @@ spec:
                       type: array
                     status:
                       type: string
+                  required:
+                  - nodes
+                  - privateLink
                   type: object
                 type: array
               id:
@@ -478,19 +480,8 @@ spec:
                       type: array
                   type: object
                 type: array
-              options:
-                properties:
-                  dataNodeSize:
-                    type: string
-                  masterNodeSize:
-                    type: string
-                  openSearchDashboardsNodeSize:
-                    type: string
-                type: object
               state:
                 type: string
-              twoFactorDeleteEnabled:
-                type: boolean
             type: object
         type: object
     served: true

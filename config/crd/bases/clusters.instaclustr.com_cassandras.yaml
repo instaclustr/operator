@@ -54,6 +54,7 @@ spec:
                 items:
                   properties:
                     accountName:
+                      default: INSTACLUSTR
                       type: string
                     clientToClusterEncryption:
                       type: boolean

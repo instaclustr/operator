@@ -183,7 +183,7 @@ func (c *Client) UpdateOpenSearch(id string, o models.OpenSearchInstAPIUpdateReq
 	return nil
 }
 
-func (c *Client) GetRedis(id string) ([]byte, error) {
+func (c *Client) GetRedis(id string) (*models.RedisCluster, error) {
 	url := c.serverHostname + RedisEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -205,7 +205,13 @@ func (c *Client) GetRedis(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var redis models.RedisCluster
+	err = json.Unmarshal(body, &redis)
+	if err != nil {
+		return nil, err
+	}
+
+	return &redis, nil
 }
 
 func (c *Client) GetRedisUser(id string) (*models.RedisUser, error) {

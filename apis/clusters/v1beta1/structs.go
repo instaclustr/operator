@@ -143,6 +143,29 @@ type PrivateLink struct {
 	AdvertisedHostname string `json:"advertisedHostname"`
 }
 
+// +kubebuilder:validation:MaxItems:=1
+type PrivateLinkSpec []*PrivateLink
+
+func (p PrivateLinkSpec) ToInstAPI() []*models.PrivateLink {
+	instaModels := make([]*models.PrivateLink, len(p))
+	for _, pl := range p {
+		instaModels = append(instaModels, &models.PrivateLink{
+			AdvertisedHostname: pl.AdvertisedHostname,
+		})
+	}
+
+	return instaModels
+}
+
+func (p *PrivateLinkSpec) FromInstAPI(o []*models.PrivateLink) {
+	*p = make(PrivateLinkSpec, len(o))
+	for i, instaModel := range o {
+		(*p)[i] = &PrivateLink{
+			AdvertisedHostname: instaModel.AdvertisedHostname,
+		}
+	}
+}
+
 type privateLinkStatus struct {
 	AdvertisedHostname  string `json:"advertisedHostname"`
 	EndPointServiceID   string `json:"endPointServiceId,omitempty"`
@@ -198,17 +221,6 @@ func privateLinksToInstAPI(p []*PrivateLink) []*models.PrivateLink {
 	}
 
 	return links
-}
-
-func privateLinksFromInstAPI(p []*models.PrivateLink) []*PrivateLink {
-	k8sPLs := make([]*PrivateLink, 0, len(p))
-	for _, link := range p {
-		k8sPLs = append(k8sPLs, &PrivateLink{
-			AdvertisedHostname: link.AdvertisedHostname,
-		})
-	}
-
-	return k8sPLs
 }
 
 func privateLinkStatusesFromInstAPI(iPLs []*models.PrivateLink) PrivateLinkStatuses {

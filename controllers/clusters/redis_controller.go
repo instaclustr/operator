@@ -18,7 +18,9 @@ package clusters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -115,243 +117,238 @@ func (r *RedisReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 }
 
+func (r *RedisReconciler) createFromRestore(redis *v1beta1.Redis, l logr.Logger) (*models.RedisCluster, error) {
+	l.Info(
+		"Creating Redis cluster from backup",
+		"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
+	)
+
+	id, err := r.API.RestoreCluster(redis.RestoreInfoToInstAPI(redis.Spec.RestoreFrom), models.RedisAppKind)
+	if err != nil {
+		return nil, fmt.Errorf("failed to restore cluster, err: %w", err)
+	}
+
+	instaModel, err := r.API.GetRedis(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get redis cluster details, err: %w", err)
+	}
+
+	l.Info(
+		"Redis cluster was created from backup",
+		"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
+	)
+
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Created,
+		"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
+		redis.Spec.RestoreFrom.ClusterID,
+		id,
+	)
+
+	return instaModel, nil
+}
+
+func (r *RedisReconciler) createRedis(redis *v1beta1.Redis, l logr.Logger) (*models.RedisCluster, error) {
+	l.Info(
+		"Creating Redis cluster",
+		"cluster name", redis.Spec.Name,
+		"data centres", redis.Spec.DataCentres,
+	)
+
+	b, err := r.API.CreateClusterRaw(instaclustr.RedisEndpoint, redis.Spec.ToInstAPI())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create redis cluster, err: %w", err)
+	}
+
+	var instaModel models.RedisCluster
+	err = json.Unmarshal(b, &instaModel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal body to redis model, err: %w", err)
+	}
+
+	l.Info(
+		"Redis cluster was created",
+		"cluster ID", instaModel.ID,
+		"cluster name", redis.Spec.Name,
+	)
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Created,
+		"Cluster creation request is sent. Cluster ID: %s",
+		instaModel.ID,
+	)
+
+	return &instaModel, nil
+}
+
+func (r *RedisReconciler) createCluster(ctx context.Context, redis *v1beta1.Redis, l logr.Logger) error {
+	var instaModel *models.RedisCluster
+	var err error
+
+	if redis.Spec.HasRestore() {
+		instaModel, err = r.createFromRestore(redis, l)
+	} else {
+		instaModel, err = r.createRedis(redis, l)
+	}
+	if err != nil {
+		return err
+	}
+
+	redis.Spec.FromInstAPI(instaModel)
+	err = r.Update(ctx, redis)
+	if err != nil {
+		return fmt.Errorf("failed to update redis spec, err: %w", err)
+	}
+
+	redis.Status.FromInstAPI(instaModel)
+	err = r.Status().Update(ctx, redis)
+	if err != nil {
+		return fmt.Errorf("failed to update redis status, err: %w", err)
+	}
+
+	l.Info("Redis resource has been created",
+		"cluster name", redis.Name,
+		"cluster ID", redis.Status.ID,
+	)
+
+	return nil
+}
+
+func (r *RedisReconciler) startClusterJobs(redis *v1beta1.Redis) error {
+	err := r.startSyncJob(redis)
+	if err != nil {
+		return fmt.Errorf("failed to start cluster sync job, err: %w", err)
+	}
+
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Created,
+		"Cluster sync job is started",
+	)
+
+	err = r.startClusterBackupsJob(redis)
+	if err != nil {
+		return fmt.Errorf("failed to start cluster backups check job, err: %w", err)
+	}
+
+	r.EventRecorder.Eventf(
+		redis, models.Normal, models.Created,
+		"Cluster backups check job is started",
+	)
+
+	if redis.Spec.UserRefs != nil && redis.Status.AvailableUsers == nil {
+		err = r.startUsersCreationJob(redis)
+		if err != nil {
+			return fmt.Errorf("failed to start user creation job, err: %w", err)
+		}
+
+		r.EventRecorder.Event(redis, models.Normal, models.Created,
+			"Cluster user creation job is started")
+	}
+
+	return nil
+}
+
+func (r *RedisReconciler) handleOnPremisesCreation(ctx context.Context, redis *v1beta1.Redis, l logr.Logger) error {
+	instaModel, err := r.API.GetRedis(redis.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get cluster from the Instaclustr API",
+			"cluster name", redis.Spec.Name,
+			"data centres", redis.Spec.DataCentres,
+			"cluster ID", redis.Status.ID,
+		)
+		r.EventRecorder.Eventf(
+			redis, models.Warning, models.FetchFailed,
+			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	iRedis := v1beta1.Redis{}
+	iRedis.FromInstAPI(instaModel)
+
+	bootstrap := newOnPremisesBootstrap(
+		r.Client,
+		redis,
+		r.EventRecorder,
+		iRedis.Status.ToOnPremises(),
+		redis.Spec.OnPremisesSpec,
+		newExposePorts(redis.GetExposePorts()),
+		redis.GetHeadlessPorts(),
+		redis.Spec.PrivateNetwork,
+	)
+
+	err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
+	if err != nil {
+		l.Error(
+			err, "Cannot create resources for on-premises cluster",
+			"cluster spec", redis.Spec.OnPremisesSpec,
+		)
+		r.EventRecorder.Eventf(
+			redis, models.Warning, models.CreationFailed,
+			"Resources creation for on-premises cluster is failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	err = r.startClusterOnPremisesIPsJob(redis, bootstrap)
+	if err != nil {
+		l.Error(err, "Cannot start on-premises cluster IPs check job",
+			"cluster ID", redis.Status.ID,
+		)
+
+		r.EventRecorder.Eventf(
+			redis, models.Warning, models.CreationFailed,
+			"On-premises cluster IPs check job is failed. Reason: %v",
+			err,
+		)
+		return err
+	}
+
+	l.Info("On-premises resources have been created",
+		"cluster name", redis.Spec.Name,
+		"on-premises Spec", redis.Spec.OnPremisesSpec,
+		"cluster ID", redis.Status.ID,
+	)
+
+	return nil
+}
+
 func (r *RedisReconciler) handleCreateCluster(
 	ctx context.Context,
 	redis *v1beta1.Redis,
 	l logr.Logger,
 ) (reconcile.Result, error) {
-	var err error
 	if redis.Status.ID == "" {
-		var id string
-		if redis.Spec.HasRestore() {
-			l.Info(
-				"Creating Redis cluster from backup",
-				"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
-			)
-
-			id, err = r.API.RestoreCluster(redis.RestoreInfoToInstAPI(redis.Spec.RestoreFrom), models.RedisAppKind)
-			if err != nil {
-				l.Error(
-					err, "Cannot restore Redis cluster from backup",
-					"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.CreationFailed,
-					"Cluster restore from backup on the Instaclustr is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			l.Info(
-				"Redis cluster was created from backup",
-				"original cluster ID", redis.Spec.RestoreFrom.ClusterID,
-			)
-
-			r.EventRecorder.Eventf(
-				redis, models.Normal, models.Created,
-				"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
-				redis.Spec.RestoreFrom.ClusterID,
-				id,
-			)
-		} else {
-			l.Info(
-				"Creating Redis cluster",
-				"cluster name", redis.Spec.Name,
-				"data centres", redis.Spec.DataCentres,
-			)
-
-			id, err = r.API.CreateCluster(instaclustr.RedisEndpoint, redis.Spec.ToInstAPI())
-			if err != nil {
-				l.Error(
-					err, "Cannot create Redis cluster",
-					"cluster manifest", redis.Spec,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.CreationFailed,
-					"Cluster creation on the Instaclustr is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			l.Info(
-				"Redis cluster was created",
-				"cluster ID", id,
-				"cluster name", redis.Spec.Name,
-			)
-			r.EventRecorder.Eventf(
-				redis, models.Normal, models.Created,
-				"Cluster creation request is sent. Cluster ID: %s",
-				id,
-			)
-		}
-
-		patch := redis.NewPatch()
-		redis.Status.ID = id
-		err = r.Status().Patch(ctx, redis, patch)
+		err := r.createCluster(ctx, redis, l)
 		if err != nil {
-			l.Error(err, "Cannot patch Redis cluster status",
-				"cluster name", redis.Spec.Name)
-			r.EventRecorder.Eventf(redis, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v", err)
-
+			r.EventRecorder.Eventf(
+				redis, models.Warning, models.CreationFailed,
+				"Creation of Redis cluster is failed. Reason: %v", err,
+			)
 			return reconcile.Result{}, err
 		}
-
-		l.Info("Redis resource has been created",
-			"cluster name", redis.Name,
-			"cluster ID", redis.Status.ID,
-			"api version", redis.APIVersion)
-	}
-
-	patch := redis.NewPatch()
-	controllerutil.AddFinalizer(redis, models.DeletionFinalizer)
-	redis.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-	err = r.Patch(ctx, redis, patch)
-	if err != nil {
-		l.Error(err, "Cannot patch Redis cluster",
-			"cluster name", redis.Spec.Name,
-			"cluster metadata", redis.ObjectMeta,
-		)
-		r.EventRecorder.Eventf(
-			redis, models.Warning, models.PatchFailed,
-			"Cluster resource patch is failed. Reason: %v",
-			err,
-		)
-		return reconcile.Result{}, err
 	}
 
 	if redis.Status.State != models.DeletedStatus {
-		err = r.startClusterStatusJob(redis)
+		patch := redis.NewPatch()
+		controllerutil.AddFinalizer(redis, models.DeletionFinalizer)
+		redis.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		err := r.Patch(ctx, redis, patch)
 		if err != nil {
-			l.Error(err, "Cannot start cluster status job",
-				"redis cluster ID", redis.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.CreationFailed,
-				"Cluster status job creation is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
+			return reconcile.Result{}, fmt.Errorf("failed to update redis metadata, err: %w", err)
 		}
 
-		r.EventRecorder.Eventf(
-			redis, models.Normal, models.Created,
-			"Cluster status check job is started",
-		)
+		err = r.startClusterJobs(redis)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
 		if redis.Spec.OnPremisesSpec != nil && redis.Spec.OnPremisesSpec.EnableAutomation {
-			iData, err := r.API.GetRedis(redis.Status.ID)
+			err = r.handleOnPremisesCreation(ctx, redis, l)
 			if err != nil {
-				l.Error(err, "Cannot get cluster from the Instaclustr API",
-					"cluster name", redis.Spec.Name,
-					"data centres", redis.Spec.DataCentres,
-					"cluster ID", redis.Status.ID,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.FetchFailed,
-					"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-					err,
-				)
 				return reconcile.Result{}, err
 			}
-			iRedis, err := redis.FromInstAPI(iData)
-			if err != nil {
-				l.Error(
-					err, "Cannot convert cluster from the Instaclustr API",
-					"cluster name", redis.Spec.Name,
-					"cluster ID", redis.Status.ID,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.ConversionFailed,
-					"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			bootstrap := newOnPremisesBootstrap(
-				r.Client,
-				redis,
-				r.EventRecorder,
-				iRedis.Status.ClusterStatus,
-				redis.Spec.OnPremisesSpec,
-				newExposePorts(redis.GetExposePorts()),
-				redis.GetHeadlessPorts(),
-				redis.Spec.PrivateNetworkCluster,
-			)
-
-			err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-			if err != nil {
-				l.Error(
-					err, "Cannot create resources for on-premises cluster",
-					"cluster spec", redis.Spec.OnPremisesSpec,
-				)
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.CreationFailed,
-					"Resources creation for on-premises cluster is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			err = r.startClusterOnPremisesIPsJob(redis, bootstrap)
-			if err != nil {
-				l.Error(err, "Cannot start on-premises cluster IPs check job",
-					"cluster ID", redis.Status.ID,
-				)
-
-				r.EventRecorder.Eventf(
-					redis, models.Warning, models.CreationFailed,
-					"On-premises cluster IPs check job is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			l.Info(
-				"On-premises resources have been created",
-				"cluster name", redis.Spec.Name,
-				"on-premises Spec", redis.Spec.OnPremisesSpec,
-				"cluster ID", redis.Status.ID,
-			)
-			return models.ExitReconcile, nil
-		}
-
-		err = r.startClusterBackupsJob(redis)
-		if err != nil {
-			l.Error(err, "Cannot start Redis cluster backups check job",
-				"cluster ID", redis.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				redis, models.Warning, models.CreationFailed,
-				"Cluster backups job creation is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		r.EventRecorder.Eventf(
-			redis, models.Normal, models.Created,
-			"Cluster backups check job is started",
-		)
-
-		if redis.Spec.UserRefs != nil {
-			err = r.startUsersCreationJob(redis)
-
-			if err != nil {
-				l.Error(err, "Failed to start user creation job")
-				r.EventRecorder.Eventf(redis, models.Warning, models.CreationFailed,
-					"User creation job is failed. Reason: %v", err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			r.EventRecorder.Event(redis, models.Normal, models.Created,
-				"Cluster user creation job is started")
 		}
 	}
 
@@ -359,9 +356,6 @@ func (r *RedisReconciler) handleCreateCluster(
 		"Redis resource has been created",
 		"cluster name", redis.Name,
 		"cluster ID", redis.Status.ID,
-		"kind", redis.Kind,
-		"api version", redis.APIVersion,
-		"namespace", redis.Namespace,
 	)
 
 	return models.ExitReconcile, nil
@@ -384,7 +378,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 	req ctrl.Request,
 	l logr.Logger,
 ) (reconcile.Result, error) {
-	iData, err := r.API.GetRedis(redis.Status.ID)
+	instaModel, err := r.API.GetRedis(redis.Status.ID)
 	if err != nil {
 		l.Error(
 			err, "Cannot get Redis cluster from the Instaclustr API",
@@ -400,28 +394,15 @@ func (r *RedisReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	iRedis, err := redis.FromInstAPI(iData)
-	if err != nil {
-		l.Error(
-			err, "Cannot convert Redis cluster from the Instaclustr API",
-			"cluster name", redis.Spec.Name,
-			"cluster ID", redis.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			redis, models.Warning, models.ConversionFailed,
-			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-			err,
-		)
-		return reconcile.Result{}, err
-	}
+	iRedis := v1beta1.Redis{}
+	iRedis.FromInstAPI(instaModel)
 
 	if redis.Annotations[models.ExternalChangesAnnotation] == models.True ||
 		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
-		return handleExternalChanges[v1beta1.RedisSpec](r.EventRecorder, r.Client, redis, iRedis, l)
+		return handleExternalChanges[v1beta1.RedisSpec](r.EventRecorder, r.Client, redis, &iRedis, l)
 	}
 
-	if redis.Spec.ClusterSettingsNeedUpdate(iRedis.Spec.Cluster) {
+	if redis.Spec.ClusterSettingsNeedUpdate(&iRedis.Spec.GenericClusterSpec) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iRedis.Spec.Description,
 			"instaclustr two factor delete", iRedis.Spec.TwoFactorDelete)
@@ -437,7 +418,7 @@ func (r *RedisReconciler) handleUpdateCluster(
 		}
 	}
 
-	if !redis.Spec.IsEqual(iRedis.Spec) {
+	if !redis.Spec.IsEqual(&iRedis.Spec) {
 		l.Info("Update request to Instaclustr API has been sent",
 			"spec data centres", redis.Spec.DataCentres,
 			"resize settings", redis.Spec.ResizeSettings,
@@ -489,6 +470,8 @@ func (r *RedisReconciler) handleUpdateCluster(
 		"cluster ID", redis.Status.ID,
 		"data centres", redis.Spec.DataCentres,
 	)
+
+	r.EventRecorder.Event(redis, models.Normal, models.UpdatedEvent, "Cluster has been updated")
 
 	return models.ExitReconcile, nil
 }
@@ -669,8 +652,8 @@ func (r *RedisReconciler) startClusterOnPremisesIPsJob(redis *v1beta1.Redis, b *
 	return nil
 }
 
-func (r *RedisReconciler) startClusterStatusJob(cluster *v1beta1.Redis) error {
-	job := r.newWatchStatusJob(cluster)
+func (r *RedisReconciler) startSyncJob(cluster *v1beta1.Redis) error {
+	job := r.newSyncJob(cluster)
 
 	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
@@ -736,8 +719,9 @@ func (r *RedisReconciler) newUsersCreationJob(redis *v1beta1.Redis) scheduler.Jo
 	}
 }
 
-func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job {
-	l := log.Log.WithValues("component", "redisStatusClusterJob")
+func (r *RedisReconciler) newSyncJob(redis *v1beta1.Redis) scheduler.Job {
+	l := log.Log.WithValues("syncJob", redis.GetJobID(scheduler.StatusChecker), "clusterID", redis.Status.ID)
+
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(redis)
 		err := r.Get(context.Background(), namespacedName, redis)
@@ -750,7 +734,7 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			return nil
 		}
 
-		iData, err := r.API.GetRedis(redis.Status.ID)
+		instaModel, err := r.API.GetRedis(redis.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
 				if redis.DeletionTimestamp != nil {
@@ -768,26 +752,16 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			return err
 		}
 
-		iRedis, err := redis.FromInstAPI(iData)
-		if err != nil {
-			l.Error(err, "Cannot convert Redis cluster status from Instaclustr",
-				"cluster ID", redis.Status.ID,
-			)
+		iRedis := v1beta1.Redis{}
+		iRedis.FromInstAPI(instaModel)
 
-			return err
-		}
+		if !redis.Status.Equals(&iRedis.Status) {
+			l.Info("Updating Redis cluster status")
 
-		if !areStatusesEqual(&iRedis.Status.ClusterStatus, &redis.Status.ClusterStatus) {
-			l.Info("Updating Redis cluster status",
-				"new status", iRedis.Status,
-				"old status", redis.Status,
-			)
+			areDCsEqual := redis.Status.DCsEqual(iRedis.Status.DataCentres)
 
-			areDCsEqual := areDataCentresEqual(iRedis.Status.ClusterStatus.DataCentres, redis.Status.ClusterStatus.DataCentres)
-
-			patch := redis.NewPatch()
-			redis.Status.ClusterStatus = iRedis.Status.ClusterStatus
-			err = r.Status().Patch(context.Background(), redis, patch)
+			redis.Status.FromInstAPI(instaModel)
+			err = r.Status().Update(context.Background(), redis)
 			if err != nil {
 				l.Error(err, "Cannot patch Redis cluster",
 					"cluster name", redis.Spec.Name,
@@ -800,14 +774,14 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			if !areDCsEqual {
 				var nodes []*v1beta1.Node
 
-				for _, dc := range iRedis.Status.ClusterStatus.DataCentres {
+				for _, dc := range iRedis.Status.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
 				}
 
 				err = exposeservice.Create(r.Client,
 					redis.Name,
 					redis.Namespace,
-					redis.Spec.PrivateNetworkCluster,
+					redis.Spec.PrivateNetwork,
 					nodes,
 					models.RedisConnectionPort)
 				if err != nil {
@@ -816,19 +790,13 @@ func (r *RedisReconciler) newWatchStatusJob(redis *v1beta1.Redis) scheduler.Job 
 			}
 		}
 
-		equals := redis.Spec.IsEqual(iRedis.Spec)
+		equals := redis.Spec.IsEqual(&iRedis.Spec)
 
 		if equals && redis.Annotations[models.ExternalChangesAnnotation] == models.True {
-			patch := redis.NewPatch()
-			delete(redis.Annotations, models.ExternalChangesAnnotation)
-			err := r.Patch(context.Background(), redis, patch)
+			err := reconcileExternalChanges(r.Client, r.EventRecorder, redis)
 			if err != nil {
 				return err
 			}
-
-			r.EventRecorder.Event(redis, models.Normal, models.ExternalChanges,
-				"External changes were automatically reconciled",
-			)
 		} else if redis.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			redis.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
@@ -1082,6 +1050,10 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				newObj := event.ObjectNew.(*v1beta1.Redis)
 
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+					return false
+				}
+
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
 					return true
@@ -1113,7 +1085,7 @@ func (r *RedisReconciler) reconcileMaintenanceEvents(ctx context.Context, redis 
 		return err
 	}
 
-	if !redis.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+	if !redis.Status.MaintenanceEventsEqual(iMEStatuses) {
 		patch := redis.NewPatch()
 		redis.Status.MaintenanceEvents = iMEStatuses
 		err = r.Status().Patch(ctx, redis, patch)

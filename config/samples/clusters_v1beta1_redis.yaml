@@ -9,13 +9,13 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: redis-sample
 spec:
-  name: "Username-redis"
+  name: "example-redis"
   version: "7.0.14"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
   passwordAndUserAuth: true
-  privateNetworkCluster: false
-  userRefs:
+  privateNetwork: false
+#  userRefs:
 #      - name: redisuser-sample-1
 #        namespace: default
 #      - name: redisuser-sample-2
@@ -33,7 +33,7 @@ spec:
 #      nodeSize: "RDS-DEV-t4g.medium-80"
       nodeSize: "RDS-DEV-t4g.small-20"
       masterNodes: 3
-      nodesNumber: 0
+      replicaNodes: 0
       replicationFactor: 0
 #      tags:
 #        tag: "oneTag"
@@ -48,6 +48,6 @@ spec:
 #      nodesNumber: 0
 #      masterNodes: 3
 #      replicationFactor: 0
-#  resizeSettings:
-#    - notifySupportContacts: false
-#      concurrency: 1
+  resizeSettings:
+    - notifySupportContacts: false
+      concurrency: 1

@@ -69,7 +69,7 @@ type API interface {
 	RescheduleMaintenanceEvent(me *clusterresourcesv1beta1.MaintenanceEventReschedule) error
 	CreateNodeReload(nr *clusterresourcesv1beta1.Node) error
 	GetNodeReloadStatus(nodeID string) (*models.NodeReloadStatus, error)
-	GetRedis(id string) ([]byte, error)
+	GetRedis(id string) (*models.RedisCluster, error)
 	UpdateRedis(id string, r *models.RedisDataCentreUpdate) error
 	CreateRedisUser(user *models.RedisUser) (string, error)
 	UpdateRedisUser(user *models.RedisUserUpdate) error
