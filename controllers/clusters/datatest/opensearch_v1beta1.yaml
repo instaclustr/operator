@@ -27,7 +27,7 @@ spec:
       privateLink: false
       region: US_EAST_1
       accountName: "Custom"
-      cloudProviderSettings:
+      awsSettings:
         - diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
       tags:
         tag: "oneTag"

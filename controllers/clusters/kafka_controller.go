@@ -186,9 +186,10 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Ka
 	}
 
 	if k.Status.State != models.DeletedStatus {
+		patch := k.NewPatch()
 		k.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(k, models.DeletionFinalizer)
-		err := r.Update(ctx, k)
+		err := r.Patch(ctx, k, patch)
 		if err != nil {
 			r.EventRecorder.Eventf(k, models.Warning, models.CreationFailed,
 				"Failed to update resource metadata. Reason: %v", err,

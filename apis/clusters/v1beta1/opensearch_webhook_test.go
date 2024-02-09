@@ -66,21 +66,10 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 			Expect(k8sClient.Create(ctx, &testOpenSearchManifest)).ShouldNot(Succeed())
 			testOpenSearchManifest.Spec.DataCentres[0].ProviderAccountName = prevStringValue
 
-			providerSettings := openSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0]
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings = []*CloudProviderSettings{providerSettings, providerSettings}
-			Expect(k8sClient.Create(ctx, &testOpenSearchManifest)).ShouldNot(Succeed())
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings = []*CloudProviderSettings{providerSettings}
-
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].ResourceGroup = "test"
-			Expect(k8sClient.Create(ctx, &testOpenSearchManifest)).ShouldNot(Succeed())
-
-			prevStringValue = openSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].DiskEncryptionKey
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].DiskEncryptionKey = ""
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].CustomVirtualNetworkID = "test"
-			Expect(k8sClient.Create(ctx, &testOpenSearchManifest)).ShouldNot(Succeed())
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].ResourceGroup = ""
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].CustomVirtualNetworkID = ""
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].DiskEncryptionKey = prevStringValue
+			awsSettings := openSearchManifest.Spec.DataCentres[0].AWSSettings[0]
+			openSearchManifest.Spec.DataCentres[0].AWSSettings = []*AWSSettings{awsSettings, awsSettings}
+			Expect(k8sClient.Create(ctx, &openSearchManifest)).ShouldNot(Succeed())
+			openSearchManifest.Spec.DataCentres[0].AWSSettings = []*AWSSettings{awsSettings}
 
 			prevStringValue = openSearchManifest.Spec.DataCentres[0].Network
 			testOpenSearchManifest.Spec.DataCentres[0].Network = "test/test"
@@ -277,25 +266,25 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 			Expect(k8sClient.Patch(ctx, &testOpenSearchManifest, patch)).ShouldNot(Succeed())
 			testOpenSearchManifest.Spec.DataCentres[0].NumberOfRacks -= 1
 
-			prevCloudProviderSettings := openSearchManifest.Spec.DataCentres[0].CloudProviderSettings
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings = []*CloudProviderSettings{prevCloudProviderSettings[0], prevCloudProviderSettings[0]}
-			Expect(k8sClient.Patch(ctx, &testOpenSearchManifest, patch)).ShouldNot(Succeed())
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings = []*CloudProviderSettings{prevCloudProviderSettings[0]}
+			prevAWSSettings := openSearchManifest.Spec.DataCentres[0].AWSSettings
+			openSearchManifest.Spec.DataCentres[0].AWSSettings = []*AWSSettings{prevAWSSettings[0], prevAWSSettings[0]}
+			Expect(k8sClient.Patch(ctx, &openSearchManifest, patch)).ShouldNot(Succeed())
+			openSearchManifest.Spec.DataCentres[0].AWSSettings = prevAWSSettings
 
-			prevStringValue = openSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].DiskEncryptionKey
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].DiskEncryptionKey = "test"
+			prevStringValue = openSearchManifest.Spec.DataCentres[0].AWSSettings[0].DiskEncryptionKey
+			testOpenSearchManifest.Spec.DataCentres[0].AWSSettings[0].DiskEncryptionKey = "test"
 			Expect(k8sClient.Patch(ctx, &testOpenSearchManifest, patch)).ShouldNot(Succeed())
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].DiskEncryptionKey = prevStringValue
+			testOpenSearchManifest.Spec.DataCentres[0].AWSSettings[0].DiskEncryptionKey = prevStringValue
 
-			prevStringValue = openSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].ResourceGroup
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].ResourceGroup = "test"
+			prevStringValue = openSearchManifest.Spec.DataCentres[0].AWSSettings[0].CustomVirtualNetworkID
+			testOpenSearchManifest.Spec.DataCentres[0].AWSSettings[0].CustomVirtualNetworkID = "test"
 			Expect(k8sClient.Patch(ctx, &testOpenSearchManifest, patch)).ShouldNot(Succeed())
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].ResourceGroup = prevStringValue
+			testOpenSearchManifest.Spec.DataCentres[0].AWSSettings[0].CustomVirtualNetworkID = prevStringValue
 
-			prevStringValue = openSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].CustomVirtualNetworkID
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].CustomVirtualNetworkID = "test"
+			prevStringValue = openSearchManifest.Spec.DataCentres[0].AWSSettings[0].BackupBucket
+			testOpenSearchManifest.Spec.DataCentres[0].AWSSettings[0].BackupBucket = "test"
 			Expect(k8sClient.Patch(ctx, &testOpenSearchManifest, patch)).ShouldNot(Succeed())
-			testOpenSearchManifest.Spec.DataCentres[0].CloudProviderSettings[0].CustomVirtualNetworkID = prevStringValue
+			testOpenSearchManifest.Spec.DataCentres[0].AWSSettings[0].BackupBucket = prevStringValue
 
 			testOpenSearchManifest.Spec.DataCentres[0].Tags["test"] = "test"
 			Expect(k8sClient.Patch(ctx, &testOpenSearchManifest, patch)).ShouldNot(Succeed())

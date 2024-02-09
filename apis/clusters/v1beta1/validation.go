@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -406,19 +407,13 @@ func (s *GenericDataCentreSpec) validateCreation() error {
 		}
 	}
 
-	if s.ProviderAccountName == models.DefaultAccountName && len(s.CloudProviderSettings) != 0 {
+	if s.ProviderAccountName == models.DefaultAccountName && s.hasCloudProviderSettings() {
 		return fmt.Errorf("cloud provider settings can be used only with RIYOA accounts")
 	}
 
-	if len(s.CloudProviderSettings) > 1 {
-		return fmt.Errorf("cloud provider settings should not have more than 1 item")
-	}
-
-	for _, cp := range s.CloudProviderSettings {
-		err := cp.ValidateCreation()
-		if err != nil {
-			return err
-		}
+	err := s.validateCloudProviderSettings()
+	if err != nil {
+		return err
 	}
 
 	if !peerSubnetsRegExp.Match([]byte(s.Network)) {
@@ -442,10 +437,30 @@ func (s *GenericDataCentreSpec) ValidateOnPremisesCreation() error {
 	return nil
 }
 
-func (s *GenericDataCentreSpec) validateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
-	if !slices.EqualsPtr(s.CloudProviderSettings, oldSettings) {
+func (s *GenericDataCentreSpec) validateImmutableCloudProviderSettingsUpdate(old *GenericDataCentreSpec) error {
+	if !slices.EqualsPtr(s.AWSSettings, old.AWSSettings) {
+		return models.ErrImmutableCloudProviderSettings
+	}
+
+	if !slices.EqualsPtr(s.GCPSettings, old.GCPSettings) {
+		return models.ErrImmutableCloudProviderSettings
+	}
+
+	if !slices.EqualsPtr(s.AzureSettings, old.AzureSettings) {
 		return models.ErrImmutableCloudProviderSettings
 	}
 
 	return nil
+}
+
+func (s *GenericDataCentreSpec) validateCloudProviderSettings() error {
+	if sum := len(s.AWSSettings) + len(s.AzureSettings) + len(s.GCPSettings); sum > 1 {
+		return errors.New("only one of [awsSettings, gcpSettings, azureSettings] should be set")
+	}
+
+	return nil
+}
+
+func (s *GenericDataCentreSpec) hasCloudProviderSettings() bool {
+	return s.AWSSettings != nil || s.GCPSettings != nil && s.AzureSettings != nil
 }

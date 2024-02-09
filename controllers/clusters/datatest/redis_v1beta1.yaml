@@ -27,7 +27,6 @@ spec:
       nodesNumber: 3
       name: "testDC2"
 #      accountName: "Custrom"
-#      cloudProviderSettings:
+#      awsSettings:
 #        - customVirtualNetworkId: "vpc-12345678"
 #          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
-#          resourceGroup: "asdfadfsdfas"

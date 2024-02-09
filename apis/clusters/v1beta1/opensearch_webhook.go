@@ -351,7 +351,7 @@ func (oss *OpenSearchSpec) validateImmutableDataCentresUpdate(oldDCs []*OpenSear
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		err := oldDC.validateImmutableCloudProviderSettingsUpdate(newDC.CloudProviderSettings)
+		err := oldDC.validateImmutableCloudProviderSettingsUpdate(&newDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}

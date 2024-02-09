@@ -99,14 +99,47 @@ func (s *GenericClusterSpec) ClusterSettingsUpdateToInstAPI() *models.ClusterSet
 }
 
 type GenericDataCentreSpec struct {
-	Name          string `json:"name,omitempty"`
-	Region        string `json:"region"`
+	// A logical name for the data centre within a cluster.
+	// These names must be unique in the cluster.
+	Name string `json:"name"`
+
+	// Region of the Data Centre.
+	Region string `json:"region"`
+
+	// Name of a cloud provider service.
 	CloudProvider string `json:"cloudProvider"`
+
+	// For customers running in their own account.
+	// Your provider account can be found on the Create Cluster page on the Instaclustr Console,
+	// or the "Provider Account" property on any existing cluster.
+	// For customers provisioning on Instaclustr's cloud provider accounts, this property may be omitted.
+	//
 	//+kubebuilder:default:=INSTACLUSTR
-	ProviderAccountName   string                   `json:"accountName,omitempty"`
-	Network               string                   `json:"network"`
-	Tags                  map[string]string        `json:"tags,omitempty"`
-	CloudProviderSettings []*CloudProviderSettings `json:"cloudProviderSettings,omitempty"`
+	ProviderAccountName string `json:"accountName,omitempty"`
+
+	// The private network address block for the Data Centre specified using CIDR address notation.
+	// The network must have a prefix length between /12 and /22 and must be part of a private address space.
+	Network string `json:"network"`
+
+	// List of tags to apply to the Data Centre.
+	// Tags are metadata labels which allow you to identify, categorize and filter clusters.
+	// This can be useful for grouping together clusters into applications, environments, or any category that you require.
+	Tags map[string]string `json:"tags,omitempty"`
+
+	// AWS specific settings for the Data Centre. Cannot be provided with GCP or Azure settings.
+	//
+	//+kubebuilder:validation:MaxItems:=1
+	AWSSettings []*AWSSettings `json:"awsSettings,omitempty"`
+
+	// GCP specific settings for the Data Centre. Cannot be provided with AWS or Azure settings.
+	//
+	//+kubebuilder:validation:MaxItems:=1
+	GCPSettings []*GCPSettings `json:"gcpSettings,omitempty"`
+
+	// Azure specific settings for the Data Centre. Cannot be provided with AWS or GCP settings.
+	//
+	//+kubebuilder:validation:MaxItems:=1
+	AzureSettings []*AzureSettings `json:"azureSettings,omitempty"`
 }
 
 func (s *GenericDataCentreSpec) Equals(o *GenericDataCentreSpec) bool {
@@ -116,7 +149,9 @@ func (s *GenericDataCentreSpec) Equals(o *GenericDataCentreSpec) bool {
 		s.ProviderAccountName == o.ProviderAccountName &&
 		s.Network == o.Network &&
 		areTagsEqual(s.Tags, o.Tags) &&
-		slices.EqualsPtr(s.CloudProviderSettings, o.CloudProviderSettings)
+		slices.EqualsPtr(s.AWSSettings, o.AWSSettings) &&
+		slices.EqualsPtr(s.GCPSettings, o.GCPSettings) &&
+		slices.EqualsPtr(s.AzureSettings, o.AzureSettings)
 }
 
 func (s *GenericDataCentreSpec) FromInstAPI(model *models.GenericDataCentreFields) {
@@ -126,28 +161,7 @@ func (s *GenericDataCentreSpec) FromInstAPI(model *models.GenericDataCentreField
 	s.ProviderAccountName = model.ProviderAccountName
 	s.Network = model.Network
 	s.Tags = tagsFromInstAPI(model.Tags)
-	s.CloudProviderSettings = cloudProviderSettingsFromInstAPI(model)
-}
-
-func (dc *GenericDataCentreSpec) CloudProviderSettingsToInstAPI() models.CloudProviderSettings {
-	instaModel := models.CloudProviderSettings{}
-
-	switch dc.CloudProvider {
-	case models.AWSVPC:
-		for _, providerSettings := range dc.CloudProviderSettings {
-			instaModel.AWSSettings = append(instaModel.AWSSettings, providerSettings.AWSToInstAPI())
-		}
-	case models.AZUREAZ:
-		for _, providerSettings := range dc.CloudProviderSettings {
-			instaModel.AzureSettings = append(instaModel.AzureSettings, providerSettings.AzureToInstAPI())
-		}
-	case models.GCP:
-		for _, providerSettings := range dc.CloudProviderSettings {
-			instaModel.GCPSettings = append(instaModel.GCPSettings, providerSettings.GCPToInstAPI())
-		}
-	}
-
-	return instaModel
+	s.cloudProviderSettingsFromInstAPI(model.CloudProviderSettings)
 }
 
 func (s *GenericDataCentreSpec) ToInstAPI() models.GenericDataCentreFields {
@@ -158,6 +172,64 @@ func (s *GenericDataCentreSpec) ToInstAPI() models.GenericDataCentreFields {
 		Region:                s.Region,
 		ProviderAccountName:   s.ProviderAccountName,
 		Tags:                  tagsToInstAPI(s.Tags),
-		CloudProviderSettings: s.CloudProviderSettingsToInstAPI(),
+		CloudProviderSettings: s.cloudProviderSettingsToInstAPI(),
+	}
+}
+
+func (s *GenericDataCentreSpec) cloudProviderSettingsToInstAPI() *models.CloudProviderSettings {
+	var instaModel *models.CloudProviderSettings
+
+	switch {
+	case len(s.AWSSettings) > 0:
+		setting := s.AWSSettings[0]
+		instaModel = &models.CloudProviderSettings{AWSSettings: []*models.AWSSetting{{
+			EBSEncryptionKey:       setting.DiskEncryptionKey,
+			CustomVirtualNetworkID: setting.CustomVirtualNetworkID,
+			BackupBucket:           setting.BackupBucket,
+		}}}
+	case len(s.GCPSettings) > 0:
+		setting := s.GCPSettings[0]
+		instaModel = &models.CloudProviderSettings{GCPSettings: []*models.GCPSetting{{
+			CustomVirtualNetworkID:    setting.CustomVirtualNetworkID,
+			DisableSnapshotAutoExpiry: setting.DisableSnapshotAutoExpiry,
+		}}}
+	case len(s.AzureSettings) > 0:
+		setting := s.AzureSettings[0]
+		instaModel = &models.CloudProviderSettings{AzureSettings: []*models.AzureSetting{{
+			ResourceGroup:          setting.ResourceGroup,
+			CustomVirtualNetworkID: setting.CustomVirtualNetworkID,
+			StorageNetwork:         setting.StorageNetwork,
+		}}}
+	}
+
+	return instaModel
+}
+
+func (s *GenericDataCentreSpec) cloudProviderSettingsFromInstAPI(instaModel *models.CloudProviderSettings) {
+	if instaModel == nil {
+		return
+	}
+
+	switch {
+	case len(instaModel.AWSSettings) > 0:
+		setting := instaModel.AWSSettings[0]
+		s.AWSSettings = []*AWSSettings{{
+			DiskEncryptionKey:      setting.EBSEncryptionKey,
+			CustomVirtualNetworkID: setting.CustomVirtualNetworkID,
+			BackupBucket:           setting.BackupBucket,
+		}}
+	case len(instaModel.GCPSettings) > 0:
+		setting := instaModel.GCPSettings[0]
+		s.GCPSettings = []*GCPSettings{{
+			CustomVirtualNetworkID:    setting.CustomVirtualNetworkID,
+			DisableSnapshotAutoExpiry: setting.DisableSnapshotAutoExpiry,
+		}}
+	case len(instaModel.AzureSettings) > 0:
+		setting := instaModel.AzureSettings[0]
+		s.AzureSettings = []*AzureSettings{{
+			ResourceGroup:          setting.ResourceGroup,
+			CustomVirtualNetworkID: setting.CustomVirtualNetworkID,
+			StorageNetwork:         setting.StorageNetwork,
+		}}
 	}
 }
