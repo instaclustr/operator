@@ -293,34 +293,6 @@ func tagsFromInstAPI(iTags []*models.Tag) map[string]string {
 	return newTags
 }
 
-func cloudProviderSettingsFromInstAPI(iDC *models.GenericDataCentreFields) (settings []*CloudProviderSettings) {
-	switch iDC.CloudProvider {
-	case models.AWSVPC:
-		for _, awsSetting := range iDC.AWSSettings {
-			settings = append(settings, &CloudProviderSettings{
-				CustomVirtualNetworkID: awsSetting.CustomVirtualNetworkID,
-				DiskEncryptionKey:      awsSetting.EBSEncryptionKey,
-				BackupBucket:           awsSetting.BackupBucket,
-			})
-		}
-	case models.GCP:
-		for _, gcpSetting := range iDC.GCPSettings {
-			settings = append(settings, &CloudProviderSettings{
-				CustomVirtualNetworkID:    gcpSetting.CustomVirtualNetworkID,
-				DisableSnapshotAutoExpiry: gcpSetting.DisableSnapshotAutoExpiry,
-			})
-		}
-	case models.AZUREAZ:
-		for _, azureSetting := range iDC.AzureSettings {
-			settings = append(settings, &CloudProviderSettings{
-				ResourceGroup: azureSetting.ResourceGroup,
-			})
-		}
-	}
-
-	return settings
-}
-
 func (c *OpenSearch) GetSpec() OpenSearchSpec { return c.Spec }
 
 func (c *OpenSearch) IsSpecEqual(spec OpenSearchSpec) bool {

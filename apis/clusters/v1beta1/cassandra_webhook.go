@@ -310,7 +310,7 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
 		}
 
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}

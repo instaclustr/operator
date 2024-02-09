@@ -194,10 +194,22 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
 			testKafkaManifest.Spec.DataCentres[0].Network = prevStringField
 
-			prevCloudProviderSettings := kafkaManifest.Spec.DataCentres[0].CloudProviderSettings
-			testKafkaManifest.Spec.DataCentres[0].CloudProviderSettings = []*CloudProviderSettings{prevCloudProviderSettings[0], prevCloudProviderSettings[0]}
+			prevAWSSettings := kafkaManifest.Spec.DataCentres[0].AWSSettings
+			testKafkaManifest.Spec.DataCentres[0].AWSSettings = []*AWSSettings{prevAWSSettings[0], prevAWSSettings[0]}
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
-			testKafkaManifest.Spec.DataCentres[0].CloudProviderSettings = prevCloudProviderSettings
+			testKafkaManifest.Spec.DataCentres[0].AWSSettings = prevAWSSettings
+
+			prevGCPSettings := kafkaManifest.Spec.DataCentres[0].GCPSettings
+			gcpSettings := &GCPSettings{CustomVirtualNetworkID: "test-network-id", DisableSnapshotAutoExpiry: true}
+			testKafkaManifest.Spec.DataCentres[0].GCPSettings = []*GCPSettings{gcpSettings, gcpSettings}
+			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
+			testKafkaManifest.Spec.DataCentres[0].GCPSettings = prevGCPSettings
+
+			prevAzureSettings := kafkaManifest.Spec.DataCentres[0].AzureSettings
+			azureSettings := &AzureSettings{ResourceGroup: "test-resource-group", CustomVirtualNetworkID: "test-network-id", StorageNetwork: "test-storage-network"}
+			testKafkaManifest.Spec.DataCentres[0].AzureSettings = []*AzureSettings{azureSettings, azureSettings}
+			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())
+			testKafkaManifest.Spec.DataCentres[0].AzureSettings = prevAzureSettings
 
 			testKafkaManifest.Spec.DataCentres[0].Tags["test"] = "test"
 			Expect(k8sClient.Patch(ctx, &testKafkaManifest, patch)).ShouldNot(Succeed())

@@ -71,11 +71,13 @@ type AWSSetting struct {
 
 type GCPSetting struct {
 	CustomVirtualNetworkID    string `json:"customVirtualNetworkId,omitempty"`
-	DisableSnapshotAutoExpiry string `json:"disableSnapshotAutoExpiry,omitempty"`
+	DisableSnapshotAutoExpiry bool   `json:"disableSnapshotAutoExpiry,omitempty"`
 }
 
 type AzureSetting struct {
-	ResourceGroup string `json:"resourceGroup,omitempty"`
+	ResourceGroup          string `json:"resourceGroup,omitempty"`
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
+	StorageNetwork         string `json:"storageNetwork,omitempty"`
 }
 
 type Tag struct {

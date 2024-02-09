@@ -125,6 +125,9 @@ func (pg *PostgreSQL) GetJobID(jobName string) string {
 
 func (pg *PostgreSQL) NewPatch() client.Patch {
 	old := pg.DeepCopy()
+	if old.Annotations == nil {
+		old.Annotations = make(map[string]string)
+	}
 	old.Annotations[models.ResourceStateAnnotation] = ""
 	return client.MergeFrom(old)
 }

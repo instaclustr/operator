@@ -30,6 +30,8 @@ spec:
       numberOfRacks: 3
       privateLink: false
       region: US_EAST_1
+#      awsSettings:
+#        - backupBucket: instaclustr-us-east-1-backups-preprod
 #  ingestNodes:
 ##   - nodeSize: SRH-DI-PRD-m6g.large-10
 #    - nodeSize: SRH-DI-DEV-t4g.small-5

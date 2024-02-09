@@ -279,7 +279,7 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 			return err
 		}
 
-		err = newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err = newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}

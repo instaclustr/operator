@@ -23,10 +23,9 @@ spec:
       clientToClusterEncryption: true
       nodeSize: "CAS-DEV-t4g.small-5"
 #      accountName: "asdf"
-#      cloudProviderSettings:
+#      awsSettings:
 #        - customVirtualNetworkId: "vpc-12345678"
 #          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
-#          resourceGroup: "asdfadfsdfas"
 #    - name: "Second Data Centre"
 #      region: "US_EAST_1"
 #      cloudProvider: "AWS_VPC"

@@ -30,7 +30,7 @@ type CloudProviderSettings struct {
 	ResourceGroup             string `json:"resourceGroup,omitempty"`
 	DiskEncryptionKey         string `json:"diskEncryptionKey,omitempty"`
 	BackupBucket              string `json:"backupBucket,omitempty"`
-	DisableSnapshotAutoExpiry string `json:"disableSnapshotAutoExpiry,omitempty"`
+	DisableSnapshotAutoExpiry bool   `json:"disableSnapshotAutoExpiry,omitempty"`
 }
 
 type DataCentre struct {
@@ -831,4 +831,57 @@ func (g GenericResizeSettings) Equal(o GenericResizeSettings) bool {
 	}
 
 	return true
+}
+
+type AWSSettings struct {
+	// ID of a KMS encryption key to encrypt data on nodes.
+	// KMS encryption key must be set in Cluster Resources through
+	//the Instaclustr Console before provisioning an encrypted Data Centre.
+	DiskEncryptionKey string `json:"encryptionKey,omitempty"`
+
+	// VPC ID into which the Data Centre will be provisioned.
+	// The Data Centre's network allocation must match the IPv4 CIDR block of the specified VPC.
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
+
+	// Specify the S3 bucket to use for storing backup data for the cluster data centre.
+	// Only available for customers running in their own cloud provider accounts.
+	// Currently supported for OpenSearch clusters only.
+	BackupBucket string `json:"backupBucket,omitempty"`
+}
+
+type GCPSettings struct {
+	// Network name or a relative Network or Subnetwork URI.
+	// The Data Centre's network allocation must match the IPv4 CIDR block of the specified subnet.
+	//
+	// Examples:
+	// Network URI: projects/{riyoa-gcp-project-name}/global/networks/{network-name}.
+	// Network name: {network-name}, equivalent to projects/{riyoa-gcp-project-name}/global/networks/{network-name}.
+	// Same-project subnetwork URI: projects/{riyoa-gcp-project-name}/regions/{region-id}/subnetworks/{subnetwork-name}.
+	// Shared VPC subnetwork URI: projects/{riyoa-gcp-host-project-name}/regions/{region-id}/subnetworks/{subnetwork-name}.
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
+
+	// Specify whether the GCS backup bucket should automatically expire data after 7 days or not.
+	// Setting this to true will disable automatic expiry and will allow for creation of custom snapshot
+	// repositories with customisable retention using the Index Management Plugin.
+	// The storage will have to be manually cleared after the cluster is deleted.
+	// Only available for customers running in their own cloud provider accounts.
+	// Currently supported for OpenSearch clusters only.
+	DisableSnapshotAutoExpiry bool `json:"disableSnapshotAutoExpiry,omitempty"`
+}
+
+type AzureSettings struct {
+	// The name of the Azure Resource Group into which the Data Centre will be provisioned.
+	ResourceGroup string `json:"resourceGroup,omitempty"`
+
+	// VNet ID into which the Data Centre will be provisioned.
+	// The VNet must have an available address space for the Data Centre's network
+	// allocation to be appended to the VNet.
+	// Currently supported for PostgreSQL clusters only.
+	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`
+
+	// The private network address block to be used for the storage network.
+	// This is only used for certain node sizes, currently limited to those which use Azure NetApp Files:
+	// for all other node sizes, this field should not be provided.
+	// The network must have a prefix length between /16 and /28, and must be part of a private address range.
+	StorageNetwork string `json:"storageNetwork,omitempty"`
 }

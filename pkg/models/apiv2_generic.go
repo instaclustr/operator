@@ -24,5 +24,5 @@ type GenericDataCentreFields struct {
 	ProviderAccountName string `json:"providerAccountName,omitempty"`
 	Tags                []*Tag `json:"tags,omitempty"`
 
-	CloudProviderSettings `json:",inline"`
+	*CloudProviderSettings `json:",inline"`
 }

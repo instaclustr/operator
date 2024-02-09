@@ -334,7 +334,7 @@ func (ks *KafkaSpec) validateImmutableDataCentresFieldsUpdate(oldSpec *KafkaSpec
 			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
 		}
 
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}

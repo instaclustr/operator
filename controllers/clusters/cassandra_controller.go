@@ -316,9 +316,10 @@ func (r *CassandraReconciler) handleCreateCluster(
 	}
 
 	if c.Status.State != models.DeletedStatus {
+		patch := c.NewPatch()
 		c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(c, models.DeletionFinalizer)
-		err := r.Update(ctx, c)
+		err := r.Patch(ctx, c, patch)
 		if err != nil {
 			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
 				"Failed to update resource metadata. Reason: %v", err,

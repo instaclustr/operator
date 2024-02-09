@@ -250,18 +250,18 @@ func (r *OpenSearchReconciler) HandleCreateCluster(
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 	logger = logger.WithName("OpenSearch creation event")
-	var err error
 	if o.Status.ID == "" {
-		err = r.createCluster(ctx, o, logger)
+		err := r.createCluster(ctx, o, logger)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("failed to create cluster, err: %w", err)
 		}
 	}
 
 	if o.Status.State != models.DeletedStatus {
+		patch := o.NewPatch()
 		o.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(o, models.DeletionFinalizer)
-		err := r.Update(ctx, o)
+		err := r.Patch(ctx, o, patch)
 		if err != nil {
 			r.EventRecorder.Eventf(o, models.Warning, models.CreationFailed,
 				"Failed to update resource metadata. Reason: %v", err,

@@ -83,7 +83,7 @@ spec:
                           customVirtualNetworkId:
                             type: string
                           disableSnapshotAutoExpiry:
-                            type: string
+                            type: boolean
                           diskEncryptionKey:
                             type: string
                           resourceGroup:
