@@ -217,83 +217,6 @@ func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1
 			"Cluster status check job is started",
 		)
 	}
-	if kc.Spec.OnPremisesSpec != nil && kc.Spec.OnPremisesSpec.EnableAutomation {
-		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get cluster from the Instaclustr API",
-				"cluster name", kc.Spec.Name,
-				"data centres", kc.Spec.DataCentres,
-				"cluster ID", kc.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.FetchFailed,
-				"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		iKafkaConnect, err := kc.FromInst(iData)
-		if err != nil {
-			l.Error(
-				err, "Cannot convert cluster from the Instaclustr API",
-				"cluster name", kc.Spec.Name,
-				"cluster ID", kc.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.ConversionFailed,
-				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		bootstrap := newOnPremisesBootstrap(
-			r.Client,
-			kc,
-			r.EventRecorder,
-			iKafkaConnect.Status.ClusterStatus,
-			kc.Spec.OnPremisesSpec,
-			newExposePorts(kc.GetExposePorts()),
-			kc.GetHeadlessPorts(),
-			kc.Spec.PrivateNetworkCluster,
-		)
-
-		err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-		if err != nil {
-			l.Error(
-				err, "Cannot create resources for on-premises cluster",
-				"cluster spec", kc.Spec.OnPremisesSpec,
-			)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.CreationFailed,
-				"Resources creation for on-premises cluster is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		err = r.startClusterOnPremisesIPsJob(kc, bootstrap)
-		if err != nil {
-			l.Error(err, "Cannot start on-premises cluster IPs check job",
-				"cluster ID", kc.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.CreationFailed,
-				"On-premises cluster IPs check job is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		l.Info(
-			"On-premises resources have been created",
-			"cluster name", kc.Spec.Name,
-			"on-premises Spec", kc.Spec.OnPremisesSpec,
-			"cluster ID", kc.Status.ID,
-		)
-		return models.ExitReconcile, nil
-	}
 
 	return models.ExitReconcile, nil
 }
@@ -453,23 +376,6 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 
 			return models.ExitReconcile, nil
 		}
-
-		if kc.Spec.OnPremisesSpec != nil && kc.Spec.OnPremisesSpec.EnableAutomation {
-			err = deleteOnPremResources(ctx, r.Client, kc.Status.ID, kc.Namespace)
-			if err != nil {
-				l.Error(err, "Cannot delete cluster on-premises resources",
-					"cluster ID", kc.Status.ID)
-				r.EventRecorder.Eventf(kc, models.Warning, models.DeletionFailed,
-					"Cluster on-premises resources deletion is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			l.Info("Cluster on-premises resources are deleted",
-				"cluster ID", kc.Status.ID)
-			r.EventRecorder.Eventf(kc, models.Normal, models.Deleted,
-				"Cluster on-premises resources are deleted")
-			r.Scheduler.RemoveJob(kc.GetJobID(scheduler.OnPremisesIPsChecker))
-		}
 	}
 
 	err = deleteDefaultUserSecret(ctx, r.Client, client.ObjectKeyFromObject(kc))
@@ -552,6 +458,7 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 	return nil
 }
 
+//nolint:unused,deadcode
 func (r *KafkaConnectReconciler) startClusterOnPremisesIPsJob(k *v1beta1.KafkaConnect, b *onPremisesBootstrap) error {
 	job := newWatchOnPremisesIPsJob(k.Kind, b)
 

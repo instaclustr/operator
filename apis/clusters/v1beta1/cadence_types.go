@@ -61,8 +61,7 @@ type BundledOpenSearchSpec struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster        `json:",inline"`
-	OnPremisesSpec *OnPremisesSpec `json:"onPremisesSpec,omitempty"`
+	Cluster `json:",inline"`
 	//+kubebuilder:validation:MinItems:=1
 	//+kubebuilder:validation:MaxItems:=1
 	DataCentres          []*CadenceDataCentre    `json:"dataCentres"`

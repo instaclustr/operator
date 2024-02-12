@@ -29,10 +29,6 @@ var _ = Describe("Kafka Controller", Ordered, func() {
 	When("apply a Kafka manifest", func() {
 		It("should test kafka creation flow", func() {
 
-			testKafkaManifest.Spec.Description = "some description"
-			Expect(k8sClient.Create(ctx, &testKafkaManifest)).ShouldNot(Succeed())
-			testKafkaManifest.Spec.Description = kafkaManifest.Spec.Description
-
 			testKafkaManifest.Spec.TwoFactorDelete = []*TwoFactorDelete{kafkaManifest.Spec.TwoFactorDelete[0], kafkaManifest.Spec.TwoFactorDelete[0]}
 			Expect(k8sClient.Create(ctx, &testKafkaManifest)).ShouldNot(Succeed())
 			testKafkaManifest.Spec.TwoFactorDelete = kafkaManifest.Spec.TwoFactorDelete

@@ -96,27 +96,6 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		return err
 	}
 
-	contains, err := ContainsKubeVirtAddon(ctx, pgv.K8sClient)
-	if err != nil {
-		return err
-	}
-
-	if pg.Spec.OnPremisesSpec != nil && pg.Spec.OnPremisesSpec.EnableAutomation {
-		if !contains {
-			return models.ErrKubeVirtAddonNotFound
-		}
-		err = pg.Spec.OnPremisesSpec.ValidateCreation()
-		if err != nil {
-			return err
-		}
-		if pg.Spec.PrivateNetworkCluster {
-			err = pg.Spec.OnPremisesSpec.ValidateSSHGatewayCreation()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	if pg.Spec.UserRefs != nil {
 		err = pgv.validatePostgreSQLUsers(ctx, pg)
 		if err != nil {
@@ -139,22 +118,15 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		return models.ErrZeroDataCentres
 	}
 
-	//TODO: add support of multiple DCs for OnPrem clusters
-	if len(pg.Spec.DataCentres) > 1 && pg.Spec.OnPremisesSpec != nil {
-		return fmt.Errorf("on-premises cluster can be provisioned with only one data centre")
-	}
-
 	for _, dc := range pg.Spec.DataCentres {
-		if pg.Spec.OnPremisesSpec != nil {
-			err = dc.DataCentre.ValidateOnPremisesCreation()
-			if err != nil {
-				return err
-			}
-		} else {
-			err = dc.DataCentre.ValidateCreation()
-			if err != nil {
-				return err
-			}
+		//TODO: add support of multiple DCs for OnPrem clusters
+		if len(pg.Spec.DataCentres) > 1 && dc.CloudProvider == models.ONPREMISES {
+			return models.ErrOnPremisesWithMultiDC
+		}
+
+		err = dc.DataCentre.ValidateCreation()
+		if err != nil {
+			return err
 		}
 
 		err = dc.ValidatePGBouncer()

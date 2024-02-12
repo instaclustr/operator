@@ -1,9 +1,9 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Kafka
 metadata:
-  name: danylo-kafka
+  name: kafka-on-prem-sample
 spec:
-  name: "danylo-kafka"
+  name: "kafka-on-prem-sample"
   version: "3.3.1"
   pciCompliance: false
   replicationFactor: 3
@@ -11,21 +11,8 @@ spec:
   allowDeleteTopics: true
   autoCreateTopics: true
   clientToClusterEncryption: false
-  privateNetworkCluster: false
+  privateNetwork: false
   slaTier: "NON_PRODUCTION"
-  onPremisesSpec:
-    enableAutomation: true
-    storageClassName: managed-csi-premium
-    osDiskSize: 20Gi
-    dataDiskSize: 200Gi
-    sshGatewayCPU: 2
-    sshGatewayMemory: 4096Mi
-    nodeCPU: 2
-    nodeMemory: 8192Mi
-    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
-    cloudInitScriptRef:
-      namespace: default
-      name: instaclustr-cloud-init-secret
   dataCentres:
     - name: "onPremKafka"
       nodesNumber: 3

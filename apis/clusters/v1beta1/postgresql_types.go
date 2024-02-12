@@ -74,7 +74,6 @@ type PgRestoreFrom struct {
 type PgSpec struct {
 	PgRestoreFrom         *PgRestoreFrom `json:"pgRestoreFrom,omitempty"`
 	Cluster               `json:",inline"`
-	OnPremisesSpec        *OnPremisesSpec   `json:"onPremisesSpec,omitempty"`
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
