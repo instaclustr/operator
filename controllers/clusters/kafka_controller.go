@@ -172,76 +172,6 @@ func (r *KafkaReconciler) startJobs(k *v1beta1.Kafka) error {
 	return nil
 }
 
-func (r *KafkaReconciler) handleOnPremisesCreation(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) error {
-	instaModel, err := r.API.GetKafka(k.Status.ID)
-	if err != nil {
-		l.Error(err,
-			"Cannot get cluster from the Instaclustr API",
-			"cluster name", k.Spec.Name,
-			"data centres", k.Spec.DataCentres,
-			"cluster ID", k.Status.ID,
-		)
-		r.EventRecorder.Eventf(
-			k, models.Warning, models.FetchFailed,
-			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-			err,
-		)
-		return err
-	}
-
-	iKafka := v1beta1.Kafka{}
-	iKafka.FromInstAPI(instaModel)
-
-	bootstrap := newOnPremisesBootstrap(
-		r.Client,
-		k,
-		r.EventRecorder,
-		iKafka.Status.ToOnPremises(),
-		k.Spec.OnPremisesSpec,
-		newExposePorts(k.GetExposePorts()),
-		k.GetHeadlessPorts(),
-		k.Spec.PrivateNetwork,
-	)
-
-	err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-	if err != nil {
-		l.Error(err,
-			"Cannot create resources for on-premises cluster",
-			"cluster spec", k.Spec.OnPremisesSpec,
-		)
-		r.EventRecorder.Eventf(
-			k, models.Warning, models.CreationFailed,
-			"Resources creation for on-premises cluster is failed. Reason: %v",
-			err,
-		)
-		return err
-	}
-
-	err = r.startClusterOnPremisesIPsJob(k, bootstrap)
-	if err != nil {
-		l.Error(err,
-			"Cannot start on-premises cluster IPs check job",
-			"cluster ID", k.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(
-			k, models.Warning, models.CreationFailed,
-			"On-premises cluster IPs check job is failed. Reason: %v",
-			err,
-		)
-		return err
-	}
-
-	l.Info(
-		"On-premises resources have been created",
-		"cluster name", k.Spec.Name,
-		"on-premises Spec", k.Spec.OnPremisesSpec,
-		"cluster ID", k.Status.ID,
-	)
-
-	return nil
-}
-
 func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Kafka creation Event")
 
@@ -272,16 +202,6 @@ func (r *KafkaReconciler) handleCreateCluster(ctx context.Context, k *v1beta1.Ka
 				"Failed to start cluster jobs. Reason: %v", err,
 			)
 			return reconcile.Result{}, err
-		}
-
-		if k.Spec.OnPremisesSpec != nil && k.Spec.OnPremisesSpec.EnableAutomation {
-			err = r.handleOnPremisesCreation(ctx, k, l)
-			if err != nil {
-				r.EventRecorder.Eventf(k, models.Warning, models.CreationFailed,
-					"Failed to handle OnPremises cluster creation. Reason: %v", err,
-				)
-				return reconcile.Result{}, err
-			}
 		}
 	}
 
@@ -454,23 +374,6 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, k *v1beta1.Ka
 		return reconcile.Result{}, err
 	}
 
-	if k.Spec.OnPremisesSpec != nil && k.Spec.OnPremisesSpec.EnableAutomation {
-		err = deleteOnPremResources(ctx, r.Client, k.Status.ID, k.Namespace)
-		if err != nil {
-			l.Error(err, "Cannot delete cluster on-premises resources",
-				"cluster ID", k.Status.ID)
-			r.EventRecorder.Eventf(k, models.Warning, models.DeletionFailed,
-				"Cluster on-premises resources deletion is failed. Reason: %v", err)
-			return reconcile.Result{}, err
-		}
-
-		l.Info("Cluster on-premises resources are deleted",
-			"cluster ID", k.Status.ID)
-		r.EventRecorder.Eventf(k, models.Normal, models.Deleted,
-			"Cluster on-premises resources are deleted")
-		r.Scheduler.RemoveJob(k.GetJobID(scheduler.OnPremisesIPsChecker))
-	}
-
 	r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
 	r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
 	controllerutil.RemoveFinalizer(k, models.DeletionFinalizer)
@@ -509,6 +412,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, k *v1beta1.Ka
 	return models.ExitReconcile, nil
 }
 
+//nolint:unused,deadcode
 func (r *KafkaReconciler) startClusterOnPremisesIPsJob(k *v1beta1.Kafka, b *onPremisesBootstrap) error {
 	job := newWatchOnPremisesIPsJob(k.Kind, b)
 

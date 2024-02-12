@@ -60,7 +60,6 @@ type KarapaceSchemaRegistry struct {
 type KafkaSpec struct {
 	GenericClusterSpec `json:",inline"`
 
-	OnPremisesSpec *OnPremisesSpec `json:"onPremisesSpec,omitempty"`
 	// ReplicationFactor to use for new topic.
 	// Also represents the number of racks to use when allocating nodes.
 	ReplicationFactor int `json:"replicationFactor"`

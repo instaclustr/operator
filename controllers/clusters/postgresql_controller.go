@@ -258,81 +258,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 			"Cluster status check job is started",
 		)
 
-		if pg.Spec.OnPremisesSpec != nil && pg.Spec.OnPremisesSpec.EnableAutomation {
-			iData, err := r.API.GetPostgreSQL(pg.Status.ID)
-			if err != nil {
-				l.Error(err, "Cannot get cluster from the Instaclustr API",
-					"cluster name", pg.Spec.Name,
-					"data centres", pg.Spec.DataCentres,
-					"cluster ID", pg.Status.ID,
-				)
-				r.EventRecorder.Eventf(
-					pg, models.Warning, models.FetchFailed,
-					"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-			iPostgreSQL, err := pg.FromInstAPI(iData)
-			if err != nil {
-				l.Error(
-					err, "Cannot convert cluster from the Instaclustr API",
-					"cluster name", pg.Spec.Name,
-					"cluster ID", pg.Status.ID,
-				)
-				r.EventRecorder.Eventf(
-					pg, models.Warning, models.ConversionFailed,
-					"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			bootstrap := newOnPremisesBootstrap(
-				r.Client,
-				pg,
-				r.EventRecorder,
-				iPostgreSQL.Status.ClusterStatus,
-				pg.Spec.OnPremisesSpec,
-				newExposePorts(pg.GetExposePorts()),
-				pg.GetHeadlessPorts(),
-				pg.Spec.PrivateNetworkCluster,
-			)
-
-			err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-			if err != nil {
-				l.Error(
-					err, "Cannot create resources for on-premises cluster",
-					"cluster spec", pg.Spec.OnPremisesSpec,
-				)
-				r.EventRecorder.Eventf(
-					pg, models.Warning, models.CreationFailed,
-					"Resources creation for on-premises cluster is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			err = r.startClusterOnPremisesIPsJob(pg, bootstrap)
-			if err != nil {
-				l.Error(err, "Cannot start on-premises cluster IPs check job",
-					"cluster ID", pg.Status.ID,
-				)
-
-				r.EventRecorder.Eventf(
-					pg, models.Warning, models.CreationFailed,
-					"On-premises cluster IPs check job is failed. Reason: %v",
-					err,
-				)
-				return reconcile.Result{}, err
-			}
-
-			l.Info(
-				"On-premises resources have been created",
-				"cluster name", pg.Spec.Name,
-				"on-premises Spec", pg.Spec.OnPremisesSpec,
-				"cluster ID", pg.Status.ID,
-			)
+		if pg.Spec.DataCentres[0].CloudProvider == models.ONPREMISES {
 			return models.ExitReconcile, nil
 		}
 
@@ -590,23 +516,6 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 
 			return models.ExitReconcile, nil
 		}
-
-		if pg.Spec.OnPremisesSpec != nil && pg.Spec.OnPremisesSpec.EnableAutomation {
-			err = deleteOnPremResources(ctx, r.Client, pg.Status.ID, pg.Namespace)
-			if err != nil {
-				l.Error(err, "Cannot delete cluster on-premises resources",
-					"cluster ID", pg.Status.ID)
-				r.EventRecorder.Eventf(pg, models.Warning, models.DeletionFailed,
-					"Cluster on-premises resources deletion is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			l.Info("Cluster on-premises resources are deleted",
-				"cluster ID", pg.Status.ID)
-			r.EventRecorder.Eventf(pg, models.Normal, models.Deleted,
-				"Cluster on-premises resources are deleted")
-			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.OnPremisesIPsChecker))
-		}
 	}
 
 	l.Info("PostgreSQL cluster is being deleted. Deleting PostgreSQL default user secret",
@@ -792,6 +701,7 @@ func (r *PostgreSQLReconciler) handleUpdateDefaultUserPassword(
 	return models.ExitReconcile, nil
 }
 
+//nolint:unused,deadcode
 func (r *PostgreSQLReconciler) startClusterOnPremisesIPsJob(pg *v1beta1.PostgreSQL, b *onPremisesBootstrap) error {
 	job := newWatchOnPremisesIPsJob(pg.Kind, b)
 

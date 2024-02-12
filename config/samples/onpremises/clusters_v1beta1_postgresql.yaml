@@ -1,28 +1,15 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: PostgreSQL
 metadata:
-  name: postgresql-sample
+  name: postgresql-on-prem-sample
 spec:
-  name: "postgresql-sample"
+  name: "postgresql-on-prem-sample"
   version: "15.4.0"
-  onPremisesSpec:
-    enableAutomation: true
-    storageClassName: managed-csi-premium
-    osDiskSize: 20Gi
-    dataDiskSize: 200Gi
-    sshGatewayCPU: 2
-    sshGatewayMemory: 4096Mi
-    nodeCPU: 2
-    nodeMemory: 8192Mi
-    osImageURL: "https://s3.amazonaws.com/debian-bucket/debian-11-generic-amd64-20230601-1398.raw"
-    cloudInitScriptRef:
-      namespace: default
-      name: instaclustr-cloud-init-secret
   dataCentres:
     - region: "CLIENT_DC"
       network: "10.1.0.0/16"
       cloudProvider: "ONPREMISES"
-      nodeSize: "PGS-DEV-OP.4.8-200"
+      nodeSize: "PSQL-DEV-OP.4.8-200"
       nodesNumber: 2
       clientEncryption: false
       name: "testDC1"
@@ -31,5 +18,5 @@ spec:
       interDataCentreReplication:
         - isPrimaryDataCentre: true
   slaTier: "NON_PRODUCTION"
-  privateNetworkCluster: false
+  privateNetwork: false
   synchronousModeStrict: false

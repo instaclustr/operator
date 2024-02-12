@@ -67,8 +67,7 @@ type RedisRestoreFrom struct {
 type RedisSpec struct {
 	GenericClusterSpec `json:",inline"`
 
-	RestoreFrom    *RedisRestoreFrom `json:"restoreFrom,omitempty"`
-	OnPremisesSpec *OnPremisesSpec   `json:"onPremisesSpec,omitempty"`
+	RestoreFrom *RedisRestoreFrom `json:"restoreFrom,omitempty"`
 
 	// Enables client to node encryption
 	ClientEncryption bool `json:"clientEncryption"`

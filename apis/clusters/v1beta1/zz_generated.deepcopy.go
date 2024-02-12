@@ -233,11 +233,6 @@ func (in *CadenceList) DeepCopyObject() runtime.Object {
 func (in *CadenceSpec) DeepCopyInto(out *CadenceSpec) {
 	*out = *in
 	in.Cluster.DeepCopyInto(&out.Cluster)
-	if in.OnPremisesSpec != nil {
-		in, out := &in.OnPremisesSpec, &out.OnPremisesSpec
-		*out = new(OnPremisesSpec)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.DataCentres != nil {
 		in, out := &in.DataCentres, &out.DataCentres
 		*out = make([]*CadenceDataCentre, len(*in))
@@ -511,11 +506,6 @@ func (in *CassandraSpec) DeepCopyInto(out *CassandraSpec) {
 	if in.RestoreFrom != nil {
 		in, out := &in.RestoreFrom, &out.RestoreFrom
 		*out = new(CassandraRestoreFrom)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.OnPremisesSpec != nil {
-		in, out := &in.OnPremisesSpec, &out.OnPremisesSpec
-		*out = new(OnPremisesSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.DataCentres != nil {
@@ -1213,11 +1203,6 @@ func (in *KafkaConnectList) DeepCopyObject() runtime.Object {
 func (in *KafkaConnectSpec) DeepCopyInto(out *KafkaConnectSpec) {
 	*out = *in
 	in.Cluster.DeepCopyInto(&out.Cluster)
-	if in.OnPremisesSpec != nil {
-		in, out := &in.OnPremisesSpec, &out.OnPremisesSpec
-		*out = new(OnPremisesSpec)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.DataCentres != nil {
 		in, out := &in.DataCentres, &out.DataCentres
 		*out = make([]*KafkaConnectDataCentre, len(*in))
@@ -1380,11 +1365,6 @@ func (in *KafkaList) DeepCopyObject() runtime.Object {
 func (in *KafkaSpec) DeepCopyInto(out *KafkaSpec) {
 	*out = *in
 	in.GenericClusterSpec.DeepCopyInto(&out.GenericClusterSpec)
-	if in.OnPremisesSpec != nil {
-		in, out := &in.OnPremisesSpec, &out.OnPremisesSpec
-		*out = new(OnPremisesSpec)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.UserRefs != nil {
 		in, out := &in.UserRefs, &out.UserRefs
 		*out = make(References, len(*in))
@@ -2154,11 +2134,6 @@ func (in *PgSpec) DeepCopyInto(out *PgSpec) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.Cluster.DeepCopyInto(&out.Cluster)
-	if in.OnPremisesSpec != nil {
-		in, out := &in.OnPremisesSpec, &out.OnPremisesSpec
-		*out = new(OnPremisesSpec)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.DataCentres != nil {
 		in, out := &in.DataCentres, &out.DataCentres
 		*out = make([]*PgDataCentre, len(*in))
@@ -2538,11 +2513,6 @@ func (in *RedisSpec) DeepCopyInto(out *RedisSpec) {
 	if in.RestoreFrom != nil {
 		in, out := &in.RestoreFrom, &out.RestoreFrom
 		*out = new(RedisRestoreFrom)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.OnPremisesSpec != nil {
-		in, out := &in.OnPremisesSpec, &out.OnPremisesSpec
-		*out = new(OnPremisesSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.DataCentres != nil {

@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -36,13 +37,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
-	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -250,83 +249,6 @@ func (r *CadenceReconciler) handleCreateCluster(
 		r.EventRecorder.Event(c, models.Normal, models.Created,
 			"Cluster status check job is started")
 	}
-	if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
-		iData, err := r.API.GetCadence(c.Status.ID)
-		if err != nil {
-			l.Error(err, "Cannot get cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"data centres", c.Spec.DataCentres,
-				"cluster ID", c.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.FetchFailed,
-				"Cluster fetch from the Instaclustr API is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-		iCadence, err := c.FromInstAPI(iData)
-		if err != nil {
-			l.Error(
-				err, "Cannot convert cluster from the Instaclustr API",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.ConversionFailed,
-				"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		bootstrap := newOnPremisesBootstrap(
-			r.Client,
-			c,
-			r.EventRecorder,
-			iCadence.Status.ClusterStatus,
-			c.Spec.OnPremisesSpec,
-			newExposePorts(c.GetExposePorts()),
-			c.GetHeadlessPorts(),
-			c.Spec.PrivateNetworkCluster,
-		)
-
-		err = handleCreateOnPremisesClusterResources(ctx, bootstrap)
-		if err != nil {
-			l.Error(
-				err, "Cannot create resources for on-premises cluster",
-				"cluster spec", c.Spec.OnPremisesSpec,
-			)
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"Resources creation for on-premises cluster is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		err = r.startClusterOnPremisesIPsJob(c, bootstrap)
-		if err != nil {
-			l.Error(err, "Cannot start on-premises cluster IPs check job",
-				"cluster ID", c.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(
-				c, models.Warning, models.CreationFailed,
-				"On-premises cluster IPs check job is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		l.Info(
-			"On-premises resources have been created",
-			"cluster name", c.Spec.Name,
-			"on-premises Spec", c.Spec.OnPremisesSpec,
-			"cluster ID", c.Status.ID,
-		)
-		return models.ExitReconcile, nil
-	}
 
 	return ctrl.Result{}, nil
 }
@@ -491,42 +413,6 @@ func (r *CadenceReconciler) handleDeleteCluster(
 				"Two-Factor Delete is enabled, please confirm cluster deletion via email or phone.")
 			return ctrl.Result{}, nil
 		}
-		if c.Spec.OnPremisesSpec != nil && c.Spec.OnPremisesSpec.EnableAutomation {
-			err = deleteOnPremResources(ctx, r.Client, c.Status.ID, c.Namespace)
-			if err != nil {
-				l.Error(err, "Cannot delete cluster on-premises resources",
-					"cluster ID", c.Status.ID)
-				r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-					"Cluster on-premises resources deletion is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			l.Info("Cluster on-premises resources are deleted",
-				"cluster ID", c.Status.ID)
-			r.EventRecorder.Eventf(c, models.Normal, models.Deleted,
-				"Cluster on-premises resources are deleted")
-
-			patch := c.NewPatch()
-			controllerutil.RemoveFinalizer(c, models.DeletionFinalizer)
-
-			err = r.Patch(ctx, c, patch)
-			if err != nil {
-				l.Error(err, "Cannot patch cluster resource",
-					"cluster name", c.Spec.Name,
-					"cluster ID", c.Status.ID,
-					"kind", c.Kind,
-					"api Version", c.APIVersion,
-					"namespace", c.Namespace,
-					"cluster metadata", c.ObjectMeta,
-				)
-				r.EventRecorder.Eventf(c, models.Warning, models.PatchFailed,
-					"Cluster resource patch is failed. Reason: %v", err)
-				return reconcile.Result{}, err
-			}
-
-			return reconcile.Result{}, err
-		}
-		r.Scheduler.RemoveJob(c.GetJobID(scheduler.OnPremisesIPsChecker))
 	}
 
 	l.Info("Cadence cluster is being deleted",
@@ -822,17 +708,6 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 		ObjectMeta: metadata,
 		Spec:       spec,
 	}, nil
-}
-
-func (r *CadenceReconciler) startClusterOnPremisesIPsJob(c *v1beta1.Cadence, b *onPremisesBootstrap) error {
-	job := newWatchOnPremisesIPsJob(c.Kind, b)
-
-	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.OnPremisesIPsChecker), scheduler.ClusterStatusInterval, job)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (r *CadenceReconciler) startClusterStatusJob(c *v1beta1.Cadence) error {
