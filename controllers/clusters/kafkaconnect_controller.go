@@ -18,7 +18,9 @@ package clusters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -101,120 +103,102 @@ func (r *KafkaConnectReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 }
 
+func (r *KafkaConnectReconciler) mergeManagedClusterFromRef(ctx context.Context, kc *v1beta1.KafkaConnect) error {
+	managedCluster := kc.Spec.GetManagedCluster()
+	if managedCluster == nil || managedCluster.ClusterRef == nil {
+		return nil
+	}
+
+	targetClusterID, err := clusterresources.GetClusterID(r.Client, ctx, managedCluster.ClusterRef)
+	if err != nil {
+		return fmt.Errorf("failed to get managed cluster id by ref %s for kind %s, err: %w",
+			managedCluster.ClusterRef.AsNamespacedName().String(),
+			managedCluster.ClusterRef.ClusterKind,
+			err)
+	}
+
+	managedCluster.TargetKafkaClusterID = targetClusterID
+
+	return nil
+}
+
+func (r *KafkaConnectReconciler) createCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) error {
+	err := r.mergeManagedClusterFromRef(ctx, kc)
+	if err != nil {
+		return err
+	}
+
+	b, err := r.API.CreateClusterRaw(instaclustr.KafkaConnectEndpoint, kc.Spec.ToInstAPI())
+	if err != nil {
+		return fmt.Errorf("failed to create KafkaConnect cluster, err: %w", err)
+	}
+
+	var instaModel models.KafkaConnectCluster
+	err = json.Unmarshal(b, &instaModel)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal body to KafkaConnect model, err: %w", err)
+	}
+
+	kc.Spec.FromInstAPI(&instaModel)
+	kc.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
+	err = r.Update(ctx, kc)
+	if err != nil {
+		return fmt.Errorf("failed to update resource spec, err: %w", err)
+	}
+
+	kc.Status.FromInstAPI(&instaModel)
+	err = r.Status().Update(ctx, kc)
+	if err != nil {
+		return fmt.Errorf("failed to update resource status, err: %w", err)
+	}
+
+	l.Info("KafkaConnect cluster has been created",
+		"clusterID", kc.Status.ID,
+	)
+	r.EventRecorder.Eventf(
+		kc, models.Normal, models.Created,
+		"Cluster creation request is sent. Cluster ID: %s",
+		kc.Status.ID,
+	)
+
+	err = r.createDefaultSecret(ctx, kc, l)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *KafkaConnectReconciler) handleCreateCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) (reconcile.Result, error) {
 	l = l.WithName("Creation Event")
 
 	if kc.Status.ID == "" {
-		var err error
-		iKafkaConnectSpec := kc.Spec.ToInstAPI()
-		var targetClusterID string
-
-		for i, targetCluster := range kc.Spec.TargetCluster {
-			for j, managedCluster := range targetCluster.ManagedCluster {
-				if managedCluster.ClusterRef != nil {
-					targetClusterID, err = clusterresources.GetClusterID(r.Client, ctx, managedCluster.ClusterRef)
-					if err != nil {
-						l.Error(err, "Cannot get cluster ID",
-							"Cluster reference", managedCluster.ClusterRef,
-						)
-						return ctrl.Result{}, err
-					}
-
-					iKafkaConnectSpec.TargetCluster[i].ManagedCluster[j].TargetKafkaClusterID = targetClusterID
-					l.Info(
-						"Creating KafkaConnect cluster from cluster reference",
-						"cluster reference", managedCluster.ClusterRef,
-						"cluster ID", targetClusterID,
-					)
-				} else {
-					targetClusterID = managedCluster.TargetKafkaClusterID
-					l.Info(
-						"Creating Kafka Connect cluster",
-						"cluster name", kc.Spec.Name,
-						"cluster ID", targetClusterID,
-						"data centres", kc.Spec.DataCentres,
-					)
-				}
-			}
-		}
-
-		patch := kc.NewPatch()
-		kc.Status.ID, err = r.API.CreateCluster(instaclustr.KafkaConnectEndpoint, iKafkaConnectSpec)
+		err := r.createCluster(ctx, kc, l)
 		if err != nil {
-			l.Error(err, "cannot create Kafka Connect in Instaclustr", "Kafka Connect manifest", kc.Spec)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.CreationFailed,
-				"Cluster creation on the Instaclustr is failed. Reason: %v",
-				err,
+			r.EventRecorder.Eventf(kc, models.Warning, models.CreationFailed,
+				"Failed to create cluster resource. Reason: %v", err,
 			)
 			return reconcile.Result{}, err
 		}
-		kc.Status.TargetKafkaClusterID = targetClusterID
-
-		r.EventRecorder.Eventf(
-			kc, models.Normal, models.Created,
-			"Cluster creation request is sent. Cluster ID: %s",
-			kc.Status.ID,
-		)
-		err = r.Status().Patch(ctx, kc, patch)
-		if err != nil {
-			l.Error(err, "cannot patch Kafka Connect status ", "KC ID", kc.Status.ID)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		kc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
-		controllerutil.AddFinalizer(kc, models.DeletionFinalizer)
-		err = r.Patch(ctx, kc, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch Kafka Connect", "cluster name", kc.Spec.Name)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.PatchFailed,
-				"Cluster resource patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		err = r.createDefaultSecret(ctx, kc, l)
-		if err != nil {
-			l.Error(err, "Cannot create default secret for Kafka Connect",
-				"cluster name", kc.Spec.Name,
-				"clusterID", kc.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.CreationFailed,
-				"Default user secret creation on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-
-			return reconcile.Result{}, err
-		}
-
-		l.Info("Kafka Connect cluster has been created",
-			"cluster ID", kc.Status.ID,
-		)
 	}
 
 	if kc.Status.State != models.DeletedStatus {
-		err := r.startClusterStatusJob(kc)
+		patch := kc.NewPatch()
+		kc.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
+		controllerutil.AddFinalizer(kc, models.DeletionFinalizer)
+		err := r.Patch(ctx, kc, patch)
 		if err != nil {
-			l.Error(err, "Cannot start cluster status job", "cluster ID", kc.Status.ID)
-			r.EventRecorder.Eventf(
-				kc, models.Warning, models.CreationFailed,
-				"Cluster status check job is failed. Reason: %v",
-				err,
-			)
 			return reconcile.Result{}, err
+		}
+
+		err = r.startSyncJob(kc)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to start sync job, err: %w", err)
 		}
 
 		r.EventRecorder.Eventf(
 			kc, models.Normal, models.Created,
-			"Cluster status check job is started",
+			"Cluster sync job is started",
 		)
 	}
 
@@ -229,7 +213,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(
 ) (reconcile.Result, error) {
 	l = l.WithName("Update Event")
 
-	iData, err := r.API.GetKafkaConnect(kc.Status.ID)
+	instaModel, err := r.API.GetKafkaConnect(kc.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get Kafka Connect from Instaclustr",
 			"ClusterID", kc.Status.ID)
@@ -241,24 +225,15 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(
 		return reconcile.Result{}, err
 	}
 
-	iKC, err := kc.FromInst(iData)
-	if err != nil {
-		l.Error(err, "Cannot convert Kafka Connect from Instaclustr",
-			"ClusterID", kc.Status.ID)
-		r.EventRecorder.Eventf(
-			kc, models.Warning, models.ConversionFailed,
-			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v",
-			err,
-		)
-		return reconcile.Result{}, err
-	}
+	iKC := &v1beta1.KafkaConnect{}
+	iKC.FromInstAPI(instaModel)
 
 	if kc.Annotations[models.ExternalChangesAnnotation] == models.True ||
 		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
 		return handleExternalChanges[v1beta1.KafkaConnectSpec](r.EventRecorder, r.Client, kc, iKC, l)
 	}
 
-	if kc.Spec.ClusterSettingsNeedUpdate(iKC.Spec.Cluster) {
+	if kc.Spec.ClusterSettingsNeedUpdate(&iKC.Spec.GenericClusterSpec) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iKC.Spec.Description,
 			"instaclustr two factor delete", iKC.Spec.TwoFactorDelete)
@@ -274,7 +249,7 @@ func (r *KafkaConnectReconciler) handleUpdateCluster(
 		}
 	}
 
-	if !kc.Spec.IsEqual(iKC.Spec) {
+	if !kc.Spec.Equals(&iKC.Spec) {
 		l.Info("Update request to Instaclustr API has been sent",
 			"spec data centres", kc.Spec.DataCentres)
 
@@ -322,7 +297,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get Kafka Connect cluster",
 			"cluster name", kc.Spec.Name,
-			"cluster state", kc.Status.ClusterStatus.State)
+			"cluster state", kc.Status.State)
 		r.EventRecorder.Eventf(
 			kc, models.Warning, models.FetchFailed,
 			"Cluster fetch from the Instaclustr API is failed. Reason: %v",
@@ -489,8 +464,8 @@ func (r *KafkaConnectReconciler) startClusterOnPremisesIPsJob(k *v1beta1.KafkaCo
 	return nil
 }
 
-func (r *KafkaConnectReconciler) startClusterStatusJob(kc *v1beta1.KafkaConnect) error {
-	job := r.newWatchStatusJob(kc)
+func (r *KafkaConnectReconciler) startSyncJob(kc *v1beta1.KafkaConnect) error {
+	job := r.newSyncJob(kc)
 
 	err := r.Scheduler.ScheduleJob(kc.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
@@ -500,8 +475,9 @@ func (r *KafkaConnectReconciler) startClusterStatusJob(kc *v1beta1.KafkaConnect)
 	return nil
 }
 
-func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) scheduler.Job {
+func (r *KafkaConnectReconciler) newSyncJob(kc *v1beta1.KafkaConnect) scheduler.Job {
 	l := log.Log.WithValues("component", "kafkaConnectStatusClusterJob")
+
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(kc)
 		err := r.Get(context.Background(), namespacedName, kc)
@@ -517,7 +493,7 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 			return err
 		}
 
-		iData, err := r.API.GetKafkaConnect(kc.Status.ID)
+		instaModel, err := r.API.GetKafkaConnect(kc.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
 				if kc.DeletionTimestamp != nil {
@@ -533,22 +509,16 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 			return err
 		}
 
-		iKC, err := kc.FromInst(iData)
-		if err != nil {
-			l.Error(err, "Cannot convert Kafka Connect from Instaclustr",
-				"cluster ID", kc.Status.ID)
-			return err
-		}
+		iKC := &v1beta1.KafkaConnect{}
+		iKC.FromInstAPI(instaModel)
 
-		if !areStatusesEqual(&iKC.Status.ClusterStatus, &kc.Status.ClusterStatus) {
-			l.Info("Kafka Connect status of k8s is different from Instaclustr. Reconcile statuses..",
-				"instaclustr status", iKC.Status,
-				"status", kc.Status.ClusterStatus)
+		if !kc.Status.Equals(&iKC.Status) {
+			l.Info("Kafka Connect status of k8s is different from Instaclustr. Reconcile statuses..")
 
-			areDCsEqual := areDataCentresEqual(iKC.Status.ClusterStatus.DataCentres, kc.Status.ClusterStatus.DataCentres)
+			areDCsEqual := kc.Status.DCsEqual(iKC.Status.DataCentres)
 
 			patch := kc.NewPatch()
-			kc.Status.ClusterStatus = iKC.Status.ClusterStatus
+			kc.Status.FromInstAPI(instaModel)
 			err = r.Status().Patch(context.Background(), kc, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Kafka Connect cluster",
@@ -559,14 +529,14 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 			if !areDCsEqual {
 				var nodes []*v1beta1.Node
 
-				for _, dc := range iKC.Status.ClusterStatus.DataCentres {
+				for _, dc := range iKC.Status.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
 				}
 
 				err = exposeservice.Create(r.Client,
 					kc.Name,
 					kc.Namespace,
-					kc.Spec.PrivateNetworkCluster,
+					kc.Spec.PrivateNetwork,
 					nodes,
 					models.KafkaConnectConnectionPort)
 				if err != nil {
@@ -575,19 +545,13 @@ func (r *KafkaConnectReconciler) newWatchStatusJob(kc *v1beta1.KafkaConnect) sch
 			}
 		}
 
-		equals := kc.Spec.IsEqual(iKC.Spec)
+		equals := kc.Spec.Equals(&iKC.Spec)
 
 		if equals && kc.Annotations[models.ExternalChangesAnnotation] == models.True {
-			patch := kc.NewPatch()
-			delete(kc.Annotations, models.ExternalChangesAnnotation)
-			err := r.Patch(context.Background(), kc, patch)
+			err = reconcileExternalChanges(r.Client, r.EventRecorder, kc)
 			if err != nil {
 				return err
 			}
-
-			r.EventRecorder.Event(kc, models.Normal, models.ExternalChanges,
-				"External changes were automatically reconciled",
-			)
 		} else if kc.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			kc.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
 			!equals {
@@ -655,6 +619,10 @@ func (r *KafkaConnectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+					return false
+				}
+
 				if newObj.Status.ID == "" {
 					newObj.Annotations[models.ResourceStateAnnotation] = models.CreatingEvent
 					return true
@@ -681,7 +649,7 @@ func (r *KafkaConnectReconciler) reconcileMaintenanceEvents(ctx context.Context,
 		return err
 	}
 
-	if !kc.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+	if !kc.Status.MaintenanceEventsEqual(iMEStatuses) {
 		patch := kc.NewPatch()
 		kc.Status.MaintenanceEvents = iMEStatuses
 		err = r.Status().Patch(ctx, kc, patch)

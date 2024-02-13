@@ -11,10 +11,6 @@ type GenericClusterSpec struct {
 
 	Version string `json:"version,omitempty"`
 
-	// The PCI compliance standards relate to the security of user data and transactional information.
-	// Can only be applied clusters provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch and Redis.
-	PCICompliance bool `json:"pciCompliance,omitempty"`
-
 	PrivateNetwork bool `json:"privateNetwork,omitempty"`
 
 	// Non-production clusters may receive lower priority support and reduced SLAs.
@@ -30,7 +26,6 @@ type GenericClusterSpec struct {
 func (s *GenericClusterSpec) Equals(o *GenericClusterSpec) bool {
 	return s.Name == o.Name &&
 		s.Version == o.Version &&
-		s.PCICompliance == o.PCICompliance &&
 		s.PrivateNetwork == o.PrivateNetwork &&
 		s.SLATier == o.SLATier &&
 		s.Description == o.Description &&
@@ -39,7 +34,6 @@ func (s *GenericClusterSpec) Equals(o *GenericClusterSpec) bool {
 
 func (s *GenericClusterSpec) FromInstAPI(model *models.GenericClusterFields) {
 	s.Name = model.Name
-	s.PCICompliance = model.PCIComplianceMode
 	s.PrivateNetwork = model.PrivateNetworkCluster
 	s.SLATier = model.SLATier
 	s.Description = model.Description
@@ -60,7 +54,6 @@ func (s *GenericClusterSpec) ToInstAPI() models.GenericClusterFields {
 	return models.GenericClusterFields{
 		Name:                  s.Name,
 		Description:           s.Description,
-		PCIComplianceMode:     s.PCICompliance,
 		PrivateNetworkCluster: s.PrivateNetwork,
 		SLATier:               s.SLATier,
 		TwoFactorDelete:       s.TwoFactorDeleteToInstAPI(),

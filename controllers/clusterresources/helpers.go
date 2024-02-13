@@ -144,10 +144,6 @@ func GetDataCentreID(cl client.Client, ctx context.Context, ref *v1beta1.Cluster
 
 func GetClusterID(cl client.Client, ctx context.Context, ref *v1beta1.ClusterRef) (string, error) {
 	var obj ClusterIDProvider
-	ns := types.NamespacedName{
-		Namespace: ref.Namespace,
-		Name:      ref.Name,
-	}
 
 	switch ref.ClusterKind {
 	case models.RedisClusterKind:
@@ -170,7 +166,7 @@ func GetClusterID(cl client.Client, ctx context.Context, ref *v1beta1.ClusterRef
 		return "", models.ErrUnsupportedClusterKind
 	}
 
-	err := cl.Get(ctx, ns, obj)
+	err := cl.Get(ctx, ref.AsNamespacedName(), obj)
 	if err != nil {
 		return "", err
 	}

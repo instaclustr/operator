@@ -17,7 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"encoding/json"
 	"fmt"
 
 	k8scorev1 "k8s.io/api/core/v1"
@@ -27,6 +26,7 @@ import (
 
 	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 )
 
 type TargetCluster struct {
@@ -102,13 +102,17 @@ type GCPConnectorSettings struct {
 }
 
 type KafkaConnectDataCentre struct {
-	DataCentre        `json:",inline"`
-	ReplicationFactor int `json:"replicationFactor"`
+	GenericDataCentreSpec `json:",inline"`
+
+	NodeSize          string `json:"nodeSize"`
+	NumberOfNodes     int    `json:"numberOfNodes"`
+	ReplicationFactor int    `json:"replicationFactor"`
 }
 
 // KafkaConnectSpec defines the desired state of KafkaConnect
 type KafkaConnectSpec struct {
-	Cluster       `json:",inline"`
+	GenericClusterSpec `json:",inline"`
+
 	DataCentres   []*KafkaConnectDataCentre `json:"dataCentres"`
 	TargetCluster []*TargetCluster          `json:"targetCluster"`
 
@@ -118,8 +122,18 @@ type KafkaConnectSpec struct {
 
 // KafkaConnectStatus defines the observed state of KafkaConnect
 type KafkaConnectStatus struct {
-	ClusterStatus        `json:",inline"`
-	TargetKafkaClusterID string     `json:"targetKafkaClusterId,omitempty"`
+	GenericStatus `json:",inline"`
+
+	DataCentres []*KafkaConnectDataCentreStatus `json:"dataCentres,omitempty"`
+
+	DefaultUserSecretRef *Reference `json:"defaultUserSecretRef,omitempty"`
+}
+
+type KafkaConnectDataCentreStatus struct {
+	GenericDataCentreStatus `json:",inline"`
+
+	NumberOfNodes        int        `json:"numberOfNodes,omitempty"`
+	Nodes                []*Node    `json:"nodes,omitempty"`
 	DefaultUserSecretRef *Reference `json:"defaultUserSecretRef,omitempty"`
 }
 
@@ -177,67 +191,59 @@ func init() {
 	SchemeBuilder.Register(&KafkaConnect{}, &KafkaConnectList{})
 }
 
-func (k *KafkaConnect) FromInst(iKCData []byte) (*KafkaConnect, error) {
-	iKC := &models.KafkaConnectCluster{}
-	err := json.Unmarshal(iKCData, iKC)
-	if err != nil {
-		return nil, err
-	}
-
-	return &KafkaConnect{
-		TypeMeta:   k.TypeMeta,
-		ObjectMeta: k.ObjectMeta,
-		Spec:       k.Spec.FromInstAPI(iKC),
-		Status:     k.Status.FromInstAPI(iKC),
-	}, nil
+func (k *KafkaConnect) FromInstAPI(instaModel *models.KafkaConnectCluster) {
+	k.Spec.FromInstAPI(instaModel)
+	k.Status.FromInstAPI(instaModel)
 }
 
-func (ks *KafkaConnectSpec) FromInstAPI(iKC *models.KafkaConnectCluster) KafkaConnectSpec {
-	return KafkaConnectSpec{
-		Cluster: Cluster{
-			Name:                  iKC.Name,
-			Version:               iKC.KafkaConnectVersion,
-			Description:           iKC.Description,
-			PrivateNetworkCluster: iKC.PrivateNetworkCluster,
-			SLATier:               iKC.SLATier,
-			TwoFactorDelete:       ks.Cluster.TwoFactorDeleteFromInstAPI(iKC.TwoFactorDelete),
-		},
-		DataCentres:      ks.DCsFromInstAPI(iKC.DataCentres),
-		TargetCluster:    ks.TargetClustersFromInstAPI(iKC.TargetCluster),
-		CustomConnectors: ks.CustomConnectorsFromInstAPI(iKC.CustomConnectors),
-	}
+func (ks *KafkaConnectSpec) FromInstAPI(instaModel *models.KafkaConnectCluster) {
+	ks.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields)
+
+	ks.Version = instaModel.KafkaConnectVersion
+
+	ks.DCsFromInstAPI(instaModel.DataCentres)
+	ks.TargetClustersFromInstAPI(instaModel.TargetCluster)
+	ks.CustomConnectorsFromInstAPI(instaModel.CustomConnectors)
 }
 
-func (ks *KafkaConnectStatus) FromInstAPI(iKC *models.KafkaConnectCluster) KafkaConnectStatus {
-	return KafkaConnectStatus{
-		ClusterStatus: ClusterStatus{
-			ID:                            iKC.ID,
-			State:                         iKC.Status,
-			DataCentres:                   ks.DCsFromInstAPI(iKC.DataCentres),
-			CurrentClusterOperationStatus: iKC.CurrentClusterOperationStatus,
-			MaintenanceEvents:             ks.MaintenanceEvents,
-		},
+func (ks *KafkaConnectStatus) FromInstAPI(instaModel *models.KafkaConnectCluster) {
+	ks.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
+	ks.DCsFromInstAPI(instaModel.DataCentres)
+}
+
+func (ks *KafkaConnectSpec) DCsFromInstAPI(instaModels []*models.KafkaConnectDataCentre) {
+	ks.DataCentres = make([]*KafkaConnectDataCentre, len(instaModels))
+	for i, instaModel := range instaModels {
+		dc := KafkaConnectDataCentre{}
+		dc.FromInstAPI(instaModel)
+		ks.DataCentres[i] = &dc
 	}
 }
 
-func (ks *KafkaConnectSpec) DCsFromInstAPI(iDCs []*models.KafkaConnectDataCentre) (dcs []*KafkaConnectDataCentre) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, &KafkaConnectDataCentre{
-			DataCentre:        ks.Cluster.DCFromInstAPI(iDC.DataCentre),
-			ReplicationFactor: iDC.ReplicationFactor,
-		})
-	}
-	return
+func (k *KafkaConnectDataCentre) FromInstAPI(instaModel *models.KafkaConnectDataCentre) {
+	k.GenericDataCentreSpec.FromInstAPI(&instaModel.GenericDataCentreFields)
+
+	k.NodeSize = instaModel.NodeSize
+	k.NumberOfNodes = instaModel.NumberOfNodes
+	k.ReplicationFactor = instaModel.ReplicationFactor
 }
 
-func (ks *KafkaConnectSpec) TargetClustersFromInstAPI(iClusters []*models.TargetCluster) (clusters []*TargetCluster) {
-	for _, iCluster := range iClusters {
-		clusters = append(clusters, &TargetCluster{
-			ExternalCluster: ks.ExternalClustersFromInstAPI(iCluster.ExternalCluster),
-			ManagedCluster:  ks.ManagedClustersFromInstAPI(iCluster.ManagedCluster),
-		})
+func (k *KafkaConnectDataCentre) Equals(o *KafkaConnectDataCentre) bool {
+	return k.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
+		k.NumberOfNodes == o.NumberOfNodes &&
+		k.ReplicationFactor == o.ReplicationFactor &&
+		k.NodeSize == o.NodeSize
+}
+
+func (ks *KafkaConnectSpec) TargetClustersFromInstAPI(instaModels []*models.TargetCluster) {
+	targetCluster := make([]*TargetCluster, len(instaModels))
+	for i, instaModel := range instaModels {
+		targetCluster[i] = &TargetCluster{
+			ExternalCluster: ks.ExternalClustersFromInstAPI(instaModel.ExternalCluster),
+			ManagedCluster:  ks.ManagedClustersFromInstAPI(instaModel.ManagedCluster),
+		}
 	}
-	return
+	ks.TargetCluster = targetCluster
 }
 
 func (ks *KafkaConnectSpec) ExternalClustersFromInstAPI(iClusters []*models.ExternalCluster) (clusters []*ExternalCluster) {
@@ -257,24 +263,30 @@ func (ks *KafkaConnectSpec) ExternalClustersFromInstAPI(iClusters []*models.Exte
 }
 
 func (ks *KafkaConnectSpec) ManagedClustersFromInstAPI(iClusters []*models.ManagedCluster) (clusters []*ManagedCluster) {
+	var clusterRef *clusterresource.ClusterRef
+	if managedCluster := ks.GetManagedCluster(); managedCluster != nil {
+		clusterRef = managedCluster.ClusterRef
+	}
+
 	for _, iCluster := range iClusters {
 		clusters = append(clusters, &ManagedCluster{
 			TargetKafkaClusterID: iCluster.TargetKafkaClusterID,
 			KafkaConnectVPCType:  iCluster.KafkaConnectVPCType,
+			ClusterRef:           clusterRef,
 		})
 	}
 	return
 }
 
-func (ks *KafkaConnectSpec) CustomConnectorsFromInstAPI(iConns []*models.CustomConnectors) (conns []*CustomConnectors) {
-	for _, iConn := range iConns {
-		conns = append(conns, &CustomConnectors{
+func (ks *KafkaConnectSpec) CustomConnectorsFromInstAPI(instaModels []*models.CustomConnectors) {
+	ks.CustomConnectors = make([]*CustomConnectors, len(instaModels))
+	for i, iConn := range instaModels {
+		ks.CustomConnectors[i] = &CustomConnectors{
 			AzureConnectorSettings: ks.AzureConnectorSettingsFromInstAPI(iConn.AzureConnectorSettings),
 			AWSConnectorSettings:   ks.AWSConnectorSettingsFromInstAPI(iConn.AWSConnectorSettings),
 			GCPConnectorSettings:   ks.GCPConnectorSettingsFromInstAPI(iConn.GCPConnectorSettings),
-		})
+		}
 	}
-	return
 }
 
 func (ks *KafkaConnectSpec) AzureConnectorSettingsFromInstAPI(iSettings []*models.AzureConnectorSettings) (settings []*AzureConnectorSettings) {
@@ -314,40 +326,45 @@ func (ks *KafkaConnectSpec) GCPConnectorSettingsFromInstAPI(iSettings []*models.
 	return
 }
 
-func (ks *KafkaConnectStatus) DCsFromInstAPI(iDCs []*models.KafkaConnectDataCentre) (dcs []*DataCentreStatus) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, ks.DCFromInstAPI(iDC.DataCentre))
+func (ks *KafkaConnectStatus) DCsFromInstAPI(instaModels []*models.KafkaConnectDataCentre) {
+	ks.DataCentres = make([]*KafkaConnectDataCentreStatus, len(instaModels))
+	for i, instaModel := range instaModels {
+		dc := KafkaConnectDataCentreStatus{}
+		dc.FromInstAPI(instaModel)
+		ks.DataCentres[i] = &dc
 	}
-	return
 }
 
 func (c *KafkaConnect) GetSpec() KafkaConnectSpec { return c.Spec }
 
 func (c *KafkaConnect) IsSpecEqual(spec KafkaConnectSpec) bool {
-	return c.Spec.IsEqual(spec)
+	return c.Spec.Equals(&spec)
 }
 
-func (ks *KafkaConnectSpec) IsEqual(kc KafkaConnectSpec) bool {
-	return ks.Cluster.IsEqual(kc.Cluster) &&
-		ks.AreDataCentresEqual(kc.DataCentres) &&
-		ks.AreTargetClustersEqual(kc.TargetCluster) &&
-		ks.AreCustomConnectorsEqual(kc.CustomConnectors)
+func (ks *KafkaConnectSpec) Equals(o *KafkaConnectSpec) bool {
+	return ks.GenericClusterSpec.Equals(&o.GenericClusterSpec) &&
+		ks.DCsEqual(o.DataCentres) &&
+		ks.TargetClustersEqual(o.TargetCluster) &&
+		ks.CustomConnectorsEqual(o.CustomConnectors)
 }
 
-func (ks *KafkaConnectSpec) AreDataCentresEqual(dcs []*KafkaConnectDataCentre) bool {
-	if len(ks.DataCentres) != len(dcs) {
+func (ks *KafkaConnectSpec) DCsEqual(o []*KafkaConnectDataCentre) bool {
+	if len(ks.DataCentres) != len(o) {
 		return false
 	}
 
-	for i, iDC := range dcs {
-		dataCentre := ks.DataCentres[i]
+	m := map[string]*KafkaConnectDataCentre{}
+	for _, dc := range ks.DataCentres {
+		m[dc.Name] = dc
+	}
 
-		if iDC.Name != dataCentre.Name {
-			continue
+	for _, dc := range o {
+		mDC, ok := m[dc.Name]
+		if !ok {
+			return false
 		}
 
-		if !dataCentre.IsEqual(iDC.DataCentre) ||
-			iDC.ReplicationFactor != dataCentre.ReplicationFactor {
+		if !mDC.Equals(dc) {
 			return false
 		}
 	}
@@ -355,15 +372,15 @@ func (ks *KafkaConnectSpec) AreDataCentresEqual(dcs []*KafkaConnectDataCentre) b
 	return true
 }
 
-func (ks *KafkaConnectSpec) AreTargetClustersEqual(tClusters []*TargetCluster) bool {
-	if len(ks.TargetCluster) != len(tClusters) {
+func (ks *KafkaConnectSpec) TargetClustersEqual(o []*TargetCluster) bool {
+	if len(ks.TargetCluster) != len(o) {
 		return false
 	}
 
-	for i, tCluster := range tClusters {
-		cluster := ks.TargetCluster[i]
-		if !cluster.AreExternalClustersEqual(tCluster.ExternalCluster) ||
-			!cluster.AreManagedClustersEqual(tCluster.ManagedCluster) {
+	for i := range o {
+
+		if !slices.EqualsPtr(ks.TargetCluster[i].ExternalCluster, o[i].ExternalCluster) ||
+			!ks.managedClustersEqual(ks.TargetCluster[i].ManagedCluster, o[i].ManagedCluster) {
 			return false
 		}
 	}
@@ -371,14 +388,14 @@ func (ks *KafkaConnectSpec) AreTargetClustersEqual(tClusters []*TargetCluster) b
 	return true
 }
 
-func (tc *TargetCluster) AreExternalClustersEqual(eClusters []*ExternalCluster) bool {
-	if len(tc.ExternalCluster) != len(eClusters) {
+func (ks *KafkaConnectSpec) managedClustersEqual(m1, m2 []*ManagedCluster) bool {
+	if len(m1) != len(m2) {
 		return false
 	}
 
-	for i, eCluster := range eClusters {
-		cluster := tc.ExternalCluster[i]
-		if *eCluster != *cluster {
+	for i := range m1 {
+		if m1[i].TargetKafkaClusterID != m2[i].TargetKafkaClusterID ||
+			m1[i].KafkaConnectVPCType != m2[i].KafkaConnectVPCType {
 			return false
 		}
 	}
@@ -386,76 +403,15 @@ func (tc *TargetCluster) AreExternalClustersEqual(eClusters []*ExternalCluster) 
 	return true
 }
 
-func (tc *TargetCluster) AreManagedClustersEqual(mClusters []*ManagedCluster) bool {
-	if len(tc.ManagedCluster) != len(mClusters) {
+func (ks *KafkaConnectSpec) CustomConnectorsEqual(o []*CustomConnectors) bool {
+	if len(ks.CustomConnectors) != len(o) {
 		return false
 	}
 
-	for i, mCluster := range mClusters {
-		cluster := tc.ManagedCluster[i]
-		if mCluster.KafkaConnectVPCType != cluster.KafkaConnectVPCType {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (ks *KafkaConnectSpec) AreCustomConnectorsEqual(cConns []*CustomConnectors) bool {
-	if len(ks.CustomConnectors) != len(cConns) {
-		return false
-	}
-
-	for i, cConn := range cConns {
-		conn := ks.CustomConnectors[i]
-		if !conn.AreAzureConnectorSettingsEqual(cConn.AzureConnectorSettings) ||
-			!conn.AreAWSConnectorSettingsEqual(cConn.AWSConnectorSettings) ||
-			!conn.AreGCPConnectorSettingsEqual(cConn.GCPConnectorSettings) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (cc *CustomConnectors) AreAzureConnectorSettingsEqual(aSettings []*AzureConnectorSettings) bool {
-	if len(cc.AzureConnectorSettings) != len(aSettings) {
-		return false
-	}
-
-	for i, aSetting := range aSettings {
-		settings := cc.AzureConnectorSettings[i]
-		if *aSetting != *settings {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (cc *CustomConnectors) AreAWSConnectorSettingsEqual(aSettings []*AWSConnectorSettings) bool {
-	if len(cc.AWSConnectorSettings) != len(aSettings) {
-		return false
-	}
-
-	for i, aSetting := range aSettings {
-		settings := cc.AWSConnectorSettings[i]
-		if *aSetting != *settings {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (cc *CustomConnectors) AreGCPConnectorSettingsEqual(gSettings []*GCPConnectorSettings) bool {
-	if len(cc.GCPConnectorSettings) != len(gSettings) {
-		return false
-	}
-
-	for i, gSetting := range gSettings {
-		settings := cc.GCPConnectorSettings[i]
-		if *gSetting != *settings {
+	for i := range ks.CustomConnectors {
+		if !slices.EqualsPtr(ks.CustomConnectors[i].AWSConnectorSettings, o[i].AWSConnectorSettings) ||
+			!slices.EqualsPtr(ks.CustomConnectors[i].GCPConnectorSettings, o[i].GCPConnectorSettings) ||
+			!slices.EqualsPtr(ks.CustomConnectors[i].AzureConnectorSettings, o[i].AzureConnectorSettings) {
 			return false
 		}
 	}
@@ -469,17 +425,13 @@ func (ks *KafkaConnectSpec) NewDCsUpdate() models.KafkaConnectAPIUpdate {
 	}
 }
 
-func (ks *KafkaConnectSpec) ToInstAPI() models.KafkaConnectCluster {
-	return models.KafkaConnectCluster{
-		Name:                  ks.Name,
-		KafkaConnectVersion:   ks.Version,
-		PrivateNetworkCluster: ks.PrivateNetworkCluster,
-		Description:           ks.Description,
-		SLATier:               ks.SLATier,
-		TwoFactorDelete:       ks.TwoFactorDeletesToInstAPI(),
-		CustomConnectors:      ks.CustomConnectorsToInstAPI(),
-		TargetCluster:         ks.TargetClustersToInstAPI(),
-		DataCentres:           ks.DCsToInstAPI(),
+func (ks *KafkaConnectSpec) ToInstAPI() *models.KafkaConnectCluster {
+	return &models.KafkaConnectCluster{
+		GenericClusterFields: ks.GenericClusterSpec.ToInstAPI(),
+		KafkaConnectVersion:  ks.Version,
+		CustomConnectors:     ks.CustomConnectorsToInstAPI(),
+		TargetCluster:        ks.TargetClustersToInstAPI(),
+		DataCentres:          ks.DCsToInstAPI(),
 	}
 }
 
@@ -492,8 +444,10 @@ func (ks *KafkaConnectSpec) DCsToInstAPI() (iDCs []*models.KafkaConnectDataCentr
 
 func (kdc *KafkaConnectDataCentre) ToInstAPI() *models.KafkaConnectDataCentre {
 	return &models.KafkaConnectDataCentre{
-		DataCentre:        kdc.DataCentre.ToInstAPI(),
-		ReplicationFactor: kdc.ReplicationFactor,
+		GenericDataCentreFields: kdc.GenericDataCentreSpec.ToInstAPI(),
+		NodeSize:                kdc.NodeSize,
+		NumberOfNodes:           kdc.NumberOfNodes,
+		ReplicationFactor:       kdc.ReplicationFactor,
 	}
 }
 
@@ -612,7 +566,7 @@ func (k *KafkaConnect) NewDefaultUserSecret(username, password string) *k8scorev
 
 func (k *KafkaConnect) GetExposePorts() []k8scorev1.ServicePort {
 	var exposePorts []k8scorev1.ServicePort
-	if !k.Spec.PrivateNetworkCluster {
+	if !k.Spec.PrivateNetwork {
 		exposePorts = []k8scorev1.ServicePort{
 			{
 				Name: models.KafkaConnectAPI,
@@ -639,4 +593,57 @@ func (k *KafkaConnect) GetHeadlessPorts() []k8scorev1.ServicePort {
 		},
 	}
 	return headlessPorts
+}
+
+func (s *KafkaConnectDataCentreStatus) FromInstAPI(instaModel *models.KafkaConnectDataCentre) {
+	s.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
+	s.NumberOfNodes = instaModel.NumberOfNodes
+	s.Nodes = nodesFromInstAPI(instaModel.Nodes)
+}
+
+func (s *KafkaConnectDataCentreStatus) Equals(o *KafkaConnectDataCentreStatus) bool {
+	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
+		nodesEqual(s.Nodes, o.Nodes) &&
+		s.NumberOfNodes == o.NumberOfNodes
+}
+
+func (ks *KafkaConnectSpec) GetManagedCluster() *ManagedCluster {
+	if len(ks.TargetCluster) < 1 {
+		return nil
+	}
+
+	if len(ks.TargetCluster[0].ManagedCluster) < 1 || ks.TargetCluster[0].ManagedCluster[0] == nil {
+		return nil
+	}
+
+	return ks.TargetCluster[0].ManagedCluster[0]
+}
+
+func (ks *KafkaConnectStatus) Equals(o *KafkaConnectStatus) bool {
+	return ks.GenericStatus.Equals(&o.GenericStatus) &&
+		ks.DCsEqual(o.DataCentres)
+}
+
+func (ks *KafkaConnectStatus) DCsEqual(o []*KafkaConnectDataCentreStatus) bool {
+	if len(ks.DataCentres) != len(o) {
+		return false
+	}
+
+	m := map[string]*KafkaConnectDataCentreStatus{}
+	for _, dc := range ks.DataCentres {
+		m[dc.ID] = dc
+	}
+
+	for _, dc := range o {
+		mDC, ok := m[dc.ID]
+		if !ok {
+			return false
+		}
+
+		if !mDC.Equals(dc) {
+			return false
+		}
+	}
+
+	return true
 }

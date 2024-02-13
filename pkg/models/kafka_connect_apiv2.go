@@ -17,17 +17,14 @@ limitations under the License.
 package models
 
 type KafkaConnectCluster struct {
-	ClusterStatus         `json:",inline"`
-	Name                  string                    `json:"name,omitempty"`
-	KafkaConnectVersion   string                    `json:"kafkaConnectVersion,omitempty"`
+	GenericClusterFields `json:",inline"`
+
+	KafkaConnectVersion   string                    `json:"kafkaConnectVersion"`
 	PrivateNetworkCluster bool                      `json:"privateNetworkCluster"`
-	SLATier               string                    `json:"slaTier,omitempty"`
-	TwoFactorDelete       []*TwoFactorDelete        `json:"twoFactorDelete,omitempty"`
 	CustomConnectors      []*CustomConnectors       `json:"customConnectors,omitempty"`
-	TargetCluster         []*TargetCluster          `json:"targetCluster,omitempty"`
-	DataCentres           []*KafkaConnectDataCentre `json:"dataCentres,omitempty"`
+	TargetCluster         []*TargetCluster          `json:"targetCluster"`
+	DataCentres           []*KafkaConnectDataCentre `json:"dataCentres"`
 	ResizeSettings        []*ResizeSettings         `json:"resizeSettings,omitempty"`
-	Description           string                    `json:"description,omitempty"`
 }
 
 type ManagedCluster struct {
@@ -64,9 +61,9 @@ type AzureConnectorSettings struct {
 }
 
 type AWSConnectorSettings struct {
-	S3RoleArn    string `json:"s3RoleArn"`
-	SecretKey    string `json:"secretKey"`
-	AccessKey    string `json:"accessKey"`
+	S3RoleArn    string `json:"s3RoleArn,omitempty"`
+	SecretKey    string `json:"secretKey,omitempty"`
+	AccessKey    string `json:"accessKey,omitempty"`
 	S3BucketName string `json:"s3BucketName"`
 }
 
@@ -80,8 +77,13 @@ type GCPConnectorSettings struct {
 }
 
 type KafkaConnectDataCentre struct {
-	DataCentre        `json:",inline"`
-	ReplicationFactor int `json:"replicationFactor"`
+	GenericDataCentreFields `json:",inline"`
+
+	NodeSize          string `json:"nodeSize"`
+	NumberOfNodes     int    `json:"numberOfNodes"`
+	ReplicationFactor int    `json:"replicationFactor"`
+
+	Nodes []*Node `json:"nodes,omitempty"`
 }
 
 type KafkaConnectAPIUpdate struct {

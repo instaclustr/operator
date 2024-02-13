@@ -226,6 +226,7 @@ type immutableRedisFields struct {
 type specificRedisFields struct {
 	ClientEncryption    bool
 	PasswordAndUserAuth bool
+	PCICompliance       bool
 }
 
 type immutableRedisDCFields struct {
@@ -320,6 +321,7 @@ func (rs *RedisSpec) newImmutableFields() *immutableRedisFields {
 		specificRedisFields: specificRedisFields{
 			ClientEncryption:    rs.ClientEncryption,
 			PasswordAndUserAuth: rs.PasswordAndUserAuth,
+			PCICompliance:       rs.PCICompliance,
 		},
 		immutableCluster: rs.GenericClusterSpec.immutableFields(),
 	}

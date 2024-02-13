@@ -3,31 +3,31 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  name: "example-Kafka"
+  name: "example-kafka"
   version: "3.5.1"
   pciCompliance: false
   replicationFactor: 3
   partitionsNumber: 3
   allowDeleteTopics: true
   autoCreateTopics: true
-  clientToClusterEncryption: false
+  clientToClusterEncryption: true
   privateNetwork: false
   slaTier: "NON_PRODUCTION"
   #  bundledUseOnly: true
-#  clientBrokerAuthWithMtls: true
+  clientBrokerAuthWithMtls: true
   #  dedicatedZookeeper:
   #    - nodeSize: "KDZ-DEV-t4g.small-30"
   #      nodesNumber: 3
   #  twoFactorDelete:
   #    - email: "asdfadfsdsf"
   #      phone: "ddsafasdf"
-#  karapaceSchemaRegistry:
-#    - version: "3.6.2"
+  karapaceSchemaRegistry:
+    - version: "3.6.2"
 #  schemaRegistry:
 #    - version: "3.0.0"
-#  karapaceRestProxy:
-#    - integrateRestProxyWithSchemaRegistry: true
-#      version: "3.6.2"
+  karapaceRestProxy:
+    - integrateRestProxyWithSchemaRegistry: true
+      version: "3.6.2"
   #  kraft:
   #    - controllerNodeCount: 3
   #  restProxy:

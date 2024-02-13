@@ -1,7 +1,7 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
-  name: cassandra-cluster
+  name: cassandra-cluster-2
 spec:
   name: "example-cassandra" #(immutable)
   version: "4.0.10" #(immutable)
@@ -12,11 +12,11 @@ spec:
 #      debezium:
 #        - kafkaVpcType: "VPC_PEERED" #(immutable)
 #          kafkaTopicPrefix: "test" #(immutable)
-#          kafkaCdcId: "556b283e-d094-4bcf-a068-14fa68c2a43a" #(mutable)
-##          clusterRef:1
-##            name: kafka
-##            namespace: default
-##            clusterKind: Kafka
+#          kafkaCdcId: 8db44d06-3cd6-4bb3-86fb-c9b1e2a03941 #(mutable)
+#          clusterRef:
+#            name: kafka
+#            namespace: default
+#            clusterKind: Kafka
 #          version: "2.0.1" #(immutable)
       cloudProvider: "AWS_VPC" #(immutable)
       continuousBackup: false #(immutable)
@@ -51,9 +51,9 @@ spec:
   pciCompliance: false #(immutable)
   luceneEnabled: false   #(immutable)     # can be enabled only on 3.11.13 version of Cassandra (currently it could be enabled on 4.0.10 version as well)
   passwordAndUserAuth: true #(immutable)
-  #  userRefs:
-  #    - namespace: default
-  #      name: cassandrauser-sample
+#  userRefs:
+#    - namespace: default
+#      name: cassandrauser-sample
   #    - namespace: default
   #      name: cassandrauser-sample2
   #    - namespace: default

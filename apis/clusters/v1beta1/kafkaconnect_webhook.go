@@ -65,10 +65,6 @@ func (r *KafkaConnect) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
-
-	for _, dataCentre := range r.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
-	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -90,7 +86,7 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 		return err
 	}
 
-	err = kc.Spec.Cluster.ValidateCreation()
+	err = kc.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -152,7 +148,7 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 			return models.ErrOnPremisesWithMultiDC
 		}
 
-		err = dc.DataCentre.ValidateCreation()
+		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
 			return err
 		}
@@ -162,7 +158,7 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 			return err
 		}
 
-		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
+		if ((dc.NumberOfNodes*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
 		}
 	}
@@ -178,6 +174,10 @@ func (kcv *kafkaConnectValidator) ValidateUpdate(ctx context.Context, old runtim
 	}
 
 	kafkaconnectlog.Info("validate update", "name", kc.Name)
+
+	if kc.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+		return nil
+	}
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
 	if kc.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -230,7 +230,7 @@ type immutableKafkaConnectDCFields struct {
 
 func (kc *KafkaConnectSpec) newImmutableFields() *immutableKafkaConnectFields {
 	return &immutableKafkaConnectFields{
-		immutableCluster: kc.Cluster.newImmutableFields(),
+		immutableCluster: kc.GenericClusterSpec.immutableFields(),
 	}
 }
 
@@ -274,7 +274,7 @@ func (kc *KafkaConnectSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Kaf
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}
@@ -284,11 +284,11 @@ func (kc *KafkaConnectSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Kaf
 			return err
 		}
 
-		if newDC.NodesNumber < oldDC.NodesNumber {
-			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		if newDC.NumberOfNodes < oldDC.NumberOfNodes {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NumberOfNodes)
 		}
 
-		if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+		if ((newDC.NumberOfNodes*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
 		}
 	}

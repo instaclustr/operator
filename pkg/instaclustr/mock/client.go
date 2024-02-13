@@ -310,7 +310,7 @@ func (c *mockClient) GetKafka(id string) (*models.KafkaCluster, error) {
 	panic("GetKafka: is not implemented")
 }
 
-func (c *mockClient) GetKafkaConnect(id string) ([]byte, error) {
+func (c *mockClient) GetKafkaConnect(id string) (*models.KafkaConnectCluster, error) {
 	panic("GetKafkaConnect: is not implemented")
 }
 

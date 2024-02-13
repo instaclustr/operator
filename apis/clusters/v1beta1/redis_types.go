@@ -73,6 +73,7 @@ type RedisSpec struct {
 	ClientEncryption bool `json:"clientEncryption"`
 	// Enables Password Authentication and User Authorization
 	PasswordAndUserAuth bool `json:"passwordAndUserAuth"`
+	PCICompliance       bool `json:"pciCompliance,omitempty"`
 
 	//+kubebuilder:validation:MaxItems:=2
 	DataCentres []*RedisDataCentre `json:"dataCentres"`
@@ -166,6 +167,7 @@ func (rs *RedisSpec) ToInstAPI() *models.RedisCluster {
 		RedisVersion:           rs.Version,
 		ClientToNodeEncryption: rs.ClientEncryption,
 		PasswordAndUserAuth:    rs.PasswordAndUserAuth,
+		PCIComplianceMode:      rs.PCICompliance,
 		DataCentres:            rs.DCsToInstAPI(),
 	}
 }
@@ -267,6 +269,7 @@ func (rs *RedisSpec) FromInstAPI(instaModel *models.RedisCluster) {
 	rs.ClientEncryption = instaModel.ClientToNodeEncryption
 	rs.PasswordAndUserAuth = instaModel.PasswordAndUserAuth
 	rs.Version = instaModel.RedisVersion
+	rs.PCICompliance = instaModel.PCIComplianceMode
 
 	rs.DCsFromInstAPI(instaModel.DataCentres)
 }
@@ -308,21 +311,12 @@ func (rs *RedisStatus) DCsFromInstAPI(instaModels []*models.RedisDataCentre) {
 func (s *RedisDataCentreStatus) FromInstAPI(instaModel *models.RedisDataCentre) {
 	s.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
 	s.PrivateLink.FromInstAPI(instaModel.PrivateLink)
-	s.nodesFromInstAPI(instaModel.Nodes)
-}
-
-func (s *RedisDataCentreStatus) nodesFromInstAPI(instaModels []*models.Node) {
-	s.Nodes = make([]*Node, len(instaModels))
-	for i, instaModel := range instaModels {
-		n := Node{}
-		n.FromInstAPI(instaModel)
-		s.Nodes[i] = &n
-	}
+	s.Nodes = nodesFromInstAPI(instaModel.Nodes)
 }
 
 func (s *RedisDataCentreStatus) Equals(o *RedisDataCentreStatus) bool {
 	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
-		s.nodesEqual(o.Nodes) &&
+		nodesEqual(s.Nodes, o.Nodes) &&
 		slices.EqualsPtr(s.PrivateLink, o.PrivateLink)
 }
 
@@ -348,30 +342,6 @@ func (rs *RedisStatus) DCsEqual(o []*RedisDataCentreStatus) bool {
 		}
 
 		if !mDC.Equals(dc) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (s *RedisDataCentreStatus) nodesEqual(o []*Node) bool {
-	if len(s.Nodes) != len(o) {
-		return false
-	}
-
-	m := map[string]*Node{}
-	for _, node := range s.Nodes {
-		m[node.ID] = node
-	}
-
-	for _, node := range o {
-		mNode, ok := m[node.ID]
-		if !ok {
-			return false
-		}
-
-		if !mNode.Equals(node) {
 			return false
 		}
 	}

@@ -90,7 +90,7 @@ var _ = Describe("Kafka Connect Controller", func() {
 			Expect(k8sClient.Get(ctx, kafkaConnectNamespacedName, &kafkaConnect)).Should(Succeed())
 
 			patch := kafkaConnect.NewPatch()
-			kafkaConnect.Spec.DataCentres[0].NodesNumber = newKafkaConnectNodeNumbers
+			kafkaConnect.Spec.DataCentres[0].NumberOfNodes = newKafkaConnectNodeNumbers
 			Expect(k8sClient.Patch(ctx, &kafkaConnect, patch)).Should(Succeed())
 
 			By("sending a resize request to the Instaclustr API. And when the resize is completed, " +
@@ -104,7 +104,7 @@ var _ = Describe("Kafka Connect Controller", func() {
 					return false
 				}
 
-				return kafkaConnect.Status.DataCentres[0].NodesNumber == newKafkaConnectNodeNumbers
+				return kafkaConnect.Status.DataCentres[0].NumberOfNodes == newKafkaConnectNodeNumbers
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

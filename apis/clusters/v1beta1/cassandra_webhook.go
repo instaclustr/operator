@@ -213,6 +213,7 @@ type immutableCassandraFields struct {
 type specificCassandra struct {
 	LuceneEnabled       bool
 	PasswordAndUserAuth bool
+	PCICompliance       bool
 }
 
 type immutableCassandraDCFields struct {
@@ -233,6 +234,7 @@ func (cs *CassandraSpec) newImmutableFields() *immutableCassandraFields {
 		specificCassandra: specificCassandra{
 			LuceneEnabled:       cs.LuceneEnabled,
 			PasswordAndUserAuth: cs.PasswordAndUserAuth,
+			PCICompliance:       cs.PCICompliance,
 		},
 		immutableCluster: cs.GenericClusterSpec.immutableFields(),
 	}

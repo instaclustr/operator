@@ -25,6 +25,7 @@ type KafkaCluster struct {
 	BundledUseOnly            bool   `json:"bundledUseOnly"`
 	ClientBrokerAuthWithMtls  bool   `json:"clientBrokerAuthWithMtls"`
 	ClientToClusterEncryption bool   `json:"clientToClusterEncryption"`
+	PCIComplianceMode         bool   `json:"pciComplianceMode"`
 	DefaultNumberOfPartitions int    `json:"defaultNumberOfPartitions"`
 	DefaultReplicationFactor  int    `json:"defaultReplicationFactor"`
 

@@ -31,6 +31,7 @@ type OpenSearchCluster struct {
 	BundledUseOnly           bool                     `json:"bundledUseOnly"`
 	IndexManagementPlugin    bool                     `json:"indexManagementPlugin"`
 	AlertingPlugin           bool                     `json:"alertingPlugin"`
+	PCIComplianceMode        bool                     `json:"pciComplianceMode"`
 	DataCentres              []*OpenSearchDataCentre  `json:"dataCentres"`
 	DataNodes                []*OpenSearchDataNodes   `json:"dataNodes,omitempty"`
 	OpenSearchDashboards     []*OpenSearchDashboards  `json:"opensearchDashboards,omitempty"`

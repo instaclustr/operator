@@ -23,6 +23,7 @@ type CassandraCluster struct {
 	LuceneEnabled       bool   `json:"luceneEnabled"`
 	PasswordAndUserAuth bool   `json:"passwordAndUserAuth"`
 	BundledUseOnly      bool   `json:"bundledUseOnly,omitempty"`
+	PCIComplianceMode   bool   `json:"pciComplianceMode"`
 
 	DataCentres    []*CassandraDataCentre `json:"dataCentres"`
 	ResizeSettings []*ResizeSettings      `json:"resizeSettings"`

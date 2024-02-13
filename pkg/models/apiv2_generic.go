@@ -7,7 +7,6 @@ type GenericClusterFields struct {
 
 	Name                  string             `json:"name"`
 	Description           string             `json:"description,omitempty"`
-	PCIComplianceMode     bool               `json:"pciComplianceMode"`
 	PrivateNetworkCluster bool               `json:"privateNetworkCluster"`
 	SLATier               string             `json:"slaTier,omitempty"`
 	TwoFactorDelete       []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`

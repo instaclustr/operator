@@ -58,6 +58,7 @@ type CassandraSpec struct {
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
+	PCICompliance       bool                   `json:"pciCompliance,omitempty"`
 	UserRefs            References             `json:"userRefs,omitempty"`
 	ResizeSettings      GenericResizeSettings  `json:"resizeSettings,omitempty"`
 }
@@ -147,31 +148,7 @@ type CassandraDataCentreStatus struct {
 
 func (s *CassandraDataCentreStatus) Equals(o *CassandraDataCentreStatus) bool {
 	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
-		s.nodesEqual(o.Nodes)
-}
-
-func (s *CassandraDataCentreStatus) nodesEqual(nodes []*Node) bool {
-	if len(s.Nodes) != len(nodes) {
-		return false
-	}
-
-	sNodes := map[string]*Node{}
-	for _, node := range s.Nodes {
-		sNodes[node.ID] = node
-	}
-
-	for _, node := range nodes {
-		sNode, ok := sNodes[node.ID]
-		if !ok {
-			return false
-		}
-
-		if !sNode.Equals(node) {
-			return false
-		}
-	}
-
-	return true
+		nodesEqual(s.Nodes, o.Nodes)
 }
 
 func (s *CassandraDataCentreStatus) FromInstAPI(instModel *models.CassandraDataCentre) {
@@ -347,18 +324,36 @@ func (cs *CassandraSpec) FromInstAPI(instModel *models.CassandraCluster) {
 	cs.PasswordAndUserAuth = instModel.PasswordAndUserAuth
 	cs.BundledUseOnly = instModel.BundledUseOnly
 	cs.Version = instModel.CassandraVersion
+	cs.PCICompliance = instModel.PCIComplianceMode
 	cs.ResizeSettings.FromInstAPI(instModel.ResizeSettings)
 
 	cs.dcsFromInstAPI(instModel.DataCentres)
 }
 
 func (cs *CassandraSpec) dcsFromInstAPI(instModels []*models.CassandraDataCentre) {
-	cs.DataCentres = make([]*CassandraDataCentre, len(instModels))
+	dcs := make([]*CassandraDataCentre, len(instModels))
 	for i, instModel := range instModels {
 		dc := &CassandraDataCentre{}
+		dcs[i] = dc
+
+		if index := cs.getDCIndexByName(instModel.Name); index > -1 {
+			dc.Debezium = cs.DataCentres[index].Debezium
+		}
+
 		dc.FromInstAPI(instModel)
-		cs.DataCentres[i] = dc
 	}
+
+	cs.DataCentres = dcs
+}
+
+func (c *CassandraSpec) getDCIndexByName(name string) int {
+	for i, dc := range c.DataCentres {
+		if dc.Name == name {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func (d *CassandraDataCentre) FromInstAPI(instModel *models.CassandraDataCentre) {
@@ -377,15 +372,20 @@ func (d *CassandraDataCentre) FromInstAPI(instModel *models.CassandraDataCentre)
 }
 
 func (cs *CassandraDataCentre) debeziumFromInstAPI(instModels []*models.Debezium) {
-	cs.Debezium = make([]*DebeziumCassandraSpec, len(instModels))
+	debezium := make([]*DebeziumCassandraSpec, len(instModels))
 	for i, instModel := range instModels {
-		cs.Debezium[i] = &DebeziumCassandraSpec{
+		debezium[i] = &DebeziumCassandraSpec{
 			KafkaVPCType:      instModel.KafkaVPCType,
 			KafkaTopicPrefix:  instModel.KafkaTopicPrefix,
 			KafkaDataCentreID: instModel.KafkaDataCentreID,
 			Version:           instModel.Version,
 		}
+
+		if len(cs.Debezium)-1 >= i {
+			debezium[i].ClusterRef = cs.Debezium[i].ClusterRef
+		}
 	}
+	cs.Debezium = debezium
 }
 
 func (cs *CassandraDataCentre) shotoverProxyFromInstAPI(instModels []*models.ShotoverProxy) {
@@ -411,6 +411,7 @@ func (cs *CassandraSpec) ToInstAPI() *models.CassandraCluster {
 		LuceneEnabled:        cs.LuceneEnabled,
 		PasswordAndUserAuth:  cs.PasswordAndUserAuth,
 		BundledUseOnly:       cs.BundledUseOnly,
+		PCIComplianceMode:    cs.PCICompliance,
 		DataCentres:          cs.DCsToInstAPI(),
 		ResizeSettings:       cs.ResizeSettings.ToInstAPI(),
 	}
