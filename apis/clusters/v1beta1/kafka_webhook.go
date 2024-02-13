@@ -372,6 +372,7 @@ type specificKafkaFields struct {
 	bundledUseOnly            bool
 	privateNetworkCluster     bool
 	clientBrokerAuthWithMtls  bool
+	pciCompliance             bool
 }
 
 func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
@@ -385,6 +386,7 @@ func (ks *KafkaSpec) newKafkaImmutableFields() *immutableKafkaFields {
 			bundledUseOnly:            ks.BundledUseOnly,
 			privateNetworkCluster:     ks.PrivateNetwork,
 			clientBrokerAuthWithMtls:  ks.ClientBrokerAuthWithMTLS,
+			pciCompliance:             ks.PCICompliance,
 		},
 		cluster: ks.GenericClusterSpec.immutableFields(),
 	}

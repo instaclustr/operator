@@ -245,6 +245,7 @@ type specificOpenSearchFields struct {
 	IndexManagementPlugin    bool
 	AlertingPlugin           bool
 	BundledUseOnly           bool
+	PCICompliance            bool
 }
 
 func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
@@ -261,6 +262,7 @@ func (oss *OpenSearchSpec) newImmutableFields() *immutableOpenSearchFields {
 			IndexManagementPlugin:    oss.IndexManagementPlugin,
 			AlertingPlugin:           oss.AlertingPlugin,
 			BundledUseOnly:           oss.BundledUseOnly,
+			PCICompliance:            oss.PCICompliance,
 		},
 		cluster: oss.GenericClusterSpec.immutableFields(),
 	}

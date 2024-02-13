@@ -49,6 +49,7 @@ type OpenSearchSpec struct {
 	IndexManagementPlugin    bool                    `json:"indexManagementPlugin,omitempty"`
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
+	PCICompliance            bool                    `json:"pciCompliance,omitempty"`
 	UserRefs                 References              `json:"userRefs,omitempty"`
 	//+kubuilder:validation:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
@@ -71,6 +72,7 @@ func (s *OpenSearchSpec) FromInstAPI(instaModel *models.OpenSearchCluster) {
 	s.IndexManagementPlugin = instaModel.IndexManagementPlugin
 	s.AlertingPlugin = instaModel.AlertingPlugin
 	s.BundledUseOnly = instaModel.BundledUseOnly
+	s.PCICompliance = instaModel.PCIComplianceMode
 
 	s.dcsFromInstAPI(instaModel.DataCentres)
 	s.dataNodesFromInstAPI(instaModel.DataNodes)
@@ -191,6 +193,7 @@ func (oss *OpenSearchSpec) ToInstAPI() *models.OpenSearchCluster {
 		IndexManagementPlugin:    oss.IndexManagementPlugin,
 		AlertingPlugin:           oss.AlertingPlugin,
 		IngestNodes:              oss.ingestNodesToInstAPI(),
+		PCIComplianceMode:        oss.PCICompliance,
 	}
 }
 

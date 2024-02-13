@@ -22,6 +22,7 @@ type RedisCluster struct {
 	RedisVersion           string `json:"redisVersion"`
 	ClientToNodeEncryption bool   `json:"clientToNodeEncryption"`
 	PasswordAndUserAuth    bool   `json:"passwordAndUserAuth"`
+	PCIComplianceMode      bool   `json:"pciComplianceMode"`
 
 	DataCentres []*RedisDataCentre `json:"dataCentres,omitempty"`
 }

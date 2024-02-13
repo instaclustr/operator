@@ -448,7 +448,7 @@ func (c *Client) GetKafka(id string) (*models.KafkaCluster, error) {
 	return &instaModel, nil
 }
 
-func (c *Client) GetKafkaConnect(id string) ([]byte, error) {
+func (c *Client) GetKafkaConnect(id string) (*models.KafkaConnectCluster, error) {
 	url := c.serverHostname + KafkaConnectEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -470,7 +470,13 @@ func (c *Client) GetKafkaConnect(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var instaModel models.KafkaConnectCluster
+	err = json.Unmarshal(body, &instaModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &instaModel, nil
 }
 
 func (c *Client) UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) error {

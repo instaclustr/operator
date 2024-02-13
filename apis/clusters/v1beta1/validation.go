@@ -335,7 +335,6 @@ func (s *GenericClusterSpec) immutableFields() immutableCluster {
 	return immutableCluster{
 		Name:                  s.Name,
 		Version:               s.Version,
-		PCICompliance:         s.PCICompliance,
 		PrivateNetworkCluster: s.PrivateNetwork,
 		SLATier:               s.SLATier,
 	}

@@ -82,7 +82,7 @@ type API interface {
 	GetCassandra(id string) (*models.CassandraCluster, error)
 	UpdateCassandra(id string, cassandra models.CassandraClusterAPIUpdate) error
 	GetKafka(id string) (*models.KafkaCluster, error)
-	GetKafkaConnect(id string) ([]byte, error)
+	GetKafkaConnect(id string) (*models.KafkaConnectCluster, error)
 	UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) error
 	GetZookeeper(id string) ([]byte, error)
 	RestoreCluster(restoreData any, clusterKind string) (string, error)

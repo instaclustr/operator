@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,6 +41,7 @@ import (
 	"github.com/instaclustr/operator/pkg/exposeservice"
 	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
+	rlimiter "github.com/instaclustr/operator/pkg/ratelimiter"
 	"github.com/instaclustr/operator/pkg/scheduler"
 )
 
@@ -696,11 +696,11 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 			SLATier:         slaTier,
 			PrivateNetwork:  privateNetwork,
 			TwoFactorDelete: twoFactorDelete,
-			PCICompliance:   pciCompliance,
 		},
 		DataCentres:         cassandraDataCentres,
 		PasswordAndUserAuth: cassPasswordAndUserAuth,
 		BundledUseOnly:      true,
+		PCICompliance:       pciCompliance,
 	}
 
 	return &v1beta1.Cassandra{
@@ -955,7 +955,6 @@ func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion 
 			SLATier:         slaTier,
 			PrivateNetwork:  privateClusterNetwork,
 			TwoFactorDelete: kafkaTFD,
-			PCICompliance:   pciCompliance,
 		},
 		DataCentres:               kafkaDataCentres,
 		ReplicationFactor:         bundledKafkaSpec.ReplicationFactor,
@@ -964,6 +963,7 @@ func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion 
 		AutoCreateTopics:          true,
 		ClientToClusterEncryption: clientEncryption,
 		BundledUseOnly:            true,
+		PCICompliance:             pciCompliance,
 	}
 
 	return &v1beta1.Kafka{
@@ -1046,11 +1046,11 @@ func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSear
 			SLATier:         slaTier,
 			PrivateNetwork:  privateClusterNetwork,
 			TwoFactorDelete: twoFactorDelete,
-			PCICompliance:   pciCompliance,
 		},
 		DataCentres:         osDataCentres,
 		ClusterManagerNodes: managerNodes,
 		BundledUseOnly:      true,
+		PCICompliance:       pciCompliance,
 	}
 
 	return &v1beta1.OpenSearch{

@@ -885,3 +885,38 @@ type AzureSettings struct {
 	// The network must have a prefix length between /16 and /28, and must be part of a private address range.
 	StorageNetwork string `json:"storageNetwork,omitempty"`
 }
+
+func nodesEqual(s1, s2 []*Node) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+
+	m := map[string]*Node{}
+	for _, node := range s1 {
+		m[node.ID] = node
+	}
+
+	for _, s2Node := range s2 {
+		s1Node, ok := m[s2Node.ID]
+		if !ok {
+			return false
+		}
+
+		if !s1Node.Equals(s2Node) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func nodesFromInstAPI(instaModels []*models.Node) []*Node {
+	nodes := make([]*Node, len(instaModels))
+	for i, instaModel := range instaModels {
+		n := Node{}
+		n.FromInstAPI(instaModel)
+		nodes[i] = &n
+	}
+
+	return nodes
+}

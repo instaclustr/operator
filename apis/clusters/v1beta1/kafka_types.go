@@ -72,6 +72,7 @@ type KafkaSpec struct {
 	ClientToClusterEncryption bool       `json:"clientToClusterEncryption"`
 	ClientBrokerAuthWithMTLS  bool       `json:"clientBrokerAuthWithMtls,omitempty"`
 	BundledUseOnly            bool       `json:"bundledUseOnly,omitempty"`
+	PCICompliance             bool       `json:"pciCompliance,omitempty"`
 	UserRefs                  References `json:"userRefs,omitempty"`
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
@@ -133,7 +134,7 @@ type KafkaDataCentreStatus struct {
 
 func (s *KafkaDataCentreStatus) Equals(o *KafkaDataCentreStatus) bool {
 	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
-		s.nodesEqual(o.Nodes) &&
+		nodesEqual(s.Nodes, o.Nodes) &&
 		slices.EqualsPtr(s.PrivateLink, o.PrivateLink)
 }
 
@@ -176,30 +177,6 @@ func (s *KafkaStatus) ToOnPremises() ClusterStatus {
 		ID:          s.ID,
 		DataCentres: []*DataCentreStatus{dc},
 	}
-}
-
-func (s *KafkaDataCentreStatus) nodesEqual(nodes []*Node) bool {
-	if len(s.Nodes) != len(nodes) {
-		return false
-	}
-
-	sNodes := map[string]*Node{}
-	for _, node := range s.Nodes {
-		sNodes[node.ID] = node
-	}
-
-	for _, node := range nodes {
-		sNode, ok := sNodes[node.ID]
-		if !ok {
-			return false
-		}
-
-		if !sNode.Equals(node) {
-			return false
-		}
-	}
-
-	return true
 }
 
 //+kubebuilder:object:root=true
@@ -260,6 +237,7 @@ func (k *KafkaSpec) ToInstAPI() *models.KafkaCluster {
 		KarapaceRestProxy:         k.karapaceRestProxyToInstAPI(),
 		KarapaceSchemaRegistry:    k.karapaceSchemaRegistryToInstAPI(),
 		ResizeSettings:            k.ResizeSettings.ToInstAPI(),
+		PCIComplianceMode:         k.PCICompliance,
 	}
 }
 
@@ -386,6 +364,7 @@ func (ks *KafkaSpec) FromInstAPI(instaModel *models.KafkaCluster) {
 	ks.ClientBrokerAuthWithMTLS = instaModel.ClientBrokerAuthWithMtls
 	ks.BundledUseOnly = instaModel.BundledUseOnly
 	ks.Version = instaModel.KafkaVersion
+	ks.PCICompliance = instaModel.PCIComplianceMode
 
 	ks.DCsFromInstAPI(instaModel.DataCentres)
 	ks.kraftFromInstAPI(instaModel.Kraft)
@@ -491,17 +470,8 @@ func (ks *KafkaStatus) DCsFromInstAPI(instaModels []*models.KafkaDataCentre) {
 
 func (s *KafkaDataCentreStatus) FromInstAPI(instaModel *models.KafkaDataCentre) {
 	s.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
-	s.nodesFromInstAPI(instaModel.Nodes)
 	s.PrivateLink.FromInstAPI(instaModel.PrivateLink)
-}
-
-func (s *KafkaDataCentreStatus) nodesFromInstAPI(instaModels []*models.Node) {
-	s.Nodes = make([]*Node, len(instaModels))
-	for i, instaModel := range instaModels {
-		node := Node{}
-		node.FromInstAPI(instaModel)
-		s.Nodes[i] = &node
-	}
+	s.Nodes = nodesFromInstAPI(instaModel.Nodes)
 }
 
 func (a *KafkaSpec) IsEqual(b KafkaSpec) bool {

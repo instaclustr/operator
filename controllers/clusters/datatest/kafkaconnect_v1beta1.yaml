@@ -8,7 +8,7 @@ metadata:
 spec:
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"
-      nodesNumber: 3
+      numberOfNodes: 3
 #      accountName: "TestAccName"
       cloudProvider: "AWS_VPC"
       replicationFactor: 3
