@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 var kafkaacllog = logf.Log.WithName("kafkaacl-resource")
@@ -57,7 +58,12 @@ var _ webhook.Validator = &KafkaACL{}
 func (kacl *KafkaACL) ValidateCreate() error {
 	kafkaacllog.Info("validate create", "name", kacl.Name)
 
-	err := kacl.validateCreate()
+	err := requiredfieldsvalidator.ValidateRequiredFields(kacl.Spec)
+	if err != nil {
+		return err
+	}
+
+	err = kacl.validateCreate()
 	if err != nil {
 		return err
 	}

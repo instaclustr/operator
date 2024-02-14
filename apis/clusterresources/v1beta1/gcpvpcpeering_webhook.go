@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 var gcpvpcpeeringlog = logf.Log.WithName("gcpvpcpeering-resource")
@@ -60,6 +61,11 @@ var _ webhook.Validator = &GCPVPCPeering{}
 func (r *GCPVPCPeering) ValidateCreate() error {
 	gcpvpcpeeringlog.Info("validate create", "name", r.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
 	if r.Spec.PeerVPCNetworkName == "" {
 		return fmt.Errorf("peer VPC Network Name is empty")
 	}
@@ -77,7 +83,7 @@ func (r *GCPVPCPeering) ValidateCreate() error {
 		return fmt.Errorf("peer Subnets list is empty")
 	}
 
-	err := r.Spec.Validate()
+	err = r.Spec.Validate()
 	if err != nil {
 		return err
 	}

@@ -23,6 +23,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -41,6 +43,11 @@ var _ webhook.Validator = &UserCertificate{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (cert *UserCertificate) ValidateCreate() error {
 	usercertificatelog.Info("validate create", "name", cert.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(cert.Spec)
+	if err != nil {
+		return err
+	}
 
 	if cert.Spec.SecretRef == nil && cert.Spec.CertificateRequestTemplate == nil {
 		return errors.New("one of the following fields should be set: spec.secretRef, spec.generateCSR")

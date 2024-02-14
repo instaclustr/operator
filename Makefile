@@ -82,8 +82,12 @@ test-users:
 test-webhooks:
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./apis/clusters/v1beta1 -coverprofile cover.out
 
+.PHONY: test-utils
+test-utils:
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./pkg/utils/... -coverprofile cover.out
+
 .PHONY: test
- test: manifests generate fmt vet docker-build-server-stub run-server-stub envtest test-webhooks test-clusters test-clusterresources test-webhooks test-kafkamanagement test-users stop-server-stub
+ test: manifests generate fmt vet docker-build-server-stub run-server-stub test-utils envtest test-webhooks test-clusters test-clusterresources test-webhooks test-kafkamanagement test-users stop-server-stub
 
 .PHONY: goimports
 goimports:

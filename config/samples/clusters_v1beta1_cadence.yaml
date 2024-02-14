@@ -11,7 +11,7 @@ kind: Cadence
 metadata:
   name: cadence-sample
 spec:
-  name: "mykyta-cadence-test"
+  name: "username-cadence-test"
   version: "1.2.2"
 #  standardProvisioning:
 #    - targetCassandra:

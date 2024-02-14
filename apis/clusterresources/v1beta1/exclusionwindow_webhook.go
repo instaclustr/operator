@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -54,6 +55,11 @@ var _ webhook.Validator = &ExclusionWindow{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *ExclusionWindow) ValidateCreate() error {
 	exclusionwindowlog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
 
 	if (r.Spec.ClusterID == "" && r.Spec.ClusterRef == nil) ||
 		(r.Spec.ClusterID != "" && r.Spec.ClusterRef != nil) {

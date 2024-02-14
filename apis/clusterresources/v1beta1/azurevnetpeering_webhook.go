@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 var azurevnetpeeringlog = logf.Log.WithName("azurevnetpeering-resource")
@@ -60,6 +61,11 @@ var _ webhook.Validator = &AzureVNetPeering{}
 func (r *AzureVNetPeering) ValidateCreate() error {
 	azurevnetpeeringlog.Info("validate create", "name", r.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
 	if r.Spec.PeerResourceGroup == "" {
 		return fmt.Errorf("peer Resource Group is empty")
 	}
@@ -81,7 +87,7 @@ func (r *AzureVNetPeering) ValidateCreate() error {
 		return fmt.Errorf("peer Subnets list is empty")
 	}
 
-	err := r.Spec.Validate()
+	err = r.Spec.Validate()
 	if err != nil {
 		return err
 	}

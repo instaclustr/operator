@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -87,6 +88,11 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 
 	opensearchlog.Info("validate create", "name", os.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(os.Spec)
+	if err != nil {
+		return err
+	}
+
 	if os.Spec.RestoreFrom != nil {
 		if os.Spec.RestoreFrom.ClusterID == "" {
 			return fmt.Errorf("restore clusterID field is empty")
@@ -95,7 +101,7 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 		}
 	}
 
-	err := os.Spec.ValidateCreation()
+	err = os.Spec.ValidateCreation()
 	if err != nil {
 		return err
 	}

@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 var awsvpcpeeringlog = logf.Log.WithName("awsvpcpeering-resource")
@@ -59,6 +60,11 @@ var _ webhook.Validator = &AWSVPCPeering{}
 func (r *AWSVPCPeering) ValidateCreate() error {
 	awsvpcpeeringlog.Info("validate create", "name", r.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
 	if r.Spec.PeerAWSAccountID == "" {
 		return fmt.Errorf("peer AWS Account ID is empty")
 	}
@@ -76,7 +82,7 @@ func (r *AWSVPCPeering) ValidateCreate() error {
 		return fmt.Errorf("peer Subnets list is empty")
 	}
 
-	err := r.Spec.Validate(models.AWSRegions)
+	err = r.Spec.Validate(models.AWSRegions)
 	if err != nil {
 		return err
 	}

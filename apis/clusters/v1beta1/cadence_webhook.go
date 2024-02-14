@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -84,7 +85,12 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 
 	cadencelog.Info("validate create", "name", c.Name)
 
-	err := c.Spec.Cluster.ValidateCreation()
+	err := requiredfieldsvalidator.ValidateRequiredFields(c.Spec)
+	if err != nil {
+		return err
+	}
+
+	err = c.Spec.Cluster.ValidateCreation()
 	if err != nil {
 		return err
 	}

@@ -289,6 +289,7 @@ resources:
   version: v1beta1
   webhooks:
     defaulting: true
+    validation: true
     webhookVersion: v1
 - api:
     crdVersion: v1
@@ -299,6 +300,10 @@ resources:
   kind: Topic
   path: github.com/instaclustr/operator/apis/kafkamanagement/v1beta1
   version: v1beta1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -308,9 +313,6 @@ resources:
   kind: PostgreSQLUser
   path: github.com/instaclustr/operator/apis/clusterresources/v1beta1
   version: v1beta1
-  webhooks:
-    validation: true
-    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true

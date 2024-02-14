@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -77,6 +78,11 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 
 	cassandralog.Info("validate create", "name", c.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(c.Spec)
+	if err != nil {
+		return err
+	}
+
 	if c.Spec.RestoreFrom != nil {
 		if c.Spec.RestoreFrom.ClusterID == "" {
 			return fmt.Errorf("restore clusterID field is empty")
@@ -85,7 +91,7 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		}
 	}
 
-	err := c.Spec.GenericClusterSpec.ValidateCreation()
+	err = c.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -90,6 +91,11 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 	redislog.Info("validate create", "name", r.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
 	if r.Spec.RestoreFrom != nil {
 		if r.Spec.RestoreFrom.ClusterID == "" {
 			return fmt.Errorf("restore clusterID field is empty")
@@ -98,7 +104,7 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		}
 	}
 
-	err := r.Spec.GenericClusterSpec.ValidateCreation()
+	err = r.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}

@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 var nodereloadlog = logf.Log.WithName("nodereload-resource")
@@ -44,6 +45,11 @@ var _ webhook.Validator = &NodeReload{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (nr *NodeReload) ValidateCreate() error {
 	nodereloadlog.Info("validate create", "name", nr.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(nr.Spec)
+	if err != nil {
+		return err
+	}
 
 	if nr.Spec.Nodes == nil {
 		return fmt.Errorf("nodes list is empty")

@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -80,7 +81,12 @@ func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 
 	zookeeperlog.Info("validate create", "name", z.Name)
 
-	err := z.Spec.Cluster.ValidateCreation()
+	err := requiredfieldsvalidator.ValidateRequiredFields(z.Spec)
+	if err != nil {
+		return err
+	}
+
+	err = z.Spec.Cluster.ValidateCreation()
 	if err != nil {
 		return err
 	}

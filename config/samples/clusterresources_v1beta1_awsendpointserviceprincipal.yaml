@@ -4,9 +4,9 @@ metadata:
   name: awsendpointserviceprincipal-sample-1
 spec:
   clusterDataCenterId: "1a2c55c7-ab88-4914-94eb-2f618809795c"
-  clusterRef:
-    name: redis-sample
-    namespace: default
-    clusterKind: Redis
+#  clusterRef:
+#    name: redis-sample
+#    namespace: default
+#    clusterKind: Redis
 #  endPointServiceId: "249efcdb-6538-4563-bf7a-4a2f5f90de96"
   principalArn: "arn:aws:iam::152668027680:role/aws-principal-test-1"

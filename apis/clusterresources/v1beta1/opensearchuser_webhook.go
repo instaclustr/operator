@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -41,6 +42,11 @@ var _ webhook.Validator = &OpenSearchUser{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (u *OpenSearchUser) ValidateCreate() error {
 	opensearchuserlog.Info("validate create", "name", u.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(u.Spec)
+	if err != nil {
+		return err
+	}
 
 	if u.Spec.SecretRef.Name == "" || u.Spec.SecretRef.Namespace == "" {
 		return models.ErrEmptySecretRef

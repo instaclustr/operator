@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -53,6 +54,11 @@ var _ webhook.Validator = &ClusterBackup{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *ClusterBackup) ValidateCreate() error {
 	clusterbackuplog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
 
 	_, ok := models.ClusterKindsMap[r.Spec.ClusterRef.ClusterKind]
 	if !ok {
