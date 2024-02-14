@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -49,6 +50,12 @@ var _ webhook.Validator = &OpenSearchEgressRules{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *OpenSearchEgressRules) ValidateCreate() error {
 	opensearchegressruleslog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
 	matched, err := regexp.MatchString(models.OpenSearchBindingIDPattern, r.Spec.OpenSearchBindingID)
 	if err != nil {
 		return fmt.Errorf("can`t match openSearchBindingId to pattern: %s, error: %w", models.OpenSearchBindingIDPattern, err)

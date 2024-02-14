@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -83,6 +84,11 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 
 	postgresqllog.Info("validate create", "name", pg.Name)
 
+	err := requiredfieldsvalidator.ValidateRequiredFields(pg.Spec)
+	if err != nil {
+		return err
+	}
+
 	if pg.Spec.PgRestoreFrom != nil {
 		if pg.Spec.PgRestoreFrom.ClusterID == "" {
 			return fmt.Errorf("restore clusterID field is empty")
@@ -91,7 +97,7 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		}
 	}
 
-	err := pg.Spec.Cluster.ValidateCreation()
+	err = pg.Spec.Cluster.ValidateCreation()
 	if err != nil {
 		return err
 	}

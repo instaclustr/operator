@@ -9,8 +9,6 @@ import (
 )
 
 func TestCompareMaps(t *testing.T) {
-	t.Parallel()
-
 	type _t struct {
 		map1     map[string]any
 		map2     map[string]any
@@ -277,14 +275,36 @@ func TestCompareMaps(t *testing.T) {
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
-			_ = name
+			t.Parallel()
 			got := dcomparison.MapsDiff("spec", c.map1, c.map2)
 
-			if !reflect.DeepEqual(got, c.expected) {
+			if !equals(got, c.expected) {
 				gotJSON, _ := json.MarshalIndent(got, " ", " ")
 				expectedJSON, _ := json.MarshalIndent(got, " ", " ")
 				t.Errorf("expected: %s, got: %s", gotJSON, expectedJSON)
 			}
 		})
 	}
+}
+
+func equals(got, expected dcomparison.ObjectDiffs) bool {
+	if len(got) != len(expected) {
+		return false
+	}
+
+	for _, got := range got {
+		var equal bool
+
+		for _, expected := range expected {
+			if reflect.DeepEqual(got, expected) {
+				equal = true
+			}
+		}
+
+		if !equal {
+			return false
+		}
+	}
+
+	return true
 }

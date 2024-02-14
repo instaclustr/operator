@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -84,7 +85,12 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 
 	kafkaconnectlog.Info("validate create", "name", kc.Name)
 
-	err := kc.Spec.Cluster.ValidateCreation()
+	err := requiredfieldsvalidator.ValidateRequiredFields(kc.Spec)
+	if err != nil {
+		return err
+	}
+
+	err = kc.Spec.Cluster.ValidateCreation()
 	if err != nil {
 		return err
 	}

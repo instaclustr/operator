@@ -24,6 +24,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -43,6 +44,11 @@ var _ webhook.Validator = &MaintenanceEvents{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *MaintenanceEvents) ValidateCreate() error {
 	maintenanceeventslog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
 
 	if err := r.ValidateMaintenanceEventsReschedules(); err != nil {
 		return fmt.Errorf("maintenance events reschedules validation failed: %v", err)

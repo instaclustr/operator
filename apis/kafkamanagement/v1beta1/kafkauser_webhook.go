@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -57,6 +58,11 @@ var _ webhook.Validator = &KafkaUser{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (ku *KafkaUser) ValidateCreate() error {
 	kafkauserlog.Info("validate create", "name", ku.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(ku.Spec)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

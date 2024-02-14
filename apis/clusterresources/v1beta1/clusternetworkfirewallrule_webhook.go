@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -59,6 +60,11 @@ var _ webhook.Validator = &ClusterNetworkFirewallRule{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (fr *ClusterNetworkFirewallRule) ValidateCreate() error {
 	clusternetworkfirewallrulelog.Info("validate create", "name", fr.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(fr.Spec)
+	if err != nil {
+		return err
+	}
 
 	if !validation.Contains(fr.Spec.Type, models.BundleTypes) {
 		return fmt.Errorf("type  %s is unavailable, available types: %v",

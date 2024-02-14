@@ -24,6 +24,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -44,6 +46,11 @@ var principalArnPattern, _ = regexp.Compile(`^arn:aws:iam::[0-9]{12}:(root$|user
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *AWSEndpointServicePrincipal) ValidateCreate() error {
 	awsendpointserviceprincipallog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
 
 	if (r.Spec.ClusterDataCenterID == "" && r.Spec.ClusterRef == nil) ||
 		(r.Spec.ClusterDataCenterID != "" && r.Spec.ClusterRef != nil) {

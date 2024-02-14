@@ -17,11 +17,13 @@ limitations under the License.
 package v1beta1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -46,4 +48,34 @@ func (r *Mirror) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
+}
+
+//+kubebuilder:webhook:path=/validate-kafkamanagement-instaclustr-com-v1beta1-mirror,mutating=false,failurePolicy=fail,sideEffects=None,groups=kafkamanagement.instaclustr.com,resources=mirrors,verbs=create;update,versions=v1beta1,name=vmirror.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Validator = &Mirror{}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+func (r *Mirror) ValidateCreate() error {
+	mirrorlog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+func (r *Mirror) ValidateUpdate(old runtime.Object) error {
+	mirrorlog.Info("validate update", "name", r.Name)
+
+	return nil
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *Mirror) ValidateDelete() error {
+	mirrorlog.Info("validate delete", "name", r.Name)
+
+	return nil
 }

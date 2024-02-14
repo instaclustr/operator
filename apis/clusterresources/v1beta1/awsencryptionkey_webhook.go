@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 var awsencryptionkeylog = logf.Log.WithName("awsencryptionkey-resource")
@@ -59,6 +60,11 @@ var _ webhook.Validator = &AWSEncryptionKey{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (aws *AWSEncryptionKey) ValidateCreate() error {
 	awsencryptionkeylog.Info("validate create", "name", aws.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(aws.Spec)
+	if err != nil {
+		return err
+	}
 
 	aliasMatched, err := regexp.Match(models.EncryptionKeyAliasRegExp, []byte(aws.Spec.Alias))
 	if !aliasMatched || err != nil {

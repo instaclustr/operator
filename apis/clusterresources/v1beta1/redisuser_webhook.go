@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -42,6 +43,11 @@ var _ webhook.Validator = &RedisUser{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *RedisUser) ValidateCreate() error {
 	redisuserlog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
 
 	if r.Spec.SecretRef.Name == "" || r.Spec.SecretRef.Namespace == "" {
 		return models.ErrEmptySecretRef

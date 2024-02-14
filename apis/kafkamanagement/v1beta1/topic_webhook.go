@@ -17,11 +17,13 @@ limitations under the License.
 package v1beta1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
 )
 
 // log is for logging in this package.
@@ -46,4 +48,36 @@ func (r *Topic) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
+}
+
+//+kubebuilder:webhook:path=/validate-kafkamanagement-instaclustr-com-v1beta1-topic,mutating=false,failurePolicy=fail,sideEffects=None,groups=kafkamanagement.instaclustr.com,resources=topics,verbs=create;update,versions=v1beta1,name=vtopic.kb.io,admissionReviewVersions=v1
+
+var _ webhook.Validator = &Topic{}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+func (r *Topic) ValidateCreate() error {
+	topiclog.Info("validate create", "name", r.Name)
+
+	err := requiredfieldsvalidator.ValidateRequiredFields(r.Spec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+func (r *Topic) ValidateUpdate(old runtime.Object) error {
+	topiclog.Info("validate update", "name", r.Name)
+
+	// TODO(user): fill in your validation logic upon object update.
+	return nil
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *Topic) ValidateDelete() error {
+	topiclog.Info("validate delete", "name", r.Name)
+
+	// TODO(user): fill in your validation logic upon object deletion.
+	return nil
 }
