@@ -211,6 +211,7 @@ func (r *ZookeeperReconciler) createDefaultSecret(ctx context.Context, zk *v1bet
 		return err
 	}
 
+	patch := zk.NewPatch()
 	secret := zk.NewDefaultUserSecret(username, password)
 	err = r.Create(ctx, secret)
 	if err != nil {
@@ -220,6 +221,24 @@ func (r *ZookeeperReconciler) createDefaultSecret(ctx context.Context, zk *v1bet
 		r.EventRecorder.Eventf(zk, models.Warning, models.CreationFailed,
 			"Creating secret with default user credentials is failed. Reason: %v", err,
 		)
+
+		return err
+	}
+
+	zk.Status.DefaultUserSecretRef = &v1beta1.Reference{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+	}
+
+	err = r.Status().Patch(ctx, zk, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch Zookeeper resource",
+			"cluster name", zk.Spec.Name,
+			"status", zk.Status)
+
+		r.EventRecorder.Eventf(
+			zk, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
 
 		return err
 	}

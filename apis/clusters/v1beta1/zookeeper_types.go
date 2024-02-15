@@ -45,7 +45,8 @@ type ZookeeperStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterStatus `json:",inline"`
+	ClusterStatus        `json:",inline"`
+	DefaultUserSecretRef *Reference `json:"defaultUserSecretRef,omitempty"`
 }
 
 //+kubebuilder:object:root=true
