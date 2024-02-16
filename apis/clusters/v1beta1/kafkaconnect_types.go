@@ -119,7 +119,8 @@ type KafkaConnectSpec struct {
 // KafkaConnectStatus defines the observed state of KafkaConnect
 type KafkaConnectStatus struct {
 	ClusterStatus        `json:",inline"`
-	TargetKafkaClusterID string `json:"targetKafkaClusterId,omitempty"`
+	TargetKafkaClusterID string     `json:"targetKafkaClusterId,omitempty"`
+	DefaultUserSecretRef *Reference `json:"defaultUserSecretRef,omitempty"`
 }
 
 //+kubebuilder:object:root=true

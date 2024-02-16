@@ -437,6 +437,7 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 		return err
 	}
 
+	patch := kc.NewPatch()
 	secret := kc.NewDefaultUserSecret(username, password)
 	err = r.Create(ctx, secret)
 	if err != nil {
@@ -454,6 +455,24 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 		"secret name", secret.Name,
 		"secret namespace", secret.Namespace,
 	)
+
+	kc.Status.DefaultUserSecretRef = &v1beta1.Reference{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+	}
+
+	err = r.Status().Patch(ctx, kc, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch Kafka Connect resource",
+			"cluster name", kc.Spec.Name,
+			"status", kc.Status)
+
+		r.EventRecorder.Eventf(
+			kc, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return err
+	}
 
 	return nil
 }
