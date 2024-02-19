@@ -43,10 +43,6 @@ func (c *Cluster) ValidateCreation() error {
 		return fmt.Errorf("two factor delete should not have more than 1 item")
 	}
 
-	if c.Description != "" {
-		return fmt.Errorf("description is not supported yet, when create a cluster. You can add this field when the cluster is in the running state")
-	}
-
 	if !validation.Contains(c.SLATier, models.SLATiers) {
 		return fmt.Errorf("cluster SLATier %s is unavailable, available values: %v",
 			c.SLATier, models.SLATiers)
@@ -172,7 +168,7 @@ func (cps *CloudProviderSettings) ValidateCreation() error {
 
 func validateReplicationFactor(availableReplicationFactors []int, rf int) error {
 	if rf <= 0 || rf > 300 {
-		return fmt.Errorf("replication factor must be a multiple of %v, up to a maximum value of 300",
+		return fmt.Errorf("replication factor must be one of %v, up to a maximum value of 300",
 			availableReplicationFactors)
 	}
 
@@ -182,7 +178,7 @@ func validateReplicationFactor(availableReplicationFactors []int, rf int) error 
 		}
 	}
 
-	return fmt.Errorf("replication factor must be a multiple of %v, up to a maximum value of 300",
+	return fmt.Errorf("replication factor must be one of %v, up to a maximum value of 300",
 		availableReplicationFactors)
 }
 
