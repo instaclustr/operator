@@ -124,6 +124,7 @@ const (
 	GenericEvent         = "generic"
 	SecretEvent          = "secret"
 	ClusterDeletingEvent = "cluster deleting"
+	SyncingEvent         = "syncing"
 )
 
 const (

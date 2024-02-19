@@ -227,6 +227,7 @@ func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cass
 	}
 
 	c.Spec.FromInstAPI(instModel)
+	c.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Update(ctx, c)
 	if err != nil {
 		return fmt.Errorf("failed to update cassandra spec, err: %w", err)
@@ -1054,7 +1055,7 @@ func (r *CassandraReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				newObj := event.ObjectNew.(*v1beta1.Cassandra)
 
-				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
 					return false
 				}
 

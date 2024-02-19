@@ -151,8 +151,12 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 		return fmt.Errorf("cannot assert object %v to cassandra", new.GetObjectKind())
 	}
 
+	if c.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+		return nil
+	}
+
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
-	if c.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
@@ -161,10 +165,6 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 	}
 
 	cassandralog.Info("validate update", "name", c.Name)
-
-	if c.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return nil
-	}
 
 	oldCluster, ok := old.(*Cassandra)
 	if !ok {

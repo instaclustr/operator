@@ -195,6 +195,7 @@ func (r *OpenSearchReconciler) createCluster(ctx context.Context, o *v1beta1.Ope
 	}
 
 	o.Spec.FromInstAPI(instaModel)
+	o.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Update(ctx, o)
 	if err != nil {
 		return fmt.Errorf("failed to update cluster spec, err: %w", err)
@@ -932,7 +933,7 @@ func (r *OpenSearchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				newObj := event.ObjectNew.(*v1beta1.OpenSearch)
 
-				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
 					return false
 				}
 

@@ -171,7 +171,12 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return fmt.Errorf("cannot assert object %v to kafka", new.GetObjectKind())
 	}
 
-	if k.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+	if k.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+		return nil
+	}
+
+	// skip validation when handle external changes from Instaclustr
+	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
@@ -180,11 +185,6 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 	}
 
 	kafkalog.Info("validate update", "name", k.Name)
-
-	// skip validation when handle external changes from Instaclustr
-	if k.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return nil
-	}
 
 	oldKafka, ok := old.(*Kafka)
 	if !ok {

@@ -228,7 +228,7 @@ func validateIngestNodes(new, old []*OpenSearchIngestNodes) error {
 		return models.ErrImmutableIngestNodes
 	}
 
-	if *old[0] != *new[0] {
+	if len(old) > 0 && *old[0] != *new[0] {
 		return models.ErrImmutableIngestNodes
 	}
 
@@ -240,7 +240,7 @@ func validateClusterManagedNodes(new, old []*ClusterManagerNodes) error {
 		return models.ErrImmutableClusterManagedNodes
 	}
 
-	if *old[0] != *new[0] {
+	if len(old) > 0 && *old[0] != *new[0] {
 		return models.ErrImmutableClusterManagedNodes
 	}
 

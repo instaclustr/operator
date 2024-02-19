@@ -129,6 +129,7 @@ func (r *KafkaReconciler) createCluster(ctx context.Context, k *v1beta1.Kafka, l
 	)
 
 	k.Spec.FromInstAPI(&instaModel)
+	k.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Update(ctx, k)
 	if err != nil {
 		return fmt.Errorf("failed to update kafka spec, err: %w", err)
@@ -692,8 +693,8 @@ func (r *KafkaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				newObj := event.ObjectNew.(*v1beta1.Kafka)
 
-				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
-					return true
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+					return false
 				}
 
 				if newObj.Status.ID == "" {
