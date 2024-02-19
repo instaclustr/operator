@@ -63,9 +63,6 @@ func (kacl *KafkaACL) validateUpdate(oldKafkaACL *KafkaACL) error {
 	if kacl.Spec.UserQuery != oldKafkaACL.Spec.UserQuery {
 		return fmt.Errorf("userQuery field is immutable")
 	}
-	if strings.HasPrefix(kacl.Spec.UserQuery, models.ACLUserPrefix) {
-		return fmt.Errorf("user query should not have %s prefix", models.ACLUserPrefix)
-	}
 
 	for _, acl := range kacl.Spec.ACLs {
 		if strings.TrimPrefix(acl.Principal, models.ACLUserPrefix) != kacl.Spec.UserQuery {
