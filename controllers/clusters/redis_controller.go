@@ -194,6 +194,7 @@ func (r *RedisReconciler) createCluster(ctx context.Context, redis *v1beta1.Redi
 	}
 
 	redis.Spec.FromInstAPI(instaModel)
+	redis.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Update(ctx, redis)
 	if err != nil {
 		return fmt.Errorf("failed to update redis spec, err: %w", err)
@@ -961,7 +962,7 @@ func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 				newObj := event.ObjectNew.(*v1beta1.Redis)
 
-				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
 					return false
 				}
 

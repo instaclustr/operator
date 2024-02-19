@@ -161,9 +161,7 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return fmt.Errorf("cannot assert object %v to redis", new.GetObjectKind())
 	}
 
-	redislog.Info("validate update", "name", r.Name)
-
-	if r.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
+	if r.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
 		return nil
 	}
 
@@ -172,13 +170,15 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		return nil
 	}
 
+	if r.Status.ID == "" {
+		return rv.ValidateCreate(ctx, r)
+	}
+
+	redislog.Info("validate update", "name", r.Name)
+
 	oldRedis, ok := old.(*Redis)
 	if !ok {
 		return models.ErrTypeAssertion
-	}
-
-	if r.Status.ID == "" {
-		return rv.ValidateCreate(ctx, r)
 	}
 
 	if oldRedis.Spec.RestoreFrom != nil {

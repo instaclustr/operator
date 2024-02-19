@@ -178,6 +178,14 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 		return fmt.Errorf("cannot assert object %v to openSearch", new.GetObjectKind())
 	}
 
+	if os.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+		return nil
+	}
+
+	if os.Annotations[models.ExternalChangesAnnotation] == models.True {
+		return nil
+	}
+
 	if os.Status.ID == "" {
 		return osv.ValidateCreate(ctx, os)
 	}
@@ -185,19 +193,6 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 	opensearchlog.Info("validate update", "name", os.Name)
 
 	oldCluster := old.(*OpenSearch)
-
-	if os.Annotations[models.ResourceStateAnnotation] == models.CreatingEvent {
-		return nil
-	}
-
-	// skip validation when we receive cluster specification update from the Instaclustr Console.
-	if os.Status.ID == "" {
-		return osv.ValidateCreate(ctx, os)
-	}
-
-	if os.Annotations[models.ExternalChangesAnnotation] == models.True {
-		return nil
-	}
 
 	if oldCluster.Spec.BundledUseOnly && !oldCluster.Spec.IsEqual(os.Spec) {
 		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
