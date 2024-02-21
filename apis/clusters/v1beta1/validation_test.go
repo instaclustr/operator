@@ -1015,7 +1015,6 @@ func TestGenericClusterSpec_ValidateCreation(t *testing.T) {
 	type fields struct {
 		Name            string
 		Version         string
-		PCICompliance   bool
 		PrivateNetwork  bool
 		SLATier         string
 		Description     string
@@ -1071,7 +1070,6 @@ func TestGenericClusterSpec_ValidateCreation(t *testing.T) {
 			s := &GenericClusterSpec{
 				Name:            tt.fields.Name,
 				Version:         tt.fields.Version,
-				PCICompliance:   tt.fields.PCICompliance,
 				PrivateNetwork:  tt.fields.PrivateNetwork,
 				SLATier:         tt.fields.SLATier,
 				Description:     tt.fields.Description,
