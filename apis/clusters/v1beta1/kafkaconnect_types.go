@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"fmt"
-
 	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -541,27 +539,6 @@ func (tc *TargetCluster) ManagedClustersToInstAPI() (iClusters []*models.Managed
 		})
 	}
 	return
-}
-
-func (k *KafkaConnect) NewDefaultUserSecret(username, password string) *k8scorev1.Secret {
-	return &k8scorev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       models.SecretKind,
-			APIVersion: models.K8sAPIVersionV1,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, k.Name),
-			Namespace: k.Namespace,
-			Labels: map[string]string{
-				models.ControlledByLabel:  k.Name,
-				models.DefaultSecretLabel: "true",
-			},
-		},
-		StringData: map[string]string{
-			models.Username: username,
-			models.Password: password,
-		},
-	}
 }
 
 func (k *KafkaConnect) GetExposePorts() []k8scorev1.ServicePort {

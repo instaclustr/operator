@@ -212,7 +212,7 @@ func (r *ZookeeperReconciler) createDefaultSecret(ctx context.Context, zk *v1bet
 	}
 
 	patch := zk.NewPatch()
-	secret := zk.NewDefaultUserSecret(username, password)
+	secret := newDefaultUserSecret(username, password, zk.Name, zk.Namespace)
 	err = r.Create(ctx, secret)
 	if err != nil {
 		l.Error(err, "Cannot create secret with default user credentials",

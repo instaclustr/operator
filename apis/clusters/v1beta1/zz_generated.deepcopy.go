@@ -662,6 +662,11 @@ func (in *CassandraStatus) DeepCopyInto(out *CassandraStatus) {
 			}
 		}
 	}
+	if in.DefaultUserSecretRef != nil {
+		in, out := &in.DefaultUserSecretRef, &out.DefaultUserSecretRef
+		*out = new(apiextensions.ObjectReference)
+		**out = **in
+	}
 	if in.AvailableUsers != nil {
 		in, out := &in.AvailableUsers, &out.AvailableUsers
 		*out = make(References, len(*in))

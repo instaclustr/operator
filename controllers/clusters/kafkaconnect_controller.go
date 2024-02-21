@@ -413,7 +413,7 @@ func (r *KafkaConnectReconciler) createDefaultSecret(ctx context.Context, kc *v1
 	}
 
 	patch := kc.NewPatch()
-	secret := kc.NewDefaultUserSecret(username, password)
+	secret := newDefaultUserSecret(username, password, kc.Name, kc.Namespace)
 	err = r.Create(ctx, secret)
 	if err != nil {
 		l.Error(err, "Cannot create secret with default user credentials",

@@ -66,7 +66,7 @@ var _ = Describe("Zookeeper Controller", func() {
 			<-done
 
 			By("creating secret with the default user credentials")
-			secret := zookeeper.NewDefaultUserSecret("", "")
+			secret := newDefaultUserSecret("", "", zookeeper.Name, zookeeper.Namespace)
 			secretNamespacedName := types.NamespacedName{
 				Namespace: secret.Namespace,
 				Name:      secret.Name,

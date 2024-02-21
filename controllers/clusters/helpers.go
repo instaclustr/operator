@@ -24,8 +24,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
+	k8scorev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/strings/slices"
@@ -195,6 +197,27 @@ func createSpecDifferenceMessage[T any](k8sSpec, iSpec T) (string, error) {
 	}
 
 	return fmt.Sprintf("%s Diffs: %s", models.ExternalChangesBaseMessage, b), nil
+}
+
+func newDefaultUserSecret(username, password, name, namespace string) *k8scorev1.Secret {
+	return &k8scorev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       models.SecretKind,
+			APIVersion: models.K8sAPIVersionV1,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, name),
+			Namespace: namespace,
+			Labels: map[string]string{
+				models.ControlledByLabel:  name,
+				models.DefaultSecretLabel: "true",
+			},
+		},
+		StringData: map[string]string{
+			models.Username: username,
+			models.Password: password,
+		},
+	}
 }
 
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +

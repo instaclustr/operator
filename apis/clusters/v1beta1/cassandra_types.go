@@ -65,8 +65,9 @@ type CassandraSpec struct {
 
 // CassandraStatus defines the observed state of Cassandra
 type CassandraStatus struct {
-	GenericStatus `json:",inline"`
-	DataCentres   []*CassandraDataCentreStatus `json:"dataCentres,omitempty"`
+	GenericStatus        `json:",inline"`
+	DataCentres          []*CassandraDataCentreStatus `json:"dataCentres,omitempty"`
+	DefaultUserSecretRef *Reference                   `json:"defaultUserSecretRef,omitempty"`
 
 	AvailableUsers References `json:"availableUsers,omitempty"`
 }

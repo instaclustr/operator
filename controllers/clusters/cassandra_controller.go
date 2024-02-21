@@ -316,6 +316,21 @@ func (r *CassandraReconciler) handleCreateCluster(
 		}
 	}
 
+	err := r.createDefaultSecret(ctx, c, l)
+	if err != nil {
+		l.Error(err, "Cannot create default secret for Cassandra",
+			"cluster name", c.Spec.Name,
+			"clusterID", c.Status.ID,
+		)
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.CreationFailed,
+			"Default user secret creation on the Instaclustr is failed. Reason: %v",
+			err,
+		)
+
+		return reconcile.Result{}, err
+	}
+
 	if c.Status.State != models.DeletedStatus {
 		patch := c.NewPatch()
 		c.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
@@ -886,6 +901,59 @@ func (r *CassandraReconciler) newWatchBackupsJob(c *v1beta1.Cassandra) scheduler
 
 		return nil
 	}
+}
+
+func (r *CassandraReconciler) createDefaultSecret(ctx context.Context, c *v1beta1.Cassandra, l logr.Logger) error {
+	username, password, err := r.API.GetDefaultCredentialsV1(c.Status.ID)
+	if err != nil {
+		l.Error(err, "Cannot get default user creds for Cassandra cluster from the Instaclustr API",
+			"cluster ID", c.Status.ID,
+		)
+		r.EventRecorder.Eventf(c, models.Warning, models.FetchFailed,
+			"Default user password fetch from the Instaclustr API is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
+	patch := c.NewPatch()
+	secret := newDefaultUserSecret(username, password, c.Name, c.Namespace)
+	err = r.Create(ctx, secret)
+	if err != nil {
+		l.Error(err, "Cannot create secret with default user credentials",
+			"cluster ID", c.Status.ID,
+		)
+		r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed,
+			"Creating secret with default user credentials is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
+	l.Info("Default secret was created",
+		"secret name", secret.Name,
+		"secret namespace", secret.Namespace,
+	)
+
+	c.Status.DefaultUserSecretRef = &v1beta1.Reference{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+	}
+
+	err = r.Status().Patch(ctx, c, patch)
+	if err != nil {
+		l.Error(err, "Cannot patch Cassandra resource",
+			"cluster name", c.Spec.Name,
+			"status", c.Status)
+
+		r.EventRecorder.Eventf(
+			c, models.Warning, models.PatchFailed,
+			"Cluster resource patch is failed. Reason: %v", err)
+
+		return err
+	}
+
+	return nil
 }
 
 func (r *CassandraReconciler) newUsersCreationJob(c *v1beta1.Cassandra) scheduler.Job {
