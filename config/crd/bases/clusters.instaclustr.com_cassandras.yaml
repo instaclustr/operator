@@ -449,6 +449,17 @@ spec:
                   - nodes
                   type: object
                 type: array
+              defaultUserSecretRef:
+                description: ObjectReference is namespaced reference to an object
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
               id:
                 type: string
               maintenanceEvents:

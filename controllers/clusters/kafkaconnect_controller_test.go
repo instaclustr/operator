@@ -68,7 +68,7 @@ var _ = Describe("Kafka Connect Controller", func() {
 			<-done
 
 			By("creating secret with the default user credentials")
-			secret := kafkaConnect.NewDefaultUserSecret("", "")
+			secret := newDefaultUserSecret("", "", kafkaConnect.Name, kafkaConnectManifest.Namespace)
 			secretNamespacedName := types.NamespacedName{
 				Namespace: secret.Namespace,
 				Name:      secret.Name,

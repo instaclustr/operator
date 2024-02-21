@@ -18,9 +18,6 @@ package v1beta1
 
 import (
 	"encoding/json"
-	"fmt"
-
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -216,25 +213,4 @@ func (rs *ZookeeperSpec) areDCsEqual(b []*ZookeeperDataCentre) bool {
 	}
 
 	return true
-}
-
-func (a *Zookeeper) NewDefaultUserSecret(username, password string) *v1.Secret {
-	return &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       models.SecretKind,
-			APIVersion: models.K8sAPIVersionV1,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, a.Name),
-			Namespace: a.Namespace,
-			Labels: map[string]string{
-				models.ControlledByLabel:  a.Name,
-				models.DefaultSecretLabel: "true",
-			},
-		},
-		StringData: map[string]string{
-			models.Username: username,
-			models.Password: password,
-		},
-	}
 }
