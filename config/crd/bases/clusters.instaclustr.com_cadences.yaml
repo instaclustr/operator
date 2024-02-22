@@ -65,38 +65,118 @@ spec:
                   - awsAccessKeySecretName
                   - awsAccessKeySecretNamespace
                   type: object
+                maxItems: 1
                 type: array
               dataCentres:
                 items:
                   properties:
                     accountName:
+                      default: INSTACLUSTR
+                      description: For customers running in their own account. Your
+                        provider account can be found on the Create Cluster page on
+                        the Instaclustr Console, or the "Provider Account" property
+                        on any existing cluster. For customers provisioning on Instaclustr's
+                        cloud provider accounts, this property may be omitted.
                       type: string
-                    clientEncryption:
-                      type: boolean
-                    cloudProvider:
-                      type: string
-                    cloudProviderSettings:
+                    awsSettings:
+                      description: AWS specific settings for the Data Centre. Cannot
+                        be provided with GCP or Azure settings.
                       items:
                         properties:
                           backupBucket:
+                            description: Specify the S3 bucket to use for storing
+                              backup data for the cluster data centre. Only available
+                              for customers running in their own cloud provider accounts.
+                              Currently supported for OpenSearch clusters only.
                             type: string
                           customVirtualNetworkId:
+                            description: VPC ID into which the Data Centre will be
+                              provisioned. The Data Centre's network allocation must
+                              match the IPv4 CIDR block of the specified VPC.
                             type: string
-                          disableSnapshotAutoExpiry:
-                            type: boolean
-                          diskEncryptionKey:
-                            type: string
-                          resourceGroup:
+                          encryptionKey:
+                            description: ID of a KMS encryption key to encrypt data
+                              on nodes. KMS encryption key must be set in Cluster
+                              Resources through the Instaclustr Console before provisioning
+                              an encrypted Data Centre.
                             type: string
                         type: object
+                      maxItems: 1
+                      type: array
+                    azureSettings:
+                      description: Azure specific settings for the Data Centre. Cannot
+                        be provided with AWS or GCP settings.
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            description: VNet ID into which the Data Centre will be
+                              provisioned. The VNet must have an available address
+                              space for the Data Centre's network allocation to be
+                              appended to the VNet. Currently supported for PostgreSQL
+                              clusters only.
+                            type: string
+                          resourceGroup:
+                            description: The name of the Azure Resource Group into
+                              which the Data Centre will be provisioned.
+                            type: string
+                          storageNetwork:
+                            description: 'The private network address block to be
+                              used for the storage network. This is only used for
+                              certain node sizes, currently limited to those which
+                              use Azure NetApp Files: for all other node sizes, this
+                              field should not be provided. The network must have
+                              a prefix length between /16 and /28, and must be part
+                              of a private address range.'
+                            type: string
+                        type: object
+                      maxItems: 1
+                      type: array
+                    clientEncryption:
+                      type: boolean
+                    cloudProvider:
+                      description: Name of a cloud provider service.
+                      type: string
+                    gcpSettings:
+                      description: GCP specific settings for the Data Centre. Cannot
+                        be provided with AWS or Azure settings.
+                      items:
+                        properties:
+                          customVirtualNetworkId:
+                            description: "Network name or a relative Network or Subnetwork
+                              URI. The Data Centre's network allocation must match
+                              the IPv4 CIDR block of the specified subnet. \n Examples:
+                              Network URI: projects/{riyoa-gcp-project-name}/global/networks/{network-name}.
+                              Network name: {network-name}, equivalent to projects/{riyoa-gcp-project-name}/global/networks/{network-name}.
+                              Same-project subnetwork URI: projects/{riyoa-gcp-project-name}/regions/{region-id}/subnetworks/{subnetwork-name}.
+                              Shared VPC subnetwork URI: projects/{riyoa-gcp-host-project-name}/regions/{region-id}/subnetworks/{subnetwork-name}."
+                            type: string
+                          disableSnapshotAutoExpiry:
+                            description: Specify whether the GCS backup bucket should
+                              automatically expire data after 7 days or not. Setting
+                              this to true will disable automatic expiry and will
+                              allow for creation of custom snapshot repositories with
+                              customisable retention using the Index Management Plugin.
+                              The storage will have to be manually cleared after the
+                              cluster is deleted. Only available for customers running
+                              in their own cloud provider accounts. Currently supported
+                              for OpenSearch clusters only.
+                            type: boolean
+                        type: object
+                      maxItems: 1
                       type: array
                     name:
+                      description: A logical name for the data centre within a cluster.
+                        These names must be unique in the cluster.
                       type: string
                     network:
+                      description: The private network address block for the Data
+                        Centre specified using CIDR address notation. The network
+                        must have a prefix length between /12 and /22 and must be
+                        part of a private address space.
                       type: string
                     nodeSize:
                       type: string
-                    nodesNumber:
+                    numberOfNodes:
                       type: integer
                     privateLink:
                       items:
@@ -107,18 +187,26 @@ spec:
                         required:
                         - advertisedHostname
                         type: object
+                      maxItems: 1
                       type: array
                     region:
+                      description: Region of the Data Centre.
                       type: string
                     tags:
                       additionalProperties:
                         type: string
+                      description: List of tags to apply to the Data Centre. Tags
+                        are metadata labels which allow you to identify, categorize
+                        and filter clusters. This can be useful for grouping together
+                        clusters into applications, environments, or any category
+                        that you require.
                       type: object
                   required:
                   - cloudProvider
+                  - name
                   - network
                   - nodeSize
-                  - nodesNumber
+                  - numberOfNodes
                   - region
                   type: object
                 maxItems: 1
@@ -192,14 +280,11 @@ spec:
                   - bundledCassandraSpec
                   - useAdvancedVisibility
                   type: object
+                maxItems: 1
                 type: array
-              pciCompliance:
-                description: The PCI compliance standards relate to the security of
-                  user data and transactional information. Can only be applied clusters
-                  provisioned on AWS_VPC, running Cassandra, Kafka, Elasticsearch
-                  and Redis.
+              pciComplianceMode:
                 type: boolean
-              privateNetworkCluster:
+              privateNetwork:
                 type: boolean
               resizeSettings:
                 items:
@@ -209,6 +294,7 @@ spec:
                     notifySupportContacts:
                       type: boolean
                   type: object
+                maxItems: 1
                 type: array
               sharedProvisioning:
                 items:
@@ -218,6 +304,7 @@ spec:
                   required:
                   - useAdvancedVisibility
                   type: object
+                maxItems: 1
                 type: array
               slaTier:
                 description: 'Non-production clusters may receive lower priority support
@@ -255,6 +342,7 @@ spec:
                         - targetKafka
                         - targetOpenSearch
                         type: object
+                      maxItems: 1
                       type: array
                     targetCassandra:
                       properties:
@@ -269,6 +357,7 @@ spec:
                   required:
                   - targetCassandra
                   type: object
+                maxItems: 1
                 type: array
               targetPrimaryCadence:
                 items:
@@ -281,6 +370,7 @@ spec:
                   - dependencyCdcId
                   - dependencyVpcType
                   type: object
+                maxItems: 1
                 type: array
               twoFactorDelete:
                 items:
@@ -303,20 +393,17 @@ spec:
                 type: string
             required:
             - dataCentres
+            - pciComplianceMode
             - useCadenceWebAuth
             type: object
           status:
             description: CadenceStatus defines the observed state of Cadence
             properties:
-              cdcid:
-                type: string
               currentClusterOperationStatus:
                 type: string
               dataCentres:
                 items:
                   properties:
-                    encryptionKeyId:
-                      type: string
                     id:
                       type: string
                     name:
@@ -342,7 +429,7 @@ spec:
                             type: string
                         type: object
                       type: array
-                    nodesNumber:
+                    numberOfNodes:
                       type: integer
                     privateLink:
                       items:
@@ -503,15 +590,6 @@ spec:
                       type: array
                   type: object
                 type: array
-              options:
-                properties:
-                  dataNodeSize:
-                    type: string
-                  masterNodeSize:
-                    type: string
-                  openSearchDashboardsNodeSize:
-                    type: string
-                type: object
               state:
                 type: string
               targetSecondaryCadence:
@@ -526,8 +604,6 @@ spec:
                   - dependencyVpcType
                   type: object
                 type: array
-              twoFactorDeleteEnabled:
-                type: boolean
             type: object
         type: object
     served: true

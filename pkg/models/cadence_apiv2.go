@@ -19,36 +19,35 @@ package models
 const (
 	AWSAccessKeyID     = "awsAccessKeyId"
 	AWSSecretAccessKey = "awsSecretAccessKey"
-
-	SharedProvisioningType   = "SHARED"
-	PackagedProvisioningType = "PACKAGED"
-	StandardProvisioningType = "STANDARD"
 )
 
 type CadenceCluster struct {
-	ClusterStatus          `json:",inline"`
-	Name                   string                         `json:"name"`
-	CadenceVersion         string                         `json:"cadenceVersion"`
+	GenericClusterFields `json:",inline"`
+
 	DataCentres            []*CadenceDataCentre           `json:"dataCentres"`
 	SharedProvisioning     []*CadenceSharedProvisioning   `json:"sharedProvisioning,omitempty"`
 	StandardProvisioning   []*CadenceStandardProvisioning `json:"standardProvisioning,omitempty"`
-	PCIComplianceMode      bool                           `json:"pciComplianceMode"`
-	TwoFactorDelete        []*TwoFactorDelete             `json:"twoFactorDelete,omitempty"`
-	UseCadenceWebAuth      bool                           `json:"useCadenceWebAuth"`
-	PrivateNetworkCluster  bool                           `json:"privateNetworkCluster"`
-	SLATier                string                         `json:"slaTier"`
 	AWSArchival            []*AWSArchival                 `json:"awsArchival,omitempty"`
-	TargetPrimaryCadence   []*TargetCadence               `json:"targetPrimaryCadence,omitempty"`
-	TargetSecondaryCadence []*TargetCadence               `json:"targetSecondaryCadence,omitempty"`
+	TwoFactorDelete        []*TwoFactorDelete             `json:"twoFactorDelete,omitempty"`
+	TargetPrimaryCadence   []*CadenceDependencyTarget     `json:"targetPrimaryCadence,omitempty"`
+	TargetSecondaryCadence []*CadenceDependencyTarget     `json:"targetSecondaryCadence,omitempty"`
 	ResizeSettings         []*ResizeSettings              `json:"resizeSettings,omitempty"`
-	Description            string                         `json:"description,omitempty"`
-	UseHTTPAPI             bool                           `json:"useHttpApi,omitempty"`
+
+	CadenceVersion    string `json:"cadenceVersion"`
+	UseHTTPAPI        bool   `json:"useHttpApi,omitempty"`
+	PCIComplianceMode bool   `json:"pciComplianceMode"`
+	UseCadenceWebAuth bool   `json:"useCadenceWebAuth"`
 }
 
 type CadenceDataCentre struct {
-	DataCentre                `json:",inline"`
-	ClientToClusterEncryption bool           `json:"clientToClusterEncryption"`
-	PrivateLink               []*PrivateLink `json:"privateLink,omitempty"`
+	GenericDataCentreFields `json:",inline"`
+
+	ClientToClusterEncryption bool   `json:"clientToClusterEncryption"`
+	NumberOfNodes             int    `json:"numberOfNodes"`
+	NodeSize                  string `json:"nodeSize"`
+
+	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
+	Nodes       []*Node        `json:"nodes"`
 }
 
 type CadenceSharedProvisioning struct {
@@ -56,31 +55,16 @@ type CadenceSharedProvisioning struct {
 }
 
 type CadenceStandardProvisioning struct {
-	AdvancedVisibility []*AdvancedVisibility `json:"advancedVisibility,omitempty"`
-	TargetCassandra    *TargetCassandra      `json:"targetCassandra"`
+	AdvancedVisibility []*AdvancedVisibility    `json:"advancedVisibility,omitempty"`
+	TargetCassandra    *CadenceDependencyTarget `json:"targetCassandra"`
 }
 
 type AdvancedVisibility struct {
-	TargetKafka      *TargetKafka      `json:"targetKafka"`
-	TargetOpenSearch *TargetOpenSearch `json:"targetOpenSearch"`
+	TargetKafka      *CadenceDependencyTarget `json:"targetKafka"`
+	TargetOpenSearch *CadenceDependencyTarget `json:"targetOpenSearch"`
 }
 
-type TargetKafka struct {
-	DependencyCDCID   string `json:"dependencyCdcId"`
-	DependencyVPCType string `json:"dependencyVpcType"`
-}
-
-type TargetOpenSearch struct {
-	DependencyCDCID   string `json:"dependencyCdcId"`
-	DependencyVPCType string `json:"dependencyVpcType"`
-}
-
-type TargetCassandra struct {
-	DependencyCDCID   string `json:"dependencyCdcId"`
-	DependencyVPCType string `json:"dependencyVpcType"`
-}
-
-type TargetCadence struct {
+type CadenceDependencyTarget struct {
 	DependencyCDCID   string `json:"dependencyCdcId"`
 	DependencyVPCType string `json:"dependencyVpcType"`
 }
@@ -93,5 +77,6 @@ type AWSArchival struct {
 }
 
 type CadenceClusterAPIUpdate struct {
-	DataCentres []*CadenceDataCentre `json:"dataCentres"`
+	DataCentres    []*CadenceDataCentre `json:"dataCentres"`
+	ResizeSettings []*ResizeSettings    `json:"resizeSettings,omitempty"`
 }

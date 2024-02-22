@@ -40,16 +40,15 @@ spec:
   #  - email: "rostyslp@netapp.com"
   privateNetworkCluster: false
   dataCentres:
-    - region: "US_EAST_2"
+    - region: "US_EAST_1"
       network: "10.12.0.0/16"
-      # if you use multi-region mode please provide
       # In a multi-region mode setup, ensure the CIDR block for the secondary cluster does not overlap with the primary one
 #      network: "10.16.0.0/16"
       cloudProvider: "AWS_VPC"
       name: "testdc"
 #      nodeSize: "CAD-PRD-m5ad.large-75"
       nodeSize: "CAD-DEV-t3.small-5"
-      nodesNumber: 2
+      numberOfNodes: 2
       clientEncryption: false
 #      privateLink:
 #        - advertisedHostname: "cadence-sample-test.com"

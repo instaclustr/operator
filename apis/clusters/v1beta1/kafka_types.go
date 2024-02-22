@@ -353,7 +353,7 @@ func (k *Kafka) FromInstAPI(instaModel *models.KafkaCluster) {
 }
 
 func (ks *KafkaSpec) FromInstAPI(instaModel *models.KafkaCluster) {
-	ks.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields)
+	ks.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields, instaModel.KafkaVersion)
 	ks.ResizeSettings.FromInstAPI(instaModel.ResizeSettings)
 
 	ks.ReplicationFactor = instaModel.DefaultReplicationFactor
@@ -363,7 +363,6 @@ func (ks *KafkaSpec) FromInstAPI(instaModel *models.KafkaCluster) {
 	ks.ClientToClusterEncryption = instaModel.ClientToClusterEncryption
 	ks.ClientBrokerAuthWithMTLS = instaModel.ClientBrokerAuthWithMtls
 	ks.BundledUseOnly = instaModel.BundledUseOnly
-	ks.Version = instaModel.KafkaVersion
 	ks.PCICompliance = instaModel.PCIComplianceMode
 
 	ks.DCsFromInstAPI(instaModel.DataCentres)

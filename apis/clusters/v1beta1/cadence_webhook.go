@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"net"
 	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -67,7 +68,7 @@ func (c *Cadence) Default() {
 	}
 
 	for _, dataCentre := range c.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
+		dataCentre.ProviderAccountName = models.DefaultAccountName
 	}
 }
 
@@ -90,7 +91,7 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		return err
 	}
 
-	err = c.Spec.Cluster.ValidateCreation()
+	err = c.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -114,22 +115,6 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		return fmt.Errorf("only one of StandardProvisioning, SharedProvisioning or PackagedProvisioning arrays must not be empty")
 	}
 
-	if len(c.Spec.AWSArchival) > 1 {
-		return fmt.Errorf("AWSArchival array size must be between 0 and 1")
-	}
-
-	if len(c.Spec.StandardProvisioning) > 1 {
-		return fmt.Errorf("StandardProvisioning array size must be between 0 and 1")
-	}
-
-	if len(c.Spec.SharedProvisioning) > 1 {
-		return fmt.Errorf("SharedProvisioning array size must be between 0 and 1")
-	}
-
-	if len(c.Spec.PackagedProvisioning) > 1 {
-		return fmt.Errorf("PackagedProvisioning array size must be between 0 and 1")
-	}
-
 	for _, awsArchival := range c.Spec.AWSArchival {
 		err = awsArchival.validate()
 		if err != nil {
@@ -138,58 +123,24 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 	}
 
 	for _, sp := range c.Spec.StandardProvisioning {
-		if len(sp.AdvancedVisibility) > 1 {
-			return fmt.Errorf("AdvancedVisibility array size must be between 0 and 1")
-		}
-
 		err = sp.validate()
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, pp := range c.Spec.PackagedProvisioning {
-		if (pp.UseAdvancedVisibility && pp.BundledKafkaSpec == nil) || (pp.UseAdvancedVisibility && pp.BundledOpenSearchSpec == nil) {
-			return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must not be empty because UseAdvancedVisibility is set to true")
-		}
-
-		if pp.BundledKafkaSpec != nil {
-			err = pp.BundledKafkaSpec.validate()
-			if err != nil {
-				return err
-			}
-		}
-
-		if pp.BundledCassandraSpec != nil {
-			err = pp.BundledCassandraSpec.validate()
-			if err != nil {
-				return err
-			}
-		}
-
-		if pp.BundledOpenSearchSpec != nil {
-			err = pp.BundledOpenSearchSpec.validate()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(c.Spec.TargetPrimaryCadence) > 1 {
-		return fmt.Errorf("targetPrimaryCadence array must consist of <= 1 elements")
-	}
-
-	if len(c.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
+	err = c.Spec.validatePackagedProvisioningCreation()
+	if err != nil {
+		return err
 	}
 
 	for _, dc := range c.Spec.DataCentres {
-		err = dc.DataCentre.ValidateCreation()
+		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
 			return err
 		}
 
-		if !c.Spec.PrivateNetworkCluster && dc.PrivateLink != nil {
+		if !c.Spec.PrivateNetwork && dc.PrivateLink != nil {
 			return models.ErrPrivateLinkOnlyWithPrivateNetworkCluster
 		}
 
@@ -276,7 +227,7 @@ type immutableCadenceDCFields struct {
 
 func (cs *CadenceSpec) newImmutableFields() *immutableCadenceFields {
 	return &immutableCadenceFields{
-		immutableCluster:  cs.Cluster.newImmutableFields(),
+		immutableCluster:  cs.GenericClusterSpec.immutableFields(),
 		UseCadenceWebAuth: cs.UseCadenceWebAuth,
 		UseHTTPAPI:        cs.UseHTTPAPI,
 	}
@@ -465,11 +416,11 @@ func (cs *CadenceSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CadenceS
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		if newDC.NodesNumber < oldDC.NodesNumber {
-			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
+		if newDC.NumberOfNodes < oldDC.NumberOfNodes {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NumberOfNodes)
 		}
 
-		err := newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err := newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}
@@ -601,6 +552,72 @@ func (o *BundledOpenSearchSpec) validate() error {
 	err = validateOpenSearchNumberOfRacks(o.NumberOfRacks)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (cs *CadenceSpec) validatePackagedProvisioningCreation() error {
+	for _, dc := range cs.DataCentres {
+		for _, pp := range cs.PackagedProvisioning {
+			if (pp.UseAdvancedVisibility && pp.BundledKafkaSpec == nil) || (pp.UseAdvancedVisibility && pp.BundledOpenSearchSpec == nil) {
+				return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must not be empty because UseAdvancedVisibility is set to true")
+			}
+
+			if pp.BundledKafkaSpec != nil {
+				err := pp.BundledKafkaSpec.validate()
+				if err != nil {
+					return err
+				}
+
+				err = dc.validateNetwork(pp.BundledKafkaSpec.Network)
+				if err != nil {
+					return err
+				}
+			}
+
+			if pp.BundledCassandraSpec != nil {
+				err := pp.BundledCassandraSpec.validate()
+				if err != nil {
+					return err
+				}
+
+				err = dc.validateNetwork(pp.BundledCassandraSpec.Network)
+				if err != nil {
+					return err
+				}
+			}
+
+			if pp.BundledOpenSearchSpec != nil {
+				err := pp.BundledOpenSearchSpec.validate()
+				if err != nil {
+					return err
+				}
+
+				err = dc.validateNetwork(pp.BundledOpenSearchSpec.Network)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (cdc *CadenceDataCentre) validateNetwork(network string) error {
+	_, ipnet, err := net.ParseCIDR(cdc.Network)
+	if err != nil {
+		return err
+	}
+
+	ip, _, err := net.ParseCIDR(network)
+	if err != nil {
+		return err
+	}
+
+	if ipnet.Contains(ip) {
+		return fmt.Errorf("cluster network %s overlaps with network %s", cdc.Network, network)
 	}
 
 	return nil

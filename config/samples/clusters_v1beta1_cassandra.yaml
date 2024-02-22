@@ -1,7 +1,7 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Cassandra
 metadata:
-  name: cassandra-cluster-2
+  name: cassandra-cluster
 spec:
   name: "example-cassandra" #(immutable)
   version: "4.0.10" #(immutable)

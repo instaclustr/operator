@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	k8scorev1 "k8s.io/api/core/v1"
@@ -28,12 +27,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 )
 
 type CadenceDataCentre struct {
-	DataCentre       `json:",inline"`
-	ClientEncryption bool           `json:"clientEncryption,omitempty"`
-	PrivateLink      []*PrivateLink `json:"privateLink,omitempty"`
+	GenericDataCentreSpec `json:",inline"`
+
+	NumberOfNodes    int    `json:"numberOfNodes"`
+	NodeSize         string `json:"nodeSize"`
+	ClientEncryption bool   `json:"clientEncryption,omitempty"`
+
+	PrivateLink PrivateLinkSpec `json:"privateLink,omitempty"`
 }
 
 type BundledCassandraSpec struct {
@@ -61,18 +65,32 @@ type BundledOpenSearchSpec struct {
 
 // CadenceSpec defines the desired state of Cadence
 type CadenceSpec struct {
-	Cluster `json:",inline"`
+	GenericClusterSpec `json:",inline"`
+
 	//+kubebuilder:validation:MinItems:=1
 	//+kubebuilder:validation:MaxItems:=1
-	DataCentres          []*CadenceDataCentre    `json:"dataCentres"`
-	UseCadenceWebAuth    bool                    `json:"useCadenceWebAuth"`
-	AWSArchival          []*AWSArchival          `json:"awsArchival,omitempty"`
+	DataCentres []*CadenceDataCentre `json:"dataCentres"`
+
+	//+kubebuilder:validation:MaxItems:=1
+	AWSArchival []*AWSArchival `json:"awsArchival,omitempty"`
+
+	//+kubebuilder:validation:MaxItems:=1
 	StandardProvisioning []*StandardProvisioning `json:"standardProvisioning,omitempty"`
-	SharedProvisioning   []*SharedProvisioning   `json:"sharedProvisioning,omitempty"`
+
+	//+kubebuilder:validation:MaxItems:=1
+	SharedProvisioning []*SharedProvisioning `json:"sharedProvisioning,omitempty"`
+
+	//+kubebuilder:validation:MaxItems:=1
 	PackagedProvisioning []*PackagedProvisioning `json:"packagedProvisioning,omitempty"`
-	TargetPrimaryCadence []*TargetCadence        `json:"targetPrimaryCadence,omitempty"`
-	ResizeSettings       []*ResizeSettings       `json:"resizeSettings,omitempty"`
-	UseHTTPAPI           bool                    `json:"useHttpApi,omitempty"`
+
+	//+kubebuilder:validation:MaxItems:=1
+	TargetPrimaryCadence []*CadenceDependencyTarget `json:"targetPrimaryCadence,omitempty"`
+
+	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty"`
+
+	UseCadenceWebAuth bool `json:"useCadenceWebAuth"`
+	UseHTTPAPI        bool `json:"useHttpApi,omitempty"`
+	PCICompliance     bool `json:"pciCompliance,omitempty"`
 }
 
 type AWSArchival struct {
@@ -94,39 +112,36 @@ type SharedProvisioning struct {
 }
 
 type StandardProvisioning struct {
-	AdvancedVisibility []*AdvancedVisibility `json:"advancedVisibility,omitempty"`
-	TargetCassandra    *TargetCassandra      `json:"targetCassandra"`
+	//+kubebuilder:validation:MaxItems:=1
+	AdvancedVisibility []*AdvancedVisibility    `json:"advancedVisibility,omitempty"`
+	TargetCassandra    *CadenceDependencyTarget `json:"targetCassandra"`
 }
 
-type TargetCassandra struct {
-	DependencyCDCID   string `json:"dependencyCdcId"`
-	DependencyVPCType string `json:"dependencyVpcType"`
-}
-
-type TargetKafka struct {
-	DependencyCDCID   string `json:"dependencyCdcId"`
-	DependencyVPCType string `json:"dependencyVpcType"`
-}
-
-type TargetOpenSearch struct {
-	DependencyCDCID   string `json:"dependencyCdcId"`
-	DependencyVPCType string `json:"dependencyVpcType"`
-}
-
-type TargetCadence struct {
+type CadenceDependencyTarget struct {
 	DependencyCDCID   string `json:"dependencyCdcId"`
 	DependencyVPCType string `json:"dependencyVpcType"`
 }
 
 type AdvancedVisibility struct {
-	TargetKafka      *TargetKafka      `json:"targetKafka"`
-	TargetOpenSearch *TargetOpenSearch `json:"targetOpenSearch"`
+	TargetKafka      *CadenceDependencyTarget `json:"targetKafka"`
+	TargetOpenSearch *CadenceDependencyTarget `json:"targetOpenSearch"`
 }
 
 // CadenceStatus defines the observed state of Cadence
 type CadenceStatus struct {
-	ClusterStatus          `json:",inline"`
-	TargetSecondaryCadence []*TargetCadence `json:"targetSecondaryCadence,omitempty"`
+	GenericStatus `json:",inline"`
+
+	DataCentres            []*CadenceDataCentreStatus `json:"dataCentres,omitempty"`
+	TargetSecondaryCadence []*CadenceDependencyTarget `json:"targetSecondaryCadence,omitempty"`
+}
+
+type CadenceDataCentreStatus struct {
+	GenericDataCentreStatus `json:",inline"`
+
+	NumberOfNodes int `json:"numberOfNodes,omitempty"`
+
+	Nodes       []*Node             `json:"nodes,omitempty"`
+	PrivateLink PrivateLinkStatuses `json:"privateLink,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -197,21 +212,18 @@ func (cs *CadenceSpec) ToInstAPI(ctx context.Context, k8sClient client.Client) (
 	}
 
 	return &models.CadenceCluster{
-		CadenceVersion:        cs.Version,
-		DataCentres:           cs.DCsToInstAPI(),
-		Name:                  cs.Name,
-		PCIComplianceMode:     cs.PCICompliance,
-		TwoFactorDelete:       cs.TwoFactorDeletesToInstAPI(),
-		UseCadenceWebAuth:     cs.UseCadenceWebAuth,
-		PrivateNetworkCluster: cs.PrivateNetworkCluster,
-		SLATier:               cs.SLATier,
-		AWSArchival:           awsArchival,
-		Description:           cs.Description,
-		SharedProvisioning:    sharedProvisioning,
-		StandardProvisioning:  standardProvisioning,
-		TargetPrimaryCadence:  cs.TargetCadenceToInstAPI(),
-		ResizeSettings:        resizeSettingsToInstAPI(cs.ResizeSettings),
-		UseHTTPAPI:            cs.UseHTTPAPI,
+		GenericClusterFields: cs.GenericClusterSpec.ToInstAPI(),
+		CadenceVersion:       cs.Version,
+		DataCentres:          cs.DCsToInstAPI(),
+		PCIComplianceMode:    cs.PCICompliance,
+		TwoFactorDelete:      cs.TwoFactorDeleteToInstAPI(),
+		UseCadenceWebAuth:    cs.UseCadenceWebAuth,
+		AWSArchival:          awsArchival,
+		SharedProvisioning:   sharedProvisioning,
+		StandardProvisioning: standardProvisioning,
+		TargetPrimaryCadence: cs.TargetCadenceToInstAPI(),
+		ResizeSettings:       resizeSettingsToInstAPI(cs.ResizeSettings),
+		UseHTTPAPI:           cs.UseHTTPAPI,
 	}, nil
 }
 
@@ -222,7 +234,7 @@ func (cs *CadenceSpec) StandardProvisioningToInstAPI() []*models.CadenceStandard
 		targetCassandra := standardProvisioning.TargetCassandra
 
 		stdProvisioning := &models.CadenceStandardProvisioning{
-			TargetCassandra: &models.TargetCassandra{
+			TargetCassandra: &models.CadenceDependencyTarget{
 				DependencyCDCID:   targetCassandra.DependencyCDCID,
 				DependencyVPCType: targetCassandra.DependencyVPCType,
 			},
@@ -234,11 +246,11 @@ func (cs *CadenceSpec) StandardProvisioningToInstAPI() []*models.CadenceStandard
 
 			stdProvisioning.AdvancedVisibility = []*models.AdvancedVisibility{
 				{
-					TargetKafka: &models.TargetKafka{
+					TargetKafka: &models.CadenceDependencyTarget{
 						DependencyCDCID:   targetKafka.DependencyCDCID,
 						DependencyVPCType: targetKafka.DependencyVPCType,
 					},
-					TargetOpenSearch: &models.TargetOpenSearch{
+					TargetOpenSearch: &models.CadenceDependencyTarget{
 						DependencyCDCID:   targetOpenSearch.DependencyCDCID,
 						DependencyVPCType: targetOpenSearch.DependencyVPCType,
 					},
@@ -285,62 +297,39 @@ func (cs *CadenceSpec) ArchivalToInstAPI(ctx context.Context, k8sClient client.C
 }
 
 func getSecret(ctx context.Context, k8sClient client.Client, aws *AWSArchival) (string, string, error) {
-	var err error
 	awsCredsSecret := &k8scorev1.Secret{}
 	awsSecretNamespacedName := types.NamespacedName{
 		Name:      aws.AccessKeySecretName,
 		Namespace: aws.AccessKeySecretNamespace,
 	}
-	err = k8sClient.Get(ctx, awsSecretNamespacedName, awsCredsSecret)
+
+	err := k8sClient.Get(ctx, awsSecretNamespacedName, awsCredsSecret)
 	if err != nil {
 		return "", "", err
 	}
 
-	var AWSAccessKeyID string
-	var AWSSecretAccessKey string
 	keyID := awsCredsSecret.Data[models.AWSAccessKeyID]
 	secretAccessKey := awsCredsSecret.Data[models.AWSSecretAccessKey]
-	AWSAccessKeyID = string(keyID[:len(keyID)-1])
-	AWSSecretAccessKey = string(secretAccessKey[:len(secretAccessKey)-1])
+	AWSAccessKeyID := string(keyID[:len(keyID)-1])
+	AWSSecretAccessKey := string(secretAccessKey[:len(secretAccessKey)-1])
 
-	return AWSAccessKeyID, AWSSecretAccessKey, err
+	return AWSAccessKeyID, AWSSecretAccessKey, nil
 }
 
 func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
-	cloudProviderSettings := cdc.CloudProviderSettingsToInstAPI()
 	return &models.CadenceDataCentre{
-		PrivateLink:               cdc.privateLinkToInstAPI(),
+		GenericDataCentreFields:   cdc.GenericDataCentreSpec.ToInstAPI(),
+		PrivateLink:               cdc.PrivateLink.ToInstAPI(),
 		ClientToClusterEncryption: cdc.ClientEncryption,
-		DataCentre: models.DataCentre{
-			CloudProvider:       cdc.CloudProvider,
-			Name:                cdc.Name,
-			Network:             cdc.Network,
-			NodeSize:            cdc.NodeSize,
-			NumberOfNodes:       cdc.NodesNumber,
-			Region:              cdc.Region,
-			ProviderAccountName: cdc.ProviderAccountName,
-			AWSSettings:         cloudProviderSettings.AWSSettings,
-			GCPSettings:         cloudProviderSettings.GCPSettings,
-			AzureSettings:       cloudProviderSettings.AzureSettings,
-			Tags:                cdc.TagsToInstAPI(),
-		},
+		NumberOfNodes:             cdc.NumberOfNodes,
+		NodeSize:                  cdc.NodeSize,
 	}
 }
 
-func (cd *CadenceDataCentre) privateLinkToInstAPI() (iPrivateLink []*models.PrivateLink) {
-	for _, link := range cd.PrivateLink {
-		iPrivateLink = append(iPrivateLink, &models.PrivateLink{
-			AdvertisedHostname: link.AdvertisedHostname,
-		})
-	}
-
-	return
-}
-
-func (cs *CadenceSpec) TargetCadenceToInstAPI() []*models.TargetCadence {
-	var targets []*models.TargetCadence
+func (cs *CadenceSpec) TargetCadenceToInstAPI() []*models.CadenceDependencyTarget {
+	var targets []*models.CadenceDependencyTarget
 	for _, target := range cs.TargetPrimaryCadence {
-		targets = append(targets, &models.TargetCadence{
+		targets = append(targets, &models.CadenceDependencyTarget{
 			DependencyCDCID:   target.DependencyCDCID,
 			DependencyVPCType: target.DependencyVPCType,
 		})
@@ -357,40 +346,26 @@ func (cs *CadenceSpec) DCsToInstAPI() (iDCs []*models.CadenceDataCentre) {
 	return
 }
 
-func (c *Cadence) FromInstAPI(iData []byte) (*Cadence, error) {
-	iCad := &models.CadenceCluster{}
-	err := json.Unmarshal(iData, iCad)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Cadence{
-		TypeMeta:   c.TypeMeta,
-		ObjectMeta: c.ObjectMeta,
-		Spec:       c.Spec.FromInstAPI(iCad),
-		Status:     c.Status.FromInstAPI(iCad),
-	}, nil
+func (c *Cadence) FromInstAPI(instaModel *models.CadenceCluster) {
+	c.Spec.FromInstAPI(instaModel)
+	c.Status.FromInstAPI(instaModel)
 }
 
-func (cs *CadenceSpec) FromInstAPI(iCad *models.CadenceCluster) (spec CadenceSpec) {
-	spec.DataCentres = cs.DCsFromInstAPI(iCad.DataCentres)
-	spec.ResizeSettings = resizeSettingsFromInstAPI(iCad.ResizeSettings)
-	spec.TwoFactorDelete = cs.Cluster.TwoFactorDeleteFromInstAPI(iCad.TwoFactorDelete)
-	spec.Description = iCad.Description
+func (cs *CadenceSpec) FromInstAPI(instaModel *models.CadenceCluster) {
+	cs.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields, instaModel.CadenceVersion)
+	cs.ResizeSettings.FromInstAPI(instaModel.ResizeSettings)
 
-	return
+	cs.DCsFromInstAPI(instaModel.DataCentres)
 }
 
-func (cs *CadenceSpec) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*CadenceDataCentre) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, &CadenceDataCentre{
-			DataCentre:       cs.Cluster.DCFromInstAPI(iDC.DataCentre),
-			ClientEncryption: iDC.ClientToClusterEncryption,
-			PrivateLink:      cs.PrivateLinkFromInstAPI(iDC.PrivateLink),
-		})
+func (cs *CadenceSpec) DCsFromInstAPI(instaModels []*models.CadenceDataCentre) {
+	dcs := make([]*CadenceDataCentre, len(instaModels))
+	for i, instaModel := range instaModels {
+		dc := &CadenceDataCentre{}
+		dc.FromInstAPI(instaModel)
+		dcs[i] = dc
 	}
-
-	return
+	cs.DataCentres = dcs
 }
 
 func (cs *CadenceSpec) PrivateLinkFromInstAPI(iPLs []*models.PrivateLink) (pls []*PrivateLink) {
@@ -405,28 +380,27 @@ func (cs *CadenceSpec) PrivateLinkFromInstAPI(iPLs []*models.PrivateLink) (pls [
 func (c *Cadence) GetSpec() CadenceSpec { return c.Spec }
 
 func (c *Cadence) IsSpecEqual(spec CadenceSpec) bool {
-	return c.Spec.IsEqual(spec)
+	return c.Spec.Equals(&spec.GenericClusterSpec) &&
+		c.Spec.DCsEqual(spec.DataCentres)
 }
 
-func (cs *CadenceSpec) IsEqual(spec CadenceSpec) bool {
-	return cs.AreDCsEqual(spec.DataCentres)
-}
-
-func (cs *CadenceSpec) AreDCsEqual(dcs []*CadenceDataCentre) bool {
+func (cs *CadenceSpec) DCsEqual(dcs []*CadenceDataCentre) bool {
 	if len(cs.DataCentres) != len(dcs) {
 		return false
 	}
 
-	for i, iDC := range dcs {
-		dataCentre := cs.DataCentres[i]
+	m := map[string]*CadenceDataCentre{}
+	for _, dc := range cs.DataCentres {
+		m[dc.Name] = dc
+	}
 
-		if iDC.Name != dataCentre.Name {
-			continue
+	for _, dc := range dcs {
+		mDC, ok := m[dc.Name]
+		if !ok {
+			return false
 		}
 
-		if !dataCentre.IsEqual(iDC.DataCentre) ||
-			iDC.ClientEncryption != dataCentre.ClientEncryption ||
-			!arePrivateLinksEqual(dataCentre.PrivateLink, iDC.PrivateLink) {
+		if !mDC.Equals(dc) {
 			return false
 		}
 	}
@@ -434,50 +408,41 @@ func (cs *CadenceSpec) AreDCsEqual(dcs []*CadenceDataCentre) bool {
 	return true
 }
 
-func (cs *CadenceStatus) FromInstAPI(iCad *models.CadenceCluster) CadenceStatus {
-	return CadenceStatus{
-		ClusterStatus: ClusterStatus{
-			ID:                            iCad.ID,
-			State:                         iCad.Status,
-			DataCentres:                   cs.DCsFromInstAPI(iCad.DataCentres),
-			CurrentClusterOperationStatus: iCad.CurrentClusterOperationStatus,
-			MaintenanceEvents:             cs.MaintenanceEvents,
-		},
-		TargetSecondaryCadence: cs.SecondaryTargetsFromInstAPI(iCad),
-	}
+func (cs *CadenceStatus) FromInstAPI(instaModel *models.CadenceCluster) {
+	cs.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
+	cs.targetSecondaryFromInstAPI(instaModel.TargetSecondaryCadence)
+	cs.DCsFromInstAPI(instaModel.DataCentres)
 }
 
-func (cs *CadenceStatus) SecondaryTargetsFromInstAPI(iCad *models.CadenceCluster) []*TargetCadence {
-	var targets []*TargetCadence
-	for _, target := range iCad.TargetSecondaryCadence {
-		targets = append(targets, &TargetCadence{
+func (cs *CadenceStatus) targetSecondaryFromInstAPI(instaModels []*models.CadenceDependencyTarget) {
+	cs.TargetSecondaryCadence = make([]*CadenceDependencyTarget, len(instaModels))
+	for i, target := range instaModels {
+		cs.TargetSecondaryCadence[i] = &CadenceDependencyTarget{
 			DependencyCDCID:   target.DependencyCDCID,
 			DependencyVPCType: target.DependencyVPCType,
-		})
+		}
 	}
-
-	return targets
 }
 
-func (cs *CadenceStatus) DCsFromInstAPI(iDCs []*models.CadenceDataCentre) (dcs []*DataCentreStatus) {
-	for _, iDC := range iDCs {
-		dc := cs.ClusterStatus.DCFromInstAPI(iDC.DataCentre)
-		dc.PrivateLink = privateLinkStatusesFromInstAPI(iDC.PrivateLink)
-		dcs = append(dcs, dc)
+func (cs *CadenceStatus) DCsFromInstAPI(instaModels []*models.CadenceDataCentre) {
+	cs.DataCentres = make([]*CadenceDataCentreStatus, len(instaModels))
+	for i, instaModel := range instaModels {
+		dc := &CadenceDataCentreStatus{}
+		dc.FromInstAPI(instaModel)
+		cs.DataCentres[i] = dc
 	}
-
-	return
 }
 
 func (cs *CadenceSpec) NewDCsUpdate() models.CadenceClusterAPIUpdate {
 	return models.CadenceClusterAPIUpdate{
-		DataCentres: cs.DCsToInstAPI(),
+		DataCentres:    cs.DCsToInstAPI(),
+		ResizeSettings: cs.ResizeSettings.ToInstAPI(),
 	}
 }
 
 func (c *Cadence) GetExposePorts() []k8scorev1.ServicePort {
 	var exposePorts []k8scorev1.ServicePort
-	if !c.Spec.PrivateNetworkCluster {
+	if !c.Spec.PrivateNetwork {
 		exposePorts = []k8scorev1.ServicePort{
 			{
 				Name: models.CadenceTChannel,
@@ -542,4 +507,65 @@ func (c *Cadence) GetHeadlessPorts() []k8scorev1.ServicePort {
 		headlessPorts = append(headlessPorts, sslPort)
 	}
 	return headlessPorts
+}
+
+func (cdc *CadenceDataCentreStatus) FromInstAPI(instaModel *models.CadenceDataCentre) {
+	cdc.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
+	cdc.NumberOfNodes = instaModel.NumberOfNodes
+	cdc.Nodes = nodesFromInstAPI(instaModel.Nodes)
+	cdc.PrivateLink.FromInstAPI(instaModel.PrivateLink)
+}
+
+func (cdc *CadenceDataCentre) Equals(o *CadenceDataCentre) bool {
+	return cdc.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
+		cdc.NumberOfNodes == o.NumberOfNodes &&
+		cdc.NodeSize == o.NodeSize &&
+		cdc.ClientEncryption == o.ClientEncryption &&
+		slices.EqualsPtr(cdc.PrivateLink, o.PrivateLink)
+}
+
+func (cdc *CadenceDataCentre) FromInstAPI(instaModel *models.CadenceDataCentre) {
+	cdc.GenericDataCentreSpec.FromInstAPI(&instaModel.GenericDataCentreFields)
+	cdc.PrivateLink.FromInstAPI(instaModel.PrivateLink)
+
+	cdc.NumberOfNodes = instaModel.NumberOfNodes
+	cdc.NodeSize = instaModel.NodeSize
+	cdc.ClientEncryption = instaModel.ClientToClusterEncryption
+}
+
+func (cs *CadenceStatus) Equals(o *CadenceStatus) bool {
+	return cs.GenericStatus.Equals(&o.GenericStatus) &&
+		cs.DCsEqual(o.DataCentres) &&
+		slices.EqualsPtr(cs.TargetSecondaryCadence, o.TargetSecondaryCadence)
+}
+
+func (cs *CadenceStatus) DCsEqual(o []*CadenceDataCentreStatus) bool {
+	if len(cs.DataCentres) != len(o) {
+		return false
+	}
+
+	m := map[string]*CadenceDataCentreStatus{}
+	for _, dc := range cs.DataCentres {
+		m[dc.Name] = dc
+	}
+
+	for _, dc := range o {
+		mDC, ok := m[dc.Name]
+		if !ok {
+			return false
+		}
+
+		if !mDC.Equals(dc) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (cdc *CadenceDataCentreStatus) Equals(o *CadenceDataCentreStatus) bool {
+	return cdc.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
+		cdc.PrivateLink.Equal(o.PrivateLink) &&
+		nodesEqual(cdc.Nodes, o.Nodes) &&
+		cdc.NumberOfNodes == o.NumberOfNodes
 }

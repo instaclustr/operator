@@ -32,11 +32,12 @@ func (s *GenericClusterSpec) Equals(o *GenericClusterSpec) bool {
 		slices.EqualsPtr(s.TwoFactorDelete, o.TwoFactorDelete)
 }
 
-func (s *GenericClusterSpec) FromInstAPI(model *models.GenericClusterFields) {
+func (s *GenericClusterSpec) FromInstAPI(model *models.GenericClusterFields, version string) {
 	s.Name = model.Name
 	s.PrivateNetwork = model.PrivateNetworkCluster
 	s.SLATier = model.SLATier
 	s.Description = model.Description
+	s.Version = version
 	s.TwoFactorDeleteFromInstAPI(model.TwoFactorDelete)
 }
 
@@ -204,7 +205,7 @@ func (s *GenericDataCentreSpec) cloudProviderSettingsFromInstAPI(instaModel *mod
 	}
 
 	switch {
-	case len(instaModel.AWSSettings) > 0:
+	case len(instaModel.AWSSettings) > 0 && instaModel.HasAWSCloudProviderSettings():
 		setting := instaModel.AWSSettings[0]
 		s.AWSSettings = []*AWSSettings{{
 			DiskEncryptionKey:      setting.EBSEncryptionKey,

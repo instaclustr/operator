@@ -92,7 +92,7 @@ type API interface {
 	CreatePostgreSQLConfiguration(id, name, value string) error
 	UpdatePostgreSQLConfiguration(id, name, value string) error
 	ResetPostgreSQLConfiguration(id, name string) error
-	GetCadence(id string) ([]byte, error)
+	GetCadence(id string) (*models.CadenceCluster, error)
 	UpdatePostgreSQLDefaultUserPassword(id, password string) error
 	ListClusters() ([]*models.ActiveClusters, error)
 	CreateEncryptionKey(encryptionKeySpec any) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error)
