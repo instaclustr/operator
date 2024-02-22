@@ -197,7 +197,7 @@ func (k *KafkaConnect) FromInstAPI(instaModel *models.KafkaConnectCluster) {
 }
 
 func (ks *KafkaConnectSpec) FromInstAPI(instaModel *models.KafkaConnectCluster) {
-	ks.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields)
+	ks.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields, instaModel.KafkaConnectVersion)
 
 	ks.Version = instaModel.KafkaConnectVersion
 

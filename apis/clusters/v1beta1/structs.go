@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	"encoding/json"
-	"net"
 
 	clusterresource "github.com/instaclustr/operator/apis/clusterresources/v1beta1"
 	"github.com/instaclustr/operator/pkg/apiextensions"
@@ -147,7 +146,7 @@ type PrivateLink struct {
 type PrivateLinkSpec []*PrivateLink
 
 func (p PrivateLinkSpec) ToInstAPI() []*models.PrivateLink {
-	instaModels := make([]*models.PrivateLink, len(p))
+	instaModels := make([]*models.PrivateLink, 0, len(p))
 	for _, pl := range p {
 		instaModels = append(instaModels, &models.PrivateLink{
 			AdvertisedHostname: pl.AdvertisedHostname,
@@ -223,19 +222,6 @@ func privateLinksToInstAPI(p []*PrivateLink) []*models.PrivateLink {
 	return links
 }
 
-func privateLinkStatusesFromInstAPI(iPLs []*models.PrivateLink) PrivateLinkStatuses {
-	k8sPLs := make(PrivateLinkStatuses, 0, len(iPLs))
-	for _, link := range iPLs {
-		k8sPLs = append(k8sPLs, &privateLinkStatus{
-			AdvertisedHostname:  link.AdvertisedHostname,
-			EndPointServiceID:   link.EndPointServiceID,
-			EndPointServiceName: link.EndPointServiceName,
-		})
-	}
-
-	return k8sPLs
-}
-
 type PrivateLinkV1 struct {
 	IAMPrincipalARNs []string `json:"iamPrincipalARNs"`
 }
@@ -287,19 +273,6 @@ func resizeSettingsToInstAPI(rss []*ResizeSettings) []*models.ResizeSettings {
 
 	for _, rs := range rss {
 		iRS = append(iRS, &models.ResizeSettings{
-			NotifySupportContacts: rs.NotifySupportContacts,
-			Concurrency:           rs.Concurrency,
-		})
-	}
-
-	return iRS
-}
-
-func resizeSettingsFromInstAPI(rss []*models.ResizeSettings) []*ResizeSettings {
-	iRS := make([]*ResizeSettings, 0, len(rss))
-
-	for _, rs := range rss {
-		iRS = append(iRS, &ResizeSettings{
 			NotifySupportContacts: rs.NotifySupportContacts,
 			Concurrency:           rs.Concurrency,
 		})
@@ -382,24 +355,6 @@ func (c *Cluster) TwoFactorDeleteToInstAPIv1() *models.TwoFactorDeleteV1 {
 		DeleteVerifyEmail: c.TwoFactorDelete[0].Email,
 		DeleteVerifyPhone: c.TwoFactorDelete[0].Phone,
 	}
-}
-
-func (dc *DataCentre) IsNetworkOverlaps(networkToCheck string) (bool, error) {
-	_, ipnet, err := net.ParseCIDR(dc.Network)
-	if err != nil {
-		return false, err
-	}
-
-	cassIP, _, err := net.ParseCIDR(networkToCheck)
-	if err != nil {
-		return false, err
-	}
-
-	if ipnet.Contains(cassIP) {
-		return true, nil
-	}
-
-	return false, nil
 }
 
 func (dc *DataCentre) ToInstAPI() models.DataCentre {
@@ -728,20 +683,6 @@ func (cs *ClusterStatus) NodesFromInstAPIv1(iNodes []*models.NodeStatusV1) (node
 		})
 	}
 	return nodes
-}
-
-func arePrivateLinksEqual(a, b []*PrivateLink) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i, privateLink := range a {
-		if *b[i] != *privateLink {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (cs *ClusterStatus) PrivateLinkStatusesEqual(iStatus *ClusterStatus) bool {

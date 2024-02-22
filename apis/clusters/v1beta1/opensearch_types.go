@@ -58,9 +58,8 @@ type OpenSearchSpec struct {
 }
 
 func (s *OpenSearchSpec) FromInstAPI(instaModel *models.OpenSearchCluster) {
-	s.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields)
+	s.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields, instaModel.OpenSearchVersion)
 
-	s.Version = instaModel.OpenSearchVersion
 	s.ICUPlugin = instaModel.ICUPlugin
 	s.AsynchronousSearchPlugin = instaModel.AsynchronousSearchPlugin
 	s.KNNPlugin = instaModel.KNNPlugin

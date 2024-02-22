@@ -2035,7 +2035,7 @@ func (c *Client) ResetPostgreSQLConfiguration(id, name string) error {
 	return nil
 }
 
-func (c *Client) GetCadence(id string) ([]byte, error) {
+func (c *Client) GetCadence(id string) (*models.CadenceCluster, error) {
 	url := c.serverHostname + CadenceEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -2056,7 +2056,13 @@ func (c *Client) GetCadence(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var instaModel models.CadenceCluster
+	err = json.Unmarshal(body, &instaModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &instaModel, nil
 }
 
 func (c *Client) UpdatePostgreSQLDefaultUserPassword(id, password string) error {

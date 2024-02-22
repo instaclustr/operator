@@ -234,7 +234,7 @@ func (r *CadenceReconciler) handleCreateCluster(
 	}
 
 	if c.Status.State != models.DeletedStatus {
-		err := r.startClusterStatusJob(c)
+		err := r.startSyncJob(c)
 		if err != nil {
 			l.Error(err, "Cannot start cluster status job",
 				"c cluster ID", c.Status.ID,
@@ -259,7 +259,7 @@ func (r *CadenceReconciler) handleUpdateCluster(
 	req ctrl.Request,
 	l logr.Logger,
 ) (ctrl.Result, error) {
-	iData, err := r.API.GetCadence(c.Status.ID)
+	instaModel, err := r.API.GetCadence(c.Status.ID)
 	if err != nil {
 		l.Error(
 			err, "Cannot get Cadence cluster from the Instaclustr API",
@@ -273,26 +273,15 @@ func (r *CadenceReconciler) handleUpdateCluster(
 		return ctrl.Result{}, err
 	}
 
-	iCadence, err := c.FromInstAPI(iData)
-	if err != nil {
-		l.Error(
-			err, "Cannot convert Cadence cluster from the Instaclustr API",
-			"cluster name", c.Spec.Name,
-			"cluster ID", c.Status.ID,
-		)
-
-		r.EventRecorder.Eventf(c, models.Warning, models.ConversionFailed,
-			"Cluster convertion from the Instaclustr API to k8s resource is failed. Reason: %v", err)
-
-		return ctrl.Result{}, err
-	}
+	iCadence := &v1beta1.Cadence{}
+	iCadence.FromInstAPI(instaModel)
 
 	if c.Annotations[models.ExternalChangesAnnotation] == models.True ||
 		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
 		return handleExternalChanges[v1beta1.CadenceSpec](r.EventRecorder, r.Client, c, iCadence, l)
 	}
 
-	if c.Spec.ClusterSettingsNeedUpdate(iCadence.Spec.Cluster) {
+	if c.Spec.ClusterSettingsNeedUpdate(&iCadence.Spec.GenericClusterSpec) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iCadence.Spec.Description,
 			"instaclustr two factor delete", iCadence.Spec.TwoFactorDelete)
@@ -519,8 +508,8 @@ func (r *CadenceReconciler) preparePackagedSolution(
 	kafkaList := &v1beta1.KafkaList{}
 	osList := &v1beta1.OpenSearchList{}
 	advancedVisibility := &v1beta1.AdvancedVisibility{
-		TargetKafka:      &v1beta1.TargetKafka{},
-		TargetOpenSearch: &v1beta1.TargetOpenSearch{},
+		TargetKafka:      &v1beta1.CadenceDependencyTarget{},
+		TargetOpenSearch: &v1beta1.CadenceDependencyTarget{},
 	}
 	var advancedVisibilities []*v1beta1.AdvancedVisibility
 	if packagedProvisioning.UseAdvancedVisibility {
@@ -607,7 +596,7 @@ func (r *CadenceReconciler) preparePackagedSolution(
 
 	c.Spec.StandardProvisioning = append(c.Spec.StandardProvisioning, &v1beta1.StandardProvisioning{
 		AdvancedVisibility: advancedVisibilities,
-		TargetCassandra: &v1beta1.TargetCassandra{
+		TargetCassandra: &v1beta1.CadenceDependencyTarget{
 			DependencyCDCID:   cassandraList.Items[0].Status.DataCentres[0].ID,
 			DependencyVPCType: models.VPCPeered,
 		},
@@ -630,12 +619,8 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 		Finalizers:  []string{},
 	}
 
-	if len(c.Spec.DataCentres) == 0 {
-		return nil, models.ErrZeroDataCentres
-	}
-
 	slaTier := c.Spec.SLATier
-	privateNetwork := c.Spec.PrivateNetworkCluster
+	privateNetwork := c.Spec.PrivateNetwork
 	pciCompliance := c.Spec.PCICompliance
 
 	var twoFactorDelete []*v1beta1.TwoFactorDelete
@@ -650,23 +635,13 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 	var cassNodeSize, network string
 	var cassNodesNumber, cassReplicationFactor int
 	var cassPrivateIPBroadcastForDiscovery, cassPasswordAndUserAuth bool
-	for _, dc := range c.Spec.DataCentres {
-		for _, pp := range c.Spec.PackagedProvisioning {
-			cassNodeSize = pp.BundledCassandraSpec.NodeSize
-			network = pp.BundledCassandraSpec.Network
-			cassNodesNumber = pp.BundledCassandraSpec.NodesNumber
-			cassReplicationFactor = pp.BundledCassandraSpec.ReplicationFactor
-			cassPrivateIPBroadcastForDiscovery = pp.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
-			cassPasswordAndUserAuth = pp.BundledCassandraSpec.PasswordAndUserAuth
-
-			isCassNetworkOverlaps, err := dc.IsNetworkOverlaps(network)
-			if err != nil {
-				return nil, err
-			}
-			if isCassNetworkOverlaps {
-				return nil, models.ErrNetworkOverlaps
-			}
-		}
+	for _, pp := range c.Spec.PackagedProvisioning {
+		cassNodeSize = pp.BundledCassandraSpec.NodeSize
+		network = pp.BundledCassandraSpec.Network
+		cassNodesNumber = pp.BundledCassandraSpec.NodesNumber
+		cassReplicationFactor = pp.BundledCassandraSpec.ReplicationFactor
+		cassPrivateIPBroadcastForDiscovery = pp.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
+		cassPasswordAndUserAuth = pp.BundledCassandraSpec.PasswordAndUserAuth
 	}
 
 	dcName := models.CassandraChildDCName
@@ -689,6 +664,7 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 			PrivateIPBroadcastForDiscovery: cassPrivateIPBroadcastForDiscovery,
 		},
 	}
+
 	spec := v1beta1.CassandraSpec{
 		GenericClusterSpec: v1beta1.GenericClusterSpec{
 			Name:            models.CassandraChildPrefix + c.Name,
@@ -699,8 +675,8 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 		},
 		DataCentres:         cassandraDataCentres,
 		PasswordAndUserAuth: cassPasswordAndUserAuth,
-		BundledUseOnly:      true,
 		PCICompliance:       pciCompliance,
+		BundledUseOnly:      true,
 	}
 
 	return &v1beta1.Cassandra{
@@ -710,8 +686,8 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 	}, nil
 }
 
-func (r *CadenceReconciler) startClusterStatusJob(c *v1beta1.Cadence) error {
-	job := r.newWatchStatusJob(c)
+func (r *CadenceReconciler) startSyncJob(c *v1beta1.Cadence) error {
+	job := r.newSyncJob(c)
 
 	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
 	if err != nil {
@@ -721,8 +697,8 @@ func (r *CadenceReconciler) startClusterStatusJob(c *v1beta1.Cadence) error {
 	return nil
 }
 
-func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job {
-	l := log.Log.WithValues("component", "cadenceStatusClusterJob")
+func (r *CadenceReconciler) newSyncJob(c *v1beta1.Cadence) scheduler.Job {
+	l := log.Log.WithValues("syncJob", c.GetJobID(scheduler.StatusChecker), "clusterID", c.Status.ID)
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(c)
 		err := r.Get(context.Background(), namespacedName, c)
@@ -739,7 +715,7 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 			return err
 		}
 
-		iData, err := r.API.GetCadence(c.Status.ID)
+		instaModel, err := r.API.GetCadence(c.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
 				if c.DeletionTimestamp != nil {
@@ -756,26 +732,16 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 			return err
 		}
 
-		iCadence, err := c.FromInstAPI(iData)
-		if err != nil {
-			l.Error(err, "Cannot convert Cadence cluster from the Instaclustr API",
-				"clusterID", c.Status.ID,
-			)
-			return err
-		}
+		iCadence := &v1beta1.Cadence{}
+		iCadence.FromInstAPI(instaModel)
 
-		if !areStatusesEqual(&iCadence.Status.ClusterStatus, &c.Status.ClusterStatus) ||
-			!areSecondaryCadenceTargetsEqual(c.Status.TargetSecondaryCadence, iCadence.Status.TargetSecondaryCadence) {
-			l.Info("Updating Cadence cluster status",
-				"new status", iCadence.Status.ClusterStatus,
-				"old status", c.Status.ClusterStatus,
-			)
+		if !c.Status.Equals(&iCadence.Status) {
+			l.Info("Updating Cadence cluster status")
 
-			areDCsEqual := areDataCentresEqual(iCadence.Status.ClusterStatus.DataCentres, c.Status.ClusterStatus.DataCentres)
+			areDCsEqual := c.Status.DCsEqual(iCadence.Status.DataCentres)
 
 			patch := c.NewPatch()
-			c.Status.ClusterStatus = iCadence.Status.ClusterStatus
-			c.Status.TargetSecondaryCadence = iCadence.Status.TargetSecondaryCadence
+			c.Status.FromInstAPI(instaModel)
 			err = r.Status().Patch(context.Background(), c, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Cadence cluster",
@@ -788,14 +754,14 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 			if !areDCsEqual {
 				var nodes []*v1beta1.Node
 
-				for _, dc := range iCadence.Status.ClusterStatus.DataCentres {
+				for _, dc := range iCadence.Status.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
 				}
 
 				err = exposeservice.Create(r.Client,
 					c.Name,
 					c.Namespace,
-					c.Spec.PrivateNetworkCluster,
+					c.Spec.PrivateNetwork,
 					nodes,
 					models.CadenceConnectionPort)
 				if err != nil {
@@ -804,22 +770,14 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 			}
 		}
 
-		equals := c.Spec.IsEqual(iCadence.Spec)
-
-		if equals && c.Annotations[models.ExternalChangesAnnotation] == models.True {
-			patch := c.NewPatch()
-			delete(c.Annotations, models.ExternalChangesAnnotation)
-			err := r.Patch(context.Background(), c, patch)
+		if c.Annotations[models.ExternalChangesAnnotation] == models.True && c.IsSpecEqual(iCadence.Spec) {
+			err = reconcileExternalChanges(r.Client, r.EventRecorder, c)
 			if err != nil {
 				return err
 			}
-
-			r.EventRecorder.Event(c, models.Normal, models.ExternalChanges,
-				"External changes were automatically reconciled",
-			)
 		} else if c.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			c.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
-			!equals {
+			!c.IsSpecEqual(iCadence.Spec) {
 			l.Info(msgExternalChanges,
 				"instaclustr data", iCadence.Spec.DataCentres,
 				"k8s resource spec", c.Spec.DataCentres)
@@ -834,7 +792,7 @@ func (r *CadenceReconciler) newWatchStatusJob(c *v1beta1.Cadence) scheduler.Job 
 				return err
 			}
 
-			msgDiffSpecs, err := createSpecDifferenceMessage(c.Spec.DataCentres, iCadence.Spec.DataCentres)
+			msgDiffSpecs, err := createSpecDifferenceMessage(c.Spec, iCadence.Spec)
 			if err != nil {
 				l.Error(err, "Cannot create specification difference message",
 					"instaclustr data", iCadence.Spec, "k8s resource spec", c.Spec)
@@ -914,16 +872,6 @@ func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion 
 	bundledKafkaSpec := c.Spec.PackagedProvisioning[0].BundledKafkaSpec
 
 	kafkaNetwork := bundledKafkaSpec.Network
-	for _, cadenceDC := range c.Spec.DataCentres {
-		isKafkaNetworkOverlaps, err := cadenceDC.IsNetworkOverlaps(kafkaNetwork)
-		if err != nil {
-			return nil, err
-		}
-		if isKafkaNetworkOverlaps {
-			return nil, models.ErrNetworkOverlaps
-		}
-	}
-
 	kafkaNodeSize := bundledKafkaSpec.NodeSize
 	kafkaNodesNumber := bundledKafkaSpec.NodesNumber
 	dcName := models.KafkaChildDCName
@@ -945,7 +893,7 @@ func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion 
 	}
 
 	slaTier := c.Spec.SLATier
-	privateClusterNetwork := c.Spec.PrivateNetworkCluster
+	privateClusterNetwork := c.Spec.PrivateNetwork
 	pciCompliance := c.Spec.PCICompliance
 	clientEncryption := c.Spec.DataCentres[0].ClientEncryption
 	spec := v1beta1.KafkaSpec{
@@ -1000,7 +948,7 @@ func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSear
 
 	oNumberOfRacks := bundledOpenSearchSpec.NumberOfRacks
 	slaTier := c.Spec.SLATier
-	privateClusterNetwork := c.Spec.PrivateNetworkCluster
+	privateClusterNetwork := c.Spec.PrivateNetwork
 	pciCompliance := c.Spec.PCICompliance
 
 	var twoFactorDelete []*v1beta1.TwoFactorDelete
@@ -1014,14 +962,6 @@ func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSear
 	}
 
 	osNetwork := bundledOpenSearchSpec.Network
-	isOsNetworkOverlaps, err := c.Spec.DataCentres[0].IsNetworkOverlaps(osNetwork)
-	if err != nil {
-		return nil, err
-	}
-	if isOsNetworkOverlaps {
-		return nil, models.ErrNetworkOverlaps
-	}
-
 	dcName := models.OpenSearchChildDCName
 	dcRegion := c.Spec.DataCentres[0].Region
 	cloudProvider := c.Spec.DataCentres[0].CloudProvider
@@ -1119,16 +1059,6 @@ func (r *CadenceReconciler) deletePackagedResources(
 	return nil
 }
 
-func areSecondaryCadenceTargetsEqual(k8sTargets, iTargets []*v1beta1.TargetCadence) bool {
-	for _, iTarget := range iTargets {
-		for _, k8sTarget := range k8sTargets {
-			return *iTarget == *k8sTarget
-		}
-	}
-
-	return len(iTargets) == len(k8sTargets)
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *CadenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -1189,7 +1119,7 @@ func (r *CadenceReconciler) reconcileMaintenanceEvents(ctx context.Context, c *v
 		return err
 	}
 
-	if !c.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+	if !c.Status.MaintenanceEventsEqual(iMEStatuses) {
 		patch := c.NewPatch()
 		c.Status.MaintenanceEvents = iMEStatuses
 		err = r.Status().Patch(ctx, c, patch)

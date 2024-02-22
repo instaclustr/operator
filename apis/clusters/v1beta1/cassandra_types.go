@@ -318,12 +318,11 @@ func (cs *CassandraSpec) DCsUpdateToInstAPI() models.CassandraClusterAPIUpdate {
 }
 
 func (cs *CassandraSpec) FromInstAPI(instModel *models.CassandraCluster) {
-	cs.GenericClusterSpec.FromInstAPI(&instModel.GenericClusterFields)
+	cs.GenericClusterSpec.FromInstAPI(&instModel.GenericClusterFields, instModel.CassandraVersion)
 
 	cs.LuceneEnabled = instModel.LuceneEnabled
 	cs.PasswordAndUserAuth = instModel.PasswordAndUserAuth
 	cs.BundledUseOnly = instModel.BundledUseOnly
-	cs.Version = instModel.CassandraVersion
 	cs.PCICompliance = instModel.PCIComplianceMode
 	cs.ResizeSettings.FromInstAPI(instModel.ResizeSettings)
 

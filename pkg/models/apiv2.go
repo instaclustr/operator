@@ -63,6 +63,24 @@ type CloudProviderSettings struct {
 	AzureSettings []*AzureSetting `json:"azureSettings,omitempty"`
 }
 
+// HasAWSCloudProviderSettings indicates if the AWSSetting object is not zero.
+// We need this because Instaclustr API returns an object of AWSSetting which is not empty,
+// but the fields are filled with null values.
+func (dc *CloudProviderSettings) HasAWSCloudProviderSettings() bool {
+	if dc == nil || len(dc.AWSSettings) == 0 {
+		return false
+	}
+
+	zero := AWSSetting{}
+	for _, s := range dc.AWSSettings {
+		if s != nil && *s != zero {
+			return true
+		}
+	}
+
+	return false
+}
+
 type AWSSetting struct {
 	EBSEncryptionKey       string `json:"ebsEncryptionKey,omitempty"`
 	CustomVirtualNetworkID string `json:"customVirtualNetworkId,omitempty"`

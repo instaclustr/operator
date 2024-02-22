@@ -342,7 +342,7 @@ func (c *mockClient) ResetPostgreSQLConfiguration(id, name string) error {
 	panic("ResetPostgreSQLConfiguration: is not implemented")
 }
 
-func (c *mockClient) GetCadence(id string) ([]byte, error) {
+func (c *mockClient) GetCadence(id string) (*models.CadenceCluster, error) {
 	panic("GetCadence: is not implemented")
 }
 

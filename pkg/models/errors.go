@@ -24,7 +24,6 @@ var (
 	ErrZeroDataCentres                                 = errors.New("cluster spec doesn't have data centres")
 	ErrMoreThanOneKraft                                = errors.New("cluster spec does not support more than one kraft")
 	ErrMoreThanThreeControllerNodeCount                = errors.New("kraft does not support more than three controller nodes")
-	ErrNetworkOverlaps                                 = errors.New("cluster network overlaps")
 	ErrImmutableTwoFactorDelete                        = errors.New("twoFactorDelete field is immutable")
 	ErrImmutableIngestNodes                            = errors.New("IngestNodes field is immutable")
 	ErrImmutableClusterManagedNodes                    = errors.New("ClusterManagedNodes field is immutable")

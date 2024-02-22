@@ -264,11 +264,10 @@ func (r *Redis) FromInstAPI(instaModel *models.RedisCluster) {
 }
 
 func (rs *RedisSpec) FromInstAPI(instaModel *models.RedisCluster) {
-	rs.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields)
+	rs.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields, instaModel.RedisVersion)
 
 	rs.ClientEncryption = instaModel.ClientToNodeEncryption
 	rs.PasswordAndUserAuth = instaModel.PasswordAndUserAuth
-	rs.Version = instaModel.RedisVersion
 	rs.PCICompliance = instaModel.PCIComplianceMode
 
 	rs.DCsFromInstAPI(instaModel.DataCentres)
