@@ -50,9 +50,9 @@ type OpenSearchSpec struct {
 	AlertingPlugin           bool                    `json:"alertingPlugin,omitempty"`
 	BundledUseOnly           bool                    `json:"bundledUseOnly,omitempty"`
 	PCICompliance            bool                    `json:"pciCompliance,omitempty"`
-	UserRefs                 References              `json:"userRefs,omitempty"`
+	UserRefs                 References              `json:"userRefs,omitempty" dcomparisonSkip:"true"`
 	//+kubuilder:validation:MaxItems:=1
-	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 	//+kubuilder:validation:MaxItems:=1
 	IngestNodes []*OpenSearchIngestNodes `json:"ingestNodes,omitempty"`
 }

@@ -59,8 +59,8 @@ type CassandraSpec struct {
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`
 	PCICompliance       bool                   `json:"pciCompliance,omitempty"`
-	UserRefs            References             `json:"userRefs,omitempty"`
-	ResizeSettings      GenericResizeSettings  `json:"resizeSettings,omitempty"`
+	UserRefs            References             `json:"userRefs,omitempty" dcomparisonSkip:"true"`
+	ResizeSettings      GenericResizeSettings  `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 }
 
 // CassandraStatus defines the observed state of Cassandra
@@ -171,7 +171,7 @@ type DebeziumCassandraSpec struct {
 	KafkaVPCType      string                              `json:"kafkaVpcType"`
 	KafkaTopicPrefix  string                              `json:"kafkaTopicPrefix"`
 	KafkaDataCentreID string                              `json:"kafkaCdcId,omitempty"`
-	ClusterRef        *clusterresourcesv1beta1.ClusterRef `json:"clusterRef,omitempty"`
+	ClusterRef        *clusterresourcesv1beta1.ClusterRef `json:"clusterRef,omitempty" dcomparisonSkip:"true"`
 	Version           string                              `json:"version"`
 }
 

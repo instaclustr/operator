@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package dcomparison provides a solution for deeply comparing two maps,
-// including their nested maps and slices. It is designed to identify differences
-// between two maps that can contain a variety of data types, such as strings,
-// integers, other maps, and slices.
+// Package dcomparison provides a solution for deeply comparing two objects (struct, maps).
+// It is designed to identify differences between two objects that may contain a variety of
+// data types, such as strings, integers, other maps, and slices.
 package dcomparison
 
 import (

@@ -78,8 +78,8 @@ type RedisSpec struct {
 	//+kubebuilder:validation:MaxItems:=2
 	DataCentres []*RedisDataCentre `json:"dataCentres"`
 
-	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty"`
-	UserRefs       References            `json:"userRefs,omitempty"`
+	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
+	UserRefs       References            `json:"userRefs,omitempty" dcomparisonSkip:"true"`
 }
 
 type RedisDataCentreStatus struct {

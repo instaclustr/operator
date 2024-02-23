@@ -86,7 +86,7 @@ type CadenceSpec struct {
 	//+kubebuilder:validation:MaxItems:=1
 	TargetPrimaryCadence []*CadenceDependencyTarget `json:"targetPrimaryCadence,omitempty"`
 
-	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty"`
+	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 
 	UseCadenceWebAuth bool `json:"useCadenceWebAuth"`
 	UseHTTPAPI        bool `json:"useHttpApi,omitempty"`

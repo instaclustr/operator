@@ -282,7 +282,7 @@ spec:
                   type: object
                 maxItems: 1
                 type: array
-              pciComplianceMode:
+              pciCompliance:
                 type: boolean
               privateNetwork:
                 type: boolean
@@ -393,7 +393,6 @@ spec:
                 type: string
             required:
             - dataCentres
-            - pciComplianceMode
             - useCadenceWebAuth
             type: object
           status:
