@@ -73,7 +73,7 @@ type KafkaSpec struct {
 	ClientBrokerAuthWithMTLS  bool       `json:"clientBrokerAuthWithMtls,omitempty"`
 	BundledUseOnly            bool       `json:"bundledUseOnly,omitempty"`
 	PCICompliance             bool       `json:"pciCompliance,omitempty"`
-	UserRefs                  References `json:"userRefs,omitempty"`
+	UserRefs                  References `json:"userRefs,omitempty" dcomparisonSkip:"true"`
 
 	// Provision additional dedicated nodes for Apache Zookeeper to run on.
 	// Zookeeper nodes will be co-located with Kafka if this is not provided
@@ -86,7 +86,7 @@ type KafkaSpec struct {
 	KarapaceRestProxy      []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
 	KarapaceSchemaRegistry []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
 	Kraft                  []*Kraft                  `json:"kraft,omitempty"`
-	ResizeSettings         GenericResizeSettings     `json:"resizeSettings,omitempty"`
+	ResizeSettings         GenericResizeSettings     `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 }
 
 type Kraft struct {

@@ -50,7 +50,7 @@ type ExternalCluster struct {
 
 type ManagedCluster struct {
 	TargetKafkaClusterID string                      `json:"targetKafkaClusterId,omitempty"`
-	ClusterRef           *clusterresource.ClusterRef `json:"clusterRef,omitempty"`
+	ClusterRef           *clusterresource.ClusterRef `json:"clusterRef,omitempty" dcomparisonSkip:"true"`
 
 	// 	Available options are KAFKA_VPC, VPC_PEERED, SEPARATE_VPC
 	KafkaConnectVPCType string `json:"kafkaConnectVpcType"`

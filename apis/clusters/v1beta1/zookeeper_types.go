@@ -42,9 +42,6 @@ type ZookeeperSpec struct {
 
 // ZookeeperStatus defines the observed state of Zookeeper
 type ZookeeperStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	ClusterStatus        `json:",inline"`
 	DefaultUserSecretRef *Reference `json:"defaultUserSecretRef,omitempty"`
 }

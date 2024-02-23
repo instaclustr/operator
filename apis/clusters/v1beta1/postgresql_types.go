@@ -77,9 +77,9 @@ type PgSpec struct {
 	DataCentres           []*PgDataCentre   `json:"dataCentres,omitempty"`
 	ClusterConfigurations map[string]string `json:"clusterConfigurations,omitempty"`
 	SynchronousModeStrict bool              `json:"synchronousModeStrict,omitempty"`
-	UserRefs              []*Reference      `json:"userRefs,omitempty"`
+	UserRefs              []*Reference      `json:"userRefs,omitempty" dcomparisonSkip:"true"`
 	//+kubebuilder:validate:MaxItems:=1
-	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty"`
+	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="extensions cannot be changed after it is set"
 	Extensions PgExtensions `json:"extensions,omitempty"`
 }

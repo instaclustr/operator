@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
@@ -169,74 +168,33 @@ func getSortedAppVersions(versions []*models.AppVersions, appType string) []*ver
 	return nil
 }
 
-func removeRedundantFieldsFromSpec(k8sSpec any, ignoreFields ...string) ([]byte, error) {
-	k8sSpecJson, err := json.Marshal(k8sSpec)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ignoreFields) == 0 {
-		return k8sSpecJson, nil
-	}
-
-	k8sSpecMap := map[string]any{}
-	err = json.Unmarshal(k8sSpecJson, &k8sSpecMap)
-
-	if err != nil {
-		return nil, err
-	}
-
-	for _, field := range ignoreFields {
-		delete(k8sSpecMap, field)
-	}
-
-	k8sSpecJson, err = json.Marshal(k8sSpecMap)
-	if err != nil {
-		return nil, err
-	}
-	return k8sSpecJson, nil
+type objectDiff struct {
+	Field            string `json:"field"`
+	K8sValue         any    `json:"k8sValue"`
+	InstaclustrValue any    `json:"instaclustrValue"`
 }
 
-func createSpecDifferenceMessage(k8sSpec, iSpec any) (string, error) {
-	k8sData, err := removeRedundantFieldsFromSpec(k8sSpec, "userRefs")
+func createSpecDifferenceMessage[T any](k8sSpec, iSpec T) (string, error) {
+	diffs, err := dcomparison.StructsDiff(models.SpecPath, k8sSpec, iSpec)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create spec difference message, err: %w", err)
 	}
 
-	iData, err := json.Marshal(iSpec)
-	if err != nil {
-		return "", err
-	}
-
-	var k8sSpecMap map[string]any
-	err = json.Unmarshal(k8sData, &k8sSpecMap)
-	if err != nil {
-		return "", err
-	}
-
-	var iSpecMap map[string]any
-	err = json.Unmarshal(iData, &iSpecMap)
-	if err != nil {
-		return "", err
-	}
-
-	diffs := dcomparison.MapsDiff(models.SpecPath, k8sSpecMap, iSpecMap)
-
-	return fmt.Sprintf("%s Diffs: %s", models.ExternalChangesBaseMessage, prepareDiffMessage(diffs)), nil
-}
-
-func prepareDiffMessage(diffs dcomparison.ObjectDiffs) string {
-	var diffMessages []string
+	objectDiffs := make([]objectDiff, 0, len(diffs))
 	for _, diff := range diffs {
-		diffMessages = append(diffMessages, fmt.Sprintf(
-			"{field: %s, k8sValue: %v, instaclustrValue: %v}",
-			diff.Field,
-			diff.Value1,
-			diff.Value2,
-		))
+		objectDiffs = append(objectDiffs, objectDiff{
+			Field:            diff.Field,
+			K8sValue:         diff.Value1,
+			InstaclustrValue: diff.Value2,
+		})
 	}
 
-	return strings.Join(diffMessages, ", ")
+	b, err := json.Marshal(objectDiffs)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s Diffs: %s", models.ExternalChangesBaseMessage, b), nil
 }
 
 var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via email or phone. " +
