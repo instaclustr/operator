@@ -1856,7 +1856,7 @@ func (c *Client) RestoreCluster(restoreData any, clusterKind string) (string, er
 	return response.ClusterID, nil
 }
 
-func (c *Client) GetPostgreSQL(id string) ([]byte, error) {
+func (c *Client) GetPostgreSQL(id string) (*models.PGCluster, error) {
 	url := c.serverHostname + PGSQLEndpoint + id
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
@@ -1877,7 +1877,13 @@ func (c *Client) GetPostgreSQL(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var pg models.PGCluster
+	err = json.Unmarshal(body, &pg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pg, nil
 }
 
 func (c *Client) UpdatePostgreSQL(id string, r *models.PGClusterUpdate) error {

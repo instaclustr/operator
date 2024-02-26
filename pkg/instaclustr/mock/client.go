@@ -318,7 +318,7 @@ func (c *mockClient) GetZookeeper(id string) ([]byte, error) {
 	panic("GetZookeeper: is not implemented")
 }
 
-func (c *mockClient) GetPostgreSQL(id string) ([]byte, error) {
+func (c *mockClient) GetPostgreSQL(id string) (*models.PGCluster, error) {
 	panic("GetPostgreSQL: is not implemented")
 }
 

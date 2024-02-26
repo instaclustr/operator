@@ -30,6 +30,7 @@ import (
 
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/utils/requiredfieldsvalidator"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
@@ -69,10 +70,6 @@ func (pg *PostgreSQL) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
-
-	for _, dataCentre := range pg.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
-	}
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
@@ -97,7 +94,7 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		}
 	}
 
-	err = pg.Spec.Cluster.ValidateCreation()
+	err = pg.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -130,7 +127,7 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 			return models.ErrOnPremisesWithMultiDC
 		}
 
-		err = dc.DataCentre.ValidateCreation()
+		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
 			return err
 		}
@@ -173,6 +170,10 @@ func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, 
 	}
 
 	postgresqllog.Info("validate update", "name", pg.Name)
+
+	if pg.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+		return nil
+	}
 
 	// skip validation when we receive cluster specification update from the Instaclustr Console.
 	if pg.Annotations[models.ExternalChangesAnnotation] == models.True {
@@ -237,7 +238,7 @@ func (pgv *pgValidator) validatePostgreSQLUsers(ctx context.Context, pg *Postgre
 		}
 	}
 
-	if !externalIPExists || pg.Spec.PrivateNetworkCluster {
+	if !externalIPExists || pg.Spec.PrivateNetwork {
 		return fmt.Errorf("cannot create PostgreSQL user, if your cluster is private or has no external ips " +
 			"you need to configure peering and remove user references from cluster specification")
 	}
@@ -273,6 +274,7 @@ type immutablePostgreSQLDCFields struct {
 
 type specificPostgreSQLDC struct {
 	ClientEncryption bool
+	NumberOfNodes    int
 }
 
 func (pg *PostgreSQL) ValidateDefaultUserPassword(password string) bool {
@@ -329,6 +331,10 @@ func (pgs *PgSpec) ValidateImmutableFieldsUpdate(oldSpec PgSpec) error {
 		return err
 	}
 
+	if !slices.Equals(pgs.Extensions, oldSpec.Extensions) {
+		return fmt.Errorf("spec.extensions are immutable")
+	}
+
 	return nil
 }
 
@@ -351,7 +357,7 @@ func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 			return err
 		}
 
-		err = newDC.validateImmutableCloudProviderSettingsUpdate(oldDC.CloudProviderSettings)
+		err = newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
 		}
@@ -366,7 +372,7 @@ func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 			return err
 		}
 
-		if newDC.NodesNumber != oldDC.NodesNumber {
+		if newDC.NumberOfNodes != oldDC.NumberOfNodes {
 			return models.ErrImmutableNodesNumber
 		}
 
@@ -408,7 +414,7 @@ func (pgs *PgSpec) newImmutableFields() *immutablePostgreSQLFields {
 		specificPostgreSQLFields: specificPostgreSQLFields{
 			SynchronousModeStrict: pgs.SynchronousModeStrict,
 		},
-		immutableCluster: pgs.Cluster.newImmutableFields(),
+		immutableCluster: pgs.GenericClusterSpec.immutableFields(),
 	}
 }
 
@@ -423,6 +429,7 @@ func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
 		},
 		specificPostgreSQLDC: specificPostgreSQLDC{
 			ClientEncryption: pdc.ClientEncryption,
+			NumberOfNodes:    pdc.NumberOfNodes,
 		},
 	}
 }
