@@ -17,19 +17,15 @@ limitations under the License.
 package models
 
 type PGCluster struct {
-	ID                            string             `json:"id,omitempty"`
-	Name                          string             `json:"name"`
-	PostgreSQLVersion             string             `json:"postgresqlVersion"`
-	DataCentres                   []*PGDataCentre    `json:"dataCentres"`
-	SynchronousModeStrict         bool               `json:"synchronousModeStrict"`
-	PrivateNetworkCluster         bool               `json:"privateNetworkCluster"`
-	SLATier                       string             `json:"slaTier"`
-	TwoFactorDelete               []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
-	PCIComplianceMode             bool               `json:"pciComplianceMode,omitempty"`
-	CurrentClusterOperationStatus string             `json:"currentClusterOperationStatus,omitempty"`
-	Status                        string             `json:"status,omitempty"`
-	Description                   string             `json:"description,omitempty"`
-	Extensions                    []*PGExtension     `json:"extensions,omitempty"`
+	GenericClusterFields `json:",inline"`
+
+	PostgreSQLVersion     string             `json:"postgresqlVersion"`
+	DefaultUserPassword   string             `json:"defaultUserPassword,omitempty"`
+	PCIComplianceMode     bool               `json:"pciComplianceMode,omitempty"`
+	SynchronousModeStrict bool               `json:"synchronousModeStrict"`
+	DataCentres           []*PGDataCentre    `json:"dataCentres"`
+	TwoFactorDelete       []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
+	Extensions            []*PGExtension     `json:"extensions,omitempty"`
 }
 
 type PGBouncer struct {
@@ -38,11 +34,16 @@ type PGBouncer struct {
 }
 
 type PGDataCentre struct {
-	DataCentre                 `json:",inline"`
-	ClientToClusterEncryption  bool                    `json:"clientToClusterEncryption"`
+	GenericDataCentreFields `json:",inline"`
+
+	NumberOfNodes             int    `json:"numberOfNodes"`
+	NodeSize                  string `json:"nodeSize"`
+	ClientToClusterEncryption bool   `json:"clientToClusterEncryption"`
+
 	InterDataCentreReplication []*PGInterDCReplication `json:"interDataCentreReplication,omitempty"`
 	IntraDataCentreReplication []*PGIntraDCReplication `json:"intraDataCentreReplication"`
 	PGBouncer                  []*PGBouncer            `json:"pgBouncer,omitempty"`
+	Nodes                      []*Node                 `json:"nodes,omitempty"`
 }
 
 type PGInterDCReplication struct {

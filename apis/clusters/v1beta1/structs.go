@@ -477,16 +477,6 @@ func (dc *DataCentre) SetDefaultValues() {
 	}
 }
 
-func (c *Cluster) newImmutableFields() immutableCluster {
-	return immutableCluster{
-		Name:                  c.Name,
-		Version:               c.Version,
-		PCICompliance:         c.PCICompliance,
-		PrivateNetworkCluster: c.PrivateNetworkCluster,
-		SLATier:               c.SLATier,
-	}
-}
-
 func (cs *ClusterStatus) AreMaintenanceEventStatusesEqual(
 	iEventStatuses []*clusterresource.ClusteredMaintenanceEventStatus,
 ) bool {
