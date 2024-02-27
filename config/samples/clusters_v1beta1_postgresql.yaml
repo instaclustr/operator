@@ -14,7 +14,7 @@ spec:
       cloudProvider: "AWS_VPC"
 #      nodeSize: "PGS-DEV-t4g.medium-30"
       nodeSize: "PGS-DEV-t4g.small-5"
-      numberOfNodes: 2
+      nodesNumber: 2
       clientEncryption: false
       name: "testDC1"
       intraDataCentreReplication:

@@ -33,7 +33,7 @@ import (
 type CadenceDataCentre struct {
 	GenericDataCentreSpec `json:",inline"`
 
-	NumberOfNodes    int    `json:"numberOfNodes"`
+	NodesNumber      int    `json:"nodesNumber"`
 	NodeSize         string `json:"nodeSize"`
 	ClientEncryption bool   `json:"clientEncryption,omitempty"`
 
@@ -137,8 +137,6 @@ type CadenceStatus struct {
 
 type CadenceDataCentreStatus struct {
 	GenericDataCentreStatus `json:",inline"`
-
-	NumberOfNodes int `json:"numberOfNodes,omitempty"`
 
 	Nodes       []*Node             `json:"nodes,omitempty"`
 	PrivateLink PrivateLinkStatuses `json:"privateLink,omitempty"`
@@ -322,7 +320,7 @@ func (cdc *CadenceDataCentre) ToInstAPI() *models.CadenceDataCentre {
 		GenericDataCentreFields:   cdc.GenericDataCentreSpec.ToInstAPI(),
 		PrivateLink:               cdc.PrivateLink.ToInstAPI(),
 		ClientToClusterEncryption: cdc.ClientEncryption,
-		NumberOfNodes:             cdc.NumberOfNodes,
+		NumberOfNodes:             cdc.NodesNumber,
 		NodeSize:                  cdc.NodeSize,
 	}
 }
@@ -526,14 +524,13 @@ func (c *Cadence) GetHeadlessPorts() []k8scorev1.ServicePort {
 
 func (cdc *CadenceDataCentreStatus) FromInstAPI(instaModel *models.CadenceDataCentre) {
 	cdc.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
-	cdc.NumberOfNodes = instaModel.NumberOfNodes
 	cdc.Nodes = nodesFromInstAPI(instaModel.Nodes)
 	cdc.PrivateLink.FromInstAPI(instaModel.PrivateLink)
 }
 
 func (cdc *CadenceDataCentre) Equals(o *CadenceDataCentre) bool {
 	return cdc.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
-		cdc.NumberOfNodes == o.NumberOfNodes &&
+		cdc.NodesNumber == o.NodesNumber &&
 		cdc.NodeSize == o.NodeSize &&
 		cdc.ClientEncryption == o.ClientEncryption &&
 		slices.EqualsPtr(cdc.PrivateLink, o.PrivateLink)
@@ -543,7 +540,7 @@ func (cdc *CadenceDataCentre) FromInstAPI(instaModel *models.CadenceDataCentre) 
 	cdc.GenericDataCentreSpec.FromInstAPI(&instaModel.GenericDataCentreFields)
 	cdc.PrivateLink.FromInstAPI(instaModel.PrivateLink)
 
-	cdc.NumberOfNodes = instaModel.NumberOfNodes
+	cdc.NodesNumber = instaModel.NumberOfNodes
 	cdc.NodeSize = instaModel.NodeSize
 	cdc.ClientEncryption = instaModel.ClientToClusterEncryption
 }
@@ -581,6 +578,5 @@ func (cs *CadenceStatus) DCsEqual(o []*CadenceDataCentreStatus) bool {
 func (cdc *CadenceDataCentreStatus) Equals(o *CadenceDataCentreStatus) bool {
 	return cdc.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
 		cdc.PrivateLink.Equal(o.PrivateLink) &&
-		nodesEqual(cdc.Nodes, o.Nodes) &&
-		cdc.NumberOfNodes == o.NumberOfNodes
+		nodesEqual(cdc.Nodes, o.Nodes)
 }

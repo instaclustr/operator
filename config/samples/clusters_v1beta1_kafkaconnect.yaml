@@ -6,7 +6,7 @@ spec:
   name: "example-KC"
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"
-      numberOfNodes: 3
+      nodesNumber: 3
       cloudProvider: "AWS_VPC"
       replicationFactor: 3
       tags:

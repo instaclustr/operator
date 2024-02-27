@@ -29,7 +29,7 @@ var ClusterBackupsInterval time.Duration
 var UserCreationInterval time.Duration
 
 const (
-	StatusChecker        = "statusChecker"
+	SyncJob              = "sync"
 	BackupsChecker       = "backupsChecker"
 	UserCreator          = "userCreator"
 	OnPremisesIPsChecker = "onPremisesIPsChecker"

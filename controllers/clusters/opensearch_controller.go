@@ -448,7 +448,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 
 	r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(o.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.SyncJob))
 
 	logger.Info("Deleting cluster backup resources",
 		"cluster ID", o.Status.ID,
@@ -518,7 +518,7 @@ func (r *OpenSearchReconciler) HandleDeleteCluster(
 func (r *OpenSearchReconciler) startClusterSyncJob(cluster *v1beta1.OpenSearch) error {
 	job := r.newSyncJob(cluster)
 
-	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -549,7 +549,7 @@ func (r *OpenSearchReconciler) startUsersCreationJob(cluster *v1beta1.OpenSearch
 }
 
 func (r *OpenSearchReconciler) newSyncJob(o *v1beta1.OpenSearch) scheduler.Job {
-	l := log.Log.WithValues("syncJob", o.GetJobID(scheduler.StatusChecker), "clusterID", o.Status.ID)
+	l := log.Log.WithValues("syncJob", o.GetJobID(scheduler.SyncJob), "clusterID", o.Status.ID)
 
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(o)
@@ -559,7 +559,7 @@ func (r *OpenSearchReconciler) newSyncJob(o *v1beta1.OpenSearch) scheduler.Job {
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(o.GetJobID(scheduler.BackupsChecker))
-			r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(o.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 		if err != nil {
@@ -993,7 +993,7 @@ func (r *OpenSearchReconciler) handleExternalDelete(ctx context.Context, o *v1be
 
 	r.Scheduler.RemoveJob(o.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(o.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(o.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(o.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

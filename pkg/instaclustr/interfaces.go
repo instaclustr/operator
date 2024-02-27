@@ -84,7 +84,7 @@ type API interface {
 	GetKafka(id string) (*models.KafkaCluster, error)
 	GetKafkaConnect(id string) (*models.KafkaConnectCluster, error)
 	UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) error
-	GetZookeeper(id string) ([]byte, error)
+	GetZookeeper(id string) (*models.ZookeeperCluster, error)
 	RestoreCluster(restoreData any, clusterKind string) (string, error)
 	GetPostgreSQL(id string) (*models.PGCluster, error)
 	UpdatePostgreSQL(id string, r *models.PGClusterUpdate) error

@@ -504,7 +504,7 @@ func (c *Client) UpdateKafkaConnect(id string, kc models.KafkaConnectAPIUpdate) 
 	return nil
 }
 
-func (c *Client) GetZookeeper(id string) ([]byte, error) {
+func (c *Client) GetZookeeper(id string) (*models.ZookeeperCluster, error) {
 	url := c.serverHostname + ZookeeperEndpoint + id
 
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
@@ -526,7 +526,13 @@ func (c *Client) GetZookeeper(id string) ([]byte, error) {
 		return nil, fmt.Errorf("status code: %d, message: %s", resp.StatusCode, body)
 	}
 
-	return body, nil
+	var cluster models.ZookeeperCluster
+	err = json.Unmarshal(body, &cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cluster, nil
 }
 
 func (c *Client) UpdateDescriptionAndTwoFactorDelete(clusterEndpoint, clusterID, description string, twoFactorDelete *v1beta1.TwoFactorDelete) error {

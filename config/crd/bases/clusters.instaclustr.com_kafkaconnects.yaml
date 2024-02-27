@@ -241,7 +241,7 @@ spec:
                       type: string
                     nodeSize:
                       type: string
-                    numberOfNodes:
+                    nodesNumber:
                       type: integer
                     region:
                       description: Region of the Data Centre.
@@ -262,7 +262,7 @@ spec:
                   - name
                   - network
                   - nodeSize
-                  - numberOfNodes
+                  - nodesNumber
                   - region
                   - replicationFactor
                   type: object

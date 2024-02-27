@@ -30,12 +30,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/instaclustr/operator/apis/clusters/v1beta1"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/utils/dcomparison"
 )
@@ -58,98 +56,6 @@ func convertAPIv2ConfigToMap(instConfigs []*models.ConfigurationProperties) map[
 		newConfigs[instConfig.Name] = instConfig.Value
 	}
 	return newConfigs
-}
-
-func areStatusesEqual(a, b *v1beta1.ClusterStatus) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil ||
-		a.ID != b.ID ||
-		a.State != b.State ||
-		a.CDCID != b.CDCID ||
-		a.TwoFactorDeleteEnabled != b.TwoFactorDeleteEnabled ||
-		a.CurrentClusterOperationStatus != b.CurrentClusterOperationStatus ||
-		!areDataCentresEqual(a.DataCentres, b.DataCentres) ||
-		!areDataCentreOptionsEqual(a.Options, b.Options) ||
-		!b.PrivateLinkStatusesEqual(a) {
-		return false
-	}
-
-	return true
-}
-
-func areDataCentreOptionsEqual(a, b *v1beta1.Options) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil {
-		return false
-	}
-
-	return *a == *b
-}
-
-func areDataCentresEqual(a, b []*v1beta1.DataCentreStatus) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i].ID != b[i].ID {
-			continue
-		}
-
-		if a[i].Status != b[i].Status ||
-			a[i].NodesNumber != b[i].NodesNumber ||
-			a[i].EncryptionKeyID != b[i].EncryptionKeyID {
-			return false
-		}
-
-		if !isDataCentreNodesEqual(a[i].Nodes, b[i].Nodes) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isDataCentreNodesEqual(a, b []*v1beta1.Node) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		var eq bool
-		for j := range b {
-			if a[i].ID != b[j].ID {
-				continue
-			}
-
-			if a[i].Size != b[j].Size ||
-				a[i].PublicAddress != b[j].PublicAddress ||
-				a[i].PrivateAddress != b[j].PrivateAddress ||
-				a[i].Status != b[j].Status ||
-				!slices.Equal(a[i].Roles, b[j].Roles) ||
-				a[i].Rack != b[j].Rack {
-				return false
-			}
-			eq = true
-		}
-		if !eq {
-			return false
-		}
-	}
-	return true
 }
 
 func getSortedAppVersions(versions []*models.AppVersions, appType string) []*version.Version {

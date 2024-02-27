@@ -19,8 +19,8 @@ spec:
 #        - customVirtualNetworkId: "vpc-12345678"
 #          diskEncryptionKey: "123e4567-e89b-12d3-a456-426614174000"
 #          resourceGroup: "asdfadfsdfas"
-  name: "OperatorZookeeper"
-  privateNetworkCluster: true
+  name: "bohdan-zookeeper-test"
+  privateNetwork: true
 #  twoFactorDelete:
 #    - email: "emailTEST"
 #      phone: "phoneTEST"

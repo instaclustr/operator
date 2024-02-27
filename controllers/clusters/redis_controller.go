@@ -473,7 +473,7 @@ func (r *RedisReconciler) handleDeleteCluster(
 		}
 	}
 
-	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.SyncJob))
 	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
 
 	l.Info("Deleting cluster backup resources",
@@ -567,7 +567,7 @@ func (r *RedisReconciler) startClusterOnPremisesIPsJob(redis *v1beta1.Redis, b *
 func (r *RedisReconciler) startSyncJob(cluster *v1beta1.Redis) error {
 	job := r.newSyncJob(cluster)
 
-	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(cluster.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -632,7 +632,7 @@ func (r *RedisReconciler) newUsersCreationJob(redis *v1beta1.Redis) scheduler.Jo
 }
 
 func (r *RedisReconciler) newSyncJob(redis *v1beta1.Redis) scheduler.Job {
-	l := log.Log.WithValues("syncJob", redis.GetJobID(scheduler.StatusChecker), "clusterID", redis.Status.ID)
+	l := log.Log.WithValues("syncJob", redis.GetJobID(scheduler.SyncJob), "clusterID", redis.Status.ID)
 
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(redis)
@@ -642,7 +642,7 @@ func (r *RedisReconciler) newSyncJob(redis *v1beta1.Redis) scheduler.Job {
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
-			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(redis.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 
@@ -1022,7 +1022,7 @@ func (r *RedisReconciler) handleExternalDelete(ctx context.Context, redis *v1bet
 
 	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(redis.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

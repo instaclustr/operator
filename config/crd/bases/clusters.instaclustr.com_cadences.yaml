@@ -179,7 +179,7 @@ spec:
                       type: string
                     nodeSize:
                       type: string
-                    numberOfNodes:
+                    nodesNumber:
                       type: integer
                     privateLink:
                       items:
@@ -209,7 +209,7 @@ spec:
                   - name
                   - network
                   - nodeSize
-                  - numberOfNodes
+                  - nodesNumber
                   - region
                   type: object
                 maxItems: 1
@@ -431,8 +431,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    numberOfNodes:
-                      type: integer
                     privateLink:
                       items:
                         properties:

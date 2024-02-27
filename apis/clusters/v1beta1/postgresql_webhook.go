@@ -372,7 +372,7 @@ func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 			return err
 		}
 
-		if newDC.NumberOfNodes != oldDC.NumberOfNodes {
+		if newDC.NodesNumber != oldDC.NodesNumber {
 			return models.ErrImmutableNodesNumber
 		}
 
@@ -429,7 +429,7 @@ func (pdc *PgDataCentre) newImmutableFields() *immutablePostgreSQLDCFields {
 		},
 		specificPostgreSQLDC: specificPostgreSQLDC{
 			ClientEncryption: pdc.ClientEncryption,
-			NumberOfNodes:    pdc.NumberOfNodes,
+			NumberOfNodes:    pdc.NodesNumber,
 		},
 	}
 }

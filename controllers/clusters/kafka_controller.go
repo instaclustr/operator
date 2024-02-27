@@ -156,7 +156,7 @@ func (r *KafkaReconciler) startJobs(k *v1beta1.Kafka) error {
 
 	r.EventRecorder.Eventf(
 		k, models.Normal, models.Created,
-		"Cluster status check job is started",
+		"Cluster sync job is started",
 	)
 
 	if k.Spec.UserRefs != nil && k.Status.AvailableUsers == nil {
@@ -376,7 +376,7 @@ func (r *KafkaReconciler) handleDeleteCluster(ctx context.Context, k *v1beta1.Ka
 		return reconcile.Result{}, err
 	}
 
-	r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.SyncJob))
 	r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
 	controllerutil.RemoveFinalizer(k, models.DeletionFinalizer)
 	k.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -429,7 +429,7 @@ func (r *KafkaReconciler) startClusterOnPremisesIPsJob(k *v1beta1.Kafka, b *onPr
 func (r *KafkaReconciler) startSyncJob(kafka *v1beta1.Kafka) error {
 	job := r.newSyncJob(kafka)
 
-	err := r.Scheduler.ScheduleJob(kafka.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(kafka.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -438,7 +438,7 @@ func (r *KafkaReconciler) startSyncJob(kafka *v1beta1.Kafka) error {
 }
 
 func (r *KafkaReconciler) newSyncJob(k *v1beta1.Kafka) scheduler.Job {
-	l := log.Log.WithValues("syncJob", k.GetJobID(scheduler.StatusChecker), "clusterID", k.Status.ID)
+	l := log.Log.WithValues("syncJob", k.GetJobID(scheduler.SyncJob), "clusterID", k.Status.ID)
 
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(k)
@@ -446,7 +446,7 @@ func (r *KafkaReconciler) newSyncJob(k *v1beta1.Kafka) scheduler.Job {
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(k.GetJobID(scheduler.SyncJob))
 			r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
 			r.Scheduler.RemoveJob(k.GetJobID(scheduler.BackupsChecker))
 			return nil
@@ -655,7 +655,7 @@ func (r *KafkaReconciler) handleExternalDelete(ctx context.Context, k *v1beta1.K
 
 	r.Scheduler.RemoveJob(k.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(k.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(k.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(k.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

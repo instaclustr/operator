@@ -362,7 +362,7 @@ func (r *KafkaConnectReconciler) handleDeleteCluster(ctx context.Context, kc *v1
 		return reconcile.Result{}, err
 	}
 
-	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.SyncJob))
 	controllerutil.RemoveFinalizer(kc, models.DeletionFinalizer)
 	kc.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, kc, patch)
@@ -467,7 +467,7 @@ func (r *KafkaConnectReconciler) startClusterOnPremisesIPsJob(k *v1beta1.KafkaCo
 func (r *KafkaConnectReconciler) startSyncJob(kc *v1beta1.KafkaConnect) error {
 	job := r.newSyncJob(kc)
 
-	err := r.Scheduler.ScheduleJob(kc.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(kc.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -484,7 +484,7 @@ func (r *KafkaConnectReconciler) newSyncJob(kc *v1beta1.KafkaConnect) scheduler.
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(kc.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 		if err != nil {
@@ -673,7 +673,7 @@ func (r *KafkaConnectReconciler) handleExternalDelete(ctx context.Context, kc *v
 	r.EventRecorder.Eventf(kc, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
 	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(kc.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

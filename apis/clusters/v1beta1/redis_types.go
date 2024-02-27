@@ -364,18 +364,6 @@ func (rs *RedisStatus) DCsEqual(o []*RedisDataCentreStatus) bool {
 	return true
 }
 
-func (s *RedisStatus) ToOnPremises() ClusterStatus {
-	dc := &DataCentreStatus{
-		ID:    s.DataCentres[0].ID,
-		Nodes: s.DataCentres[0].Nodes,
-	}
-
-	return ClusterStatus{
-		ID:          s.ID,
-		DataCentres: []*DataCentreStatus{dc},
-	}
-}
-
 func (r *Redis) GetUserRefs() References {
 	return r.Spec.UserRefs
 }

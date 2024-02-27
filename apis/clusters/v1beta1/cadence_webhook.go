@@ -416,8 +416,8 @@ func (cs *CadenceSpec) validateImmutableDataCentresFieldsUpdate(oldSpec CadenceS
 			return fmt.Errorf("cannot update immutable data centre fields: new spec: %v: old spec: %v", newDCImmutableFields, oldDCImmutableFields)
 		}
 
-		if newDC.NumberOfNodes < oldDC.NumberOfNodes {
-			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NumberOfNodes)
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
 		}
 
 		err := newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)

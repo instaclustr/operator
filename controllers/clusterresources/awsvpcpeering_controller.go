@@ -362,7 +362,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 		return ctrl.Result{}, err
 	}
 
-	r.Scheduler.RemoveJob(aws.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(aws.GetJobID(scheduler.SyncJob))
 
 	patch := aws.NewPatch()
 	controllerutil.RemoveFinalizer(aws, models.DeletionFinalizer)
@@ -398,7 +398,7 @@ func (r *AWSVPCPeeringReconciler) handleDeletePeering(
 func (r *AWSVPCPeeringReconciler) startAWSVPCPeeringStatusJob(awsPeering *v1beta1.AWSVPCPeering) error {
 	job := r.newWatchStatusJob(awsPeering)
 
-	err := r.Scheduler.ScheduleJob(awsPeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(awsPeering.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -418,7 +418,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 				"namespaced name", namespacedName,
 			)
 
-			r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.SyncJob))
 
 			return nil
 		}
@@ -459,7 +459,7 @@ func (r *AWSVPCPeeringReconciler) newWatchStatusJob(awsPeering *v1beta1.AWSVPCPe
 				"The AWSPeering was deleted on AWS, stopping job...",
 			)
 
-			r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(awsPeering.GetJobID(scheduler.SyncJob))
 
 			return nil
 		}
@@ -546,7 +546,7 @@ func (r *AWSVPCPeeringReconciler) handleExternalDelete(ctx context.Context, key 
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
 	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

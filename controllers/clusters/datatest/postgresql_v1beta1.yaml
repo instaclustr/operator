@@ -13,7 +13,7 @@ spec:
       network: "10.1.0.0/16"
       cloudProvider: "AWS_VPC"
       nodeSize: "PGS-DEV-t4g.small-5"
-      numberOfNodes: 2
+      nodesNumber: 2
       accountName: "accountNameTEST"
 #      cloudProviderSettings:
 #        - customVirtualNetworkId: "vpc-12345678"

@@ -17,32 +17,41 @@ limitations under the License.
 package v1beta1
 
 import (
-	"encoding/json"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/instaclustr/operator/pkg/models"
+	"github.com/instaclustr/operator/pkg/utils/slices"
 )
 
 type ZookeeperDataCentre struct {
-	DataCentre               `json:",inline"`
+	GenericDataCentreSpec `json:",inline"`
+
+	NodesNumber              int      `json:"nodesNumber"`
+	NodeSize                 string   `json:"nodeSize"`
 	ClientToServerEncryption bool     `json:"clientToServerEncryption"`
-	EnforceAuthSchemes       []string `json:"enforceAuthSchemes,omitempty"`
 	EnforceAuthEnabled       bool     `json:"enforceAuthEnabled,omitempty"`
+	EnforceAuthSchemes       []string `json:"enforceAuthSchemes,omitempty"`
 }
 
 // ZookeeperSpec defines the desired state of Zookeeper
 type ZookeeperSpec struct {
-	Cluster     `json:",inline"`
-	DataCentres []*ZookeeperDataCentre `json:"dataCentres"`
+	GenericClusterSpec `json:",inline"`
+	DataCentres        []*ZookeeperDataCentre `json:"dataCentres"`
 }
 
 // ZookeeperStatus defines the observed state of Zookeeper
 type ZookeeperStatus struct {
-	ClusterStatus        `json:",inline"`
-	DefaultUserSecretRef *Reference `json:"defaultUserSecretRef,omitempty"`
+	GenericStatus        `json:",inline"`
+	DataCentres          []*ZookeeperDataCentreStatus `json:"dataCentres,omitempty"`
+	DefaultUserSecretRef *Reference                   `json:"defaultUserSecretRef,omitempty"`
+}
+
+type ZookeeperDataCentreStatus struct {
+	GenericDataCentreStatus `json:",inline"`
+	Nodes                   []*Node `json:"nodes"`
 }
 
 //+kubebuilder:object:root=true
@@ -85,19 +94,9 @@ func (z *Zookeeper) NewPatch() client.Patch {
 	return client.MergeFrom(old)
 }
 
-func (z *Zookeeper) FromInstAPI(iData []byte) (*Zookeeper, error) {
-	iZook := &models.ZookeeperCluster{}
-	err := json.Unmarshal(iData, iZook)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Zookeeper{
-		TypeMeta:   z.TypeMeta,
-		ObjectMeta: z.ObjectMeta,
-		Spec:       z.Spec.FromInstAPI(iZook),
-		Status:     z.Status.FromInstAPI(iZook),
-	}, nil
+func (z *Zookeeper) FromInstAPI(instaModel *models.ZookeeperCluster) {
+	z.Spec.FromInstAPI(instaModel)
+	z.Status.FromInstAPI(instaModel)
 }
 
 func (z *Zookeeper) GetDataCentreID(cdcName string) string {
@@ -116,31 +115,15 @@ func (z *Zookeeper) GetClusterID() string {
 	return z.Status.ID
 }
 
-func (zs *ZookeeperSpec) FromInstAPI(iZook *models.ZookeeperCluster) ZookeeperSpec {
-	return ZookeeperSpec{
-		Cluster: Cluster{
-			Name:                  iZook.Name,
-			Version:               iZook.ZookeeperVersion,
-			Description:           iZook.Description,
-			PrivateNetworkCluster: iZook.PrivateNetworkCluster,
-			SLATier:               iZook.SLATier,
-			TwoFactorDelete:       zs.Cluster.TwoFactorDeleteFromInstAPI(iZook.TwoFactorDelete),
-		},
-		DataCentres: zs.DCsFromInstAPI(iZook.DataCentres),
-	}
+func (zs *ZookeeperSpec) FromInstAPI(instaModel *models.ZookeeperCluster) {
+	zs.GenericClusterSpec.FromInstAPI(&instaModel.GenericClusterFields, instaModel.ZookeeperVersion)
+	zs.DCsFromInstAPI(instaModel.DataCentres)
 }
 
-func (zs *ZookeeperStatus) FromInstAPI(iZook *models.ZookeeperCluster) ZookeeperStatus {
-	return ZookeeperStatus{
-		ClusterStatus: ClusterStatus{
-			ID:                            iZook.ID,
-			State:                         iZook.Status,
-			DataCentres:                   zs.DCsFromInstAPI(iZook.DataCentres),
-			CurrentClusterOperationStatus: iZook.CurrentClusterOperationStatus,
-			MaintenanceEvents:             zs.MaintenanceEvents,
-			NodeCount:                     zs.GetNodeCount(iZook.DataCentres),
-		},
-	}
+func (zs *ZookeeperStatus) FromInstAPI(instaModel *models.ZookeeperCluster) {
+	zs.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
+	zs.DCsFromInstAPI(instaModel.DataCentres)
+	zs.NodeCount = zs.GetNodeCount(instaModel.DataCentres)
 }
 
 func (zs *ZookeeperStatus) GetNodeCount(dcs []*models.ZookeeperDataCentre) string {
@@ -156,34 +139,31 @@ func (zs *ZookeeperStatus) GetNodeCount(dcs []*models.ZookeeperDataCentre) strin
 	return fmt.Sprintf("%v/%v", running, total)
 }
 
-func (zs *ZookeeperSpec) DCsFromInstAPI(iDCs []*models.ZookeeperDataCentre) (dcs []*ZookeeperDataCentre) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, &ZookeeperDataCentre{
-			DataCentre:               zs.Cluster.DCFromInstAPI(iDC.DataCentre),
-			ClientToServerEncryption: iDC.ClientToServerEncryption,
-			EnforceAuthSchemes:       iDC.EnforceAuthSchemes,
-			EnforceAuthEnabled:       iDC.EnforceAuthEnabled,
-		})
+func (zs *ZookeeperSpec) DCsFromInstAPI(instaModels []*models.ZookeeperDataCentre) {
+	dcs := make([]*ZookeeperDataCentre, len(instaModels))
+	for i, instaModel := range instaModels {
+		dc := &ZookeeperDataCentre{}
+		dc.FromInstAPI(instaModel)
+		dcs[i] = dc
 	}
-	return
+	zs.DataCentres = dcs
 }
 
-func (zs *ZookeeperStatus) DCsFromInstAPI(iDCs []*models.ZookeeperDataCentre) (dcs []*DataCentreStatus) {
-	for _, iDC := range iDCs {
-		dcs = append(dcs, zs.ClusterStatus.DCFromInstAPI(iDC.DataCentre))
+func (zs *ZookeeperStatus) DCsFromInstAPI(instaModels []*models.ZookeeperDataCentre) {
+	dcs := make([]*ZookeeperDataCentreStatus, len(instaModels))
+	for i, instaModel := range instaModels {
+		dc := &ZookeeperDataCentreStatus{}
+		dc.FromInstAPI(instaModel)
+		dcs[i] = dc
 	}
-	return
+	zs.DataCentres = dcs
 }
 
 func (zs *ZookeeperSpec) ToInstAPI() *models.ZookeeperCluster {
 	return &models.ZookeeperCluster{
-		Name:                  zs.Name,
-		ZookeeperVersion:      zs.Version,
-		PrivateNetworkCluster: zs.PrivateNetworkCluster,
-		SLATier:               zs.SLATier,
-		TwoFactorDelete:       zs.Cluster.TwoFactorDeletesToInstAPI(),
-		DataCentres:           zs.DCsToInstAPI(),
-		Description:           zs.Description,
+		GenericClusterFields: zs.GenericClusterSpec.ToInstAPI(),
+		ZookeeperVersion:     zs.Version,
+		DataCentres:          zs.DCsToInstAPI(),
 	}
 }
 
@@ -196,10 +176,12 @@ func (zs *ZookeeperSpec) DCsToInstAPI() (dcs []*models.ZookeeperDataCentre) {
 
 func (zdc *ZookeeperDataCentre) ToInstAPI() *models.ZookeeperDataCentre {
 	return &models.ZookeeperDataCentre{
-		DataCentre:               zdc.DataCentre.ToInstAPI(),
+		GenericDataCentreFields:  zdc.GenericDataCentreSpec.ToInstAPI(),
 		ClientToServerEncryption: zdc.ClientToServerEncryption,
 		EnforceAuthSchemes:       zdc.EnforceAuthSchemes,
 		EnforceAuthEnabled:       zdc.EnforceAuthEnabled,
+		NumberOfNodes:            zdc.NodesNumber,
+		NodeSize:                 zdc.NodeSize,
 	}
 }
 
@@ -208,26 +190,79 @@ func (z *Zookeeper) GetSpec() ZookeeperSpec { return z.Spec }
 func (z *Zookeeper) IsSpecEqual(spec ZookeeperSpec) bool { return z.Spec.IsEqual(spec) }
 
 func (a *ZookeeperSpec) IsEqual(b ZookeeperSpec) bool {
-	return a.Cluster.IsEqual(b.Cluster) &&
-		a.areDCsEqual(b.DataCentres)
+	return a.GenericClusterSpec.Equals(&b.GenericClusterSpec) &&
+		a.DCsEqual(b.DataCentres)
 }
 
-func (rs *ZookeeperSpec) areDCsEqual(b []*ZookeeperDataCentre) bool {
-	a := rs.DataCentres
-	if len(a) != len(b) {
+func (rs *ZookeeperSpec) DCsEqual(o []*ZookeeperDataCentre) bool {
+	if len(rs.DataCentres) != len(o) {
 		return false
 	}
 
-	for i := range b {
-		if a[i].Name != b[i].Name {
-			continue
-		}
+	m := map[string]*ZookeeperDataCentre{}
+	for _, dc := range rs.DataCentres {
+		m[dc.Name] = dc
+	}
 
-		if !a[i].DataCentre.IsEqual(b[i].DataCentre) ||
-			a[i].ClientToServerEncryption != b[i].ClientToServerEncryption {
+	for _, iDC := range o {
+		dc, ok := m[iDC.Name]
+		if !ok || !dc.Equals(iDC) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func (zdc *ZookeeperDataCentre) FromInstAPI(instaModel *models.ZookeeperDataCentre) {
+	zdc.GenericDataCentreSpec.FromInstAPI(&instaModel.GenericDataCentreFields)
+	zdc.NodeSize = instaModel.NodeSize
+	zdc.NodesNumber = instaModel.NumberOfNodes
+	zdc.ClientToServerEncryption = instaModel.ClientToServerEncryption
+	zdc.EnforceAuthEnabled = instaModel.EnforceAuthEnabled
+	zdc.EnforceAuthSchemes = instaModel.EnforceAuthSchemes
+}
+
+func (s *ZookeeperDataCentreStatus) FromInstAPI(instaModel *models.ZookeeperDataCentre) {
+	s.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
+	s.Nodes = nodesFromInstAPI(instaModel.Nodes)
+}
+
+func (zdc *ZookeeperDataCentre) Equals(o *ZookeeperDataCentre) bool {
+	return zdc.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
+		zdc.NodesNumber == o.NodesNumber &&
+		zdc.NodeSize == o.NodeSize &&
+		zdc.ClientToServerEncryption == o.ClientToServerEncryption &&
+		zdc.EnforceAuthEnabled == o.EnforceAuthEnabled &&
+		slices.Equals(zdc.EnforceAuthSchemes, o.EnforceAuthSchemes)
+}
+
+func (zs *ZookeeperStatus) Equals(o *ZookeeperStatus) bool {
+	return zs.GenericStatus.Equals(&o.GenericStatus) &&
+		zs.DCsEquals(o.DataCentres)
+}
+
+func (zs *ZookeeperStatus) DCsEquals(o []*ZookeeperDataCentreStatus) bool {
+	if len(zs.DataCentres) != len(o) {
+		return false
+	}
+
+	m := map[string]*ZookeeperDataCentreStatus{}
+	for _, dc := range zs.DataCentres {
+		m[dc.Name] = dc
+	}
+
+	for _, iDC := range o {
+		dc, ok := m[iDC.Name]
+		if !ok || !dc.Equals(iDC) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *ZookeeperDataCentreStatus) Equals(o *ZookeeperDataCentreStatus) bool {
+	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
+		nodesEqual(s.Nodes, o.Nodes)
 }
