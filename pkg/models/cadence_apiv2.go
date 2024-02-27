@@ -21,6 +21,81 @@ const (
 	AWSSecretAccessKey = "awsSecretAccessKey"
 )
 
+// Related to Packaged Provisioning
+const (
+	DeveloperSize         = "Developer"
+	ProductionStarterSize = "Production-Starter"
+	ProductionSmallSize   = "Production-Small"
+)
+
+var (
+	AWSCassandraSizes = map[string]string{
+		DeveloperSize:         "CAS-DEV-t4g.small-5",
+		ProductionStarterSize: "CAS-PRD-m6g.large-120",
+		ProductionSmallSize:   "CAS-PRD-r6g.large-800",
+	}
+	AzureCassandraSizes = map[string]string{
+		DeveloperSize:         "Standard_DS2_v2-256-an",
+		ProductionStarterSize: "Standard_DS2_v2-256-an",
+		ProductionSmallSize:   "Standard_DS12_v2-512-an",
+	}
+	GCPCassandraSizes = map[string]string{
+		DeveloperSize:         "CAS-DEV-n1-standard-1-5",
+		ProductionStarterSize: "CAS-PRD-n2-standard-2-250",
+		ProductionSmallSize:   "CAS-PRD-n2-highmem-2-400",
+	}
+	AWSKafkaSizes = map[string]string{
+		DeveloperSize:         "KFK-DEV-t4g.small-5",
+		ProductionStarterSize: "KFK-PRD-r6g.large-250",
+		ProductionSmallSize:   "KFK-PRD-r6g.large-400",
+	}
+	AzureKafkaSizes = map[string]string{
+		DeveloperSize:         "Standard_DS1_v2-32",
+		ProductionStarterSize: "Standard_DS11_v2-512",
+		ProductionSmallSize:   "Standard_DS11_v2-512",
+	}
+	GCPKafkaSizes = map[string]string{
+		DeveloperSize:         "n1-standard-1-80",
+		ProductionStarterSize: "n1-highmem-2-400",
+		ProductionSmallSize:   "n1-highmem-2-400",
+	}
+	AWSOpenSearchSizes = map[string]string{
+		DeveloperSize:         "SRH-DEV-t4g.small-5",
+		ProductionStarterSize: "SRH-PRD-m6g.large-250",
+		ProductionSmallSize:   "SRH-PRD-r6g.large-800",
+	}
+	AzureOpenSearchSizes = map[string]string{
+		DeveloperSize:         "SRH-DEV-DS1_v2-5-an",
+		ProductionStarterSize: "SRH-PRD-D2s_v5-250-an",
+		ProductionSmallSize:   "SRH-PRD-E2s_v4-800-an",
+	}
+	GCPOpenSearchSizes = map[string]string{
+		DeveloperSize:         "SRH-DEV-n1-standard-1-30",
+		ProductionStarterSize: "SRH-PRD-n2-standard-2-250",
+		ProductionSmallSize:   "SRH-PRD-n2-highmem-2-800",
+	}
+)
+
+type solutionSizesMap map[string]map[string]map[string]string
+
+var SolutionSizesMap = solutionSizesMap{
+	AWSVPC: {
+		CassandraAppKind:  AWSCassandraSizes,
+		KafkaAppKind:      AWSKafkaSizes,
+		OpenSearchAppKind: AWSOpenSearchSizes,
+	},
+	AZUREAZ: {
+		CassandraAppKind:  AzureCassandraSizes,
+		KafkaAppKind:      AzureKafkaSizes,
+		OpenSearchAppKind: AzureOpenSearchSizes,
+	},
+	GCP: {
+		CassandraAppKind:  GCPCassandraSizes,
+		KafkaAppKind:      GCPKafkaSizes,
+		OpenSearchAppKind: GCPOpenSearchSizes,
+	},
+}
+
 type CadenceCluster struct {
 	GenericClusterFields `json:",inline"`
 

@@ -20,7 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
+	"strconv"
 	"strings"
 
 	k8sappsv1 "k8s.io/api/apps/v1"
@@ -360,4 +362,21 @@ func (s *GenericDataCentreSpec) validateCloudProviderSettings() error {
 
 func (s *GenericDataCentreSpec) hasCloudProviderSettings() bool {
 	return s.AWSSettings != nil || s.GCPSettings != nil && s.AzureSettings != nil
+}
+
+func validateNetwork(network string) error {
+	ip, _, err := net.ParseCIDR(network)
+	if err != nil {
+		return err
+	}
+
+	ipParts := strings.Split(ip.String(), ".")
+	secondOctet, err := strconv.Atoi(ipParts[1])
+	if err != nil {
+		return err
+	}
+	if secondOctet > 251 || secondOctet < 1 {
+		return models.ErrInvalidCIDR
+	}
+	return nil
 }

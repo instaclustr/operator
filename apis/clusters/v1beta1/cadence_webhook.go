@@ -19,7 +19,6 @@ package v1beta1
 import (
 	"context"
 	"fmt"
-	"net"
 	"regexp"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -129,11 +128,6 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		}
 	}
 
-	err = c.Spec.validatePackagedProvisioningCreation()
-	if err != nil {
-		return err
-	}
-
 	for _, dc := range c.Spec.DataCentres {
 		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
@@ -147,6 +141,14 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 		if dc.CloudProvider != models.AWSVPC && dc.PrivateLink != nil {
 			return models.ErrPrivateLinkSupportedOnlyForAWS
 		}
+
+		if len(c.Spec.PackagedProvisioning) != 0 {
+			err = validateNetwork(dc.Network)
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 
 	for _, rs := range c.Spec.ResizeSettings {
@@ -348,24 +350,7 @@ func (cs *CadenceSpec) validatePackagedProvisioning(old []*PackagedProvisioning)
 	}
 
 	for i, pp := range cs.PackagedProvisioning {
-		if pp.UseAdvancedVisibility {
-			if pp.BundledKafkaSpec == nil || pp.BundledOpenSearchSpec == nil {
-				return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must not be empty because UseAdvancedVisibility is set to true")
-			}
-			if *pp.BundledKafkaSpec != *old[i].BundledKafkaSpec {
-				return models.ErrImmutablePackagedProvisioning
-			}
-			if *pp.BundledOpenSearchSpec != *old[i].BundledOpenSearchSpec {
-				return models.ErrImmutablePackagedProvisioning
-			}
-		} else {
-			if pp.BundledKafkaSpec != nil || pp.BundledOpenSearchSpec != nil {
-				return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must be empty because UseAdvancedVisibility is set to false")
-			}
-		}
-
-		if *pp.BundledCassandraSpec != *old[i].BundledCassandraSpec ||
-			pp.UseAdvancedVisibility != old[i].UseAdvancedVisibility {
+		if *pp != *old[i] {
 			return models.ErrImmutablePackagedProvisioning
 		}
 	}
@@ -502,122 +487,6 @@ func (sp *StandardProvisioning) validate() error {
 			return fmt.Errorf("target Kafka Dependency CDCID: %s is not a UUID formated string. It must fit the pattern: %s. %v",
 				sp.TargetCassandra.DependencyCDCID, models.UUIDStringRegExp, err)
 		}
-	}
-
-	return nil
-}
-
-func (b *BundledKafkaSpec) validate() error {
-	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(b.Network))
-	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", b.Network, err)
-	}
-
-	err = validateReplicationFactor(models.KafkaReplicationFactors, b.ReplicationFactor)
-	if err != nil {
-		return err
-	}
-
-	if ((b.NodesNumber*b.ReplicationFactor)/b.ReplicationFactor)%b.ReplicationFactor != 0 {
-		return fmt.Errorf("kafka: number of nodes must be a multiple of replication factor: %v", b.ReplicationFactor)
-	}
-
-	return nil
-}
-
-func (c *BundledCassandraSpec) validate() error {
-	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(c.Network))
-	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", c.Network, err)
-	}
-
-	err = validateReplicationFactor(models.CassandraReplicationFactors, c.ReplicationFactor)
-	if err != nil {
-		return err
-	}
-
-	if ((c.NodesNumber*c.ReplicationFactor)/c.ReplicationFactor)%c.ReplicationFactor != 0 {
-		return fmt.Errorf("cassandra: number of nodes must be a multiple of replication factor: %v", c.ReplicationFactor)
-	}
-
-	return nil
-}
-
-func (o *BundledOpenSearchSpec) validate() error {
-	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(o.Network))
-	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", o.Network, err)
-	}
-
-	err = validateOpenSearchNumberOfRacks(o.NumberOfRacks)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cs *CadenceSpec) validatePackagedProvisioningCreation() error {
-	for _, dc := range cs.DataCentres {
-		for _, pp := range cs.PackagedProvisioning {
-			if (pp.UseAdvancedVisibility && pp.BundledKafkaSpec == nil) || (pp.UseAdvancedVisibility && pp.BundledOpenSearchSpec == nil) {
-				return fmt.Errorf("BundledKafkaSpec and BundledOpenSearchSpec structs must not be empty because UseAdvancedVisibility is set to true")
-			}
-
-			if pp.BundledKafkaSpec != nil {
-				err := pp.BundledKafkaSpec.validate()
-				if err != nil {
-					return err
-				}
-
-				err = dc.validateNetwork(pp.BundledKafkaSpec.Network)
-				if err != nil {
-					return err
-				}
-			}
-
-			if pp.BundledCassandraSpec != nil {
-				err := pp.BundledCassandraSpec.validate()
-				if err != nil {
-					return err
-				}
-
-				err = dc.validateNetwork(pp.BundledCassandraSpec.Network)
-				if err != nil {
-					return err
-				}
-			}
-
-			if pp.BundledOpenSearchSpec != nil {
-				err := pp.BundledOpenSearchSpec.validate()
-				if err != nil {
-					return err
-				}
-
-				err = dc.validateNetwork(pp.BundledOpenSearchSpec.Network)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (cdc *CadenceDataCentre) validateNetwork(network string) error {
-	_, ipnet, err := net.ParseCIDR(cdc.Network)
-	if err != nil {
-		return err
-	}
-
-	ip, _, err := net.ParseCIDR(network)
-	if err != nil {
-		return err
-	}
-
-	if ipnet.Contains(ip) {
-		return fmt.Errorf("cluster network %s overlaps with network %s", cdc.Network, network)
 	}
 
 	return nil

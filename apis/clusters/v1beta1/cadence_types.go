@@ -101,10 +101,10 @@ type AWSArchival struct {
 }
 
 type PackagedProvisioning struct {
-	UseAdvancedVisibility bool                   `json:"useAdvancedVisibility"`
-	BundledKafkaSpec      *BundledKafkaSpec      `json:"bundledKafkaSpec,omitempty"`
-	BundledOpenSearchSpec *BundledOpenSearchSpec `json:"bundledOpenSearchSpec,omitempty"`
-	BundledCassandraSpec  *BundledCassandraSpec  `json:"bundledCassandraSpec"`
+	UseAdvancedVisibility bool `json:"useAdvancedVisibility"`
+
+	// +kubebuilder:validation:Enum=Developer;Production-Starter;Production-Small
+	SolutionSize string `json:"solutionSize"`
 }
 
 type SharedProvisioning struct {
@@ -131,8 +131,9 @@ type AdvancedVisibility struct {
 type CadenceStatus struct {
 	GenericStatus `json:",inline"`
 
-	DataCentres            []*CadenceDataCentreStatus `json:"dataCentres,omitempty"`
-	TargetSecondaryCadence []*CadenceDependencyTarget `json:"targetSecondaryCadence,omitempty"`
+	PackagedProvisioningClusterRefs []*Reference               `json:"packagedProvisioningClusterRefs,omitempty"`
+	DataCentres                     []*CadenceDataCentreStatus `json:"dataCentres,omitempty"`
+	TargetSecondaryCadence          []*CadenceDependencyTarget `json:"targetSecondaryCadence,omitempty"`
 }
 
 type CadenceDataCentreStatus struct {
@@ -579,4 +580,13 @@ func (cdc *CadenceDataCentreStatus) Equals(o *CadenceDataCentreStatus) bool {
 	return cdc.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
 		cdc.PrivateLink.Equal(o.PrivateLink) &&
 		nodesEqual(cdc.Nodes, o.Nodes)
+}
+
+func (c *CadenceSpec) CalculateNodeSize(cloudProvider, solution, app string) string {
+	if appSizes, ok := models.SolutionSizesMap[cloudProvider]; ok {
+		if solutionMap, ok := appSizes[app]; ok {
+			return solutionMap[solution]
+		}
+	}
+	return ""
 }
