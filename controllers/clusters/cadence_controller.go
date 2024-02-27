@@ -124,9 +124,8 @@ func (r *CadenceReconciler) handleCreateCluster(
 ) (ctrl.Result, error) {
 	if c.Status.ID == "" {
 		patch := c.NewPatch()
-
-		for _, packagedProvisioning := range c.Spec.PackagedProvisioning {
-			requeueNeeded, err := r.preparePackagedSolution(ctx, c, packagedProvisioning)
+		for _, pp := range c.Spec.PackagedProvisioning {
+			requeueNeeded, err := r.reconcilePackagedProvisioning(ctx, c, pp.UseAdvancedVisibility)
 			if err != nil {
 				l.Error(err, "Cannot prepare packaged solution for Cadence cluster",
 					"cluster name", c.Spec.Name,
@@ -408,22 +407,6 @@ func (r *CadenceReconciler) handleDeleteCluster(
 		"cluster name", c.Spec.Name,
 		"cluster status", c.Status)
 
-	for _, packagedProvisioning := range c.Spec.PackagedProvisioning {
-		err = r.deletePackagedResources(ctx, c, packagedProvisioning)
-		if err != nil {
-			l.Error(
-				err, "Cannot delete Cadence packaged resources",
-				"cluster name", c.Spec.Name,
-				"cluster ID", c.Status.ID,
-			)
-
-			r.EventRecorder.Eventf(c, models.Warning, models.DeletionFailed,
-				"Cannot delete Cadence packaged resources. Reason: %v", err)
-
-			return ctrl.Result{}, err
-		}
-	}
-
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 	patch := c.NewPatch()
 	controllerutil.RemoveFinalizer(c, models.DeletionFinalizer)
@@ -458,84 +441,43 @@ func (r *CadenceReconciler) handleDeleteCluster(
 	return ctrl.Result{}, nil
 }
 
-func (r *CadenceReconciler) preparePackagedSolution(
+func (r *CadenceReconciler) reconcilePackagedProvisioning(
 	ctx context.Context,
 	c *v1beta1.Cadence,
-	packagedProvisioning *v1beta1.PackagedProvisioning,
+	useAdvancedVisibility bool,
 ) (bool, error) {
-	if len(c.Spec.DataCentres) < 1 {
-		return false, models.ErrZeroDataCentres
-	}
-
-	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, c.Name)
-	selector, err := labels.Parse(labelsToQuery)
-	if err != nil {
-		return false, err
-	}
-
-	cassandraList := &v1beta1.CassandraList{}
-	err = r.Client.List(ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return false, err
-	}
-
-	if len(cassandraList.Items) == 0 {
-		appVersions, err := r.API.ListAppVersions(models.CassandraAppKind)
-		if err != nil {
-			return false, fmt.Errorf("cannot list versions for kind: %v, err: %w",
-				models.CassandraAppKind, err)
-		}
-
-		cassandraVersions := getSortedAppVersions(appVersions, models.CassandraAppType)
-		if len(cassandraVersions) == 0 {
-			return false, fmt.Errorf("there are no versions for %v kind",
-				models.CassandraAppKind)
-		}
-
-		cassandraSpec, err := r.newCassandraSpec(c, cassandraVersions[len(cassandraVersions)-1].String())
+	for _, dc := range c.Spec.DataCentres {
+		availableCIDRs, err := calculateAvailableNetworks(dc.Network)
 		if err != nil {
 			return false, err
 		}
 
-		err = r.Client.Create(ctx, cassandraSpec)
+		labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, c.Name)
+		selector, err := labels.Parse(labelsToQuery)
 		if err != nil {
 			return false, err
 		}
 
-		return true, nil
-	}
-
-	kafkaList := &v1beta1.KafkaList{}
-	osList := &v1beta1.OpenSearchList{}
-	advancedVisibility := &v1beta1.AdvancedVisibility{
-		TargetKafka:      &v1beta1.CadenceDependencyTarget{},
-		TargetOpenSearch: &v1beta1.CadenceDependencyTarget{},
-	}
-	var advancedVisibilities []*v1beta1.AdvancedVisibility
-	if packagedProvisioning.UseAdvancedVisibility {
-		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
+		cassandraList := &v1beta1.CassandraList{}
+		err = r.Client.List(ctx, cassandraList, &client.ListOptions{
+			LabelSelector: selector,
+		})
 		if err != nil {
 			return false, err
 		}
-		if len(kafkaList.Items) == 0 {
-			appVersions, err := r.API.ListAppVersions(models.KafkaAppKind)
-			if err != nil {
-				return false, fmt.Errorf("cannot list versions for kind: %v, err: %w",
-					models.KafkaAppKind, err)
-			}
 
-			kafkaVersions := getSortedAppVersions(appVersions, models.KafkaAppType)
-			if len(kafkaVersions) == 0 {
-				return false, fmt.Errorf("there are no versions for %v kind",
-					models.KafkaAppType)
-			}
-
-			kafkaSpec, err := r.newKafkaSpec(c, kafkaVersions[len(kafkaVersions)-1].String())
+		if len(cassandraList.Items) == 0 {
+			version, err := r.reconcileAppVersion(models.CassandraAppKind, models.CassandraAppType)
 			if err != nil {
 				return false, err
 			}
 
-			err = r.Client.Create(ctx, kafkaSpec)
+			cassandraSpec, err := r.newCassandraSpec(c, version, availableCIDRs)
+			if err != nil {
+				return false, err
+			}
+
+			err = r.Client.Create(ctx, cassandraSpec)
 			if err != nil {
 				return false, err
 			}
@@ -543,147 +485,346 @@ func (r *CadenceReconciler) preparePackagedSolution(
 			return true, nil
 		}
 
-		if len(kafkaList.Items[0].Status.DataCentres) == 0 {
-			return true, nil
-		}
+		var advancedVisibility []*v1beta1.AdvancedVisibility
+		var clusterRefs []*v1beta1.Reference
 
-		advancedVisibility.TargetKafka.DependencyCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
-		advancedVisibility.TargetKafka.DependencyVPCType = models.VPCPeered
-
-		err = r.Client.List(ctx, osList, &client.ListOptions{LabelSelector: selector})
-		if err != nil {
-			return false, err
-		}
-		if len(osList.Items) == 0 {
-			appVersions, err := r.API.ListAppVersions(models.OpenSearchAppKind)
-			if err != nil {
-				return false, fmt.Errorf("cannot list versions for kind: %v, err: %w",
-					models.OpenSearchAppKind, err)
+		if useAdvancedVisibility {
+			av := &v1beta1.AdvancedVisibility{
+				TargetKafka:      &v1beta1.CadenceDependencyTarget{},
+				TargetOpenSearch: &v1beta1.CadenceDependencyTarget{},
 			}
 
-			openSearchVersions := getSortedAppVersions(appVersions, models.OpenSearchAppType)
-			if len(openSearchVersions) == 0 {
-				return false, fmt.Errorf("there are no versions for %v kind",
-					models.OpenSearchAppType)
-			}
-
-			// For OpenSearch we cannot use the latest version because is not supported by Cadence. So we use the oldest one.
-			osSpec, err := r.newOpenSearchSpec(c, openSearchVersions[0].String())
+			kafkaList := &v1beta1.KafkaList{}
+			err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
 			if err != nil {
 				return false, err
 			}
 
-			err = r.Client.Create(ctx, osSpec)
+			if len(kafkaList.Items) == 0 {
+				version, err := r.reconcileAppVersion(models.KafkaAppKind, models.KafkaAppType)
+				if err != nil {
+					return false, err
+				}
+
+				kafkaSpec, err := r.newKafkaSpec(c, version, availableCIDRs)
+				if err != nil {
+					return false, err
+				}
+
+				err = r.Client.Create(ctx, kafkaSpec)
+				if err != nil {
+					return false, err
+				}
+
+				return true, nil
+			}
+
+			if len(kafkaList.Items[0].Status.DataCentres) == 0 {
+				return true, nil
+			}
+
+			av.TargetKafka.DependencyCDCID = kafkaList.Items[0].Status.DataCentres[0].ID
+			av.TargetKafka.DependencyVPCType = models.VPCPeered
+
+			ref := &v1beta1.Reference{
+				Name:      kafkaList.Items[0].Name,
+				Namespace: kafkaList.Items[0].Namespace,
+			}
+			clusterRefs = append(clusterRefs, ref)
+
+			osList := &v1beta1.OpenSearchList{}
+			err = r.Client.List(ctx, osList, &client.ListOptions{LabelSelector: selector})
 			if err != nil {
 				return false, err
 			}
 
+			if len(osList.Items) == 0 {
+				version, err := r.reconcileAppVersion(models.OpenSearchAppKind, models.OpenSearchAppType)
+				if err != nil {
+					return false, err
+				}
+
+				osSpec, err := r.newOpenSearchSpec(c, version, availableCIDRs)
+				if err != nil {
+					return false, err
+				}
+
+				err = r.Client.Create(ctx, osSpec)
+				if err != nil {
+					return false, err
+				}
+
+				return true, nil
+			}
+
+			if len(osList.Items[0].Status.DataCentres) == 0 {
+				return true, nil
+			}
+
+			ref = &v1beta1.Reference{
+				Name:      osList.Items[0].Name,
+				Namespace: osList.Items[0].Namespace,
+			}
+			clusterRefs = append(clusterRefs, ref)
+
+			av.TargetOpenSearch.DependencyCDCID = osList.Items[0].Status.DataCentres[0].ID
+			av.TargetOpenSearch.DependencyVPCType = models.VPCPeered
+			advancedVisibility = append(advancedVisibility, av)
+		}
+
+		if len(cassandraList.Items[0].Status.DataCentres) == 0 {
 			return true, nil
 		}
 
-		if len(osList.Items[0].Status.DataCentres) == 0 {
-			return true, nil
+		ref := &v1beta1.Reference{
+			Name:      cassandraList.Items[0].Name,
+			Namespace: cassandraList.Items[0].Namespace,
 		}
+		clusterRefs = append(clusterRefs, ref)
+		c.Status.PackagedProvisioningClusterRefs = clusterRefs
 
-		advancedVisibility.TargetOpenSearch.DependencyCDCID = osList.Items[0].Status.DataCentres[0].ID
-		advancedVisibility.TargetOpenSearch.DependencyVPCType = models.VPCPeered
-		advancedVisibilities = append(advancedVisibilities, advancedVisibility)
+		c.Spec.StandardProvisioning = append(c.Spec.StandardProvisioning, &v1beta1.StandardProvisioning{
+			AdvancedVisibility: advancedVisibility,
+			TargetCassandra: &v1beta1.CadenceDependencyTarget{
+				DependencyCDCID:   cassandraList.Items[0].Status.DataCentres[0].ID,
+				DependencyVPCType: models.VPCPeered,
+			},
+		})
+
 	}
-
-	if len(cassandraList.Items[0].Status.DataCentres) == 0 {
-		return true, nil
-	}
-
-	c.Spec.StandardProvisioning = append(c.Spec.StandardProvisioning, &v1beta1.StandardProvisioning{
-		AdvancedVisibility: advancedVisibilities,
-		TargetCassandra: &v1beta1.CadenceDependencyTarget{
-			DependencyCDCID:   cassandraList.Items[0].Status.DataCentres[0].ID,
-			DependencyVPCType: models.VPCPeered,
-		},
-	})
 
 	return false, nil
 }
 
-func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandraVersion string) (*v1beta1.Cassandra, error) {
+func (r *CadenceReconciler) newCassandraSpec(
+	c *v1beta1.Cadence,
+	version string,
+	availableCIDRs []string,
+) (*v1beta1.Cassandra, error) {
+	typeMeta := r.reconcileTypeMeta(models.CassandraAppKind)
+	metadata := r.reconcileMetadata(c, models.CassandraAppKind)
+	dcs := r.reconcileAppDCs(c, availableCIDRs, models.CassandraAppKind)
+
+	cassandraDCs, ok := dcs.([]*v1beta1.CassandraDataCentre)
+	if !ok {
+		return nil, fmt.Errorf("resource is not of type %T, got %T", []*v1beta1.CassandraDataCentre(nil), cassandraDCs)
+	}
+
+	spec := r.reconcileAppSpec(c, models.CassandraAppKind, version)
+	cassandraSpec, ok := spec.(v1beta1.CassandraSpec)
+	if !ok {
+		return nil, fmt.Errorf("resource is not of type %T, got %T", v1beta1.CassandraSpec{}, spec)
+	}
+
+	cassandraSpec.DataCentres = cassandraDCs
+
+	return &v1beta1.Cassandra{
+		TypeMeta:   typeMeta,
+		ObjectMeta: metadata,
+		Spec:       cassandraSpec,
+	}, nil
+}
+
+func (r *CadenceReconciler) reconcileTypeMeta(app string) v1.TypeMeta {
 	typeMeta := v1.TypeMeta{
-		Kind:       models.CassandraKind,
 		APIVersion: models.ClustersV1beta1APIVersion,
 	}
 
+	switch app {
+	case models.CassandraAppKind:
+		typeMeta.Kind = models.CassandraKind
+	case models.KafkaAppKind:
+		typeMeta.Kind = models.KafkaKind
+	case models.OpenSearchAppKind:
+		typeMeta.Kind = models.OpenSearchKind
+	}
+
+	return typeMeta
+}
+
+func (r *CadenceReconciler) reconcileMetadata(c *v1beta1.Cadence, app string) v1.ObjectMeta {
 	metadata := v1.ObjectMeta{
-		Name:        models.CassandraChildPrefix + c.Name,
 		Labels:      map[string]string{models.ControlledByLabel: c.Name},
 		Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
 		Namespace:   c.ObjectMeta.Namespace,
 		Finalizers:  []string{},
 	}
 
-	slaTier := c.Spec.SLATier
-	privateNetwork := c.Spec.PrivateNetwork
-	pciCompliance := c.Spec.PCICompliance
+	switch app {
+	case models.CassandraAppKind:
+		metadata.Name = models.CassandraChildPrefix + c.Name
+	case models.KafkaAppKind:
+		metadata.Name = models.KafkaChildPrefix + c.Name
+	case models.OpenSearchAppKind:
+		metadata.Name = models.OpenSearchChildPrefix + c.Name
+	}
 
-	var twoFactorDelete []*v1beta1.TwoFactorDelete
-	if len(c.Spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = []*v1beta1.TwoFactorDelete{
+	return metadata
+}
+
+func (r *CadenceReconciler) reconcileAppDCs(c *v1beta1.Cadence, availableCIDRs []string, app string) any {
+	network := r.reconcileNetwork(availableCIDRs, app)
+
+	genericDataCentreSpec := v1beta1.GenericDataCentreSpec{
+		Region:              c.Spec.DataCentres[0].Region,
+		CloudProvider:       c.Spec.DataCentres[0].CloudProvider,
+		ProviderAccountName: c.Spec.DataCentres[0].ProviderAccountName,
+		Network:             network,
+	}
+
+	switch app {
+	case models.CassandraAppKind:
+		var privateIPBroadcast bool
+		if c.Spec.PrivateNetwork {
+			privateIPBroadcast = true
+		}
+
+		genericDataCentreSpec.Name = models.CassandraChildDCName
+		cassandraDCs := []*v1beta1.CassandraDataCentre{
 			{
-				Email: c.Spec.TwoFactorDelete[0].Email,
-				Phone: c.Spec.TwoFactorDelete[0].Phone,
+				GenericDataCentreSpec: genericDataCentreSpec,
+				NodeSize: c.Spec.CalculateNodeSize(
+					c.Spec.DataCentres[0].CloudProvider,
+					c.Spec.PackagedProvisioning[0].SolutionSize,
+					models.CassandraAppKind,
+				),
+				NodesNumber:                    3,
+				ReplicationFactor:              3,
+				PrivateIPBroadcastForDiscovery: privateIPBroadcast,
 			},
 		}
-	}
-	var cassNodeSize, network string
-	var cassNodesNumber, cassReplicationFactor int
-	var cassPrivateIPBroadcastForDiscovery, cassPasswordAndUserAuth bool
-	for _, pp := range c.Spec.PackagedProvisioning {
-		cassNodeSize = pp.BundledCassandraSpec.NodeSize
-		network = pp.BundledCassandraSpec.Network
-		cassNodesNumber = pp.BundledCassandraSpec.NodesNumber
-		cassReplicationFactor = pp.BundledCassandraSpec.ReplicationFactor
-		cassPrivateIPBroadcastForDiscovery = pp.BundledCassandraSpec.PrivateIPBroadcastForDiscovery
-		cassPasswordAndUserAuth = pp.BundledCassandraSpec.PasswordAndUserAuth
-	}
 
-	dcName := models.CassandraChildDCName
-	dcRegion := c.Spec.DataCentres[0].Region
-	cloudProvider := c.Spec.DataCentres[0].CloudProvider
-	providerAccountName := c.Spec.DataCentres[0].ProviderAccountName
+		return cassandraDCs
 
-	cassandraDataCentres := []*v1beta1.CassandraDataCentre{
-		{
-			GenericDataCentreSpec: v1beta1.GenericDataCentreSpec{
-				Name:                dcName,
-				Region:              dcRegion,
-				CloudProvider:       cloudProvider,
-				ProviderAccountName: providerAccountName,
-				Network:             network,
+	case models.KafkaAppKind:
+		genericDataCentreSpec.Name = models.KafkaChildDCName
+		kafkaDCs := []*v1beta1.KafkaDataCentre{
+			{
+				GenericDataCentreSpec: genericDataCentreSpec,
+				NodeSize: c.Spec.CalculateNodeSize(
+					c.Spec.DataCentres[0].CloudProvider,
+					c.Spec.PackagedProvisioning[0].SolutionSize,
+					models.KafkaAppKind,
+				),
+				NodesNumber: 3,
 			},
-			NodeSize:                       cassNodeSize,
-			NodesNumber:                    cassNodesNumber,
-			ReplicationFactor:              cassReplicationFactor,
-			PrivateIPBroadcastForDiscovery: cassPrivateIPBroadcastForDiscovery,
-		},
+		}
+		return kafkaDCs
+
+	case models.OpenSearchAppKind:
+		genericDataCentreSpec.Name = models.OpenSearchChildDCName
+		openSearchDCs := []*v1beta1.OpenSearchDataCentre{
+			{
+				GenericDataCentreSpec: genericDataCentreSpec,
+				NumberOfRacks:         3,
+			},
+		}
+		return openSearchDCs
 	}
 
-	spec := v1beta1.CassandraSpec{
-		GenericClusterSpec: v1beta1.GenericClusterSpec{
-			Name:            models.CassandraChildPrefix + c.Name,
-			Version:         latestCassandraVersion,
-			SLATier:         slaTier,
-			PrivateNetwork:  privateNetwork,
-			TwoFactorDelete: twoFactorDelete,
-		},
-		DataCentres:         cassandraDataCentres,
-		PasswordAndUserAuth: cassPasswordAndUserAuth,
-		PCICompliance:       pciCompliance,
-		BundledUseOnly:      true,
+	return nil
+}
+
+func (r *CadenceReconciler) reconcileAppSpec(c *v1beta1.Cadence, app, version string) any {
+	var twoFactorDelete []*v1beta1.TwoFactorDelete
+	for _, cadenceTFD := range c.Spec.TwoFactorDelete {
+		tfd := &v1beta1.TwoFactorDelete{
+			Email: cadenceTFD.Email,
+			Phone: cadenceTFD.Phone,
+		}
+		twoFactorDelete = append(twoFactorDelete, tfd)
 	}
 
-	return &v1beta1.Cassandra{
-		TypeMeta:   typeMeta,
-		ObjectMeta: metadata,
-		Spec:       spec,
-	}, nil
+	genericClusterSpec := v1beta1.GenericClusterSpec{
+		Version:         version,
+		SLATier:         c.Spec.SLATier,
+		PrivateNetwork:  c.Spec.PrivateNetwork,
+		TwoFactorDelete: twoFactorDelete,
+	}
+
+	switch app {
+	case models.CassandraAppKind:
+		genericClusterSpec.Name = models.CassandraChildPrefix + c.Name
+		spec := v1beta1.CassandraSpec{
+			GenericClusterSpec:  genericClusterSpec,
+			PasswordAndUserAuth: true,
+			PCICompliance:       c.Spec.PCICompliance,
+			BundledUseOnly:      true,
+		}
+		return spec
+
+	case models.KafkaAppKind:
+		genericClusterSpec.Name = models.KafkaChildPrefix + c.Name
+		spec := v1beta1.KafkaSpec{
+			GenericClusterSpec:        genericClusterSpec,
+			PCICompliance:             c.Spec.PCICompliance,
+			BundledUseOnly:            true,
+			ReplicationFactor:         3,
+			PartitionsNumber:          3,
+			AllowDeleteTopics:         true,
+			AutoCreateTopics:          true,
+			ClientToClusterEncryption: c.Spec.DataCentres[0].ClientEncryption,
+		}
+
+		return spec
+
+	case models.OpenSearchAppKind:
+		managerNodes := []*v1beta1.ClusterManagerNodes{{
+			NodeSize: c.Spec.CalculateNodeSize(
+				c.Spec.DataCentres[0].CloudProvider,
+				c.Spec.PackagedProvisioning[0].SolutionSize,
+				models.OpenSearchAppKind,
+			),
+			DedicatedManager: false,
+		}}
+
+		genericClusterSpec.Name = models.OpenSearchChildPrefix + c.Name
+		spec := v1beta1.OpenSearchSpec{
+			GenericClusterSpec:  genericClusterSpec,
+			PCICompliance:       c.Spec.PCICompliance,
+			BundledUseOnly:      true,
+			ClusterManagerNodes: managerNodes,
+		}
+
+		return spec
+	}
+
+	return nil
+}
+
+func (r *CadenceReconciler) reconcileNetwork(availableCIDRs []string, app string) string {
+	switch app {
+	case models.CassandraAppKind:
+		return availableCIDRs[1]
+	case models.KafkaAppKind:
+		return availableCIDRs[2]
+	case models.OpenSearchAppKind:
+		return availableCIDRs[3]
+	}
+
+	return ""
+}
+
+func (r *CadenceReconciler) reconcileAppVersion(appKind, appType string) (string, error) {
+	appVersions, err := r.API.ListAppVersions(appKind)
+	if err != nil {
+		return "", err
+	}
+
+	sortedAppVersions := getSortedAppVersions(appVersions, appType)
+	if len(sortedAppVersions) == 0 {
+		return "", err
+	}
+
+	switch appType {
+	case models.CassandraAppType, models.KafkaAppType:
+		return sortedAppVersions[len(sortedAppVersions)-1].String(), nil
+
+	case models.OpenSearchAppType:
+		return sortedAppVersions[0].String(), nil
+	}
+
+	return "", nil
 }
 
 func (r *CadenceReconciler) startSyncJob(c *v1beta1.Cadence) error {
@@ -843,220 +984,62 @@ func (r *CadenceReconciler) newSyncJob(c *v1beta1.Cadence) scheduler.Job {
 	}
 }
 
-func (r *CadenceReconciler) newKafkaSpec(c *v1beta1.Cadence, latestKafkaVersion string) (*v1beta1.Kafka, error) {
-	typeMeta := v1.TypeMeta{
-		Kind:       models.KafkaKind,
-		APIVersion: models.ClustersV1beta1APIVersion,
+func (r *CadenceReconciler) newKafkaSpec(
+	c *v1beta1.Cadence,
+	version string,
+	availableCIDRs []string,
+) (*v1beta1.Kafka, error) {
+	typeMeta := r.reconcileTypeMeta(models.KafkaAppKind)
+	metadata := r.reconcileMetadata(c, models.KafkaAppKind)
+	dcs := r.reconcileAppDCs(c, availableCIDRs, models.KafkaAppKind)
+
+	kafkaDCs, ok := dcs.([]*v1beta1.KafkaDataCentre)
+	if !ok {
+		return nil, fmt.Errorf("resource is not of type %T, got %T", []*v1beta1.KafkaDataCentre(nil), kafkaDCs)
 	}
 
-	metadata := v1.ObjectMeta{
-		Name:        models.KafkaChildPrefix + c.Name,
-		Labels:      map[string]string{models.ControlledByLabel: c.Name},
-		Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
-		Namespace:   c.ObjectMeta.Namespace,
-		Finalizers:  []string{},
+	spec := r.reconcileAppSpec(c, models.KafkaAppKind, version)
+	kafkaSpec, ok := spec.(v1beta1.KafkaSpec)
+	if !ok {
+		return nil, fmt.Errorf("resource is not of type %T, got %T", v1beta1.KafkaSpec{}, spec)
 	}
 
-	if len(c.Spec.DataCentres) == 0 {
-		return nil, models.ErrZeroDataCentres
-	}
-
-	var kafkaTFD []*v1beta1.TwoFactorDelete
-	for _, cadenceTFD := range c.Spec.TwoFactorDelete {
-		twoFactorDelete := &v1beta1.TwoFactorDelete{
-			Email: cadenceTFD.Email,
-			Phone: cadenceTFD.Phone,
-		}
-		kafkaTFD = append(kafkaTFD, twoFactorDelete)
-	}
-	bundledKafkaSpec := c.Spec.PackagedProvisioning[0].BundledKafkaSpec
-
-	kafkaNetwork := bundledKafkaSpec.Network
-	kafkaNodeSize := bundledKafkaSpec.NodeSize
-	kafkaNodesNumber := bundledKafkaSpec.NodesNumber
-	dcName := models.KafkaChildDCName
-	dcRegion := c.Spec.DataCentres[0].Region
-	cloudProvider := c.Spec.DataCentres[0].CloudProvider
-	providerAccountName := c.Spec.DataCentres[0].ProviderAccountName
-	kafkaDataCentres := []*v1beta1.KafkaDataCentre{
-		{
-			GenericDataCentreSpec: v1beta1.GenericDataCentreSpec{
-				Name:                dcName,
-				Region:              dcRegion,
-				CloudProvider:       cloudProvider,
-				ProviderAccountName: providerAccountName,
-				Network:             kafkaNetwork,
-			},
-			NodeSize:    kafkaNodeSize,
-			NodesNumber: kafkaNodesNumber,
-		},
-	}
-
-	slaTier := c.Spec.SLATier
-	privateClusterNetwork := c.Spec.PrivateNetwork
-	pciCompliance := c.Spec.PCICompliance
-	clientEncryption := c.Spec.DataCentres[0].ClientEncryption
-	spec := v1beta1.KafkaSpec{
-		GenericClusterSpec: v1beta1.GenericClusterSpec{
-			Name:            models.KafkaChildPrefix + c.Name,
-			Version:         latestKafkaVersion,
-			SLATier:         slaTier,
-			PrivateNetwork:  privateClusterNetwork,
-			TwoFactorDelete: kafkaTFD,
-		},
-		DataCentres:               kafkaDataCentres,
-		ReplicationFactor:         bundledKafkaSpec.ReplicationFactor,
-		PartitionsNumber:          bundledKafkaSpec.PartitionsNumber,
-		AllowDeleteTopics:         true,
-		AutoCreateTopics:          true,
-		ClientToClusterEncryption: clientEncryption,
-		BundledUseOnly:            true,
-		PCICompliance:             pciCompliance,
-	}
+	kafkaSpec.DataCentres = kafkaDCs
 
 	return &v1beta1.Kafka{
 		TypeMeta:   typeMeta,
 		ObjectMeta: metadata,
-		Spec:       spec,
+		Spec:       kafkaSpec,
 	}, nil
 }
 
-func (r *CadenceReconciler) newOpenSearchSpec(c *v1beta1.Cadence, oldestOpenSearchVersion string) (*v1beta1.OpenSearch, error) {
-	typeMeta := v1.TypeMeta{
-		Kind:       models.OpenSearchKind,
-		APIVersion: models.ClustersV1beta1APIVersion,
+func (r *CadenceReconciler) newOpenSearchSpec(
+	c *v1beta1.Cadence,
+	version string,
+	availableCIDRs []string,
+) (*v1beta1.OpenSearch, error) {
+	typeMeta := r.reconcileTypeMeta(models.OpenSearchAppKind)
+	metadata := r.reconcileMetadata(c, models.OpenSearchAppKind)
+	dcs := r.reconcileAppDCs(c, availableCIDRs, models.OpenSearchAppKind)
+
+	osDCs, ok := dcs.([]*v1beta1.OpenSearchDataCentre)
+	if !ok {
+		return nil, fmt.Errorf("resource is not of type %T, got %T", []*v1beta1.OpenSearchDataCentre(nil), osDCs)
 	}
 
-	metadata := v1.ObjectMeta{
-		Name:        models.OpenSearchChildPrefix + c.Name,
-		Labels:      map[string]string{models.ControlledByLabel: c.Name},
-		Annotations: map[string]string{models.ResourceStateAnnotation: models.CreatingEvent},
-		Namespace:   c.ObjectMeta.Namespace,
-		Finalizers:  []string{},
+	spec := r.reconcileAppSpec(c, models.OpenSearchAppKind, version)
+	osSpec, ok := spec.(v1beta1.OpenSearchSpec)
+	if !ok {
+		return nil, fmt.Errorf("resource is not of type %T, got %T", v1beta1.OpenSearchSpec{}, spec)
 	}
 
-	if len(c.Spec.DataCentres) < 1 {
-		return nil, models.ErrZeroDataCentres
-	}
-
-	bundledOpenSearchSpec := c.Spec.PackagedProvisioning[0].BundledOpenSearchSpec
-
-	managerNodes := []*v1beta1.ClusterManagerNodes{{
-		NodeSize:         bundledOpenSearchSpec.NodeSize,
-		DedicatedManager: false,
-	}}
-
-	oNumberOfRacks := bundledOpenSearchSpec.NumberOfRacks
-	slaTier := c.Spec.SLATier
-	privateClusterNetwork := c.Spec.PrivateNetwork
-	pciCompliance := c.Spec.PCICompliance
-
-	var twoFactorDelete []*v1beta1.TwoFactorDelete
-	if len(c.Spec.TwoFactorDelete) > 0 {
-		twoFactorDelete = []*v1beta1.TwoFactorDelete{
-			{
-				Email: c.Spec.TwoFactorDelete[0].Email,
-				Phone: c.Spec.TwoFactorDelete[0].Phone,
-			},
-		}
-	}
-
-	osNetwork := bundledOpenSearchSpec.Network
-	dcName := models.OpenSearchChildDCName
-	dcRegion := c.Spec.DataCentres[0].Region
-	cloudProvider := c.Spec.DataCentres[0].CloudProvider
-	providerAccountName := c.Spec.DataCentres[0].ProviderAccountName
-
-	osDataCentres := []*v1beta1.OpenSearchDataCentre{
-		{
-			GenericDataCentreSpec: v1beta1.GenericDataCentreSpec{
-				Name:                dcName,
-				Region:              dcRegion,
-				CloudProvider:       cloudProvider,
-				ProviderAccountName: providerAccountName,
-				Network:             osNetwork,
-			},
-			NumberOfRacks: oNumberOfRacks,
-		},
-	}
-	spec := v1beta1.OpenSearchSpec{
-		GenericClusterSpec: v1beta1.GenericClusterSpec{
-			Name:            models.OpenSearchChildPrefix + c.Name,
-			Version:         oldestOpenSearchVersion,
-			SLATier:         slaTier,
-			PrivateNetwork:  privateClusterNetwork,
-			TwoFactorDelete: twoFactorDelete,
-		},
-		DataCentres:         osDataCentres,
-		ClusterManagerNodes: managerNodes,
-		BundledUseOnly:      true,
-		PCICompliance:       pciCompliance,
-	}
+	osSpec.DataCentres = osDCs
 
 	return &v1beta1.OpenSearch{
 		TypeMeta:   typeMeta,
 		ObjectMeta: metadata,
-		Spec:       spec,
+		Spec:       osSpec,
 	}, nil
-}
-
-func (r *CadenceReconciler) deletePackagedResources(
-	ctx context.Context,
-	c *v1beta1.Cadence,
-	packagedProvisioning *v1beta1.PackagedProvisioning,
-) error {
-	labelsToQuery := fmt.Sprintf("%s=%s", models.ControlledByLabel, c.Name)
-	selector, err := labels.Parse(labelsToQuery)
-	if err != nil {
-		return err
-	}
-
-	cassandraList := &v1beta1.CassandraList{}
-	err = r.Client.List(ctx, cassandraList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return err
-	}
-
-	if len(cassandraList.Items) != 0 {
-		for _, cassandraCluster := range cassandraList.Items {
-			err = r.Client.Delete(ctx, &cassandraCluster)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if packagedProvisioning.UseAdvancedVisibility {
-		kafkaList := &v1beta1.KafkaList{}
-		err = r.Client.List(ctx, kafkaList, &client.ListOptions{LabelSelector: selector})
-		if err != nil {
-			return err
-		}
-		if len(kafkaList.Items) != 0 {
-			for _, kafkaCluster := range kafkaList.Items {
-				err = r.Client.Delete(ctx, &kafkaCluster)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		osList := &v1beta1.OpenSearchList{}
-		err = r.Client.List(ctx, osList, &client.ListOptions{LabelSelector: selector})
-		if err != nil {
-			return err
-		}
-		if len(osList.Items) != 0 {
-			for _, osCluster := range osList.Items {
-				err = r.Client.Delete(ctx, &osCluster)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

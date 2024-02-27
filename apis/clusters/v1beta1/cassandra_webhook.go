@@ -171,10 +171,6 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 		return models.ErrTypeAssertion
 	}
 
-	if oldCluster.Spec.BundledUseOnly && c.Generation != oldCluster.Generation {
-		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
-	}
-
 	if oldCluster.Spec.RestoreFrom != nil {
 		return nil
 	}

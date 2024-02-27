@@ -20,7 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
@@ -237,4 +240,37 @@ func reconcileExternalChanges(c client.Client, r record.EventRecorder, obj Objec
 	)
 
 	return nil
+}
+
+func calculateAvailableNetworks(cadenceNetwork string) ([]string, error) {
+	clustersCIDRs := []string{cadenceNetwork}
+	for i := 0; i <= 3; i++ {
+		newCIDR, err := incrementCIDR(clustersCIDRs[i])
+		if err != nil {
+			return nil, err
+		}
+		clustersCIDRs = append(clustersCIDRs, newCIDR)
+	}
+
+	return clustersCIDRs, nil
+}
+
+func incrementCIDR(cidr string) (string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", err
+	}
+
+	ipParts := strings.Split(ip.String(), ".")
+	secondOctet, err := strconv.Atoi(ipParts[1])
+	if err != nil {
+		return "", err
+	}
+
+	secondOctet++
+	ipParts[1] = strconv.Itoa(secondOctet)
+	prefixLength, _ := ipnet.Mask.Size()
+
+	incrementedIP := strings.Join(ipParts, ".")
+	return fmt.Sprintf("%s/%d", incrementedIP, prefixLength), nil
 }

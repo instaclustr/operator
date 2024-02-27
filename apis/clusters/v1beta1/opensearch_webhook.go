@@ -194,10 +194,6 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 
 	oldCluster := old.(*OpenSearch)
 
-	if oldCluster.Spec.BundledUseOnly && !oldCluster.Spec.IsEqual(os.Spec) {
-		return models.ErrBundledUseOnlyResourceUpdateIsNotSupported
-	}
-
 	if oldCluster.Spec.RestoreFrom != nil {
 		return nil
 	}

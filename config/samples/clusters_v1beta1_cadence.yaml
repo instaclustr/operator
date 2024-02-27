@@ -18,30 +18,14 @@ spec:
 #        dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
 #        dependencyVpcType: "VPC_PEERED"
   packagedProvisioning:
-    - bundledCassandraSpec:
-        nodeSize: "CAS-DEV-t4g.small-5"
-        network: "10.2.0.0/16"
-        replicationFactor: 3
-        nodesNumber: 3
-        privateIPBroadcastForDiscovery: false
-        passwordAndUserAuth: true
-      useAdvancedVisibility: true
-      bundledKafkaSpec:
-        nodeSize: "KFK-DEV-t4g.small-5"
-        nodesNumber: 3
-        network: "10.3.0.0/16"
-        replicationFactor: 3
-        partitionsNumber: 3
-      bundledOpenSearchSpec:
-        nodeSize: "SRH-DEV-t4g.small-5"
-        numberOfRacks: 3
-        network: "10.4.0.0/16"
+    - useAdvancedVisibility: true
+      solutionSize: "Production-Small"
   #  twoFactorDelete:
   #  - email: "rostyslp@netapp.com"
-  privateNetworkCluster: false
+  privateNetwork: false
   dataCentres:
     - region: "US_EAST_1"
-      network: "10.12.0.0/16"
+      network: "10.251.0.0/16"
       # In a multi-region mode setup, ensure the CIDR block for the secondary cluster does not overlap with the primary one
 #      network: "10.16.0.0/16"
       cloudProvider: "AWS_VPC"

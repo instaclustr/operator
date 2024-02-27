@@ -164,31 +164,6 @@ var _ = Describe("Cadence Controller", func() {
 				c := &v1beta1.Cadence{}
 				g.Expect(k8sClient.Get(ctx, key, c)).ShouldNot(Succeed())
 			}, timeout, interval).Should(Succeed())
-
-			opensearch := &v1beta1.OpenSearch{}
-			kafka := &v1beta1.Kafka{}
-			cassandra := &v1beta1.Cassandra{}
-
-			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{
-					Namespace: metav1.NamespaceDefault,
-					Name:      models.OpenSearchChildPrefix + cadence.Name}, opensearch,
-				)
-			}, timeout, interval).ShouldNot(Succeed(), "should not get opensearch resource")
-
-			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{
-					Namespace: metav1.NamespaceDefault,
-					Name:      models.CassandraChildPrefix + cadence.Name}, cassandra,
-				)
-			}, timeout, interval).ShouldNot(Succeed(), "should not get cassandra resource")
-
-			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{
-					Namespace: metav1.NamespaceDefault,
-					Name:      models.KafkaChildPrefix + cadence.Name}, kafka,
-				)
-			}, timeout, interval).ShouldNot(Succeed(), "should not get kafka resource")
 		})
 	})
 })

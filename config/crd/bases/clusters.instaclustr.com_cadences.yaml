@@ -223,64 +223,16 @@ spec:
               packagedProvisioning:
                 items:
                   properties:
-                    bundledCassandraSpec:
-                      properties:
-                        network:
-                          type: string
-                        nodeSize:
-                          type: string
-                        nodesNumber:
-                          type: integer
-                        passwordAndUserAuth:
-                          type: boolean
-                        privateIPBroadcastForDiscovery:
-                          type: boolean
-                        replicationFactor:
-                          type: integer
-                      required:
-                      - network
-                      - nodeSize
-                      - nodesNumber
-                      - passwordAndUserAuth
-                      - privateIPBroadcastForDiscovery
-                      - replicationFactor
-                      type: object
-                    bundledKafkaSpec:
-                      properties:
-                        network:
-                          type: string
-                        nodeSize:
-                          type: string
-                        nodesNumber:
-                          type: integer
-                        partitionsNumber:
-                          type: integer
-                        replicationFactor:
-                          type: integer
-                      required:
-                      - network
-                      - nodeSize
-                      - nodesNumber
-                      - partitionsNumber
-                      - replicationFactor
-                      type: object
-                    bundledOpenSearchSpec:
-                      properties:
-                        network:
-                          type: string
-                        nodeSize:
-                          type: string
-                        numberOfRacks:
-                          type: integer
-                      required:
-                      - network
-                      - nodeSize
-                      - numberOfRacks
-                      type: object
+                    solutionSize:
+                      enum:
+                      - Developer
+                      - Production-Starter
+                      - Production-Small
+                      type: string
                     useAdvancedVisibility:
                       type: boolean
                   required:
-                  - bundledCassandraSpec
+                  - solutionSize
                   - useAdvancedVisibility
                   type: object
                 maxItems: 1
@@ -592,6 +544,19 @@ spec:
                 type: array
               nodeCount:
                 type: string
+              packagedProvisioningClusterRefs:
+                items:
+                  description: ObjectReference is namespaced reference to an object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - name
+                  - namespace
+                  type: object
+                type: array
               state:
                 type: string
               targetSecondaryCadence:

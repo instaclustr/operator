@@ -79,4 +79,5 @@ var (
 	ErrKubeVirtAddonNotFound                           = errors.New("cannot create KubeVirt based resources automatially without KubeVirt operator installed. Please install KubeVirt add-on")
 	ErrOpenSearchNumberOfRacksInvalid                  = errors.New("number of racks should be between 2 and 5")
 	ErrPGClusterConfigurationsOnCreationNotAvailable   = errors.New("clusterConfigurations is not available on cluster creation")
+	ErrInvalidCIDR                                     = errors.New("invalid Cadence Network for Packaged Provisioning solution. Second octet must be in 1-251 range")
 )
