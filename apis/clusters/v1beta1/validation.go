@@ -32,77 +32,6 @@ import (
 	"github.com/instaclustr/operator/pkg/validation"
 )
 
-func (c *Cluster) ValidateCreation() error {
-	clusterNameMatched, err := regexp.Match(models.ClusterNameRegExp, []byte(c.Name))
-	if !clusterNameMatched || err != nil {
-		return fmt.Errorf("cluster name should have lenght from 3 to 32 symbols and fit pattern: %s",
-			models.ClusterNameRegExp)
-	}
-
-	if len(c.TwoFactorDelete) > 1 {
-		return fmt.Errorf("two factor delete should not have more than 1 item")
-	}
-
-	if !validation.Contains(c.SLATier, models.SLATiers) {
-		return fmt.Errorf("cluster SLATier %s is unavailable, available values: %v",
-			c.SLATier, models.SLATiers)
-	}
-
-	return nil
-}
-
-func (dc *DataCentre) ValidateCreation() error {
-	if !validation.Contains(dc.CloudProvider, models.CloudProviders) {
-		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available values: %v",
-			dc.CloudProvider, dc.Name, models.CloudProviders)
-	}
-
-	switch dc.CloudProvider {
-	case models.AWSVPC:
-		if !validation.Contains(dc.Region, models.AWSRegions) {
-			return fmt.Errorf("AWS Region: %s is unavailable, available regions: %v",
-				dc.Region, models.AWSRegions)
-		}
-	case models.AZUREAZ:
-		if !validation.Contains(dc.Region, models.AzureRegions) {
-			return fmt.Errorf("azure Region: %s is unavailable, available regions: %v",
-				dc.Region, models.AzureRegions)
-		}
-	case models.GCP:
-		if !validation.Contains(dc.Region, models.GCPRegions) {
-			return fmt.Errorf("GCP Region: %s is unavailable, available regions: %v",
-				dc.Region, models.GCPRegions)
-		}
-	case models.ONPREMISES:
-		if dc.Region != models.CLIENTDC {
-			return fmt.Errorf("ONPREMISES Region: %s is unavailable, available regions: %v",
-				dc.Region, models.CLIENTDC)
-		}
-	}
-
-	if dc.ProviderAccountName == models.DefaultAccountName && len(dc.CloudProviderSettings) != 0 {
-		return fmt.Errorf("cloud provider settings can be used only with RIYOA accounts")
-	}
-
-	if len(dc.CloudProviderSettings) > 1 {
-		return fmt.Errorf("cloud provider settings should not have more than 1 item")
-	}
-
-	for _, cp := range dc.CloudProviderSettings {
-		err := cp.ValidateCreation()
-		if err != nil {
-			return err
-		}
-	}
-
-	networkMatched, err := regexp.Match(models.PeerSubnetsRegExp, []byte(dc.Network))
-	if !networkMatched || err != nil {
-		return fmt.Errorf("the provided CIDR: %s must contain four dot separated parts and form the Private IP address. All bits in the host part of the CIDR must be 0. Suffix must be between 16-28. %v", dc.Network, err)
-	}
-
-	return nil
-}
-
 func (ops *OnPremisesSpec) ValidateCreation() error {
 	if ops.StorageClassName == "" || ops.DataDiskSize == "" || ops.OSDiskSize == "" || ops.NodeCPU == 0 ||
 		ops.NodeMemory == "" || ops.OSImageURL == "" || ops.CloudInitScriptRef == nil {
@@ -140,20 +69,6 @@ func (ops *OnPremisesSpec) ValidateSSHGatewayCreation() error {
 		return fmt.Errorf("ssh gateway memory field must fit pattern: %s",
 			models.MemoryRegExp)
 	}
-	return nil
-}
-
-func (dc *DataCentre) validateImmutableCloudProviderSettingsUpdate(oldSettings []*CloudProviderSettings) error {
-	if len(oldSettings) != len(dc.CloudProviderSettings) {
-		return models.ErrImmutableCloudProviderSettings
-	}
-
-	for i, newProviderSettings := range dc.CloudProviderSettings {
-		if *newProviderSettings != *oldSettings[i] {
-			return models.ErrImmutableCloudProviderSettings
-		}
-	}
-
 	return nil
 }
 
@@ -279,20 +194,7 @@ func validateSingleConcurrentResize(concurrentResizes int) error {
 	return nil
 }
 
-func (dc *DataCentre) ValidateOnPremisesCreation() error {
-	if dc.CloudProvider != models.ONPREMISES {
-		return fmt.Errorf("cloud provider %s is unavailable for data centre: %s, available value: %s",
-			dc.CloudProvider, dc.Name, models.ONPREMISES)
-	}
-
-	if dc.Region != models.CLIENTDC {
-		return fmt.Errorf("region %s is unavailable for data centre: %s, available value: %s",
-			dc.Region, dc.Name, models.CLIENTDC)
-	}
-
-	return nil
-}
-
+//nolint:unused
 func ContainsKubeVirtAddon(ctx context.Context, client client.Client) (bool, error) {
 	namespaces := &k8scorev1.NamespaceList{}
 	err := client.List(ctx, namespaces)

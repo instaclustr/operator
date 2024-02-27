@@ -239,6 +239,11 @@ func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cass
 		return fmt.Errorf("failed to update cassandra status, err: %w", err)
 	}
 
+	err = r.createDefaultSecret(ctx, c, l)
+	if err != nil {
+		return fmt.Errorf("failed to create default cassandra user secret, err: %w", err)
+	}
+
 	l.Info(
 		"Cluster has been created",
 		"cluster name", c.Spec.Name,
@@ -264,7 +269,7 @@ func (r *CassandraReconciler) startClusterJobs(c *v1beta1.Cassandra, l logr.Logg
 
 	r.EventRecorder.Eventf(
 		c, models.Normal, models.Created,
-		"Cluster status check job is started",
+		"Cluster sync job is started",
 	)
 
 	err = r.startClusterBackupsJob(c)
@@ -314,21 +319,6 @@ func (r *CassandraReconciler) handleCreateCluster(
 			r.EventRecorder.Eventf(c, models.Warning, models.CreationFailed, "Failed to create cluster. Reason: %v", err)
 			return reconcile.Result{}, err
 		}
-	}
-
-	err := r.createDefaultSecret(ctx, c, l)
-	if err != nil {
-		l.Error(err, "Cannot create default secret for Cassandra",
-			"cluster name", c.Spec.Name,
-			"clusterID", c.Status.ID,
-		)
-		r.EventRecorder.Eventf(
-			c, models.Warning, models.CreationFailed,
-			"Default user secret creation on the Instaclustr is failed. Reason: %v",
-			err,
-		)
-
-		return reconcile.Result{}, err
 	}
 
 	if c.Status.State != models.DeletedStatus {
@@ -532,7 +522,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 
 	l.Info("Deleting cluster backup resources", "cluster ID", c.Status.ID)
 
@@ -615,7 +605,7 @@ func (r *CassandraReconciler) handleDeleteCluster(
 func (r *CassandraReconciler) startSyncJob(c *v1beta1.Cassandra) error {
 	job := r.newSyncJob(c)
 
-	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -658,7 +648,7 @@ func (r *CassandraReconciler) startClusterOnPremisesIPsJob(c *v1beta1.Cassandra,
 }
 
 func (r *CassandraReconciler) newSyncJob(c *v1beta1.Cassandra) scheduler.Job {
-	l := log.Log.WithValues("syncJob", c.GetJobID(scheduler.StatusChecker), "clusterID", c.Status.ID)
+	l := log.Log.WithValues("syncJob", c.GetJobID(scheduler.SyncJob), "clusterID", c.Status.ID)
 
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(c)
@@ -668,7 +658,7 @@ func (r *CassandraReconciler) newSyncJob(c *v1beta1.Cassandra) scheduler.Job {
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
 			r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
-			r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 
@@ -1083,7 +1073,7 @@ func (r *CassandraReconciler) handleExternalDelete(ctx context.Context, c *v1bet
 
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

@@ -17,21 +17,19 @@ limitations under the License.
 package models
 
 type ZookeeperCluster struct {
-	ID                            string                 `json:"id,omitempty"`
-	Name                          string                 `json:"name"`
-	ZookeeperVersion              string                 `json:"zookeeperVersion,omitempty"`
-	CurrentClusterOperationStatus string                 `json:"currentClusterOperationStatus,omitempty"`
-	Status                        string                 `json:"status,omitempty"`
-	PrivateNetworkCluster         bool                   `json:"privateNetworkCluster"`
-	SLATier                       string                 `json:"slaTier"`
-	TwoFactorDelete               []*TwoFactorDelete     `json:"twoFactorDelete,omitempty"`
-	DataCentres                   []*ZookeeperDataCentre `json:"dataCentres"`
-	Description                   string                 `json:"description,omitempty"`
+	GenericClusterFields `json:",inline"`
+
+	ZookeeperVersion string                 `json:"zookeeperVersion,omitempty"`
+	DataCentres      []*ZookeeperDataCentre `json:"dataCentres"`
 }
 
 type ZookeeperDataCentre struct {
-	DataCentre               `json:",inline"`
+	GenericDataCentreFields `json:",inline"`
+
+	NumberOfNodes            int      `json:"numberOfNodes"`
+	NodeSize                 string   `json:"nodeSize"`
 	ClientToServerEncryption bool     `json:"clientToServerEncryption"`
-	EnforceAuthSchemes       []string `json:"enforceAuthSchemes,omitempty"`
 	EnforceAuthEnabled       bool     `json:"enforceAuthEnabled"`
+	EnforceAuthSchemes       []string `json:"enforceAuthSchemes,omitempty"`
+	Nodes                    []*Node  `json:"nodes,omitempty"`
 }

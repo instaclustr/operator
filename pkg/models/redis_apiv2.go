@@ -32,8 +32,8 @@ type RedisDataCentre struct {
 
 	NodeSize          string `json:"nodeSize"`
 	MasterNodes       int    `json:"masterNodes"`
-	ReplicaNodes      int    `json:"replicaNodes,omitempty"`
-	ReplicationFactor int    `json:"replicationFactor,omitempty"`
+	ReplicaNodes      int    `json:"replicaNodes"`
+	ReplicationFactor int    `json:"replicationFactor"`
 
 	Nodes       []*Node        `json:"nodes,omitempty"`
 	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`

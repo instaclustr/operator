@@ -247,7 +247,7 @@ func (r *AzureVNetPeeringReconciler) handleDeletePeering(
 	}
 
 	if status != nil {
-		r.Scheduler.RemoveJob(azure.GetJobID(scheduler.StatusChecker))
+		r.Scheduler.RemoveJob(azure.GetJobID(scheduler.SyncJob))
 		err = r.API.DeletePeering(azure.Status.ID, instaclustr.AzurePeeringEndpoint)
 		if err != nil {
 			l.Error(err, "cannot update Azure VNet Peering resource status",
@@ -312,7 +312,7 @@ func (r *AzureVNetPeeringReconciler) startAzureVNetPeeringStatusJob(azurePeering
 ) error {
 	job := r.newWatchStatusJob(azurePeering)
 
-	err := r.Scheduler.ScheduleJob(azurePeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(azurePeering.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -334,7 +334,7 @@ func (r *AzureVNetPeeringReconciler) newWatchStatusJob(azureVNetPeering *v1beta1
 					"namespaced name", key,
 				)
 
-				r.Scheduler.RemoveJob(azureVNetPeering.GetJobID(scheduler.StatusChecker))
+				r.Scheduler.RemoveJob(azureVNetPeering.GetJobID(scheduler.SyncJob))
 
 				return nil
 			}
@@ -382,7 +382,7 @@ func (r *AzureVNetPeeringReconciler) handleExternalDelete(ctx context.Context, k
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
 	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

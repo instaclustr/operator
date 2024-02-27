@@ -256,7 +256,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 		)
 	}
 
-	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.SyncJob))
 	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
 	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, firewallRule, patch)
@@ -292,7 +292,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleDeleteFirewallRule(
 func (r *AWSSecurityGroupFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *v1beta1.AWSSecurityGroupFirewallRule) error {
 	job := r.newWatchStatusJob(firewallRule)
 
-	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) newWatchStatusJob(firewallRule 
 					"namespaced name", key,
 				)
 
-				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+				r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.SyncJob))
 
 				return nil
 			}
@@ -360,7 +360,7 @@ func (r *AWSSecurityGroupFirewallRuleReconciler) handleExternalDelete(ctx contex
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
 	r.EventRecorder.Eventf(rule, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(rule.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(rule.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

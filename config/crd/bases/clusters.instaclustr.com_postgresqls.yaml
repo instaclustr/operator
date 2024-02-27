@@ -183,7 +183,7 @@ spec:
                       type: string
                     nodeSize:
                       type: string
-                    numberOfNodes:
+                    nodesNumber:
                       type: integer
                     pgBouncer:
                       items:
@@ -216,7 +216,7 @@ spec:
                   - name
                   - network
                   - nodeSize
-                  - numberOfNodes
+                  - nodesNumber
                   - region
                   type: object
                 type: array
@@ -362,8 +362,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    numberOfNodes:
-                      type: integer
                     resizeOperations:
                       items:
                         properties:
@@ -422,7 +420,6 @@ spec:
                       type: string
                   required:
                   - nodes
-                  - numberOfNodes
                   type: object
                 type: array
               id:

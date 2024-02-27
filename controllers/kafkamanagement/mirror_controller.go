@@ -231,7 +231,7 @@ func (r *MirrorReconciler) handleDeleteMirror(
 	}
 
 	patch := mirror.NewPatch()
-	r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.SyncJob))
 	mirror.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	controllerutil.RemoveFinalizer(mirror, models.DeletionFinalizer)
 	err = r.Patch(ctx, mirror, patch)
@@ -256,7 +256,7 @@ func (r *MirrorReconciler) handleDeleteMirror(
 func (r *MirrorReconciler) startClusterStatusJob(mirror *v1beta1.Mirror) error {
 	job := r.newWatchStatusJob(mirror)
 
-	err := r.Scheduler.ScheduleJob(mirror.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(mirror.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -275,7 +275,7 @@ func (r *MirrorReconciler) newWatchStatusJob(mirror *v1beta1.Mirror) scheduler.J
 			r.EventRecorder.Eventf(mirror, models.Normal, models.Deleted,
 				"Mirror is not found in the k8s cluster. Closing Instaclustr status sync.")
 
-			r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(mirror.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 		if err != nil {

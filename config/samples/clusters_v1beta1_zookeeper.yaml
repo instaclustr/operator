@@ -3,7 +3,7 @@ kind: Zookeeper
 metadata:
   name: zookeeper-sample
 spec:
-  name: "username-zookeeper"
+  name: "example-zookeeper"
 #  description: "some description"
   dataCentres:
     - clientToServerEncryption: false
@@ -14,6 +14,6 @@ spec:
 #      nodeSize: "zookeeper-production-m5.large-60"
       nodesNumber: 3
       region: "US_EAST_1"
-  privateNetworkCluster: false
+  privateNetwork: false
   slaTier: "NON_PRODUCTION"
   version: "3.8.2"

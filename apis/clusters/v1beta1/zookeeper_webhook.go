@@ -61,10 +61,6 @@ func (z *Zookeeper) Default() {
 			models.ResourceStateAnnotation: "",
 		})
 	}
-
-	for _, dataCentre := range z.Spec.DataCentres {
-		dataCentre.SetDefaultValues()
-	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -86,7 +82,7 @@ func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return err
 	}
 
-	err = z.Spec.Cluster.ValidateCreation()
+	err = z.Spec.GenericClusterSpec.ValidateCreation()
 	if err != nil {
 		return err
 	}
@@ -107,7 +103,7 @@ func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	}
 
 	for _, dc := range z.Spec.DataCentres {
-		err = dc.DataCentre.ValidateCreation()
+		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
 			return err
 		}
@@ -127,17 +123,21 @@ func (zv *zookeeperValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 		return fmt.Errorf("cannot assert object %v to zookeeper", new.GetObjectKind())
 	}
 
-	zookeeperlog.Info("validate update", "name", newZookeeper.Name)
-
-	if newZookeeper.Status.ID == "" {
-		return zv.ValidateCreate(ctx, newZookeeper)
+	if newZookeeper.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+		return nil
 	}
 
 	if newZookeeper.Annotations[models.ExternalChangesAnnotation] == models.True {
 		return nil
 	}
 
-	if newZookeeper.Generation != oldZookeeper.Generation && !oldZookeeper.Spec.ClusterSettingsNeedUpdate(newZookeeper.Spec.Cluster) {
+	if newZookeeper.Status.ID == "" {
+		return zv.ValidateCreate(ctx, newZookeeper)
+	}
+
+	zookeeperlog.Info("validate update", "name", newZookeeper.Name)
+
+	if newZookeeper.Generation != oldZookeeper.Generation && !oldZookeeper.Spec.ClusterSettingsNeedUpdate(&newZookeeper.Spec.GenericClusterSpec) {
 		return fmt.Errorf("update is not allowed")
 	}
 

@@ -169,18 +169,6 @@ func (s *KafkaStatus) DCsEqual(o *KafkaStatus) bool {
 	return true
 }
 
-func (s *KafkaStatus) ToOnPremises() ClusterStatus {
-	dc := &DataCentreStatus{
-		ID:    s.DataCentres[0].ID,
-		Nodes: s.DataCentres[0].Nodes,
-	}
-
-	return ClusterStatus{
-		ID:          s.ID,
-		DataCentres: []*DataCentreStatus{dc},
-	}
-}
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"

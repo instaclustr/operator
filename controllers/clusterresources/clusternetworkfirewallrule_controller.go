@@ -276,7 +276,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 		)
 	}
 
-	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(firewallRule.GetJobID(scheduler.SyncJob))
 	controllerutil.RemoveFinalizer(firewallRule, models.DeletionFinalizer)
 	firewallRule.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, firewallRule, patch)
@@ -311,7 +311,7 @@ func (r *ClusterNetworkFirewallRuleReconciler) HandleDeleteFirewallRule(
 func (r *ClusterNetworkFirewallRuleReconciler) startFirewallRuleStatusJob(firewallRule *v1beta1.ClusterNetworkFirewallRule) error {
 	job := r.newWatchStatusJob(firewallRule)
 
-	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(firewallRule.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}

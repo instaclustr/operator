@@ -45,7 +45,9 @@ type onPremisesBootstrap struct {
 	K8sClient             client.Client
 	K8sObject             client.Object
 	EventRecorder         record.EventRecorder
-	ClusterStatus         v1beta1.ClusterStatus
+	ClusterID             string
+	DataCentreID          string
+	Nodes                 []*v1beta1.Node
 	OnPremisesSpec        *v1beta1.OnPremisesSpec
 	ExposePorts           []k8scorev1.ServicePort
 	HeadlessPorts         []k8scorev1.ServicePort
@@ -57,7 +59,9 @@ func newOnPremisesBootstrap(
 	k8sClient client.Client,
 	o client.Object,
 	e record.EventRecorder,
-	status v1beta1.ClusterStatus,
+	clusterID string,
+	dataCentreID string,
+	nodes []*v1beta1.Node,
 	onPremisesSpec *v1beta1.OnPremisesSpec,
 	exposePorts,
 	headlessPorts []k8scorev1.ServicePort,
@@ -67,7 +71,9 @@ func newOnPremisesBootstrap(
 		K8sClient:             k8sClient,
 		K8sObject:             o,
 		EventRecorder:         e,
-		ClusterStatus:         status,
+		ClusterID:             clusterID,
+		DataCentreID:          dataCentreID,
+		Nodes:                 nodes,
 		OnPremisesSpec:        onPremisesSpec,
 		ExposePorts:           exposePorts,
 		HeadlessPorts:         headlessPorts,
@@ -77,7 +83,7 @@ func newOnPremisesBootstrap(
 
 //nolint:unused,deadcode
 func handleCreateOnPremisesClusterResources(ctx context.Context, b *onPremisesBootstrap) error {
-	if len(b.ClusterStatus.DataCentres) < 1 {
+	if b.DataCentreID == "" {
 		return fmt.Errorf("datacenter ID is empty")
 	}
 
@@ -108,7 +114,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 		ctx,
 		b,
 		gatewayDVName,
-		b.ClusterStatus.DataCentres[0].ID,
+		b.DataCentreID,
 		gatewayDVSize,
 		true,
 	)
@@ -139,7 +145,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 			ctx,
 			b,
 			gatewayName,
-			b.ClusterStatus.DataCentres[0].ID,
+			b.DataCentreID,
 			models.GatewayRack,
 			gatewayDV.Name,
 			gatewayCPU,
@@ -168,7 +174,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 			b,
 			gatewaySvcName,
 			gatewayName,
-			b.ClusterStatus.DataCentres[0].ID,
+			b.DataCentreID,
 		)
 		err = b.K8sClient.Create(ctx, gatewayExposeService)
 		if err != nil {
@@ -190,7 +196,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 			b,
 			clusterIPServiceName,
 			gatewayName,
-			b.ClusterStatus.DataCentres[0].ID,
+			b.DataCentreID,
 		)
 		err = b.K8sClient.Create(ctx, nodeExposeService)
 		if err != nil {
@@ -203,7 +209,7 @@ func reconcileSSHGatewayResources(ctx context.Context, b *onPremisesBootstrap) e
 
 //nolint:unused,deadcode
 func reconcileNodesResources(ctx context.Context, b *onPremisesBootstrap) error {
-	for i, node := range b.ClusterStatus.DataCentres[0].Nodes {
+	for i, node := range b.Nodes {
 		nodeOSDiskSize, err := resource.ParseQuantity(b.OnPremisesSpec.OSDiskSize)
 		if err != nil {
 			return err
@@ -408,7 +414,7 @@ func newDataDiskDV(
 			Name:      name,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel: b.ClusterID,
 				models.NodeIDLabel:    nodeID,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
@@ -455,7 +461,7 @@ func newVM(
 	}
 
 	labelSet := map[string]string{
-		models.ClusterIDLabel:      b.ClusterStatus.ID,
+		models.ClusterIDLabel:      b.ClusterID,
 		models.NodeIDLabel:         nodeID,
 		models.NodeRackLabel:       nodeRack,
 		models.KubevirtDomainLabel: vmName,
@@ -602,7 +608,7 @@ func newExposeService(
 			Name:      svcName,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel: b.ClusterID,
 				models.NodeIDLabel:    nodeID,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
@@ -632,7 +638,7 @@ func newHeadlessService(
 			Name:      svcName,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel: b.ClusterID,
 			},
 			Finalizers: []string{models.DeletionFinalizer},
 		},
@@ -640,7 +646,7 @@ func newHeadlessService(
 			ClusterIP: k8scorev1.ClusterIPNone,
 			Ports:     b.HeadlessPorts,
 			Selector: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel: b.ClusterID,
 				models.NodeLabel:      models.WorkerNode,
 			},
 		},
@@ -778,7 +784,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 		allNodePods := &k8scorev1.PodList{}
 		err := b.K8sClient.List(context.Background(), allNodePods, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel: b.ClusterID,
 				models.NodeLabel:      models.WorkerNode,
 			}),
 			Namespace: b.K8sObject.GetNamespace(),
@@ -786,7 +792,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 		if err != nil {
 			l.Error(err, "Cannot get on-premises cluster pods",
 				"cluster name", b.K8sObject.GetName(),
-				"clusterID", b.ClusterStatus.ID,
+				"clusterID", b.ClusterID,
 			)
 
 			b.EventRecorder.Eventf(
@@ -797,11 +803,11 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 			return err
 		}
 
-		if len(allNodePods.Items) != len(b.ClusterStatus.DataCentres[0].Nodes) {
+		if len(allNodePods.Items) != len(b.Nodes) {
 			err = fmt.Errorf("the quantity of pods does not match the number of on-premises nodes")
 			l.Error(err, "Cannot compare private IPs for the cluster",
 				"cluster name", b.K8sObject.GetName(),
-				"clusterID", b.ClusterStatus.ID,
+				"clusterID", b.ClusterID,
 			)
 
 			b.EventRecorder.Eventf(
@@ -812,11 +818,11 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 			return err
 		}
 
-		for _, node := range b.ClusterStatus.DataCentres[0].Nodes {
+		for _, node := range b.Nodes {
 			nodePods := &k8scorev1.PodList{}
 			err = b.K8sClient.List(context.Background(), nodePods, &client.ListOptions{
 				LabelSelector: labels.SelectorFromSet(map[string]string{
-					models.ClusterIDLabel: b.ClusterStatus.ID,
+					models.ClusterIDLabel: b.ClusterID,
 					models.NodeIDLabel:    node.ID,
 				}),
 				Namespace: b.K8sObject.GetNamespace(),
@@ -824,7 +830,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 			if err != nil {
 				l.Error(err, "Cannot get on-premises cluster pods",
 					"cluster name", b.K8sObject.GetName(),
-					"clusterID", b.ClusterStatus.ID,
+					"clusterID", b.ClusterID,
 				)
 
 				b.EventRecorder.Eventf(
@@ -842,7 +848,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 					err = fmt.Errorf("private IPs was changed")
 					l.Error(err, "Node's private IP addresses are not equal",
 						"cluster name", b.K8sObject.GetName(),
-						"clusterID", b.ClusterStatus.ID,
+						"clusterID", b.ClusterID,
 						"nodeID", node.ID,
 						"nodeIP", node.PrivateAddress,
 						"podIP", pod.Status.PodIP,
@@ -861,7 +867,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 				nodeSVCs := &k8scorev1.ServiceList{}
 				err = b.K8sClient.List(context.Background(), nodeSVCs, &client.ListOptions{
 					LabelSelector: labels.SelectorFromSet(map[string]string{
-						models.ClusterIDLabel: b.ClusterStatus.ID,
+						models.ClusterIDLabel: b.ClusterID,
 						models.NodeIDLabel:    node.ID,
 					}),
 					Namespace: b.K8sObject.GetNamespace(),
@@ -869,7 +875,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 				if err != nil {
 					l.Error(err, "Cannot get services backed by on-premises cluster pods",
 						"cluster name", b.K8sObject.GetName(),
-						"clusterID", b.ClusterStatus.ID,
+						"clusterID", b.ClusterID,
 					)
 
 					b.EventRecorder.Eventf(
@@ -887,7 +893,7 @@ func newWatchOnPremisesIPsJob(kind string, b *onPremisesBootstrap) scheduler.Job
 							err = fmt.Errorf("public IPs was changed")
 							l.Error(err, "Node's public IP addresses are not equal",
 								"cluster name", b.K8sObject.GetName(),
-								"clusterID", b.ClusterStatus.ID,
+								"clusterID", b.ClusterID,
 								"nodeID", node.ID,
 								"nodeIP", node.PrivateAddress,
 								"svcIP", svc.Status.LoadBalancer.Ingress[0].IP,
@@ -924,7 +930,7 @@ func newClusterIPService(
 			Name:      svcName,
 			Namespace: b.K8sObject.GetNamespace(),
 			Labels: map[string]string{
-				models.ClusterIDLabel: b.ClusterStatus.ID,
+				models.ClusterIDLabel: b.ClusterID,
 				models.NodeIDLabel:    nodeID,
 			},
 			Finalizers: []string{models.DeletionFinalizer},

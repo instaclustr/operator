@@ -18,7 +18,9 @@ package clusters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -101,6 +103,52 @@ func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 }
 
+func (r *ZookeeperReconciler) createCluster(ctx context.Context, zook *v1beta1.Zookeeper, l logr.Logger) error {
+	l.Info("Creating zookeeper cluster",
+		"cluster name", zook.Spec.Name,
+		"data centres", zook.Spec.DataCentres)
+
+	b, err := r.API.CreateClusterRaw(instaclustr.ZookeeperEndpoint, zook.Spec.ToInstAPI())
+	if err != nil {
+		return fmt.Errorf("failed to create zookeeper cluster, err: %w", err)
+	}
+
+	var instaModel models.ZookeeperCluster
+	err = json.Unmarshal(b, &instaModel)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal body to models.ZookeeperCluster, err: %w", err)
+	}
+
+	patch := zook.NewPatch()
+
+	zook.Spec.FromInstAPI(&instaModel)
+	zook.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
+	err = r.Patch(ctx, zook, patch)
+	if err != nil {
+		return fmt.Errorf("failed to patch cluster spec, err: %w", err)
+	}
+
+	zook.Status.FromInstAPI(&instaModel)
+	err = r.Status().Patch(ctx, zook, patch)
+	if err != nil {
+		return fmt.Errorf("failed to patch cluster status, err: %w", err)
+	}
+
+	l.Info("Zookeeper cluster has been created", "cluster ID", zook.Status.ID)
+	r.EventRecorder.Eventf(
+		zook, models.Normal, models.Created,
+		"Cluster creation request is sent. Cluster ID: %s",
+		zook.Status.ID,
+	)
+
+	err = r.createDefaultSecret(ctx, zook, l)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *ZookeeperReconciler) handleCreateCluster(
 	ctx context.Context,
 	zook *v1beta1.Zookeeper,
@@ -110,41 +158,17 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 	l = l.WithName("Creation Event")
 
 	if zook.Status.ID == "" {
-		l.Info("Creating zookeeper cluster",
-			"cluster name", zook.Spec.Name,
-			"data centres", zook.Spec.DataCentres)
+		err := r.createCluster(ctx, zook, l)
+		if err != nil {
+			r.EventRecorder.Eventf(zook, models.Warning, models.CreationFailed,
+				"Failed to create Zookeeper cluster. Reason: %v", err,
+			)
+			return reconcile.Result{}, err
+		}
+	}
 
+	if zook.Status.State != models.DeletedStatus {
 		patch := zook.NewPatch()
-
-		zook.Status.ID, err = r.API.CreateCluster(instaclustr.ZookeeperEndpoint, zook.Spec.ToInstAPI())
-		if err != nil {
-			l.Error(err, "Cannot create zookeeper cluster", "spec", zook.Spec)
-			r.EventRecorder.Eventf(
-				zook, models.Warning, models.CreationFailed,
-				"Cluster creation on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
-		r.EventRecorder.Eventf(
-			zook, models.Normal, models.Created,
-			"Cluster creation request is sent. Cluster ID: %s",
-			zook.Status.ID,
-		)
-
-		err = r.Status().Patch(ctx, zook, patch)
-		if err != nil {
-			l.Error(err, "Cannot patch zookeeper cluster status from the Instaclustr API",
-				"spec", zook.Spec)
-			r.EventRecorder.Eventf(
-				zook, models.Warning, models.PatchFailed,
-				"Cluster resource status patch is failed. Reason: %v",
-				err,
-			)
-			return reconcile.Result{}, err
-		}
-
 		zook.Annotations[models.ResourceStateAnnotation] = models.CreatedEvent
 		controllerutil.AddFinalizer(zook, models.DeletionFinalizer)
 		err = r.Patch(ctx, zook, patch)
@@ -158,26 +182,7 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 			return reconcile.Result{}, err
 		}
 
-		l.Info("Zookeeper cluster has been created", "cluster ID", zook.Status.ID)
-
-		err = r.createDefaultSecret(ctx, zook, l)
-		if err != nil {
-			l.Error(err, "Cannot create default secret for Zookeeper cluster",
-				"cluster name", zook.Spec.Name,
-				"clusterID", zook.Status.ID,
-			)
-			r.EventRecorder.Eventf(
-				zook, models.Warning, models.CreationFailed,
-				"Default user secret creation on the Instaclustr is failed. Reason: %v",
-				err,
-			)
-
-			return reconcile.Result{}, err
-		}
-	}
-
-	if zook.Status.State != models.DeletedStatus {
-		err = r.startClusterStatusJob(zook)
+		err = r.startClusterSyncJob(zook)
 		if err != nil {
 			l.Error(err, "Cannot start cluster status job",
 				"zookeeper cluster ID", zook.Status.ID)
@@ -191,7 +196,7 @@ func (r *ZookeeperReconciler) handleCreateCluster(
 
 		r.EventRecorder.Eventf(
 			zook, models.Normal, models.Created,
-			"Cluster status check job is started",
+			"Cluster sync job is started",
 		)
 	}
 
@@ -253,24 +258,21 @@ func (r *ZookeeperReconciler) handleUpdateCluster(
 ) (reconcile.Result, error) {
 	l = l.WithName("Update Event")
 
-	iData, err := r.API.GetZookeeper(zook.Status.ID)
+	instaModel, err := r.API.GetZookeeper(zook.Status.ID)
 	if err != nil {
 		l.Error(err, "Cannot get cluster from the Instaclustr", "cluster ID", zook.Status.ID)
 		return reconcile.Result{}, err
 	}
 
-	iZook, err := zook.FromInstAPI(iData)
-	if err != nil {
-		l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", zook.Status.ID)
-		return reconcile.Result{}, err
-	}
+	iZook := &v1beta1.Zookeeper{}
+	iZook.FromInstAPI(instaModel)
 
 	if zook.Annotations[models.ExternalChangesAnnotation] == models.True ||
 		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
 		return handleExternalChanges[v1beta1.ZookeeperSpec](r.EventRecorder, r.Client, zook, iZook, l)
 	}
 
-	if zook.Spec.ClusterSettingsNeedUpdate(iZook.Spec.Cluster) {
+	if zook.Spec.ClusterSettingsNeedUpdate(&iZook.Spec.GenericClusterSpec) {
 		l.Info("Updating cluster settings",
 			"instaclustr description", iZook.Spec.Description,
 			"instaclustr two factor delete", iZook.Spec.TwoFactorDelete)
@@ -300,7 +302,7 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 	if err != nil && !errors.Is(err, instaclustr.NotFound) {
 		l.Error(err, "Cannot get zookeeper cluster",
 			"cluster name", zook.Spec.Name,
-			"status", zook.Status.ClusterStatus.State)
+			"status", zook.Status.GenericStatus.State)
 		r.EventRecorder.Eventf(
 			zook, models.Warning, models.FetchFailed,
 			"Cluster resource fetch from the Instaclustr API is failed. Reason: %v",
@@ -366,7 +368,7 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 		return reconcile.Result{}, err
 	}
 
-	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.SyncJob))
 	controllerutil.RemoveFinalizer(zook, models.DeletionFinalizer)
 	zook.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, zook, patch)
@@ -403,10 +405,10 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 	return models.ExitReconcile, nil
 }
 
-func (r *ZookeeperReconciler) startClusterStatusJob(Zookeeper *v1beta1.Zookeeper) error {
-	job := r.newWatchStatusJob(Zookeeper)
+func (r *ZookeeperReconciler) startClusterSyncJob(Zookeeper *v1beta1.Zookeeper) error {
+	job := r.newSyncJob(Zookeeper)
 
-	err := r.Scheduler.ScheduleJob(Zookeeper.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(Zookeeper.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -414,15 +416,16 @@ func (r *ZookeeperReconciler) startClusterStatusJob(Zookeeper *v1beta1.Zookeeper
 	return nil
 }
 
-func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) scheduler.Job {
-	l := log.Log.WithValues("component", "ZookeeperStatusClusterJob")
+func (r *ZookeeperReconciler) newSyncJob(zook *v1beta1.Zookeeper) scheduler.Job {
+	l := log.Log.WithValues("syncJob", zook.GetJobID(scheduler.SyncJob), "clusterID", zook.Status.ID)
+
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(zook)
 		err := r.Get(context.Background(), namespacedName, zook)
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(zook.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(zook.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 		if err != nil {
@@ -431,7 +434,7 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 			return err
 		}
 
-		iData, err := r.API.GetZookeeper(zook.Status.ID)
+		instaModel, err := r.API.GetZookeeper(zook.Status.ID)
 		if err != nil {
 			if errors.Is(err, instaclustr.NotFound) {
 				if zook.DeletionTimestamp != nil {
@@ -447,21 +450,16 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 			return err
 		}
 
-		iZook, err := zook.FromInstAPI(iData)
-		if err != nil {
-			l.Error(err, "Cannot convert cluster from the Instaclustr API", "cluster ID", zook.Status.ID)
-			return err
-		}
+		iZook := &v1beta1.Zookeeper{}
+		iZook.FromInstAPI(instaModel)
 
-		if !areStatusesEqual(&zook.Status.ClusterStatus, &iZook.Status.ClusterStatus) {
-			l.Info("Updating Zookeeper status",
-				"instaclustr status", iZook.Status,
-				"status", zook.Status)
+		if !zook.Status.Equals(&iZook.Status) {
+			l.Info("Updating Zookeeper status")
 
-			areDCsEqual := areDataCentresEqual(iZook.Status.ClusterStatus.DataCentres, zook.Status.ClusterStatus.DataCentres)
+			areDCsEqual := zook.Status.DCsEquals(iZook.Status.DataCentres)
 
 			patch := zook.NewPatch()
-			zook.Status.ClusterStatus = iZook.Status.ClusterStatus
+			zook.Status.FromInstAPI(instaModel)
 			err = r.Status().Patch(context.Background(), zook, patch)
 			if err != nil {
 				l.Error(err, "Cannot patch Zookeeper cluster",
@@ -473,14 +471,14 @@ func (r *ZookeeperReconciler) newWatchStatusJob(zook *v1beta1.Zookeeper) schedul
 			if !areDCsEqual {
 				var nodes []*v1beta1.Node
 
-				for _, dc := range iZook.Status.ClusterStatus.DataCentres {
+				for _, dc := range iZook.Status.DataCentres {
 					nodes = append(nodes, dc.Nodes...)
 				}
 
 				err = exposeservice.Create(r.Client,
 					zook.Name,
 					zook.Namespace,
-					zook.Spec.PrivateNetworkCluster,
+					zook.Spec.PrivateNetwork,
 					nodes,
 					models.ZookeeperConnectionPort)
 				if err != nil {
@@ -552,7 +550,7 @@ func (r *ZookeeperReconciler) handleExternalDelete(ctx context.Context, zook *v1
 	r.EventRecorder.Eventf(zook, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
 	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.SyncJob))
 
 	return nil
 }
@@ -575,6 +573,10 @@ func (r *ZookeeperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}
 				if deleting := confirmDeletion(newObj); deleting {
 					return true
+				}
+
+				if newObj.Status.ID == "" && newObj.Annotations[models.ResourceStateAnnotation] == models.SyncingEvent {
+					return false
 				}
 
 				if newObj.Status.ID == "" {
@@ -607,7 +609,7 @@ func (r *ZookeeperReconciler) reconcileMaintenanceEvents(ctx context.Context, z 
 		return err
 	}
 
-	if !z.Status.AreMaintenanceEventStatusesEqual(iMEStatuses) {
+	if !z.Status.MaintenanceEventsEqual(iMEStatuses) {
 		patch := z.NewPatch()
 		z.Status.MaintenanceEvents = iMEStatuses
 		err = r.Status().Patch(ctx, z, patch)

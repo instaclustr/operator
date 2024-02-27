@@ -257,7 +257,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 	}
 
 	patch := gcp.NewPatch()
-	r.Scheduler.RemoveJob(gcp.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(gcp.GetJobID(scheduler.SyncJob))
 	controllerutil.RemoveFinalizer(gcp, models.DeletionFinalizer)
 	gcp.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
 	err = r.Patch(ctx, gcp, patch)
@@ -295,7 +295,7 @@ func (r *GCPVPCPeeringReconciler) handleDeleteCluster(
 func (r *GCPVPCPeeringReconciler) startGCPVPCPeeringStatusJob(gcpPeering *v1beta1.GCPVPCPeering) error {
 	job := r.newWatchStatusJob(gcpPeering)
 
-	err := r.Scheduler.ScheduleJob(gcpPeering.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(gcpPeering.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func (r *GCPVPCPeeringReconciler) newWatchStatusJob(gcpPeering *v1beta1.GCPVPCPe
 					"namespaced name", key,
 				)
 
-				r.Scheduler.RemoveJob(gcpPeering.GetJobID(scheduler.StatusChecker))
+				r.Scheduler.RemoveJob(gcpPeering.GetJobID(scheduler.SyncJob))
 
 				return nil
 			}
@@ -364,7 +364,7 @@ func (r *GCPVPCPeeringReconciler) handleExternalDelete(ctx context.Context, key 
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
 	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

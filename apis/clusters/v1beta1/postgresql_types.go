@@ -38,7 +38,7 @@ type PgDataCentre struct {
 	// PostgreSQL options
 	ClientEncryption bool   `json:"clientEncryption"`
 	NodeSize         string `json:"nodeSize"`
-	NumberOfNodes    int    `json:"numberOfNodes"`
+	NodesNumber      int    `json:"nodesNumber"`
 
 	//+kubebuilder:Validation:MaxItems:=1
 	InterDataCentreReplication []*InterDataCentreReplication `json:"interDataCentreReplication,omitempty"`
@@ -102,9 +102,7 @@ type PgStatus struct {
 
 type PgDataCentreStatus struct {
 	GenericDataCentreStatus `json:",inline"`
-
-	NumberOfNodes int     `json:"numberOfNodes"`
-	Nodes         []*Node `json:"nodes"`
+	Nodes                   []*Node `json:"nodes"`
 }
 
 //+kubebuilder:object:root=true
@@ -244,7 +242,7 @@ func (pdc *PgDataCentre) ToInstAPI() *models.PGDataCentre {
 		InterDataCentreReplication: pdc.InterDCReplicationToInstAPI(),
 		IntraDataCentreReplication: pdc.IntraDCReplicationToInstAPI(),
 		NodeSize:                   pdc.NodeSize,
-		NumberOfNodes:              pdc.NumberOfNodes,
+		NumberOfNodes:              pdc.NodesNumber,
 	}
 }
 
@@ -505,7 +503,7 @@ func (p PgExtensions) ToInstAPI() []*models.PGExtension {
 func (pdc *PgDataCentre) Equals(o *PgDataCentre) bool {
 	return pdc.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
 		pdc.ClientEncryption == o.ClientEncryption &&
-		pdc.NumberOfNodes == o.NumberOfNodes &&
+		pdc.NodesNumber == o.NodesNumber &&
 		pdc.NodeSize == o.NodeSize &&
 		slices.EqualsPtr(pdc.InterDataCentreReplication, o.InterDataCentreReplication) &&
 		slices.EqualsPtr(pdc.IntraDataCentreReplication, o.IntraDataCentreReplication) &&
@@ -517,7 +515,7 @@ func (pdc *PgDataCentre) FromInstAPI(instaModel *models.PGDataCentre) {
 
 	pdc.ClientEncryption = instaModel.ClientToClusterEncryption
 	pdc.NodeSize = instaModel.NodeSize
-	pdc.NumberOfNodes = instaModel.NumberOfNodes
+	pdc.NodesNumber = instaModel.NumberOfNodes
 
 	pdc.InterReplicationsFromInstAPI(instaModel.InterDataCentreReplication)
 	pdc.IntraReplicationsFromInstAPI(instaModel.IntraDataCentreReplication)
@@ -562,12 +560,10 @@ func (pgs *PgSpec) ClusterConfigurationsFromInstAPI(instaModels []*models.Cluste
 func (s *PgDataCentreStatus) FromInstAPI(instaModel *models.PGDataCentre) {
 	s.GenericDataCentreStatus.FromInstAPI(&instaModel.GenericDataCentreFields)
 	s.Nodes = nodesFromInstAPI(instaModel.Nodes)
-	s.NumberOfNodes = instaModel.NumberOfNodes
 }
 
 func (s *PgDataCentreStatus) Equals(o *PgDataCentreStatus) bool {
 	return s.GenericDataCentreStatus.Equals(&o.GenericDataCentreStatus) &&
-		s.NumberOfNodes == o.NumberOfNodes &&
 		nodesEqual(s.Nodes, o.Nodes)
 }
 

@@ -158,7 +158,7 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 			return err
 		}
 
-		if ((dc.NumberOfNodes*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
+		if ((dc.NodesNumber*dc.ReplicationFactor)/dc.ReplicationFactor)%dc.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", dc.ReplicationFactor)
 		}
 	}
@@ -284,11 +284,11 @@ func (kc *KafkaConnectSpec) validateImmutableDataCentresFieldsUpdate(oldSpec Kaf
 			return err
 		}
 
-		if newDC.NumberOfNodes < oldDC.NumberOfNodes {
-			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NumberOfNodes)
+		if newDC.NodesNumber < oldDC.NodesNumber {
+			return fmt.Errorf("deleting nodes is not supported. Number of nodes must be greater than: %v", oldDC.NodesNumber)
 		}
 
-		if ((newDC.NumberOfNodes*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
+		if ((newDC.NodesNumber*newDC.ReplicationFactor)/newDC.ReplicationFactor)%newDC.ReplicationFactor != 0 {
 			return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
 		}
 	}

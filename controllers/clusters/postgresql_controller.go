@@ -266,7 +266,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 
 		r.EventRecorder.Eventf(
 			pg, models.Normal, models.Created,
-			"Cluster status check job is started",
+			"Cluster sync job is started",
 		)
 
 		if pg.Spec.DataCentres[0].CloudProvider == models.ONPREMISES {
@@ -531,7 +531,7 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 	)
 
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.SyncJob))
 
 	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
 	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -698,7 +698,7 @@ func (r *PostgreSQLReconciler) startClusterOnPremisesIPsJob(pg *v1beta1.PostgreS
 func (r *PostgreSQLReconciler) startClusterStatusJob(pg *v1beta1.PostgreSQL) error {
 	job := r.newWatchStatusJob(pg)
 
-	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -718,7 +718,7 @@ func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *v1beta1.PostgreSQL) er
 }
 
 func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) scheduler.Job {
-	l := log.Log.WithValues("syncJob", pg.GetJobID(scheduler.StatusChecker), "clusterID", pg.Status.ID)
+	l := log.Log.WithValues("syncJob", pg.GetJobID(scheduler.SyncJob), "clusterID", pg.Status.ID)
 
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(pg)
@@ -727,7 +727,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
 			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
-			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.SyncJob))
 			r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
 			return nil
 		}
@@ -1348,7 +1348,7 @@ func (r *PostgreSQLReconciler) handleExternalDelete(ctx context.Context, pg *v1b
 
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
-	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

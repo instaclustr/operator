@@ -105,7 +105,7 @@ type KafkaConnectDataCentre struct {
 	GenericDataCentreSpec `json:",inline"`
 
 	NodeSize          string `json:"nodeSize"`
-	NumberOfNodes     int    `json:"numberOfNodes"`
+	NodesNumber       int    `json:"nodesNumber"`
 	ReplicationFactor int    `json:"replicationFactor"`
 }
 
@@ -239,13 +239,13 @@ func (k *KafkaConnectDataCentre) FromInstAPI(instaModel *models.KafkaConnectData
 	k.GenericDataCentreSpec.FromInstAPI(&instaModel.GenericDataCentreFields)
 
 	k.NodeSize = instaModel.NodeSize
-	k.NumberOfNodes = instaModel.NumberOfNodes
+	k.NodesNumber = instaModel.NumberOfNodes
 	k.ReplicationFactor = instaModel.ReplicationFactor
 }
 
 func (k *KafkaConnectDataCentre) Equals(o *KafkaConnectDataCentre) bool {
 	return k.GenericDataCentreSpec.Equals(&o.GenericDataCentreSpec) &&
-		k.NumberOfNodes == o.NumberOfNodes &&
+		k.NodesNumber == o.NodesNumber &&
 		k.ReplicationFactor == o.ReplicationFactor &&
 		k.NodeSize == o.NodeSize
 }
@@ -461,7 +461,7 @@ func (kdc *KafkaConnectDataCentre) ToInstAPI() *models.KafkaConnectDataCentre {
 	return &models.KafkaConnectDataCentre{
 		GenericDataCentreFields: kdc.GenericDataCentreSpec.ToInstAPI(),
 		NodeSize:                kdc.NodeSize,
-		NumberOfNodes:           kdc.NumberOfNodes,
+		NumberOfNodes:           kdc.NodesNumber,
 		ReplicationFactor:       kdc.ReplicationFactor,
 	}
 }

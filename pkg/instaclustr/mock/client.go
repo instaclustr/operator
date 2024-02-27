@@ -314,7 +314,7 @@ func (c *mockClient) GetKafkaConnect(id string) (*models.KafkaConnectCluster, er
 	panic("GetKafkaConnect: is not implemented")
 }
 
-func (c *mockClient) GetZookeeper(id string) ([]byte, error) {
+func (c *mockClient) GetZookeeper(id string) (*models.ZookeeperCluster, error) {
 	panic("GetZookeeper: is not implemented")
 }
 

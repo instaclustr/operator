@@ -167,7 +167,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleCreate(ctx context.Context
 		return ctrl.Result{}, err
 	}
 	r.EventRecorder.Eventf(principal, models.Normal, models.Created,
-		"Status check job %s has been started", principal.GetJobID(scheduler.StatusChecker),
+		"Status check job %s has been started", principal.GetJobID(scheduler.SyncJob),
 	)
 
 	return ctrl.Result{}, nil
@@ -203,7 +203,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleDelete(ctx context.Context
 
 func (r *AWSEndpointServicePrincipalReconciler) startWatchStatusJob(ctx context.Context, resource *clusterresourcesv1beta1.AWSEndpointServicePrincipal) error {
 	job := r.newWatchStatusJob(ctx, resource)
-	return r.Scheduler.ScheduleJob(resource.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	return r.Scheduler.ScheduleJob(resource.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 }
 
 func (r *AWSEndpointServicePrincipalReconciler) newWatchStatusJob(ctx context.Context, principal *clusterresourcesv1beta1.AWSEndpointServicePrincipal) scheduler.Job {
@@ -218,7 +218,7 @@ func (r *AWSEndpointServicePrincipalReconciler) newWatchStatusJob(ctx context.Co
 					"namespaced name", key,
 				)
 
-				r.Scheduler.RemoveJob(principal.GetJobID(scheduler.StatusChecker))
+				r.Scheduler.RemoveJob(principal.GetJobID(scheduler.SyncJob))
 
 				return nil
 			}
@@ -252,7 +252,7 @@ func (r *AWSEndpointServicePrincipalReconciler) handleExternalDelete(ctx context
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
 	r.EventRecorder.Eventf(principal, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(principal.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(principal.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

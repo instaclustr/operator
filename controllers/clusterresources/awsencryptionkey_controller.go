@@ -228,7 +228,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 		)
 	}
 
-	r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.SyncJob))
 	patch := encryptionKey.NewPatch()
 	controllerutil.RemoveFinalizer(encryptionKey, models.DeletionFinalizer)
 	encryptionKey.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -265,7 +265,7 @@ func (r *AWSEncryptionKeyReconciler) handleDelete(
 func (r *AWSEncryptionKeyReconciler) startEncryptionKeyStatusJob(encryptionKey *v1beta1.AWSEncryptionKey) error {
 	job := r.newWatchStatusJob(encryptionKey)
 
-	err := r.Scheduler.ScheduleJob(encryptionKey.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(encryptionKey.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func (r *AWSEncryptionKeyReconciler) newWatchStatusJob(encryptionKey *v1beta1.AW
 					"namespaced name", key,
 				)
 
-				r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.StatusChecker))
+				r.Scheduler.RemoveJob(encryptionKey.GetJobID(scheduler.SyncJob))
 
 				return nil
 			}
@@ -333,7 +333,7 @@ func (r *AWSEncryptionKeyReconciler) handleExternalDelete(ctx context.Context, k
 	l.Info(instaclustr.MsgInstaclustrResourceNotFound)
 	r.EventRecorder.Eventf(key, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
-	r.Scheduler.RemoveJob(key.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(key.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

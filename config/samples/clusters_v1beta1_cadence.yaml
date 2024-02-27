@@ -48,7 +48,7 @@ spec:
       name: "testdc"
 #      nodeSize: "CAD-PRD-m5ad.large-75"
       nodeSize: "CAD-DEV-t3.small-5"
-      numberOfNodes: 2
+      nodesNumber: 2
       clientEncryption: false
 #      privateLink:
 #        - advertisedHostname: "cadence-sample-test.com"

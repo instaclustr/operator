@@ -247,7 +247,7 @@ func (r *CadenceReconciler) handleCreateCluster(
 		}
 
 		r.EventRecorder.Event(c, models.Normal, models.Created,
-			"Cluster status check job is started")
+			"Cluster sync job is started")
 	}
 
 	return ctrl.Result{}, nil
@@ -424,7 +424,7 @@ func (r *CadenceReconciler) handleDeleteCluster(
 		}
 	}
 
-	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 	patch := c.NewPatch()
 	controllerutil.RemoveFinalizer(c, models.DeletionFinalizer)
 	c.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
@@ -689,7 +689,7 @@ func (r *CadenceReconciler) newCassandraSpec(c *v1beta1.Cadence, latestCassandra
 func (r *CadenceReconciler) startSyncJob(c *v1beta1.Cadence) error {
 	job := r.newSyncJob(c)
 
-	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.StatusChecker), scheduler.ClusterStatusInterval, job)
+	err := r.Scheduler.ScheduleJob(c.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
 		return err
 	}
@@ -698,14 +698,14 @@ func (r *CadenceReconciler) startSyncJob(c *v1beta1.Cadence) error {
 }
 
 func (r *CadenceReconciler) newSyncJob(c *v1beta1.Cadence) scheduler.Job {
-	l := log.Log.WithValues("syncJob", c.GetJobID(scheduler.StatusChecker), "clusterID", c.Status.ID)
+	l := log.Log.WithValues("syncJob", c.GetJobID(scheduler.SyncJob), "clusterID", c.Status.ID)
 	return func() error {
 		namespacedName := client.ObjectKeyFromObject(c)
 		err := r.Get(context.Background(), namespacedName, c)
 		if k8serrors.IsNotFound(err) {
 			l.Info("Resource is not found in the k8s cluster. Closing Instaclustr status sync.",
 				"namespaced name", namespacedName)
-			r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
+			r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 			return nil
 		}
 		if err != nil {
@@ -1150,7 +1150,7 @@ func (r *CadenceReconciler) handleExternalDelete(ctx context.Context, c *v1beta1
 	r.EventRecorder.Eventf(c, models.Warning, models.ExternalDeleted, instaclustr.MsgInstaclustrResourceNotFound)
 
 	r.Scheduler.RemoveJob(c.GetJobID(scheduler.BackupsChecker))
-	r.Scheduler.RemoveJob(c.GetJobID(scheduler.StatusChecker))
+	r.Scheduler.RemoveJob(c.GetJobID(scheduler.SyncJob))
 
 	return nil
 }

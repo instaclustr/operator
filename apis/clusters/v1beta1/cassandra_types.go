@@ -54,7 +54,7 @@ type CassandraRestoreFrom struct {
 type CassandraSpec struct {
 	GenericClusterSpec `json:",inline"`
 
-	RestoreFrom         *CassandraRestoreFrom  `json:"restoreFrom,omitempty"`
+	RestoreFrom         *CassandraRestoreFrom  `json:"restoreFrom,omitempty" dcomparisonSkip:"true"`
 	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
@@ -71,18 +71,6 @@ type CassandraStatus struct {
 	DefaultUserSecretRef *Reference                   `json:"defaultUserSecretRef,omitempty"`
 
 	AvailableUsers References `json:"availableUsers,omitempty"`
-}
-
-func (s *CassandraStatus) ToOnPremises() ClusterStatus {
-	dc := &DataCentreStatus{
-		ID:    s.DataCentres[0].ID,
-		Nodes: s.DataCentres[0].Nodes,
-	}
-
-	return ClusterStatus{
-		ID:          s.ID,
-		DataCentres: []*DataCentreStatus{dc},
-	}
 }
 
 func (s *CassandraStatus) Equals(o *CassandraStatus) bool {
