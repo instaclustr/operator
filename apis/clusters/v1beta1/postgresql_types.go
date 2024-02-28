@@ -113,6 +113,7 @@ type PgDataCentreStatus struct {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // PostgreSQL is the Schema for the postgresqls API
 type PostgreSQL struct {
@@ -403,6 +404,20 @@ func (pgs *PgSpec) DCsFromInstAPI(instaModels []*models.PGDataCentre) {
 func (pgs *PgStatus) FromInstAPI(instaModel *models.PGCluster) {
 	pgs.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
 	pgs.DCsFromInstAPI(instaModel.DataCentres)
+	pgs.GetNodeCount()
+}
+
+func (pgs *PgStatus) GetNodeCount() {
+	var total, running int
+	for _, dc := range pgs.DataCentres {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	pgs.NodeCount = fmt.Sprintf("%v/%v", running, total)
 }
 
 func (pgs *PgStatus) DCsFromInstAPI(instaModels []*models.PGDataCentre) {

@@ -103,6 +103,7 @@ type ClusterStatus struct {
 	Options                       *Options                                           `json:"options,omitempty"`
 	CurrentClusterOperationStatus string                                             `json:"currentClusterOperationStatus,omitempty"`
 	MaintenanceEvents             []*clusterresource.ClusteredMaintenanceEventStatus `json:"maintenanceEvents,omitempty"`
+	NodeCount                     string                                             `json:"nodeCount,omitempty"`
 }
 
 type ClusteredMaintenanceEvent struct {

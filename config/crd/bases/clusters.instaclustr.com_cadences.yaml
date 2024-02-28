@@ -28,6 +28,9 @@ spec:
     - jsonPath: .status.state
       name: State
       type: string
+    - jsonPath: .status.nodeCount
+      name: Node count
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -589,6 +592,8 @@ spec:
                       type: array
                   type: object
                 type: array
+              nodeCount:
+                type: string
               state:
                 type: string
               targetSecondaryCadence:
