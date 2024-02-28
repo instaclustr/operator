@@ -18,6 +18,8 @@ package v1beta1
 
 import (
 	"encoding/json"
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -49,6 +51,7 @@ type ZookeeperStatus struct {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // Zookeeper is the Schema for the zookeepers API
 type Zookeeper struct {
@@ -135,8 +138,22 @@ func (zs *ZookeeperStatus) FromInstAPI(iZook *models.ZookeeperCluster) Zookeeper
 			DataCentres:                   zs.DCsFromInstAPI(iZook.DataCentres),
 			CurrentClusterOperationStatus: iZook.CurrentClusterOperationStatus,
 			MaintenanceEvents:             zs.MaintenanceEvents,
+			NodeCount:                     zs.GetNodeCount(iZook.DataCentres),
 		},
 	}
+}
+
+func (zs *ZookeeperStatus) GetNodeCount(dcs []*models.ZookeeperDataCentre) string {
+	var total, running int
+	for _, dc := range dcs {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	return fmt.Sprintf("%v/%v", running, total)
 }
 
 func (zs *ZookeeperSpec) DCsFromInstAPI(iDCs []*models.ZookeeperDataCentre) (dcs []*ZookeeperDataCentre) {

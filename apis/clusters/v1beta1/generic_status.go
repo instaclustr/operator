@@ -11,6 +11,7 @@ type GenericStatus struct {
 	ID                            string `json:"id,omitempty"`
 	State                         string `json:"state,omitempty"`
 	CurrentClusterOperationStatus string `json:"currentClusterOperationStatus,omitempty"`
+	NodeCount                     string `json:"nodeCount,omitempty"`
 
 	MaintenanceEvents []*v1beta1.ClusteredMaintenanceEventStatus `json:"maintenanceEvents,omitempty"`
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
 	"strconv"
 
 	k8scorev1 "k8s.io/api/core/v1"
@@ -111,6 +112,19 @@ func (s *CassandraStatus) DataCentresEqual(o *CassandraStatus) bool {
 	}
 
 	return true
+}
+
+func (cs *CassandraStatus) GetNodeCount() {
+	var total, running int
+	for _, dc := range cs.DataCentres {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	cs.NodeCount = fmt.Sprintf("%v/%v", running, total)
 }
 
 type CassandraDataCentre struct {
@@ -246,6 +260,7 @@ func (c *CassandraSpec) IsEqual(o *CassandraSpec) bool {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // Cassandra is the Schema for the cassandras API
 type Cassandra struct {
@@ -470,6 +485,7 @@ func (cs *CassandraSpec) AreDCsEqual(dcs []*CassandraDataCentre) bool {
 func (cs *CassandraStatus) FromInstAPI(instModel *models.CassandraCluster) {
 	cs.GenericStatus.FromInstAPI(&instModel.GenericClusterFields)
 	cs.dcsFromInstAPI(instModel.DataCentres)
+	cs.GetNodeCount()
 }
 
 func (cs *CassandraStatus) dcsFromInstAPI(instModels []*models.CassandraDataCentre) {

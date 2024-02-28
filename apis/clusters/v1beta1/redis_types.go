@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
 	"strconv"
 
 	k8scorev1 "k8s.io/api/core/v1"
@@ -103,6 +104,7 @@ type RedisStatus struct {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // Redis is the Schema for the redis API
 type Redis struct {
@@ -296,6 +298,20 @@ func (rdc *RedisDataCentre) FromInstAPI(instaModel *models.RedisDataCentre) {
 func (rs *RedisStatus) FromInstAPI(instaModel *models.RedisCluster) {
 	rs.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
 	rs.DCsFromInstAPI(instaModel.DataCentres)
+	rs.GetNodeCount()
+}
+
+func (rs *RedisStatus) GetNodeCount() {
+	var total, running int
+	for _, dc := range rs.DataCentres {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	rs.NodeCount = fmt.Sprintf("%v/%v", running, total)
 }
 
 func (rs *RedisStatus) DCsFromInstAPI(instaModels []*models.RedisDataCentre) {

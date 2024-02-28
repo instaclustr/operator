@@ -150,6 +150,7 @@ type CadenceDataCentreStatus struct {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // Cadence is the Schema for the cadences API
 type Cadence struct {
@@ -412,6 +413,20 @@ func (cs *CadenceStatus) FromInstAPI(instaModel *models.CadenceCluster) {
 	cs.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
 	cs.targetSecondaryFromInstAPI(instaModel.TargetSecondaryCadence)
 	cs.DCsFromInstAPI(instaModel.DataCentres)
+	cs.GetNodeCount()
+}
+
+func (cs *CadenceStatus) GetNodeCount() {
+	var total, running int
+	for _, dc := range cs.DataCentres {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	cs.NodeCount = fmt.Sprintf("%v/%v", running, total)
 }
 
 func (cs *CadenceStatus) targetSecondaryFromInstAPI(instaModels []*models.CadenceDependencyTarget) {

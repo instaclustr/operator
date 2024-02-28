@@ -409,6 +409,20 @@ func (oss *OpenSearchStatus) FromInstAPI(instaModel *models.OpenSearchCluster) {
 		d.FromInstAPI(dc)
 		oss.DataCentres = append(oss.DataCentres, d)
 	}
+	oss.GetNodeCount()
+}
+
+func (oss *OpenSearchStatus) GetNodeCount() {
+	var total, running int
+	for _, dc := range oss.DataCentres {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	oss.NodeCount = fmt.Sprintf("%v/%v", running, total)
 }
 
 type OpenSearchDataCentreStatus struct {
@@ -522,6 +536,7 @@ func (oss *OpenSearchStatus) Equals(o *OpenSearchStatus) bool {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // OpenSearch is the Schema for the opensearches API
 type OpenSearch struct {

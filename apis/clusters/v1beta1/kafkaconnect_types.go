@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
 	k8scorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -141,6 +143,7 @@ type KafkaConnectDataCentreStatus struct {
 //+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+//+kubebuilder:printcolumn:name="Node count",type="string",JSONPath=".status.nodeCount"
 
 // KafkaConnect is the Schema for the kafkaconnects API
 type KafkaConnect struct {
@@ -207,6 +210,20 @@ func (ks *KafkaConnectSpec) FromInstAPI(instaModel *models.KafkaConnectCluster) 
 func (ks *KafkaConnectStatus) FromInstAPI(instaModel *models.KafkaConnectCluster) {
 	ks.GenericStatus.FromInstAPI(&instaModel.GenericClusterFields)
 	ks.DCsFromInstAPI(instaModel.DataCentres)
+	ks.GetNodeCount()
+}
+
+func (ks *KafkaConnectStatus) GetNodeCount() {
+	var total, running int
+	for _, dc := range ks.DataCentres {
+		for _, node := range dc.Nodes {
+			total++
+			if node.Status == models.RunningStatus {
+				running++
+			}
+		}
+	}
+	ks.NodeCount = fmt.Sprintf("%v/%v", running, total)
 }
 
 func (ks *KafkaConnectSpec) DCsFromInstAPI(instaModels []*models.KafkaConnectDataCentre) {
