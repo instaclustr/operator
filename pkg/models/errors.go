@@ -78,4 +78,5 @@ var (
 	ErrClusterIsNotReadyToUpdate                       = errors.New("cluster is not ready to update")
 	ErrKubeVirtAddonNotFound                           = errors.New("cannot create KubeVirt based resources automatially without KubeVirt operator installed. Please install KubeVirt add-on")
 	ErrOpenSearchNumberOfRacksInvalid                  = errors.New("number of racks should be between 2 and 5")
+	ErrPGClusterConfigurationsOnCreationNotAvailable   = errors.New("clusterConfigurations is not available on cluster creation")
 )

@@ -142,7 +142,7 @@ func (r *PostgreSQLReconciler) createFromRestore(pg *v1beta1.PostgreSQL, l logr.
 		pg, models.Normal, models.Created,
 		"Cluster restore request is sent. Original cluster ID: %s, new cluster ID: %s",
 		pg.Spec.PgRestoreFrom.ClusterID,
-		pg.Status.ID,
+		id,
 	)
 
 	instaModel, err := r.API.GetPostgreSQL(id)
@@ -165,17 +165,17 @@ func (r *PostgreSQLReconciler) createPostgreSQL(pg *v1beta1.PostgreSQL, l logr.L
 		return nil, fmt.Errorf("failed to create cluster, err: %v", err)
 	}
 
-	r.EventRecorder.Eventf(
-		pg, models.Normal, models.Created,
-		"Cluster creation request is sent. Cluster ID: %s",
-		pg.Status.ID,
-	)
-
 	var instaModel models.PGCluster
 	err = json.Unmarshal(b, &instaModel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal body to models.PGCluster, err: %v", err)
 	}
+
+	r.EventRecorder.Eventf(
+		pg, models.Normal, models.Created,
+		"Cluster creation request is sent. Cluster ID: %s",
+		instaModel.ID,
+	)
 
 	return &instaModel, nil
 }
@@ -227,7 +227,7 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 		err := r.createCluster(ctx, pg, l)
 		if err != nil {
 			r.EventRecorder.Eventf(pg, models.Warning, models.CreationFailed,
-				"Failed to create PostgreSQL cluster. Reason: %w", err,
+				"Failed to create PostgreSQL cluster. Reason: %v", err,
 			)
 			return reconcile.Result{}, err
 		}
@@ -250,9 +250,9 @@ func (r *PostgreSQLReconciler) handleCreateCluster(
 			return reconcile.Result{}, err
 		}
 
-		err = r.startClusterStatusJob(pg)
+		err = r.StartSyncJob(pg)
 		if err != nil {
-			l.Error(err, "Cannot start PostgreSQL cluster status check job",
+			l.Error(err, "Cannot start PostgreSQL sync job",
 				"cluster ID", pg.Status.ID,
 			)
 
@@ -317,6 +317,11 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(ctx context.Context, pg *v1be
 
 	iPg := &v1beta1.PostgreSQL{}
 	iPg.FromInstAPI(instaModel)
+
+	err = r.mergeClusterConfigurationsFromInstAPI(pg.Status.ID, iPg)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	if pg.Annotations[models.ExternalChangesAnnotation] == models.True ||
 		r.RateLimiter.NumRequeues(req) == rlimiter.DefaultMaxTries {
@@ -405,8 +410,9 @@ func (r *PostgreSQLReconciler) handleUpdateCluster(ctx context.Context, pg *v1be
 		)
 	}
 
+	patch := pg.NewPatch()
 	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.patchClusterMetadata(ctx, pg, l)
+	err = r.Patch(ctx, pg, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch PostgreSQL resource metadata",
 			"cluster name", pg.Spec.Name,
@@ -533,9 +539,10 @@ func (r *PostgreSQLReconciler) handleDeleteCluster(
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.SyncJob))
 
+	patch := pg.NewPatch()
 	controllerutil.RemoveFinalizer(pg, models.DeletionFinalizer)
 	pg.Annotations[models.ResourceStateAnnotation] = models.DeletedEvent
-	err = r.patchClusterMetadata(ctx, pg, l)
+	err = r.Patch(ctx, pg, patch)
 	if err != nil {
 		l.Error(
 			err, "Cannot patch PostgreSQL resource metadata after finalizer removal",
@@ -654,8 +661,9 @@ func (r *PostgreSQLReconciler) handleUpdateDefaultUserPassword(
 		return reconcile.Result{}, err
 	}
 
+	patch := pg.NewPatch()
 	pg.Annotations[models.ResourceStateAnnotation] = models.UpdatedEvent
-	err = r.patchClusterMetadata(ctx, pg, l)
+	err = r.Patch(ctx, pg, patch)
 	if err != nil {
 		l.Error(err, "Cannot patch PostgreSQL resource metadata",
 			"cluster name", pg.Spec.Name,
@@ -695,8 +703,8 @@ func (r *PostgreSQLReconciler) startClusterOnPremisesIPsJob(pg *v1beta1.PostgreS
 	return nil
 }
 
-func (r *PostgreSQLReconciler) startClusterStatusJob(pg *v1beta1.PostgreSQL) error {
-	job := r.newWatchStatusJob(pg)
+func (r *PostgreSQLReconciler) StartSyncJob(pg *v1beta1.PostgreSQL) error {
+	job := r.newSyncJob(pg)
 
 	err := r.Scheduler.ScheduleJob(pg.GetJobID(scheduler.SyncJob), scheduler.ClusterStatusInterval, job)
 	if err != nil {
@@ -717,7 +725,7 @@ func (r *PostgreSQLReconciler) startClusterBackupsJob(pg *v1beta1.PostgreSQL) er
 	return nil
 }
 
-func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) scheduler.Job {
+func (r *PostgreSQLReconciler) newSyncJob(pg *v1beta1.PostgreSQL) scheduler.Job {
 	l := log.Log.WithValues("syncJob", pg.GetJobID(scheduler.SyncJob), "clusterID", pg.Status.ID)
 
 	return func() error {
@@ -796,9 +804,12 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			}
 		}
 
-		equals := pg.Spec.IsEqual(iPg.Spec)
+		err = r.mergeClusterConfigurationsFromInstAPI(pg.Status.ID, iPg)
+		if err != nil {
+			return fmt.Errorf("failed to get cluster configurations, err: %w", err)
+		}
 
-		if equals && pg.Annotations[models.ExternalChangesAnnotation] == models.True {
+		if pg.Annotations[models.ExternalChangesAnnotation] == models.True && pg.Spec.IsEqual(iPg.Spec) {
 			patch := pg.NewPatch()
 			delete(pg.Annotations, models.ExternalChangesAnnotation)
 			err := r.Patch(context.Background(), pg, patch)
@@ -811,7 +822,7 @@ func (r *PostgreSQLReconciler) newWatchStatusJob(pg *v1beta1.PostgreSQL) schedul
 			)
 		} else if pg.Status.CurrentClusterOperationStatus == models.NoOperation &&
 			pg.Annotations[models.ResourceStateAnnotation] != models.UpdatingEvent &&
-			!equals {
+			!pg.Spec.IsEqual(iPg.Spec) {
 
 			patch := pg.NewPatch()
 			pg.Annotations[models.ExternalChangesAnnotation] = models.True
@@ -1166,55 +1177,6 @@ func (r *PostgreSQLReconciler) reconcileClusterConfigurations(
 	return nil
 }
 
-func (r *PostgreSQLReconciler) patchClusterMetadata(
-	ctx context.Context,
-	pgCluster *v1beta1.PostgreSQL,
-	l logr.Logger,
-) error {
-	patchRequest := []*v1beta1.PatchRequest{}
-
-	annotationsPayload, err := json.Marshal(pgCluster.Annotations)
-	if err != nil {
-		return err
-	}
-
-	annotationsPatch := &v1beta1.PatchRequest{
-		Operation: models.ReplaceOperation,
-		Path:      models.AnnotationsPath,
-		Value:     json.RawMessage(annotationsPayload),
-	}
-	patchRequest = append(patchRequest, annotationsPatch)
-
-	finalizersPayload, err := json.Marshal(pgCluster.Finalizers)
-	if err != nil {
-		return err
-	}
-
-	finzlizersPatch := &v1beta1.PatchRequest{
-		Operation: models.ReplaceOperation,
-		Path:      models.FinalizersPath,
-		Value:     json.RawMessage(finalizersPayload),
-	}
-	patchRequest = append(patchRequest, finzlizersPatch)
-
-	patchPayload, err := json.Marshal(patchRequest)
-	if err != nil {
-		return err
-	}
-
-	err = r.Patch(ctx, pgCluster, client.RawPatch(types.JSONPatchType, patchPayload))
-	if err != nil {
-		return err
-	}
-
-	l.Info("PostgreSQL cluster patched",
-		"Cluster name", pgCluster.Spec.Name,
-		"Finalizers", pgCluster.Finalizers,
-		"Annotations", pgCluster.Annotations,
-	)
-	return nil
-}
-
 func (r *PostgreSQLReconciler) findSecretObject(secret client.Object) []reconcile.Request {
 	s := secret.(*k8sCore.Secret)
 
@@ -1349,6 +1311,19 @@ func (r *PostgreSQLReconciler) handleExternalDelete(ctx context.Context, pg *v1b
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.BackupsChecker))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.UserCreator))
 	r.Scheduler.RemoveJob(pg.GetJobID(scheduler.SyncJob))
+
+	return nil
+}
+
+func (r *PostgreSQLReconciler) mergeClusterConfigurationsFromInstAPI(id string, iPG *v1beta1.PostgreSQL) error {
+	iConfigs, err := r.API.GetPostgreSQLConfigs(id)
+	if err != nil {
+		return err
+	}
+
+	for _, config := range iConfigs {
+		iPG.Spec.ClusterConfigurationsFromInstAPI(config.ConfigurationProperties)
+	}
 
 	return nil
 }

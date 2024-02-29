@@ -313,19 +313,6 @@ spec:
                   - email
                   type: object
                 type: array
-              userRefs:
-                items:
-                  description: ObjectReference is namespaced reference to an object
-                  properties:
-                    name:
-                      type: string
-                    namespace:
-                      type: string
-                  required:
-                  - name
-                  - namespace
-                  type: object
-                type: array
               version:
                 type: string
             type: object

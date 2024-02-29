@@ -85,7 +85,6 @@ type PgSpec struct {
 	//+kubebuilder:Validation:MinItems:=1
 	//+kubebuilder:Validation:MaxItems=2
 	DataCentres []*PgDataCentre `json:"dataCentres,omitempty"`
-	UserRefs    []*Reference    `json:"userRefs,omitempty" dcomparisonSkip:"true"`
 	//+kubebuilder:validate:MaxItems:=1
 	ResizeSettings []*ResizeSettings `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 	Extensions     PgExtensions      `json:"extensions,omitempty"`
@@ -285,7 +284,8 @@ func (pgs *PgSpec) IsEqual(iPG PgSpec) bool {
 	return pgs.GenericClusterSpec.Equals(&iPG.GenericClusterSpec) &&
 		pgs.SynchronousModeStrict == iPG.SynchronousModeStrict &&
 		pgs.DCsEqual(iPG.DataCentres) &&
-		slices.EqualsUnordered(pgs.Extensions, iPG.Extensions)
+		slices.EqualsUnordered(pgs.Extensions, iPG.Extensions) &&
+		pgs.ClusterConfigurationsEqual(iPG.ClusterConfigurations)
 }
 
 func (pgs *PgSpec) DCsEqual(instaModels []*PgDataCentre) bool {
@@ -550,10 +550,10 @@ func (pdc *PgDataCentre) PGBouncerFromInstAPI(instaModels []*models.PGBouncer) {
 	}
 }
 
-func (pgs *PgSpec) ClusterConfigurationsFromInstAPI(instaModels []*models.ClusterConfigurations) {
+func (pgs *PgSpec) ClusterConfigurationsFromInstAPI(instaModels []*models.ConfigurationProperties) {
 	pgs.ClusterConfigurations = make(map[string]string, len(instaModels))
 	for _, instaModel := range instaModels {
-		pgs.ClusterConfigurations[instaModel.ParameterName] = instaModel.ParameterValue
+		pgs.ClusterConfigurations[instaModel.Name] = instaModel.Value
 	}
 }
 
@@ -589,6 +589,21 @@ func (pgs *PgStatus) DCsEqual(o []*PgDataCentreStatus) bool {
 		}
 
 		if !dc.Equals(iDC) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (pgs *PgSpec) ClusterConfigurationsEqual(configs map[string]string) bool {
+	if len(pgs.ClusterConfigurations) != len(configs) {
+		return false
+	}
+
+	for k, v := range pgs.ClusterConfigurations {
+		param, ok := configs[k]
+		if !ok || v != param {
 			return false
 		}
 	}

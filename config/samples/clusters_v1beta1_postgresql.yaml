@@ -38,16 +38,13 @@ spec:
   #        - replicationMode: "ASYNCHRONOUS"
   #      interDataCentreReplication:
   #        - isPrimaryDataCentre: false
-  #  clusterConfigurations:
-  #    idle_in_transaction_session_timeout: "2"
-  #    statement_timeout: "1"
+#  clusterConfigurations:
+#    idle_in_transaction_session_timeout: "2"
+#    statement_timeout: "1"
   #  twoFactorDelete:
   #  - email: "rostyslp@netapp.com"
   #  description: "test 222"
   slaTier: "NON_PRODUCTION"
-#  userRefs:
-#    - namespace: default
-#      name: postgresqluser-sample
   privateNetwork: false
   synchronousModeStrict: false
 #  extensions:
