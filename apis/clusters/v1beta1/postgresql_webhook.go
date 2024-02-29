@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"unicode"
 
-	k8sCore "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,13 +98,6 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		return err
 	}
 
-	if pg.Spec.UserRefs != nil {
-		err = pgv.validatePostgreSQLUsers(ctx, pg)
-		if err != nil {
-			return err
-		}
-	}
-
 	appVersions, err := pgv.API.ListAppVersions(models.PgAppKind)
 	if err != nil {
 		return fmt.Errorf("cannot list versions for kind: %v, err: %w",
@@ -159,6 +151,10 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 		}
 	}
 
+	if pg.Spec.ClusterConfigurations != nil {
+		return models.ErrPGClusterConfigurationsOnCreationNotAvailable
+	}
+
 	return nil
 }
 
@@ -193,13 +189,6 @@ func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, 
 		return pgv.ValidateCreate(ctx, pg)
 	}
 
-	if pg.Spec.UserRefs != nil {
-		err := pgv.validatePostgreSQLUsers(ctx, pg)
-		if err != nil {
-			return err
-		}
-	}
-
 	err := pg.Spec.ValidateImmutableFieldsUpdate(oldCluster.Spec)
 	if err != nil {
 		return fmt.Errorf("immutable fields validation error: %v", err)
@@ -215,32 +204,6 @@ func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, 
 	// ensuring if the cluster is ready for the spec updating
 	if (pg.Status.CurrentClusterOperationStatus != models.NoOperation || pg.Status.State != models.RunningStatus) && pg.Generation != oldCluster.Generation {
 		return models.ErrClusterIsNotReadyToUpdate
-	}
-
-	return nil
-}
-
-func (pgv *pgValidator) validatePostgreSQLUsers(ctx context.Context, pg *PostgreSQL) error {
-	nodeList := &k8sCore.NodeList{}
-
-	err := pgv.K8sClient.List(ctx, nodeList, &client.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot list node list, error: %v", err)
-	}
-
-	var externalIPExists bool
-	for _, node := range nodeList.Items {
-		for _, nodeAddress := range node.Status.Addresses {
-			if nodeAddress.Type == k8sCore.NodeExternalIP {
-				externalIPExists = true
-				break
-			}
-		}
-	}
-
-	if !externalIPExists || pg.Spec.PrivateNetwork {
-		return fmt.Errorf("cannot create PostgreSQL user, if your cluster is private or has no external ips " +
-			"you need to configure peering and remove user references from cluster specification")
 	}
 
 	return nil

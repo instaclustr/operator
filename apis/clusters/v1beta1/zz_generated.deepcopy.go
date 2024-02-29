@@ -2199,17 +2199,6 @@ func (in *PgSpec) DeepCopyInto(out *PgSpec) {
 			}
 		}
 	}
-	if in.UserRefs != nil {
-		in, out := &in.UserRefs, &out.UserRefs
-		*out = make([]*apiextensions.ObjectReference, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(apiextensions.ObjectReference)
-				**out = **in
-			}
-		}
-	}
 	if in.ResizeSettings != nil {
 		in, out := &in.ResizeSettings, &out.ResizeSettings
 		*out = make([]*ResizeSettings, len(*in))

@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"encoding/json"
-
 	"github.com/instaclustr/operator/pkg/apiextensions"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -36,12 +34,6 @@ type PeeringStatus struct {
 	Name          string `json:"name,omitempty"`
 	FailureReason string `json:"failureReason,omitempty"`
 	CDCID         string `json:"cdcId,omitempty"`
-}
-
-type PatchRequest struct {
-	Operation string          `json:"op"`
-	Path      string          `json:"path"`
-	Value     json.RawMessage `json:"value"`
 }
 
 type FirewallRuleSpec struct {

@@ -31,10 +31,7 @@ func (s *PostgreSQLConfigurationV2APIService) ClusterManagementV2DataSourcesPost
 	// TODO - update ClusterManagementV2DataSourcesPostgresqlClusterClusterIdConfigurationsGet with the required logic for this service method.
 	// Add api_postgre_sql_configuration_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// TODO: Uncomment the next line to return response Response(200, []PostgresqlConfigurationPropertiesV2{}) or use other options such as http.Ok ...
-	// return Response(200, []PostgresqlConfigurationPropertiesV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2DataSourcesPostgresqlClusterClusterIdConfigurationsGet method not implemented")
+	return Response(200, []PostgresqlConfigurationPropertiesV2{}), nil
 }
 
 // ClusterManagementV2ResourcesApplicationsPostgresqlConfigurationsV2ConfigurationIdDelete - Reset a configuration
