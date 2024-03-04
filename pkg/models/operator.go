@@ -143,6 +143,7 @@ const (
 	DeletionFailed   = "DeletionFailed"
 	Deleted          = "Deleted"
 	ExternalDeleted  = "ExternalDeleted"
+	SetOwnerRef      = "SettingOwnerRefFailed"
 )
 
 const (

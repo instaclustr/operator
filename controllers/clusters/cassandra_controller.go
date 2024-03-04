@@ -908,6 +908,18 @@ func (r *CassandraReconciler) createDefaultSecret(ctx context.Context, c *v1beta
 
 	patch := c.NewPatch()
 	secret := newDefaultUserSecret(username, password, c.Name, c.Namespace)
+	err = controllerutil.SetOwnerReference(c, secret, r.Scheme)
+	if err != nil {
+		l.Error(err, "Cannot set secret owner reference with default user credentials",
+			"cluster ID", c.Status.ID,
+		)
+		r.EventRecorder.Eventf(c, models.Warning, models.SetOwnerRef,
+			"Setting secret owner ref with default user credentials is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
 	err = r.Create(ctx, secret)
 	if err != nil {
 		l.Error(err, "Cannot create secret with default user credentials",
