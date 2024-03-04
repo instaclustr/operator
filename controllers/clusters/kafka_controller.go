@@ -107,6 +107,16 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 }
 
 func (r *KafkaReconciler) createCluster(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) error {
+	id, err := getClusterIDByName(r.API, models.KafkaAppType, k.Spec.Name)
+	if err != nil {
+		return err
+	}
+
+	if id != "" {
+		l.Info("Cluster with provided name already exists", "name", k.Spec.Name, "clusterID", id)
+		return fmt.Errorf("cluster %s already exists, please change name property", k.Spec.Name)
+	}
+
 	l.Info("Creating cluster",
 		"cluster name", k.Spec.Name,
 		"data centres", k.Spec.DataCentres)

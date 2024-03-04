@@ -123,7 +123,17 @@ func (r *KafkaConnectReconciler) mergeManagedClusterFromRef(ctx context.Context,
 }
 
 func (r *KafkaConnectReconciler) createCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) error {
-	err := r.mergeManagedClusterFromRef(ctx, kc)
+	id, err := getClusterIDByName(r.API, models.KafkaConnectAppType, kc.Spec.Name)
+	if err != nil {
+		return err
+	}
+
+	if id != "" {
+		l.Info("Cluster with provided name already exists", "name", kc.Spec.Name, "clusterID", id)
+		return fmt.Errorf("cluster %s already exists, please change name property", kc.Spec.Name)
+	}
+
+	err = r.mergeManagedClusterFromRef(ctx, kc)
 	if err != nil {
 		return err
 	}

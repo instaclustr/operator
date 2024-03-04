@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/instaclustr/operator/pkg/instaclustr"
 	"github.com/instaclustr/operator/pkg/models"
 	"github.com/instaclustr/operator/pkg/utils/dcomparison"
 )
@@ -237,4 +238,21 @@ func incrementCIDR(cidr string) (string, error) {
 
 	incrementedIP := strings.Join(ipParts, ".")
 	return fmt.Sprintf("%s/%d", incrementedIP, prefixLength), nil
+}
+
+func getClusterIDByName(api instaclustr.API, appType string, name string) (string, error) {
+	clusters, err := api.ListClustersByName(name)
+	if err != nil {
+		return "", fmt.Errorf("failed to list clusters by name, err: %w", err)
+	}
+
+	if len(clusters) == 0 {
+		return "", nil
+	}
+
+	if clusters[0].Application != appType {
+		return "", fmt.Errorf("the cluster %s already exists, but it has other application type %s", name, clusters[0].Application)
+	}
+
+	return clusters[0].ID, nil
 }

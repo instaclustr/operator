@@ -11,8 +11,6 @@ package openapi
 
 import (
 	"context"
-	"errors"
-	"net/http"
 )
 
 // AccountClusterListV2APIService is a service that implements the logic for the AccountClusterListV2APIServicer
@@ -31,8 +29,8 @@ func (s *AccountClusterListV2APIService) ClusterManagementV2DataSourcesClustersV
 	// TODO - update ClusterManagementV2DataSourcesClustersV2Get with the required logic for this service method.
 	// Add api_account_cluster_list_v2_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// TODO: Uncomment the next line to return response Response(200, []AccountClustersV2{}) or use other options such as http.Ok ...
-	// return Response(200, []AccountClustersV2{}), nil
-
-	return Response(http.StatusNotImplemented, nil), errors.New("ClusterManagementV2DataSourcesClustersV2Get method not implemented")
+	return Response(200, []AccountClustersV2{{
+		AccountId: "test-account-id",
+		Clusters:  []ClusterSummaryV2{},
+	}}), nil
 }
