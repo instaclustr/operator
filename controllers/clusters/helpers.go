@@ -28,13 +28,9 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
 	k8scorev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/instaclustr/operator/pkg/models"
@@ -136,38 +132,6 @@ var msgDeleteClusterWithTwoFactorDelete = "Please confirm cluster deletion via e
 var msgExternalChanges = "The k8s specification is different from Instaclustr Console. " +
 	"Update operations are blocked. Please check operator logs and edit the cluster spec manually, " +
 	"so that it would corresponds to the data from Instaclustr."
-
-// deleteDefaultUserSecret deletes the secret with default user credentials.
-// It ignores NotFound error.
-func deleteDefaultUserSecret(
-	ctx context.Context,
-	client client.Client,
-	clusterNamespacedName types.NamespacedName,
-) error {
-	l := log.FromContext(ctx)
-
-	l.Info("Deleting default user secret...",
-		"resource namespaced name", clusterNamespacedName,
-	)
-
-	secret := &v1.Secret{}
-	err := client.Get(ctx, types.NamespacedName{
-		Name:      fmt.Sprintf(models.DefaultUserSecretNameTemplate, models.DefaultUserSecretPrefix, clusterNamespacedName.Name),
-		Namespace: clusterNamespacedName.Namespace,
-	}, secret)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			l.Info("The secret for the given resource is not found, skipping...",
-				"resource namespaced name", clusterNamespacedName,
-			)
-			return nil
-		}
-
-		return err
-	}
-
-	return client.Delete(ctx, secret)
-}
 
 // Object is a general representation of any object the operator works with
 type Object interface {
