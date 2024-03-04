@@ -218,6 +218,19 @@ func (r *ZookeeperReconciler) createDefaultSecret(ctx context.Context, zk *v1bet
 
 	patch := zk.NewPatch()
 	secret := newDefaultUserSecret(username, password, zk.Name, zk.Namespace)
+
+	err = controllerutil.SetOwnerReference(zk, secret, r.Scheme)
+	if err != nil {
+		l.Error(err, "Cannot set secret owner reference with default user credentials",
+			"cluster ID", zk.Status.ID,
+		)
+		r.EventRecorder.Eventf(zk, models.Warning, models.SetOwnerRef,
+			"Setting secret owner ref with default user credentials is failed. Reason: %v", err,
+		)
+
+		return err
+	}
+
 	err = r.Create(ctx, secret)
 	if err != nil {
 		l.Error(err, "Cannot create secret with default user credentials",
@@ -357,15 +370,6 @@ func (r *ZookeeperReconciler) handleDeleteCluster(
 
 			return models.ExitReconcile, nil
 		}
-	}
-
-	err = deleteDefaultUserSecret(ctx, r.Client, client.ObjectKeyFromObject(zook))
-	if err != nil {
-		l.Error(err, "Cannot delete default user secret")
-		r.EventRecorder.Eventf(zook, models.Warning, models.DeletionFailed,
-			"Deletion of the secret with default user credentials is failed. Reason: %w", err)
-
-		return reconcile.Result{}, err
 	}
 
 	r.Scheduler.RemoveJob(zook.GetJobID(scheduler.SyncJob))
