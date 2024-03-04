@@ -94,7 +94,7 @@ type API interface {
 	ResetPostgreSQLConfiguration(id, name string) error
 	GetCadence(id string) (*models.CadenceCluster, error)
 	UpdatePostgreSQLDefaultUserPassword(id, password string) error
-	ListClusters() ([]*models.ActiveClusters, error)
+	ListClustersByName(name string) ([]*models.ActiveCluster, error)
 	CreateEncryptionKey(encryptionKeySpec any) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error)
 	GetEncryptionKeyStatus(encryptionKeyID string, encryptionKeyEndpoint string) (*clusterresourcesv1beta1.AWSEncryptionKeyStatus, error)
 	DeleteEncryptionKey(encryptionKeyID string) error

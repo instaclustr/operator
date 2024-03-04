@@ -104,6 +104,16 @@ func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *ZookeeperReconciler) createCluster(ctx context.Context, zook *v1beta1.Zookeeper, l logr.Logger) error {
+	id, err := getClusterIDByName(r.API, models.ZookeeperAppType, zook.Spec.Name)
+	if err != nil {
+		return err
+	}
+
+	if id != "" {
+		l.Info("Cluster with provided name already exists", "name", zook.Spec.Name, "clusterID", id)
+		return fmt.Errorf("cluster %s already exists, please change name property", zook.Spec.Name)
+	}
+
 	l.Info("Creating zookeeper cluster",
 		"cluster name", zook.Spec.Name,
 		"data centres", zook.Spec.DataCentres)

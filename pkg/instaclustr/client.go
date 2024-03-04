@@ -2112,8 +2112,9 @@ func (c *Client) UpdatePostgreSQLDefaultUserPassword(id, password string) error 
 	return nil
 }
 
-func (c *Client) ListClusters() ([]*models.ActiveClusters, error) {
-	url := c.serverHostname + ClustersEndpoint
+func (c *Client) ListClustersByName(name string) ([]*models.ActiveCluster, error) {
+	url := c.serverHostname + ClustersEndpoint + fmt.Sprintf("?search=name:%s", name)
+
 	resp, err := c.DoRequest(url, http.MethodGet, nil)
 	if err != nil {
 		return nil, err
@@ -2135,7 +2136,7 @@ func (c *Client) ListClusters() ([]*models.ActiveClusters, error) {
 		return nil, err
 	}
 
-	return response, nil
+	return response[0].Clusters, nil
 }
 
 func (c *Client) CreateEncryptionKey(

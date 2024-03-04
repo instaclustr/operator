@@ -181,8 +181,17 @@ func (r *PostgreSQLReconciler) createPostgreSQL(pg *v1beta1.PostgreSQL, l logr.L
 }
 
 func (r *PostgreSQLReconciler) createCluster(ctx context.Context, pg *v1beta1.PostgreSQL, l logr.Logger) error {
+	id, err := getClusterIDByName(r.API, models.PgAppType, pg.Spec.Name)
+	if err != nil {
+		return err
+	}
+
+	if id != "" {
+		l.Info("Cluster with provided name already exists", "name", pg.Spec.Name, "clusterID", id)
+		return fmt.Errorf("cluster %s already exists, please change name property", pg.Spec.Name)
+	}
+
 	var instaModel *models.PGCluster
-	var err error
 
 	if pg.Spec.HasRestore() {
 		instaModel, err = r.createFromRestore(pg, l)

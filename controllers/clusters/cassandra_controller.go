@@ -217,9 +217,20 @@ func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cass
 	var instModel *models.CassandraCluster
 	var err error
 
-	if c.Spec.HasRestore() {
+	id, err := getClusterIDByName(r.API, models.CassandraAppType, c.Spec.Name)
+	if err != nil {
+		return err
+	}
+
+	if id != "" {
+		l.Info("Cluster with provided name already exists", "name", c.Spec.Name, "clusterID", id)
+		return fmt.Errorf("cluster %s already exists, please change name property", c.Spec.Name)
+	}
+
+	switch {
+	case c.Spec.HasRestore():
 		instModel, err = r.createCassandraFromRestore(c, l)
-	} else {
+	default:
 		instModel, err = r.createCassandra(c, l)
 	}
 	if err != nil {
