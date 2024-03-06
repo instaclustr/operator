@@ -97,11 +97,7 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 	}
 
 	if r.Spec.RestoreFrom != nil {
-		if r.Spec.RestoreFrom.ClusterID == "" {
-			return fmt.Errorf("restore clusterID field is empty")
-		} else {
-			return nil
-		}
+		return nil
 	}
 
 	err = r.Spec.GenericClusterSpec.ValidateCreation()
@@ -123,10 +119,6 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 	err = validateAppVersion(appVersions, models.RedisAppType, r.Spec.Version)
 	if err != nil {
 		return err
-	}
-
-	if len(r.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
 	}
 
 	if len(r.Spec.DataCentres) > 1 {
@@ -197,8 +189,7 @@ func (rv *redisValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		}
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (r.Status.CurrentClusterOperationStatus != models.NoOperation || r.Status.State != models.RunningStatus) && r.Generation != oldRedis.Generation {
+	if IsClusterNotReadyForSpecUpdate(r.Status.CurrentClusterOperationStatus, r.Status.State, r.Generation, oldRedis.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
 
@@ -286,6 +277,11 @@ func (rs *RedisSpec) validateDCsUpdate(oldSpec RedisSpec) error {
 			return err
 		}
 
+		err = newDC.ValidateNodesNumber()
+		if err != nil {
+			return err
+		}
+
 		err = newDC.validateImmutableCloudProviderSettingsUpdate(&oldDC.GenericDataCentreSpec)
 		if err != nil {
 			return err
@@ -338,15 +334,6 @@ func (rdc *RedisDataCentre) newImmutableFields() *immutableRedisDCFields {
 		},
 		ReplicationFactor: rdc.ReplicationFactor,
 	}
-}
-
-func (rdc *RedisDataCentre) ValidateUpdate() error {
-	err := rdc.ValidateNodesNumber()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (rdc *RedisDataCentre) ValidateCreate() error {

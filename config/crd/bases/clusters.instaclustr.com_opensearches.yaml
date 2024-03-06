@@ -351,6 +351,7 @@ spec:
                 type: string
             required:
             - clusterManagerNodes
+            - dataCentres
             type: object
           status:
             description: OpenSearchStatus defines the observed state of OpenSearch

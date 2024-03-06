@@ -84,18 +84,13 @@ func (cps *CloudProviderSettings) ValidateCreation() error {
 }
 
 func validateReplicationFactor(availableReplicationFactors []int, rf int) error {
-	if rf <= 0 || rf > 300 {
-		return fmt.Errorf("replication factor must be one of %v, up to a maximum value of 300",
-			availableReplicationFactors)
-	}
-
 	for _, availableRf := range availableReplicationFactors {
 		if availableRf == rf {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("replication factor must be one of %v, up to a maximum value of 300",
+	return fmt.Errorf("replication factor must be one of %v",
 		availableReplicationFactors)
 }
 
@@ -379,4 +374,8 @@ func validateNetwork(network string) error {
 		return models.ErrInvalidCIDR
 	}
 	return nil
+}
+
+func IsClusterNotReadyForSpecUpdate(operation, state string, oldGen, newGen int64) bool {
+	return (operation != models.NoOperation || state != models.RunningStatus) && newGen != oldGen
 }

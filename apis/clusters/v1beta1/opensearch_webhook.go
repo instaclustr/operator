@@ -94,20 +94,12 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 	}
 
 	if os.Spec.RestoreFrom != nil {
-		if os.Spec.RestoreFrom.ClusterID == "" {
-			return fmt.Errorf("restore clusterID field is empty")
-		} else {
-			return nil
-		}
+		return nil
 	}
 
 	err = os.Spec.ValidateCreation()
 	if err != nil {
 		return err
-	}
-
-	if len(os.Spec.DataCentres) == 0 {
-		return models.ErrZeroDataCentres
 	}
 
 	err = os.Spec.validateDedicatedManager()
@@ -203,8 +195,7 @@ func (osv *openSearchValidator) ValidateUpdate(ctx context.Context, old runtime.
 		return err
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (os.Status.CurrentClusterOperationStatus != models.NoOperation || os.Status.State != models.RunningStatus) && os.Generation != oldCluster.Generation {
+	if IsClusterNotReadyForSpecUpdate(os.Status.CurrentClusterOperationStatus, os.Status.State, os.Generation, oldCluster.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
 

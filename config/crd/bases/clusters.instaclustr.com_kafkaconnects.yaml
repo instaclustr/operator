@@ -133,6 +133,7 @@ spec:
                         type: object
                       type: array
                   type: object
+                maxItems: 1
                 type: array
               dataCentres:
                 items:
@@ -306,6 +307,7 @@ spec:
                           truststore:
                             type: string
                         type: object
+                      maxItems: 1
                       type: array
                     managedCluster:
                       description: Details to connect to an Instaclustr managed cluster.
@@ -332,8 +334,10 @@ spec:
                         required:
                         - kafkaConnectVpcType
                         type: object
+                      maxItems: 1
                       type: array
                   type: object
+                maxItems: 1
                 type: array
               twoFactorDelete:
                 items:

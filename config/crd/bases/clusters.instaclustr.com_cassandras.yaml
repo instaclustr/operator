@@ -345,6 +345,8 @@ spec:
                 type: array
               version:
                 type: string
+            required:
+            - dataCentres
             type: object
           status:
             description: CassandraStatus defines the observed state of Cassandra

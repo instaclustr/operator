@@ -102,10 +102,6 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		return err
 	}
 
-	if len(k.Spec.DataCentres) == 0 {
-		return models.ErrZeroDataCentres
-	}
-
 	for _, dc := range k.Spec.DataCentres {
 		//TODO: add support of multiple DCs for OnPrem clusters
 		if len(k.Spec.DataCentres) > 1 && dc.CloudProvider == models.ONPREMISES {
@@ -114,16 +110,6 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
 			return err
-		}
-
-		if len(dc.PrivateLink) > 1 {
-			return fmt.Errorf("private link should not have more than 1 item")
-		}
-
-		for _, pl := range dc.PrivateLink {
-			if len(pl.AdvertisedHostname) < 3 {
-				return fmt.Errorf("the advertised hostname must be at least 3 characters. Provided hostname: %s", pl.AdvertisedHostname)
-			}
 		}
 
 		err = validateReplicationFactor(models.KafkaReplicationFactors, k.Spec.ReplicationFactor)
@@ -141,16 +127,6 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 
 		if dc.CloudProvider != models.AWSVPC && dc.PrivateLink != nil {
 			return models.ErrPrivateLinkSupportedOnlyForAWS
-		}
-	}
-
-	if len(k.Spec.Kraft) > 1 {
-		return models.ErrMoreThanOneKraft
-	}
-
-	for _, kraft := range k.Spec.Kraft {
-		if kraft.ControllerNodeCount > 3 {
-			return models.ErrMoreThanThreeControllerNodeCount
 		}
 	}
 
@@ -203,11 +179,9 @@ func (kv *kafkaValidator) ValidateUpdate(ctx context.Context, old runtime.Object
 		}
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (k.Status.CurrentClusterOperationStatus != models.NoOperation || k.Status.State != models.RunningStatus) && k.Generation != oldKafka.Generation {
+	if IsClusterNotReadyForSpecUpdate(k.Status.CurrentClusterOperationStatus, k.Status.State, k.Generation, oldKafka.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
-
 	return nil
 }
 

@@ -196,8 +196,7 @@ func (cv *cadenceValidator) ValidateUpdate(ctx context.Context, old runtime.Obje
 		}
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (c.Status.CurrentClusterOperationStatus != models.NoOperation || c.Status.State != models.RunningStatus) && c.Generation != oldCluster.Generation {
+	if IsClusterNotReadyForSpecUpdate(c.Status.CurrentClusterOperationStatus, c.Status.State, c.Generation, oldCluster.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
 

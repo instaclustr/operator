@@ -942,3 +942,35 @@ func TestGenericDataCentreSpec_validateCreation(t *testing.T) {
 		})
 	}
 }
+
+func TestIsClusterNotReadyForSpecUpdate(t *testing.T) {
+	type args struct {
+		operation string
+		state     string
+		oldGen    int64
+		newGen    int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "update with current operation",
+			args: args{
+				operation: "test",
+				state:     "",
+				oldGen:    0,
+				newGen:    1,
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsClusterNotReadyForSpecUpdate(tt.args.operation, tt.args.state, tt.args.oldGen, tt.args.newGen); got != tt.want {
+				t.Errorf("IsClusterNotReadyForSpecUpdate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

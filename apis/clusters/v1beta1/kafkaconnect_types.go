@@ -31,9 +31,11 @@ import (
 
 type TargetCluster struct {
 	// Details to connect to a Non-Instaclustr managed cluster. Cannot be provided if targeting an Instaclustr managed cluster.
+	//+kubebuilder:validation:MaxItems:=1
 	ExternalCluster []*ExternalCluster `json:"externalCluster,omitempty"`
 
 	// Details to connect to an Instaclustr managed cluster. Cannot be provided if targeting an external cluster.
+	//+kubebuilder:validation:MaxItems:=1
 	ManagedCluster []*ManagedCluster `json:"managedCluster,omitempty"`
 }
 
@@ -113,10 +115,12 @@ type KafkaConnectDataCentre struct {
 type KafkaConnectSpec struct {
 	GenericClusterSpec `json:",inline"`
 
-	DataCentres   []*KafkaConnectDataCentre `json:"dataCentres"`
-	TargetCluster []*TargetCluster          `json:"targetCluster"`
+	DataCentres []*KafkaConnectDataCentre `json:"dataCentres"`
+	//+kubebuilder:validation:MaxItems:=1
+	TargetCluster []*TargetCluster `json:"targetCluster"`
 
 	// CustomConnectors defines the location for custom connector storage and access info.
+	//+kubebuilder:validation:MaxItems:=1
 	CustomConnectors []*CustomConnectors `json:"customConnectors,omitempty"`
 }
 
