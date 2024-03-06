@@ -181,21 +181,28 @@ func (r *RedisReconciler) createRedis(redis *v1beta1.Redis, l logr.Logger) (*mod
 }
 
 func (r *RedisReconciler) createCluster(ctx context.Context, redis *v1beta1.Redis, l logr.Logger) error {
-	id, err := getClusterIDByName(r.API, models.RedisAppType, redis.Spec.Name)
-	if err != nil {
-		return err
-	}
+	if !redis.Spec.Inherits() {
+		id, err := getClusterIDByName(r.API, models.RedisAppType, redis.Spec.Name)
+		if err != nil {
+			return err
+		}
 
-	if id != "" {
-		l.Info("Cluster with provided name already exists", "name", redis.Spec.Name, "clusterID", id)
-		return fmt.Errorf("cluster %s already exists, please change name property", redis.Spec.Name)
+		if id != "" {
+			l.Info("Cluster with provided name already exists", "name", redis.Spec.Name, "clusterID", id)
+			return fmt.Errorf("cluster %s already exists, please change name property", redis.Spec.Name)
+		}
 	}
 
 	var instaModel *models.RedisCluster
+	var err error
 
-	if redis.Spec.HasRestore() {
+	switch {
+	case redis.Spec.Inherits():
+		l.Info("Inheriting from the cluster", "clusterID", redis.Spec.InheritsFrom)
+		instaModel, err = r.API.GetRedis(redis.Spec.InheritsFrom)
+	case redis.Spec.HasRestore():
 		instaModel, err = r.createFromRestore(redis, l)
-	} else {
+	default:
 		instaModel, err = r.createRedis(redis, l)
 	}
 	if err != nil {

@@ -182,21 +182,28 @@ func (r *OpenSearchReconciler) createOpenSearch(o *v1beta1.OpenSearch, logger lo
 }
 
 func (r *OpenSearchReconciler) createCluster(ctx context.Context, o *v1beta1.OpenSearch, logger logr.Logger) error {
-	id, err := getClusterIDByName(r.API, models.OpenSearchAppType, o.Spec.Name)
-	if err != nil {
-		return err
-	}
+	if !o.Spec.Inherits() {
+		id, err := getClusterIDByName(r.API, models.OpenSearchAppType, o.Spec.Name)
+		if err != nil {
+			return err
+		}
 
-	if id != "" {
-		logger.Info("Cluster with provided name already exists", "name", o.Spec.Name, "clusterID", id)
-		return fmt.Errorf("cluster %s already exists, please change name property", o.Spec.Name)
+		if id != "" {
+			logger.Info("Cluster with provided name already exists", "name", o.Spec.Name, "clusterID", id)
+			return fmt.Errorf("cluster %s already exists, please change name property", o.Spec.Name)
+		}
 	}
 
 	var instaModel *models.OpenSearchCluster
+	var err error
 
-	if o.Spec.HasRestore() {
+	switch {
+	case o.Spec.Inherits():
+		instaModel, err = r.API.GetOpenSearch(o.Spec.InheritsFrom)
+	case o.Spec.HasRestore():
+		logger.Info("Inheriting from the cluster", "clusterID", o.Spec.InheritsFrom)
 		instaModel, err = r.createOpenSearchFromRestore(o, logger)
-	} else {
+	default:
 		instaModel, err = r.createOpenSearch(o, logger)
 	}
 	if err != nil {

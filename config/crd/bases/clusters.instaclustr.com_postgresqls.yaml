@@ -236,6 +236,8 @@ spec:
                   - name
                   type: object
                 type: array
+              inheritsFrom:
+                type: string
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string

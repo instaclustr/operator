@@ -3,7 +3,8 @@ kind: Zookeeper
 metadata:
   name: zookeeper-sample
 spec:
-  name: "example-zookeeper"
+  name: "bohdan-zookeeper2"
+#  inheritsFrom: "3afa5885-116e-4414-b3ac-678d7d195baa"
 #  description: "some description"
   dataCentres:
     - clientToServerEncryption: false

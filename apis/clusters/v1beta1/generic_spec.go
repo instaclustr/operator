@@ -20,6 +20,8 @@ type GenericClusterSpec struct {
 
 	Description string `json:"description,omitempty"`
 
+	InheritsFrom string `json:"inheritsFrom,omitempty"`
+
 	TwoFactorDelete []*TwoFactorDelete `json:"twoFactorDelete,omitempty"`
 }
 
@@ -226,4 +228,8 @@ func (s *GenericDataCentreSpec) cloudProviderSettingsFromInstAPI(instaModel *mod
 			StorageNetwork:         setting.StorageNetwork,
 		}}
 	}
+}
+
+func (s *GenericClusterSpec) Inherits() bool {
+	return s.InheritsFrom != ""
 }

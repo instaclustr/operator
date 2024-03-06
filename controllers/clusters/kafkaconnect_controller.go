@@ -122,41 +122,61 @@ func (r *KafkaConnectReconciler) mergeManagedClusterFromRef(ctx context.Context,
 	return nil
 }
 
-func (r *KafkaConnectReconciler) createCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) error {
-	id, err := getClusterIDByName(r.API, models.KafkaConnectAppType, kc.Spec.Name)
+func (r *KafkaConnectReconciler) createKafkaConnect(ctx context.Context, kc *v1beta1.KafkaConnect) (*models.KafkaConnectCluster, error) {
+	err := r.mergeManagedClusterFromRef(ctx, kc)
 	if err != nil {
-		return err
-	}
-
-	if id != "" {
-		l.Info("Cluster with provided name already exists", "name", kc.Spec.Name, "clusterID", id)
-		return fmt.Errorf("cluster %s already exists, please change name property", kc.Spec.Name)
-	}
-
-	err = r.mergeManagedClusterFromRef(ctx, kc)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
 	b, err := r.API.CreateClusterRaw(instaclustr.KafkaConnectEndpoint, kc.Spec.ToInstAPI())
 	if err != nil {
-		return fmt.Errorf("failed to create KafkaConnect cluster, err: %w", err)
+		return nil, fmt.Errorf("failed to create KafkaConnect cluster, err: %w", err)
 	}
 
 	var instaModel models.KafkaConnectCluster
 	err = json.Unmarshal(b, &instaModel)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal body to KafkaConnect model, err: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal body to KafkaConnect model, err: %w", err)
 	}
 
-	kc.Spec.FromInstAPI(&instaModel)
+	return &instaModel, nil
+}
+
+func (r *KafkaConnectReconciler) createCluster(ctx context.Context, kc *v1beta1.KafkaConnect, l logr.Logger) error {
+	if !kc.Spec.Inherits() {
+		id, err := getClusterIDByName(r.API, models.KafkaConnectAppType, kc.Spec.Name)
+		if err != nil {
+			return err
+		}
+
+		if id != "" {
+			l.Info("Cluster with provided name already exists", "name", kc.Spec.Name, "clusterID", id)
+			return fmt.Errorf("cluster %s already exists, please change name property", kc.Spec.Name)
+		}
+	}
+
+	var instaModel *models.KafkaConnectCluster
+	var err error
+
+	switch {
+	case kc.Spec.Inherits():
+		l.Info("Inheriting from the cluster", "clusterID", kc.Spec.InheritsFrom)
+		instaModel, err = r.API.GetKafkaConnect(kc.Spec.InheritsFrom)
+	default:
+		instaModel, err = r.createKafkaConnect(ctx, kc)
+	}
+	if err != nil {
+		return err
+	}
+
+	kc.Spec.FromInstAPI(instaModel)
 	kc.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Update(ctx, kc)
 	if err != nil {
 		return fmt.Errorf("failed to update resource spec, err: %w", err)
 	}
 
-	kc.Status.FromInstAPI(&instaModel)
+	kc.Status.FromInstAPI(instaModel)
 	err = r.Status().Update(ctx, kc)
 	if err != nil {
 		return fmt.Errorf("failed to update resource status, err: %w", err)

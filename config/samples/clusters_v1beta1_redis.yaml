@@ -8,13 +8,15 @@ metadata:
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
   name: redis-sample
+  namespace: nm1
 spec:
-  name: "example-redis"
+  name: "bohdan-redis1"
   version: "7.0.14"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false
   passwordAndUserAuth: true
   privateNetwork: false
+#  inheritsFrom: "83bb77aa-16fb-4f3e-b103-93b1c0352c1b"
 #  userRefs:
 #      - name: redisuser-sample-1
 #        namespace: default

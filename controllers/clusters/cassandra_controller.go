@@ -214,20 +214,25 @@ func (r *CassandraReconciler) createCassandra(c *v1beta1.Cassandra, l logr.Logge
 }
 
 func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cassandra, l logr.Logger) error {
+	if !c.Spec.Inherits() {
+		id, err := getClusterIDByName(r.API, models.CassandraAppType, c.Spec.Name)
+		if err != nil {
+			return err
+		}
+
+		if id != "" && c.Spec.Inherits() {
+			l.Info("Cluster with provided name already exists", "name", c.Spec.Name, "clusterID", id)
+			return fmt.Errorf("cluster %s already exists, please change name property", c.Spec.Name)
+		}
+	}
+
 	var instModel *models.CassandraCluster
 	var err error
 
-	id, err := getClusterIDByName(r.API, models.CassandraAppType, c.Spec.Name)
-	if err != nil {
-		return err
-	}
-
-	if id != "" {
-		l.Info("Cluster with provided name already exists", "name", c.Spec.Name, "clusterID", id)
-		return fmt.Errorf("cluster %s already exists, please change name property", c.Spec.Name)
-	}
-
 	switch {
+	case c.Spec.Inherits():
+		l.Info("Inheriting from the cluster", "clusterID", c.Spec.InheritsFrom)
+		instModel, err = r.API.GetCassandra(c.Spec.InheritsFrom)
 	case c.Spec.HasRestore():
 		instModel, err = r.createCassandraFromRestore(c, l)
 	default:

@@ -106,30 +106,20 @@ func (r *KafkaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return models.ExitReconcile, nil
 }
 
-func (r *KafkaReconciler) createCluster(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) error {
-	id, err := getClusterIDByName(r.API, models.KafkaAppType, k.Spec.Name)
-	if err != nil {
-		return err
-	}
-
-	if id != "" {
-		l.Info("Cluster with provided name already exists", "name", k.Spec.Name, "clusterID", id)
-		return fmt.Errorf("cluster %s already exists, please change name property", k.Spec.Name)
-	}
-
+func (r *KafkaReconciler) createKafka(k *v1beta1.Kafka, l logr.Logger) (*models.KafkaCluster, error) {
 	l.Info("Creating cluster",
 		"cluster name", k.Spec.Name,
 		"data centres", k.Spec.DataCentres)
 
 	b, err := r.API.CreateClusterRaw(instaclustr.KafkaEndpoint, k.Spec.ToInstAPI())
 	if err != nil {
-		return fmt.Errorf("failed to create kafka cluster, err: %w", err)
+		return nil, fmt.Errorf("failed to create kafka cluster, err: %w", err)
 	}
 
-	instaModel := models.KafkaCluster{}
-	err = json.Unmarshal(b, &instaModel)
+	instaModel := &models.KafkaCluster{}
+	err = json.Unmarshal(b, instaModel)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal json to kafka model, err: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal json to kafka model, err: %w", err)
 	}
 
 	r.EventRecorder.Eventf(
@@ -138,14 +128,44 @@ func (r *KafkaReconciler) createCluster(ctx context.Context, k *v1beta1.Kafka, l
 		instaModel.ID,
 	)
 
-	k.Spec.FromInstAPI(&instaModel)
+	return instaModel, nil
+}
+
+func (r *KafkaReconciler) createCluster(ctx context.Context, k *v1beta1.Kafka, l logr.Logger) error {
+	if !k.Spec.Inherits() {
+		id, err := getClusterIDByName(r.API, models.KafkaAppType, k.Spec.Name)
+		if err != nil {
+			return err
+		}
+
+		if id != "" {
+			l.Info("Cluster with provided name already exists", "name", k.Spec.Name, "clusterID", id)
+			return fmt.Errorf("cluster %s already exists, please change name property", k.Spec.Name)
+		}
+	}
+
+	var instaModel *models.KafkaCluster
+	var err error
+
+	switch {
+	case k.Spec.Inherits():
+		l.Info("Inheriting from the cluster", "clusterID", k.Spec.InheritsFrom)
+		instaModel, err = r.API.GetKafka(k.Spec.InheritsFrom)
+	default:
+		instaModel, err = r.createKafka(k, l)
+	}
+	if err != nil {
+		return err
+	}
+
+	k.Spec.FromInstAPI(instaModel)
 	k.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Update(ctx, k)
 	if err != nil {
 		return fmt.Errorf("failed to update kafka spec, err: %w", err)
 	}
 
-	k.Status.FromInstAPI(&instaModel)
+	k.Status.FromInstAPI(instaModel)
 	err = r.Status().Update(ctx, k)
 	if err != nil {
 		return fmt.Errorf("failed to update kafka status, err: %w", err)

@@ -103,42 +103,62 @@ func (r *ZookeeperReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 }
 
-func (r *ZookeeperReconciler) createCluster(ctx context.Context, zook *v1beta1.Zookeeper, l logr.Logger) error {
-	id, err := getClusterIDByName(r.API, models.ZookeeperAppType, zook.Spec.Name)
-	if err != nil {
-		return err
-	}
-
-	if id != "" {
-		l.Info("Cluster with provided name already exists", "name", zook.Spec.Name, "clusterID", id)
-		return fmt.Errorf("cluster %s already exists, please change name property", zook.Spec.Name)
-	}
-
+func (r *ZookeeperReconciler) createZookeeper(zook *v1beta1.Zookeeper, l logr.Logger) (*models.ZookeeperCluster, error) {
 	l.Info("Creating zookeeper cluster",
 		"cluster name", zook.Spec.Name,
 		"data centres", zook.Spec.DataCentres)
 
 	b, err := r.API.CreateClusterRaw(instaclustr.ZookeeperEndpoint, zook.Spec.ToInstAPI())
 	if err != nil {
-		return fmt.Errorf("failed to create zookeeper cluster, err: %w", err)
+		return nil, fmt.Errorf("failed to create zookeeper cluster, err: %w", err)
 	}
 
 	var instaModel models.ZookeeperCluster
 	err = json.Unmarshal(b, &instaModel)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal body to models.ZookeeperCluster, err: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal body to models.ZookeeperCluster, err: %w", err)
+	}
+
+	return &instaModel, err
+}
+
+func (r *ZookeeperReconciler) createCluster(ctx context.Context, zook *v1beta1.Zookeeper, l logr.Logger) error {
+	if !zook.Spec.Inherits() {
+		id, err := getClusterIDByName(r.API, models.ZookeeperAppType, zook.Spec.Name)
+		if err != nil {
+			return err
+		}
+
+		if id != "" {
+			l.Info("Cluster with provided name already exists", "name", zook.Spec.Name, "clusterID", id)
+			return fmt.Errorf("cluster %s already exists, please change name property", zook.Spec.Name)
+		}
+	}
+
+	var instaModel *models.ZookeeperCluster
+	var err error
+
+	switch {
+	case zook.Spec.Inherits():
+		l.Info("Inheriting from the cluster", "clusterID", zook.Spec.InheritsFrom)
+		instaModel, err = r.API.GetZookeeper(zook.Spec.InheritsFrom)
+	default:
+		instaModel, err = r.createZookeeper(zook, l)
+	}
+	if err != nil {
+		return err
 	}
 
 	patch := zook.NewPatch()
 
-	zook.Spec.FromInstAPI(&instaModel)
+	zook.Spec.FromInstAPI(instaModel)
 	zook.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
 	err = r.Patch(ctx, zook, patch)
 	if err != nil {
 		return fmt.Errorf("failed to patch cluster spec, err: %w", err)
 	}
 
-	zook.Status.FromInstAPI(&instaModel)
+	zook.Status.FromInstAPI(instaModel)
 	err = r.Status().Patch(ctx, zook, patch)
 	if err != nil {
 		return fmt.Errorf("failed to patch cluster status, err: %w", err)

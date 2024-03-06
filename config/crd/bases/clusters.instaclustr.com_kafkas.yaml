@@ -225,6 +225,8 @@ spec:
                 type: array
               description:
                 type: string
+              inheritsFrom:
+                type: string
               karapaceRestProxy:
                 items:
                   properties:

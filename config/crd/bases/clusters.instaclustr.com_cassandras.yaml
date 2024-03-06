@@ -240,6 +240,8 @@ spec:
                 type: array
               description:
                 type: string
+              inheritsFrom:
+                type: string
               luceneEnabled:
                 type: boolean
               name:

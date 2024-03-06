@@ -3,7 +3,8 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  name: "example-kafka"
+  name: "bohdan-kafka"
+#  inheritsFrom: 42a0fa34-a647-4a30-96e0-fde64aba0eae
   version: "3.5.1"
   pciCompliance: false
   replicationFactor: 3
@@ -21,13 +22,13 @@ spec:
   #  twoFactorDelete:
   #    - email: "asdfadfsdsf"
   #      phone: "ddsafasdf"
-  karapaceSchemaRegistry:
-    - version: "3.6.2"
+#  karapaceSchemaRegistry:
+#    - version: "3.6.2"
 #  schemaRegistry:
 #    - version: "3.0.0"
-  karapaceRestProxy:
-    - integrateRestProxyWithSchemaRegistry: true
-      version: "3.6.2"
+#  karapaceRestProxy:
+#    - integrateRestProxyWithSchemaRegistry: true
+#      version: "3.6.2"
   #  kraft:
   #    - controllerNodeCount: 3
   #  restProxy:

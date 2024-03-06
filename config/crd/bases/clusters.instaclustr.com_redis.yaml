@@ -208,6 +208,8 @@ spec:
                 type: array
               description:
                 type: string
+              inheritsFrom:
+                type: string
               name:
                 description: Name [ 3 .. 32 ] characters.
                 type: string
