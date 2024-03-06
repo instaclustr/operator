@@ -84,11 +84,7 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	}
 
 	if c.Spec.RestoreFrom != nil {
-		if c.Spec.RestoreFrom.ClusterID == "" {
-			return fmt.Errorf("restore clusterID field is empty")
-		} else {
-			return nil
-		}
+		return nil
 	}
 
 	err = c.Spec.GenericClusterSpec.ValidateCreation()
@@ -105,10 +101,6 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	err = validateAppVersion(appVersions, models.CassandraAppType, c.Spec.Version)
 	if err != nil {
 		return err
-	}
-
-	if len(c.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
 	}
 
 	for _, dc := range c.Spec.DataCentres {
@@ -180,11 +172,9 @@ func (cv *cassandraValidator) ValidateUpdate(ctx context.Context, old runtime.Ob
 		return fmt.Errorf("cannot update immutable fields: %v", err)
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (c.Status.CurrentClusterOperationStatus != models.NoOperation || c.Status.State != models.RunningStatus) && c.Generation != oldCluster.Generation {
+	if IsClusterNotReadyForSpecUpdate(c.Status.CurrentClusterOperationStatus, c.Status.State, c.Generation, oldCluster.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
-
 	return nil
 }
 
@@ -297,6 +287,7 @@ func (cs *CassandraSpec) validateDataCentresUpdate(oldSpec CassandraSpec) error 
 				return fmt.Errorf("number of nodes must be a multiple of replication factor: %v", newDC.ReplicationFactor)
 			}
 
+			continue
 		}
 
 		newDCImmutableFields := newDC.newImmutableFields()

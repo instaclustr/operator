@@ -102,18 +102,7 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 		return err
 	}
 
-	if len(kc.Spec.TargetCluster) > 1 {
-		return fmt.Errorf("targetCluster array size must be between 0 and 1")
-	}
-
 	for _, tc := range kc.Spec.TargetCluster {
-		if len(tc.ManagedCluster) > 1 {
-			return fmt.Errorf("managedCluster array size must be between 0 and 1")
-		}
-
-		if len(tc.ExternalCluster) > 1 {
-			return fmt.Errorf("externalCluster array size must be between 0 and 1")
-		}
 		for _, mc := range tc.ManagedCluster {
 			if (mc.TargetKafkaClusterID == "" && mc.ClusterRef == nil) ||
 				(mc.TargetKafkaClusterID != "" && mc.ClusterRef != nil) {
@@ -132,14 +121,6 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 					mc.KafkaConnectVPCType, models.KafkaConnectVPCTypes)
 			}
 		}
-	}
-
-	if len(kc.Spec.CustomConnectors) > 1 {
-		return fmt.Errorf("customConnectors array size must be between 0 and 1")
-	}
-
-	if len(kc.Spec.DataCentres) == 0 {
-		return fmt.Errorf("data centres field is empty")
 	}
 
 	for _, dc := range kc.Spec.DataCentres {
@@ -198,8 +179,7 @@ func (kcv *kafkaConnectValidator) ValidateUpdate(ctx context.Context, old runtim
 		return fmt.Errorf("cannot update immutable fields: %v", err)
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (kc.Status.CurrentClusterOperationStatus != models.NoOperation || kc.Status.State != models.RunningStatus) && kc.Generation != oldCluster.Generation {
+	if IsClusterNotReadyForSpecUpdate(kc.Status.CurrentClusterOperationStatus, kc.Status.State, kc.Generation, oldCluster.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
 
@@ -310,9 +290,6 @@ func (kdc *KafkaConnectDataCentre) newImmutableFields() *immutableKafkaConnectDC
 }
 
 func (kc *KafkaConnectSpec) validateImmutableTargetClusterFieldsUpdate(new, old []*TargetCluster) error {
-	if len(new) == 0 && len(old) == 0 {
-		return models.ErrImmutableTargetCluster
-	}
 
 	if len(old) != len(new) {
 		return models.ErrImmutableTargetCluster

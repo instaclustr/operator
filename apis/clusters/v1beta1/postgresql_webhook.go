@@ -86,11 +86,7 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 	}
 
 	if pg.Spec.PgRestoreFrom != nil {
-		if pg.Spec.PgRestoreFrom.ClusterID == "" {
-			return fmt.Errorf("restore clusterID field is empty")
-		} else {
-			return nil
-		}
+		return nil
 	}
 
 	err = pg.Spec.GenericClusterSpec.ValidateCreation()
@@ -107,10 +103,6 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 	err = validateAppVersion(appVersions, models.PgAppType, pg.Spec.Version)
 	if err != nil {
 		return err
-	}
-
-	if len(pg.Spec.DataCentres) == 0 {
-		return models.ErrZeroDataCentres
 	}
 
 	for _, dc := range pg.Spec.DataCentres {
@@ -134,9 +126,6 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 			return fmt.Errorf("interDataCentreReplication field is required when more than 1 data centre")
 		}
 
-		if len(dc.IntraDataCentreReplication) != 1 {
-			return fmt.Errorf("intraDataCentreReplication required to have 1 item")
-		}
 		if !validation.Contains(dc.IntraDataCentreReplication[0].ReplicationMode, models.ReplicationModes) {
 			return fmt.Errorf("replicationMode '%s' is unavailable, available values: %v",
 				dc.IntraDataCentreReplication[0].ReplicationMode,
@@ -201,8 +190,7 @@ func (pgv *pgValidator) ValidateUpdate(ctx context.Context, old runtime.Object, 
 		}
 	}
 
-	// ensuring if the cluster is ready for the spec updating
-	if (pg.Status.CurrentClusterOperationStatus != models.NoOperation || pg.Status.State != models.RunningStatus) && pg.Generation != oldCluster.Generation {
+	if IsClusterNotReadyForSpecUpdate(pg.Status.CurrentClusterOperationStatus, pg.Status.State, pg.Generation, oldCluster.Generation) {
 		return models.ErrClusterIsNotReadyToUpdate
 	}
 
@@ -333,10 +321,6 @@ func (pgs *PgSpec) validateImmutableDCsFieldsUpdate(oldSpec PgSpec) error {
 		err = newDC.validateInterDCImmutableFields(oldDC.InterDataCentreReplication)
 		if err != nil {
 			return err
-		}
-
-		if newDC.NodesNumber != oldDC.NodesNumber {
-			return models.ErrImmutableNodesNumber
 		}
 
 	}

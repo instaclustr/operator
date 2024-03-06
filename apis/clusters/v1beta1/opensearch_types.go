@@ -34,7 +34,7 @@ type OpenSearchSpec struct {
 	GenericClusterSpec `json:",inline"`
 
 	RestoreFrom              *OpenSearchRestoreFrom  `json:"restoreFrom,omitempty"`
-	DataCentres              []*OpenSearchDataCentre `json:"dataCentres,omitempty"`
+	DataCentres              []*OpenSearchDataCentre `json:"dataCentres"`
 	DataNodes                []*OpenSearchDataNodes  `json:"dataNodes,omitempty"`
 	Dashboards               []*OpenSearchDashboards `json:"opensearchDashboards,omitempty"`
 	ClusterManagerNodes      []*ClusterManagerNodes  `json:"clusterManagerNodes"`

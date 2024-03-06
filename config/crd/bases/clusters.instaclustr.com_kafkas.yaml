@@ -179,6 +179,7 @@ spec:
                         required:
                         - advertisedHostname
                         type: object
+                      maxItems: 1
                       type: array
                     region:
                       description: Region of the Data Centre.
@@ -254,6 +255,7 @@ spec:
                   required:
                   - controllerNodeCount
                   type: object
+                maxItems: 1
                 type: array
               name:
                 description: Name [ 3 .. 32 ] characters.

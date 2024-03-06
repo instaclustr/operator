@@ -87,11 +87,13 @@ type KafkaSpec struct {
 	RestProxy              []*RestProxy              `json:"restProxy,omitempty"`
 	KarapaceRestProxy      []*KarapaceRestProxy      `json:"karapaceRestProxy,omitempty"`
 	KarapaceSchemaRegistry []*KarapaceSchemaRegistry `json:"karapaceSchemaRegistry,omitempty"`
-	Kraft                  []*Kraft                  `json:"kraft,omitempty"`
-	ResizeSettings         GenericResizeSettings     `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
+	//+kubebuilder:validation:MaxItems:=1
+	Kraft          []*Kraft              `json:"kraft,omitempty"`
+	ResizeSettings GenericResizeSettings `json:"resizeSettings,omitempty" dcomparisonSkip:"true"`
 }
 
 type Kraft struct {
+	//+kubebuilder:validation:Max:=3
 	ControllerNodeCount int `json:"controllerNodeCount"`
 }
 
@@ -100,7 +102,7 @@ type KafkaDataCentre struct {
 
 	NodesNumber int    `json:"nodesNumber"`
 	NodeSize    string `json:"nodeSize"`
-
+	//+kubebuilder:validation:MaxItems:=1
 	PrivateLink []*PrivateLink `json:"privateLink,omitempty"`
 }
 

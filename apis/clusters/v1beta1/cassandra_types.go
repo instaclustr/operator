@@ -55,7 +55,7 @@ type CassandraSpec struct {
 	GenericClusterSpec `json:",inline"`
 
 	RestoreFrom         *CassandraRestoreFrom  `json:"restoreFrom,omitempty" dcomparisonSkip:"true"`
-	DataCentres         []*CassandraDataCentre `json:"dataCentres,omitempty"`
+	DataCentres         []*CassandraDataCentre `json:"dataCentres"`
 	LuceneEnabled       bool                   `json:"luceneEnabled,omitempty"`
 	PasswordAndUserAuth bool                   `json:"passwordAndUserAuth,omitempty"`
 	BundledUseOnly      bool                   `json:"bundledUseOnly,omitempty"`

@@ -98,10 +98,6 @@ func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 		return err
 	}
 
-	if len(z.Spec.DataCentres) == 0 {
-		return models.ErrZeroDataCentres
-	}
-
 	for _, dc := range z.Spec.DataCentres {
 		err = dc.GenericDataCentreSpec.validateCreation()
 		if err != nil {
