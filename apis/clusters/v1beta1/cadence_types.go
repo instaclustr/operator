@@ -356,6 +356,15 @@ func (cs *CadenceSpec) FromInstAPI(instaModel *models.CadenceCluster) {
 	cs.ResizeSettings.FromInstAPI(instaModel.ResizeSettings)
 
 	cs.DCsFromInstAPI(instaModel.DataCentres)
+	cs.StandardProvisioningFromInstAPI(instaModel.StandardProvisioning)
+	cs.SharedProvisioningFromInstAPI(instaModel.SharedProvisioning)
+	cs.TargetPrimaryCadenceFromInstAPI(instaModel.TargetPrimaryCadence)
+
+	// TODO AWS ARCHIVAL
+
+	cs.UseHTTPAPI = instaModel.UseHTTPAPI
+	cs.UseCadenceWebAuth = instaModel.UseCadenceWebAuth
+	cs.PCICompliance = instaModel.PCIComplianceMode
 }
 
 func (cs *CadenceSpec) DCsFromInstAPI(instaModels []*models.CadenceDataCentre) {
@@ -589,4 +598,57 @@ func (c *CadenceSpec) CalculateNodeSize(cloudProvider, solution, app string) str
 		}
 	}
 	return ""
+}
+
+func (cs *CadenceSpec) StandardProvisioningFromInstAPI(instaModels []*models.CadenceStandardProvisioning) {
+	provisioning := make([]*StandardProvisioning, len(instaModels))
+	for i, instaModel := range instaModels {
+		p := &StandardProvisioning{}
+		p.FromInstAPI(instaModel)
+		provisioning[i] = p
+	}
+	cs.StandardProvisioning = provisioning
+}
+
+func (s *StandardProvisioning) FromInstAPI(instaModel *models.CadenceStandardProvisioning) {
+	s.AdvancedVisibility = make([]*AdvancedVisibility, len(instaModel.AdvancedVisibility))
+	for i, visibility := range instaModel.AdvancedVisibility {
+		vis := &AdvancedVisibility{
+			TargetKafka: &CadenceDependencyTarget{
+				DependencyCDCID:   visibility.TargetKafka.DependencyCDCID,
+				DependencyVPCType: visibility.TargetKafka.DependencyVPCType,
+			},
+			TargetOpenSearch: &CadenceDependencyTarget{
+				DependencyCDCID:   visibility.TargetOpenSearch.DependencyCDCID,
+				DependencyVPCType: visibility.TargetOpenSearch.DependencyVPCType,
+			},
+		}
+		s.AdvancedVisibility[i] = vis
+	}
+
+	if instaModel.TargetCassandra != nil {
+		s.TargetCassandra = &CadenceDependencyTarget{
+			DependencyCDCID:   instaModel.TargetCassandra.DependencyCDCID,
+			DependencyVPCType: instaModel.TargetCassandra.DependencyVPCType,
+		}
+	}
+}
+
+func (cs *CadenceSpec) SharedProvisioningFromInstAPI(instaModels []*models.CadenceSharedProvisioning) {
+	cs.SharedProvisioning = make([]*SharedProvisioning, len(instaModels))
+	for i, instaModel := range instaModels {
+		cs.SharedProvisioning[i] = &SharedProvisioning{
+			UseAdvancedVisibility: instaModel.UseAdvancedVisibility,
+		}
+	}
+}
+
+func (cs *CadenceSpec) TargetPrimaryCadenceFromInstAPI(instaModels []*models.CadenceDependencyTarget) {
+	cs.TargetPrimaryCadence = make([]*CadenceDependencyTarget, len(instaModels))
+	for i, instaModel := range instaModels {
+		cs.TargetPrimaryCadence[i] = &CadenceDependencyTarget{
+			DependencyCDCID:   instaModel.DependencyCDCID,
+			DependencyVPCType: instaModel.DependencyVPCType,
+		}
+	}
 }
