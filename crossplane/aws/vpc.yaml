@@ -1,0 +1,10 @@
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  labels:
+    instance-group: debian
+  name: debian-vpc-test-crossplane
+spec:
+  forProvider:
+    cidrBlock: 192.168.0.0/16
+    region: us-east-1
