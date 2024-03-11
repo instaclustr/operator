@@ -233,3 +233,8 @@ func (s *GenericDataCentreSpec) cloudProviderSettingsFromInstAPI(instaModel *mod
 func (s *GenericClusterSpec) Inherits() bool {
 	return s.InheritsFrom != ""
 }
+
+func (in *GenericClusterSpec) setDefaultValues() {
+	in.Version = "DEFAULT_VERSION"
+	in.SLATier = "NON_PRODUCTION"
+}

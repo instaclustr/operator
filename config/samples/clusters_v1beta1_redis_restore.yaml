@@ -13,4 +13,3 @@ spec:
     clusterId: "1bece950-c79d-441b-8363-6b8cd9069db0"
     restoredClusterName: "redisRESTORED"
     pointInTime: 1677505625158
-    clusterNetwork: "10.13.0.0/16"

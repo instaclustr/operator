@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: OpenSearch
+metadata:
+  name: opensearch-inherited
+spec:
+  inheritsFrom: "75ac9917-ba00-4ea1-b30e-45051c8dca63"

@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Zookeeper
+metadata:
+  name: zookeeper-inherited
+spec:
+  inheritsFrom: "61cad31f-3c5c-4d5d-b1c3-c553b786f428"

@@ -52,6 +52,15 @@ var _ webhook.CustomValidator = &openSearchValidator{}
 var _ webhook.Defaulter = &OpenSearch{}
 
 func (os *OpenSearch) Default() {
+	if os.Spec.Inherits() && os.Status.ID == "" && os.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		os.Spec = OpenSearchSpec{
+			GenericClusterSpec:  GenericClusterSpec{InheritsFrom: os.Spec.InheritsFrom},
+			DataCentres:         []*OpenSearchDataCentre{{}},
+			ClusterManagerNodes: []*ClusterManagerNodes{{}},
+		}
+		os.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	for _, dataCentre := range os.Spec.DataCentres {
 		setDefaultValues(dataCentre)
 
@@ -84,6 +93,10 @@ func (osv *openSearchValidator) ValidateCreate(ctx context.Context, obj runtime.
 	os, ok := obj.(*OpenSearch)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to openSearch", obj.GetObjectKind())
+	}
+
+	if os.Spec.Inherits() {
+		return nil
 	}
 
 	opensearchlog.Info("validate create", "name", os.Name)

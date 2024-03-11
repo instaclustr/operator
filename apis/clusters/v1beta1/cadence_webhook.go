@@ -56,6 +56,14 @@ var _ webhook.Defaulter = &Cadence{}
 func (c *Cadence) Default() {
 	cadencelog.Info("default", "name", c.Name)
 
+	if c.Spec.Inherits() && c.Status.ID == "" && c.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		c.Spec = CadenceSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: c.Spec.InheritsFrom},
+			DataCentres:        []*CadenceDataCentre{{}},
+		}
+		c.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	if c.Spec.Name == "" {
 		c.Spec.Name = c.Name
 	}
@@ -84,6 +92,10 @@ func (cv *cadenceValidator) ValidateCreate(ctx context.Context, obj runtime.Obje
 	}
 
 	cadencelog.Info("validate create", "name", c.Name)
+
+	if c.Spec.Inherits() {
+		return nil
+	}
 
 	err := requiredfieldsvalidator.ValidateRequiredFields(c.Spec)
 	if err != nil {

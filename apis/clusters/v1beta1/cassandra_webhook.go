@@ -58,6 +58,14 @@ var _ webhook.Defaulter = &Cassandra{}
 func (c *Cassandra) Default() {
 	cassandralog.Info("default", "name", c.Name)
 
+	if c.Spec.Inherits() && c.Status.ID == "" && c.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		c.Spec = CassandraSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: c.Spec.InheritsFrom},
+			DataCentres:        []*CassandraDataCentre{{}},
+		}
+		c.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	if c.Spec.Name == "" {
 		c.Spec.Name = c.Name
 	}
@@ -74,6 +82,10 @@ func (cv *cassandraValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	c, ok := obj.(*Cassandra)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to cassandra", obj.GetObjectKind())
+	}
+
+	if c.Spec.Inherits() {
+		return nil
 	}
 
 	cassandralog.Info("validate create", "name", c.Name)

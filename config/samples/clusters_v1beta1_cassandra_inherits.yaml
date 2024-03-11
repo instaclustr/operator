@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Cassandra
+metadata:
+  name: cassandra-inherited
+spec:
+  inheritsFrom: "c1a84b4f-9b67-43e0-ac33-038290aea71d"

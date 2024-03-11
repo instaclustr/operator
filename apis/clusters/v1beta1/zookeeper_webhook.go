@@ -52,6 +52,14 @@ var _ webhook.Defaulter = &Zookeeper{}
 func (z *Zookeeper) Default() {
 	redislog.Info("default", "name", z.Name)
 
+	if z.Spec.Inherits() && z.Status.ID == "" && z.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		z.Spec = ZookeeperSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: z.Spec.InheritsFrom},
+			DataCentres:        []*ZookeeperDataCentre{{}},
+		}
+		z.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	if z.Spec.Name == "" {
 		z.Spec.Name = z.Name
 	}
@@ -73,6 +81,10 @@ func (zv *zookeeperValidator) ValidateCreate(ctx context.Context, obj runtime.Ob
 	z, ok := obj.(*Zookeeper)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to zookeeper", obj.GetObjectKind())
+	}
+
+	if z.Spec.Inherits() {
+		return nil
 	}
 
 	zookeeperlog.Info("validate create", "name", z.Name)

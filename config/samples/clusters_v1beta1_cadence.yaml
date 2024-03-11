@@ -11,15 +11,16 @@ kind: Cadence
 metadata:
   name: cadence-sample
 spec:
-  name: "bohdan-cadence-test"
+  name: "example-cadence"
   version: "1.2.2"
 #  standardProvisioning:
 #    - targetCassandra:
 #        dependencyCdcId: "9d43ac54-7317-4ce5-859a-e9d0443508a4"
 #        dependencyVpcType: "VPC_PEERED"
   packagedProvisioning:
-    - useAdvancedVisibility: true
-      solutionSize: "Production-Small"
+      -
+#        useAdvancedVisibility: true
+        solutionSize: "Production-Small"
   #  twoFactorDelete:
   #  - email: "rostyslp@netapp.com"
   privateNetwork: false
@@ -45,3 +46,8 @@ spec:
   resizeSettings:
     - notifySupportContacts: false
       concurrency: 1
+#  awsArchival:
+#    - archivalS3Uri: s3bucketURI
+#      archivalS3Region: US_EAST_1
+#      awsAccessKeySecretNamespace: default
+#      awsAccessKeySecretName: inst-test-aws-cred-secret

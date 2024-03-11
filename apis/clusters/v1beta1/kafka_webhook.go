@@ -56,6 +56,14 @@ var _ webhook.Defaulter = &Kafka{}
 func (k *Kafka) Default() {
 	kafkalog.Info("default", "name", k.Name)
 
+	if k.Spec.Inherits() && k.Status.ID == "" && k.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		k.Spec = KafkaSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: k.Spec.InheritsFrom},
+			DataCentres:        []*KafkaDataCentre{{}},
+		}
+		k.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	if k.Spec.Name == "" {
 		k.Spec.Name = k.Name
 	}
@@ -77,6 +85,10 @@ func (kv *kafkaValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 	k, ok := obj.(*Kafka)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to kafka", obj.GetObjectKind())
+	}
+
+	if k.Spec.Inherits() {
+		return nil
 	}
 
 	kafkalog.Info("validate create", "name", k.Name)

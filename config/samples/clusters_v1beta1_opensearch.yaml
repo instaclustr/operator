@@ -7,12 +7,11 @@ metadata:
     app.kubernetes.io/part-of: operator
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
-  name: opensearch-sample2
+  name: opensearch-sample
   annotations:
     test.annotation/first: testAnnotation
 spec:
-  name: bohdan-test2
-  inheritsFrom: ed8a0dc3-0a41-4e94-a508-3d5cf4b1a28b
+  name: example-opensearch
   alertingPlugin: false
   anomalyDetectionPlugin: false
   asynchronousSearchPlugin: false

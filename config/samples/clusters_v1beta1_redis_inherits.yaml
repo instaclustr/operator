@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Redis
+metadata:
+  name: redis-inherited
+spec:
+  inheritsFrom: "718c592e-760f-4ba6-9545-a5e643663afe"

@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Cadence
+metadata:
+  name: cadence-inherited
+spec:
+  inheritsFrom: "c8c80bf3-4489-426f-8a84-450b9acfefc3"

@@ -55,6 +55,14 @@ var _ webhook.Defaulter = &Redis{}
 func (r *Redis) Default() {
 	redislog.Info("default", "name", r.Name)
 
+	if r.Spec.Inherits() && r.Status.ID == "" && r.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		r.Spec = RedisSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: r.Spec.InheritsFrom},
+			DataCentres:        []*RedisDataCentre{{}},
+		}
+		r.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	if r.Spec.Name == "" {
 		r.Spec.Name = r.Name
 		redislog.Info("default values are set", "name", r.Name)
@@ -87,6 +95,10 @@ func (rv *redisValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 	r, ok := obj.(*Redis)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to redis", obj.GetObjectKind())
+	}
+
+	if r.Spec.Inherits() {
+		return nil
 	}
 
 	redislog.Info("validate create", "name", r.Name)

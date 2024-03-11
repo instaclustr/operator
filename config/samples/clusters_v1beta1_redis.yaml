@@ -1,16 +1,9 @@
 apiVersion: clusters.instaclustr.com/v1beta1
 kind: Redis
 metadata:
-  labels:
-    app.kubernetes.io/name: redis
-    app.kubernetes.io/instance: redis-sample
-    app.kubernetes.io/part-of: operator
-    app.kuberentes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: operator
   name: redis-sample
-  namespace: nm1
 spec:
-  name: "bohdan-redis1"
+  name: "bohdan-redis"
   version: "7.0.14"
   slaTier: "NON_PRODUCTION"
   clientEncryption: false

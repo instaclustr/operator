@@ -3,7 +3,7 @@ kind: Cassandra
 metadata:
   name: cassandra-cluster
 spec:
-  name: "bohdan-cassandra" #(immutable)
+  name: "example-cassandra" #(immutable)
   version: "4.1.3" #(immutable)
 #  inheritsFrom: "42a0fa34-a647-4a30-96e0-fde64aba0eae"
   privateNetwork: false #(immutable)

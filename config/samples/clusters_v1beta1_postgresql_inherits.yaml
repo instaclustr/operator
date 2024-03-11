@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: PostgreSQL
+metadata:
+  name: postgresql-inherited
+spec:
+  inheritsFrom: "46857148-ca5b-4b80-9e03-fb8c6ebadf60"

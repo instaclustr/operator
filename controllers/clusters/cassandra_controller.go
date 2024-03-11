@@ -242,15 +242,17 @@ func (r *CassandraReconciler) createCluster(ctx context.Context, c *v1beta1.Cass
 		return fmt.Errorf("failed to create cluster, err: %w", err)
 	}
 
+	patch := c.NewPatch()
+
 	c.Spec.FromInstAPI(instModel)
 	c.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent
-	err = r.Update(ctx, c)
+	err = r.Patch(ctx, c, patch)
 	if err != nil {
 		return fmt.Errorf("failed to update cassandra spec, err: %w", err)
 	}
 
 	c.Status.FromInstAPI(instModel)
-	err = r.Status().Update(ctx, c)
+	err = r.Status().Patch(ctx, c, patch)
 	if err != nil {
 		return fmt.Errorf("failed to update cassandra status, err: %w", err)
 	}

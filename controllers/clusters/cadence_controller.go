@@ -23,6 +23,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -148,6 +149,37 @@ func (r *CadenceReconciler) createCadence(ctx context.Context, c *v1beta1.Cadenc
 	return instaModel, nil
 }
 
+func (r *CadenceReconciler) createAWSArchivalSecret(ctx context.Context, c *v1beta1.Cadence, awsArchival []*models.AWSArchival) (*corev1.Secret, error) {
+	secret := &corev1.Secret{
+		ObjectMeta: ctrl.ObjectMeta{
+			Name:      fmt.Sprintf("%s-aws-archival", c.Name),
+			Namespace: c.Namespace,
+		},
+	}
+
+	err := controllerutil.SetOwnerReference(c, secret, r.Scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set owner reference for aws-archival secret, err: %w", err)
+	}
+
+	secret.StringData = make(map[string]string)
+
+	const awsSecretAccessKey = "awsSecretAccessKey"
+	const awsAccessKeyID = "awsAccessKeyId"
+
+	for _, archival := range awsArchival {
+		secret.StringData[awsSecretAccessKey] = archival.AWSSecretAccessKey
+		secret.StringData[awsAccessKeyID] = archival.AWSAccessKeyID
+	}
+
+	err = r.Create(ctx, secret)
+	if err != nil {
+		return nil, fmt.Errorf("secret creating failed, err: %w", err)
+	}
+
+	return secret, nil
+}
+
 func (r *CadenceReconciler) createCluster(ctx context.Context, c *v1beta1.Cadence, l logr.Logger) error {
 	if !c.Spec.Inherits() {
 		id, err := getClusterIDByName(r.API, models.CassandraAppType, c.Spec.Name)
@@ -176,6 +208,20 @@ func (r *CadenceReconciler) createCluster(ctx context.Context, c *v1beta1.Cadenc
 	}
 
 	patch := c.NewPatch()
+
+	if c.Spec.Inherits() && len(instaModel.AWSArchival) > 0 {
+		secret, err := r.createAWSArchivalSecret(ctx, c, instaModel.AWSArchival)
+		if err != nil {
+			return fmt.Errorf("failed to create aws-archival secret, err: %w", err)
+		}
+
+		c.Spec.AWSArchival = []*v1beta1.AWSArchival{{
+			ArchivalS3URI:            instaModel.AWSArchival[0].ArchivalS3URI,
+			ArchivalS3Region:         instaModel.AWSArchival[0].ArchivalS3Region,
+			AccessKeySecretNamespace: secret.Namespace,
+			AccessKeySecretName:      secret.Name,
+		}}
+	}
 
 	c.Spec.FromInstAPI(instaModel)
 	c.Annotations[models.ResourceStateAnnotation] = models.SyncingEvent

@@ -60,6 +60,14 @@ var _ webhook.Defaulter = &PostgreSQL{}
 func (pg *PostgreSQL) Default() {
 	postgresqllog.Info("default", "name", pg.Name)
 
+	if pg.Spec.Inherits() && pg.Status.ID == "" && pg.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		pg.Spec = PgSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: pg.Spec.InheritsFrom},
+			DataCentres:        []*PgDataCentre{},
+		}
+		pg.Spec.GenericClusterSpec.setDefaultValues()
+	}
+
 	if pg.Spec.Name == "" {
 		pg.Spec.Name = pg.Name
 	}
@@ -76,6 +84,10 @@ func (pgv *pgValidator) ValidateCreate(ctx context.Context, obj runtime.Object) 
 	pg, ok := obj.(*PostgreSQL)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to postgreSQL", obj.GetObjectKind())
+	}
+
+	if pg.Spec.Inherits() {
+		return nil
 	}
 
 	postgresqllog.Info("validate create", "name", pg.Name)

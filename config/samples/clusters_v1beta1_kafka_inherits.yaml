@@ -1,0 +1,6 @@
+apiVersion: clusters.instaclustr.com/v1beta1
+kind: Kafka
+metadata:
+  name: kafka-inherited
+spec:
+  inheritsFrom: "681faf22-b305-45bb-bfcf-c85ea15dab37"

@@ -53,15 +53,23 @@ func (r *KafkaConnect) SetupWebhookWithManager(mgr ctrl.Manager, api validation.
 var _ webhook.Defaulter = &KafkaConnect{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *KafkaConnect) Default() {
-	kafkaconnectlog.Info("default", "name", r.Name)
+func (k *KafkaConnect) Default() {
+	kafkaconnectlog.Info("default", "name", k.Name)
 
-	if r.Spec.Name == "" {
-		r.Spec.Name = r.Name
+	if k.Spec.Inherits() && k.Status.ID == "" && k.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
+		k.Spec = KafkaConnectSpec{
+			GenericClusterSpec: GenericClusterSpec{InheritsFrom: k.Spec.InheritsFrom},
+			DataCentres:        []*KafkaConnectDataCentre{{}},
+		}
+		k.Spec.GenericClusterSpec.setDefaultValues()
 	}
 
-	if r.GetAnnotations() == nil {
-		r.SetAnnotations(map[string]string{
+	if k.Spec.Name == "" {
+		k.Spec.Name = k.Name
+	}
+
+	if k.GetAnnotations() == nil {
+		k.SetAnnotations(map[string]string{
 			models.ResourceStateAnnotation: "",
 		})
 	}
@@ -77,6 +85,10 @@ func (kcv *kafkaConnectValidator) ValidateCreate(ctx context.Context, obj runtim
 	kc, ok := obj.(*KafkaConnect)
 	if !ok {
 		return fmt.Errorf("cannot assert object %v to kafka connect", obj.GetObjectKind())
+	}
+
+	if kc.Spec.Inherits() {
+		return nil
 	}
 
 	kafkaconnectlog.Info("validate create", "name", kc.Name)
