@@ -59,7 +59,8 @@ func (k *KafkaConnect) Default() {
 	if k.Spec.Inherits() && k.Status.ID == "" && k.Annotations[models.ResourceStateAnnotation] != models.SyncingEvent {
 		k.Spec = KafkaConnectSpec{
 			GenericClusterSpec: GenericClusterSpec{InheritsFrom: k.Spec.InheritsFrom},
-			DataCentres:        []*KafkaConnectDataCentre{{}},
+			DataCentres:        []*KafkaConnectDataCentre{},
+			TargetCluster:      []*TargetCluster{},
 		}
 		k.Spec.GenericClusterSpec.setDefaultValues()
 	}

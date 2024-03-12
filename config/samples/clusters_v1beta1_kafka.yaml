@@ -3,7 +3,7 @@ kind: Kafka
 metadata:
   name: kafka
 spec:
-  name: "bohdan-kafka"
+  name: "example-kafka"
 #  inheritsFrom: 42a0fa34-a647-4a30-96e0-fde64aba0eae
   version: "3.5.1"
   pciCompliance: false
@@ -15,7 +15,7 @@ spec:
   privateNetwork: false
   slaTier: "NON_PRODUCTION"
   #  bundledUseOnly: true
-  clientBrokerAuthWithMtls: true
+#  clientBrokerAuthWithMtls: true
   #  dedicatedZookeeper:
   #    - nodeSize: "KDZ-DEV-t4g.small-30"
   #      nodesNumber: 3

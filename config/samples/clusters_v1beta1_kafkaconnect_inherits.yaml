@@ -3,4 +3,4 @@ kind: KafkaConnect
 metadata:
   name: kafkaconnect-inherited
 spec:
-  inheritsFrom: "c1a84b4f-9b67-43e0-ac33-038290aea71d"
+  inheritsFrom: "265b75a5-f20f-4c3c-8ec2-0d03a8a8ef21"

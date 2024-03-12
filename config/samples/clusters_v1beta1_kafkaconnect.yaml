@@ -3,7 +3,7 @@ kind: KafkaConnect
 metadata:
   name: kafkaconnect-sample
 spec:
-  name: "example-KC"
+  name: "bohdan-KC"
   dataCentres:
     - name: "US_EAST_1_DC_KAFKA"
       nodesNumber: 3
