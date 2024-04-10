@@ -1,6 +1,6 @@
 # Instaclustr Operator
 The Instaclustr Operator allows users to deploy, scale and manage any one of
-data layer technologies deployed on the Instaclustr platform from Kubernetes.
+data layer technologies deployed on the Instaclustr platform from within Kubernetes.
 
 ## Description
 The Instaclustr Operator provides all the same functionality as the Instaclustr API,
@@ -12,17 +12,6 @@ Instaclustr Console and Instaclustr terraform provider.
   existing Kubernetes management tools / workflows
 - Simplify Kubernetes native development workflow patterns
   (CI/CD integrations, production deployments etc).
-
-## C4 model diagrams
-
-|                             Context diagram                             |  Container diagram                                       |  Component diagram|
-|:-----------------------------------------------------------------------:|:--------------------------------------------------------:|:-------------------------:|
-| ![Context diagram](doc/diagrams/context_diagram.png "Context diagram")  |  ![Container diagram](doc/diagrams/container_diagram.png) |  ![Component diagram](doc/diagrams/component_diagram.png)|
-
-|                             CRDs Relations                              |
-| :---------------------------------------------------------------------: |
-|       ![CRD Relations](doc/diagrams/crd_relations.png "CRD Relations")  |
-
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
@@ -113,6 +102,19 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 Please reach out to support@instaclustr.com for issues with this Instaclustr Operator. Please note that we've disabled the issues feature on this repository.
 
 The support status of this project is available through https://www.instaclustr.com/support/documentation/announcements/instaclustr-open-source-project-status/.
+
+
+## C4 model diagrams
+
+|                             Context diagram                             |  Container diagram                                       |  Component diagram|
+|:-----------------------------------------------------------------------:|:--------------------------------------------------------:|:-------------------------:|
+| ![Context diagram](doc/diagrams/context_diagram.png "Context diagram")  |  ![Container diagram](doc/diagrams/container_diagram.png) |  ![Component diagram](doc/diagrams/component_diagram.png)|
+
+|                             CRDs Relations                              |
+| :---------------------------------------------------------------------: |
+|       ![CRD Relations](doc/diagrams/crd_relations.png "CRD Relations")  |
+
+
 
 ## License
 
